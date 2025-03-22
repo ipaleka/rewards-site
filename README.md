@@ -6,6 +6,17 @@ A website dedicated to ASA Stats contributions. Previously written in Laravel, n
 
 It provides a preview for all historic and latest contributions, hot tasks, contributions guide and more. Community members can use our [Discord Bot](url) to suggest rewards for contributions which appear on this website.
 
+### Environment variables
+
+Environment variables shouldn't reside in repository, so `.env` file with the following content has to be created in the `rewards-site/rewardsweb` directory:
+
+```
+SECRET_KEY="mysecretkey"
+DATABASE_NAME="rewards_db"
+DATABASE_USER="rewards_user"
+DATABASE_PASSWORD="mypassword"
+```
+
 ## Goals
 
 - Stimulate community engagement 

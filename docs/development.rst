@@ -4,6 +4,13 @@ Development
 Setup
 -----
 
+The requirements necessary to use this project on a development machine are:
+
+.. code-block:: bash
+
+  sudo apt-get install git python3 python3-venv postgresql postgresql-contrib
+
+
 Python environment
 ^^^^^^^^^^^^^^^^^^
 

@@ -71,7 +71,7 @@ html_favicon = "_static/favicon.ico"
 latex_documents = [
     (
         "index",
-        "asastats.tex",
+        "asastats-rewardsweb.tex",
         "ASA Stats Rewards website documentation",
         author,
         "howto",

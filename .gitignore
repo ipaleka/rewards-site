@@ -4,4 +4,5 @@ __pycache__
 .vscode
 *.code-workspace
 .scannerwork
-rewards/.env
+rewardsweb/.env
+docs/_build

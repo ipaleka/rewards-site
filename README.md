@@ -15,6 +15,7 @@ SECRET_KEY="mysecretkey"
 DATABASE_NAME="rewards_db"
 DATABASE_USER="rewards_user"
 DATABASE_PASSWORD="mypassword"
+PGPASSFILE="/home/{username}/.pgpass"
 ```
 
 ## Goals

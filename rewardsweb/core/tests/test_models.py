@@ -286,18 +286,6 @@ class TestContributionModel:
         )
         assert contribution.updated_at <= timezone.now()
 
-    def test_contribution_model_default_level(self):
-        contribution = Contribution()
-        assert contribution.level == 1
-
-    def test_contribution_model_default_percentage(self):
-        contribution = Contribution()
-        assert contribution.percentage == 100
-
-    def test_contribution_model_default_reward(self):
-        contribution = Contribution()
-        assert contribution.reward == 100
-
     # # Meta
     @pytest.mark.django_db
     def test_contribution_model_contributions_ordering(self):

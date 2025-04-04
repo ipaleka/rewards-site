@@ -6,3 +6,4 @@ __pycache__
 .scannerwork
 rewardsweb/.env
 docs/_build
+db.sqlite3

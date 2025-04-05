@@ -18,9 +18,9 @@ class Command(BaseCommand):
 
     def handle(self, *args, **options):
         """Call `convert_and_clean_excel` script to export Excel file to CSV."""
-        input_file = options.get("input") or "contributions.xlsx"
-        output_file = options.get("output") or "contributions.csv"
-        legacy_file = options.get("legacy") or "legacy_contributions.csv"
+        input_file = options.get("input") or "fixtures/contributions.xlsx"
+        output_file = options.get("output") or "fixtures/contributions.csv"
+        legacy_file = options.get("legacy") or "fixtures/legacy_contributions.csv"
 
         a = time.time()
         convert_and_clean_excel(input_file, output_file, legacy_file)

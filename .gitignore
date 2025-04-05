@@ -7,3 +7,5 @@ __pycache__
 rewardsweb/.env
 docs/_build
 db.sqlite3
+rewardsweb/fixtures/*.csv
+rewardsweb/fixtures/*.xlsx

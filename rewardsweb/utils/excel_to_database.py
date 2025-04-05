@@ -1,6 +1,32 @@
-"""Module containing hhelper function for converting Excel contributions file to CSV."""
+"""Module containing hhelper functions for importing contributions to database."""
 
 import pandas as pd
+
+from core.models import Cycle
+
+
+CONTRIBUTION_CSV_COLUMNS = [
+    "contributor",
+    "cycle_start",
+    "cycle_end",
+    "platform",
+    "url",
+    "type",
+    "level",
+    "percentage",
+    "reward",
+    "comment",
+]
+
+
+def _dataframe_from_csv(filename):
+    try:
+        data = pd.read_csv(filename, header=None, sep=",")
+    except (pd.errors.EmptyDataError, FileNotFoundError):
+        return None
+    columns = list(CONTRIBUTION_CSV_COLUMNS)
+    data.columns = columns
+    return data
 
 
 def convert_and_clean_excel(input_file, output_file, legacy_contributions):
@@ -52,3 +78,12 @@ def convert_and_clean_excel(input_file, output_file, legacy_contributions):
 
     df.to_csv(output_file, index=False, header=None, na_rep="NULL")
     legacy_df.to_csv(legacy_contributions, index=False, header=None, na_rep="NULL")
+
+
+def import_from_csv(contributions_path, legacy_contributions_path):
+    data = _dataframe_from_csv(contributions_path)
+    data = data[["cycle_start", "cycle_end"]].drop_duplicates()
+    Cycle.objects.bulk_create(
+        Cycle(start=start, end=end) for start, end in data.values.tolist()
+    )
+    print(len(Cycle.objects.all()))

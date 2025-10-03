@@ -2,9 +2,10 @@
 
 import pandas as pd
 
-from core.models import Cycle
+from core.models import Contributor, Cycle, Handle, SocialProvider
 
 
+ADDRESSES_CSV_COLUMNS = ["handle", "address"]
 CONTRIBUTION_CSV_COLUMNS = [
     "contributor",
     "cycle_start",
@@ -19,14 +20,35 @@ CONTRIBUTION_CSV_COLUMNS = [
 ]
 
 
-def _dataframe_from_csv(filename):
+def _dataframe_from_csv(filename, columns=CONTRIBUTION_CSV_COLUMNS):
     try:
         data = pd.read_csv(filename, header=None, sep=",")
     except (pd.errors.EmptyDataError, FileNotFoundError):
         return None
-    columns = list(CONTRIBUTION_CSV_COLUMNS)
     data.columns = columns
     return data
+
+
+def _parse_addresses():
+    addresses_filename = "fixtures/addresses.csv"
+    data = _dataframe_from_csv(addresses_filename, columns=ADDRESSES_CSV_COLUMNS)
+    data = data[["handle", "address"]].drop_duplicates()
+    grouped = (
+        data.groupby("address")["handle"]
+        .apply(lambda x: x.tolist()[::-1])
+        .reset_index()
+    )
+    return grouped.values.tolist()
+
+
+def _social_providers():
+    return [
+        ("Discord", ""),
+        ("Twitter", "@"),
+        ("Reddit", "u/"),
+        ("GitHub", "g@"),
+        ("Telegram", "t@"),
+    ]
 
 
 def convert_and_clean_excel(input_file, output_file, legacy_contributions):
@@ -69,7 +91,7 @@ def convert_and_clean_excel(input_file, output_file, legacy_contributions):
     df[0] = df[0].str.strip()  # Remove leading and trailing spaces from column 0
 
     # full csv export for debugging
-    df.to_csv("fullcsv.csv", index=False, header=None, na_rep="NULL")
+    df.to_csv("fixtures/fullcsv.csv", index=False, header=None, na_rep="NULL")
 
     # FINAL EXPORT
 
@@ -81,9 +103,29 @@ def convert_and_clean_excel(input_file, output_file, legacy_contributions):
 
 
 def import_from_csv(contributions_path, legacy_contributions_path):
-    data = _dataframe_from_csv(contributions_path)
-    data = data[["cycle_start", "cycle_end"]].drop_duplicates()
-    Cycle.objects.bulk_create(
-        Cycle(start=start, end=end) for start, end in data.values.tolist()
+    SocialProvider.objects.bulk_create(
+        SocialProvider(name=name, prefix=prefix) for name, prefix in _social_providers()
     )
-    print(len(Cycle.objects.all()))
+    print("Social providers created: ", len(SocialProvider.objects.all()))
+
+    # ADDRESSES
+    addresses = _parse_addresses()
+
+    Contributor.objects.bulk_create(
+        Contributor(name=handles[0], address=address) for address, handles in addresses
+    )
+    print("Contributors imported: ", len(Contributor.objects.all()))
+
+    for address, handles in addresses:
+        for full_handle in handles:
+            handle = Handle.objects.from_address_and_full_handle(address, full_handle)
+            handle.save()
+    print("Handles imported: ", len(Handle.objects.all()))
+
+    data = _dataframe_from_csv(contributions_path)
+
+    cycles_data = data[["cycle_start", "cycle_end"]].drop_duplicates()
+    Cycle.objects.bulk_create(
+        Cycle(start=start, end=end) for start, end in cycles_data.values.tolist()
+    )
+    print("Cycles imported: ", len(Cycle.objects.all()))

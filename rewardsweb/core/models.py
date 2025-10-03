@@ -6,6 +6,25 @@ from django.db.models.functions import Lower
 from utils.constants.core import ADDRESS_LEN
 
 
+class ContributorManager(models.Manager):
+    """ASA Stats contributor's data manager."""
+
+    def from_full_handle(self, full_handle):
+        """TODO: implement validation for no record found, add docstring, and tests"""
+        prefix, handle = "", full_handle
+        if "@" in full_handle[:2]:
+            prefix = full_handle[: full_handle.index("@") + 1]
+            handle = full_handle[full_handle.index("@") + 1 :]
+
+        elif full_handle.startswith("u/"):
+            prefix = "u/"
+            handle = full_handle[2:]
+
+        provider = SocialProvider.objects.get(prefix=prefix)
+        handle = Handle.objects.get(provider=provider, handle=handle)
+        return handle.contributor
+
+
 class Contributor(models.Model):
     """ASA Stats contributor's data model."""
 
@@ -13,6 +32,8 @@ class Contributor(models.Model):
     address = models.CharField(max_length=ADDRESS_LEN, blank=True)
     created_at = models.DateTimeField(auto_now_add=True)
     updated_at = models.DateTimeField(auto_now=True)
+
+    objects = ContributorManager()
 
     class Meta:
         """Define ordering and fields that make unique indexes."""
@@ -67,9 +88,6 @@ class SocialProvider(models.Model):
         """
         return self.name
 
-
-class HandleManager(models.Manager):
-    """ASA Stats social media handle data manager."""
 
 class HandleManager(models.Manager):
     """ASA Stats social media handle data manager."""

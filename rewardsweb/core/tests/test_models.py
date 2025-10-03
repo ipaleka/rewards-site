@@ -11,6 +11,7 @@ from django.utils import timezone
 from core.models import (
     Contribution,
     Contributor,
+    ContributorManager,
     Cycle,
     Handle,
     HandleManager,
@@ -54,6 +55,9 @@ class TestContributorModel:
         with pytest.raises(DataError):
             contributor.save()
             contributor.full_clean()
+
+    def test_contributor_objects_is_contributormanager_instance(self):
+        assert isinstance(Contributor.objects, ContributorManager)
 
     # # Meta
     @pytest.mark.django_db

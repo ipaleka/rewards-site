@@ -56,6 +56,7 @@ jobs:
 
       - name: Run Pytest
         env:
+          DJANGO_SETTINGS_MODULE: rewardsweb.settings.development
           DATABASE_URL: postgresql://postgres:postgres@localhost:5432/rewards_db      
         run: |
           pytest

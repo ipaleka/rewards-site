@@ -1,0 +1,61 @@
+name: Run Tests
+
+on:
+  push:
+    branches:
+      - main
+  pull_request:
+    branches:
+      - main
+  workflow_call:
+  workflow_dispatch:
+
+jobs:
+  testing:
+    runs-on: ubuntu-latest
+    strategy:
+      max-parallel: 1
+      matrix:
+        python-version: ["3.11", "3.12", "3.13"]
+
+    services:
+      postgres:
+        image: postgres:15
+        env:
+          POSTGRES_USER: postgres
+          POSTGRES_PASSWORD: postgres
+          POSTGRES_DB: rewards_db
+        options: >-
+          --health-cmd pg_isready
+          --health-interval 10s
+          --health-timeout 5s
+          --health-retries 5
+        ports:
+          - 5432:5432
+
+    steps:
+      - uses: actions/checkout@v4
+      - name: Set up Python ${{ matrix.python-version }}
+        uses: actions/setup-python@v5
+        with:
+          python-version: ${{ matrix.python-version }}
+          cache: "pip"
+
+      - name: Install dependencies
+        run: |
+          python -m pip install --upgrade pip
+          python -m pip install -r rewardsweb/requirements/development.txt
+
+      - name: 'Create env file'
+        run: |
+          touch dapp/.env
+          echo SECRET_KEY="mysecretkey" >> dapp/.env
+          echo DATABASE_NAME="rewards_db" >> dapp/.env
+          echo DATABASE_USER="postgres" >> dapp/.env
+          echo DATABASE_PASSWORD="postgres" >> dapp/.env
+
+      - name: Run Pytest
+        env:
+          DATABASE_URL: postgresql://postgres:postgres@localhost:5432/rewards_db      
+        run: |
+          pytest

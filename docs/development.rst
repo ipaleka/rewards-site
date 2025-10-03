@@ -73,7 +73,7 @@ Database creation on development machine:
   postgres@debian:~# createdb rewards_db
 
 
-Database user setup on development machine (CREATEDB is needed for tests running):
+Database user setup on development machine (CREATEDB is needed for running tests):
 
 
 .. code-block:: bash
@@ -95,10 +95,10 @@ Finally, under rewards web Python environemnt:
 SonarQube
 ^^^^^^^^^
 
-SonarQube_ is an open-source platform for inspection of code quality for detecting
-bugs, code smells, and security vulnerabilities.
-
-.. _SonarQube: https://docs.sonarqube.org/latest/setup/get-started-2-minutes/
+`SonarQube <https://docs.sonarsource.com/sonarqube-community-build>`_
+is an automated code review and static analysis tool designed to detect coding issues.
+You can find the installation instructions
+`here <https://docs.sonarsource.com/sonarqube-community-build/try-out-sonarqube>`.
 
 
 Starting server
@@ -106,7 +106,7 @@ Starting server
 
 .. code-block:: bash
 
-  $ ~/opt/repos/sonarqube-25.2.0/bin/linux-x86-64/sonar.sh console
+  $ ~/opt/repos/sonarqube-25.9.0/bin/linux-x86-64/sonar.sh console
 
 
 Starting scanner
@@ -117,7 +117,7 @@ line to your ``~/.bashrc``:
 
 .. code-block:: bash
 
-  export PATH=$PATH:~/opt/repos/sonar-scanner-6.2.1/bin
+  export PATH=$PATH:~/opt/repos/sonar-scanner-7.2/bin
 
 
 After a token `token`_ is created. start scanning by running the scanner from the root directory of the project with:

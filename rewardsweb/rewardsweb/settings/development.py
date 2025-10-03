@@ -6,6 +6,13 @@ from .base import *
 DEBUG = True
 ALLOWED_HOSTS = ["127.0.0.1", "localhost"]
 
+# # debug_toolbar
+INSTALLED_APPS += [
+    "debug_toolbar",
+]
+MIDDLEWARE.insert(2, "debug_toolbar.middleware.DebugToolbarMiddleware")
+# # debug_toolbar
+
 # Database
 # https://docs.djangoproject.com/en/4.2/ref/settings/#databases
 

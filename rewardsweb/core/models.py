@@ -11,10 +11,6 @@ class Contributor(models.Model):
 
     name = models.CharField(max_length=50)
     address = models.CharField(max_length=ADDRESS_LEN, blank=True)
-    reddit = models.CharField(max_length=50, blank=True)
-    github = models.CharField(max_length=50, blank=True)
-    twitter = models.CharField(max_length=50, blank=True)
-    discord = models.CharField(max_length=50, blank=True)
     created_at = models.DateTimeField(auto_now_add=True)
     updated_at = models.DateTimeField(auto_now=True)
 
@@ -40,6 +36,64 @@ class Contributor(models.Model):
         :return: str
         """
         return self.name
+
+
+class SocialProvider(models.Model):
+    """ASA Stats social media provider's data model."""
+
+    name = models.CharField(max_length=50)
+    prefix = models.CharField(max_length=2, blank=True)
+
+    class Meta:
+        """Define ordering and fields that make unique indexes."""
+
+        constraints = [
+            models.UniqueConstraint(
+                "name",
+                Lower("name"),
+                name="unique_socialprovider_name",
+            ),
+            models.UniqueConstraint(
+                "prefix",
+                name="unique_socialprovider_prefix",
+            ),
+        ]
+        ordering = [Lower("name")]
+
+    def __str__(self):
+        """Return contributor's instance string representation.
+
+        :return: str
+        """
+        return self.name
+
+
+class Handle(models.Model):
+    """ASA Stats social media handle data model."""
+
+    contributor = models.ForeignKey(Contributor, default=None, on_delete=models.CASCADE)
+    provider = models.ForeignKey(SocialProvider, default=None, on_delete=models.CASCADE)
+    handle = models.CharField(max_length=50)
+    created_at = models.DateTimeField(auto_now_add=True)
+    updated_at = models.DateTimeField(auto_now=True)
+
+    class Meta:
+        """Define ordering and fields that make unique indexes."""
+
+        constraints = [
+            # Unique handle per provider
+            models.UniqueConstraint(
+                fields=["provider", "handle"], name="unique_social_handle"
+            )
+        ]
+        ordering = [Lower("handle")]
+
+    def __str__(self):
+        """Return contributor's instance string representation.
+
+        :return: str
+        """
+        return self.handle + "@" + str(self.provider)
 
 
 class Cycle(models.Model):

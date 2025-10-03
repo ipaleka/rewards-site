@@ -8,7 +8,16 @@ from django.db import DataError, models
 from django.db.utils import IntegrityError
 from django.utils import timezone
 
-from core.models import Contribution, Contributor, Cycle, Handle, Reward, SocialProvider
+from core.models import (
+    Contribution,
+    Contributor,
+    ContributorManager,
+    Cycle,
+    Handle,
+    HandleManager,
+    Reward,
+    SocialProvider,
+)
 
 
 class TestContributorModel:
@@ -46,6 +55,9 @@ class TestContributorModel:
         with pytest.raises(DataError):
             contributor.save()
             contributor.full_clean()
+
+    def test_contributor_objects_is_contributormanager_instance(self):
+        assert isinstance(Contributor.objects, ContributorManager)
 
     # # Meta
     @pytest.mark.django_db
@@ -212,6 +224,9 @@ class TestHandleModel:
         handle.provider = provider
         handle.save()
         assert handle in provider.handle_set.all()
+
+    def test_handle_objects_is_handlemanager_instance(self):
+        assert isinstance(Handle.objects, HandleManager)
 
     # # Meta
     @pytest.mark.django_db

@@ -27,9 +27,9 @@ PGPASSFILE="/home/{username}/.pgpass"
 
 ## Roadmap
 
-- [ ] Initialize Django project on this repository
-- [ ] Setup environment: docker (optional), database, env file(s)
-- [ ] Create data models and migrations
+- [x] Initialize Django project on this repository
+- [x] Setup environment: docker (optional), database, env file(s)
+- [x] Create data models and migrations
 - [ ] Adjustment of script for contributions spreadsheet parsing
 - [ ] Create script for seeding the database with parsed data
 - [ ] Add API authentication

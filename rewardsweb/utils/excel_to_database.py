@@ -1,4 +1,4 @@
-"""Module containing hhelper functions for importing contributions to database."""
+"""Module containing helper functions for importing contributions to database."""
 
 import pandas as pd
 

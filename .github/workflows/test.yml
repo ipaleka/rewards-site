@@ -41,6 +41,19 @@ jobs:
           python-version: ${{ matrix.python-version }}
           cache: "pip"
 
+      - name: Debug file structure
+        run: |
+          echo "=== Current directory ==="
+          pwd
+          echo "=== Listing all files ==="
+          find . -name "requirements.txt" -o -name "*.py" | head -20
+          echo "=== Directory structure ==="
+          ls -la
+          echo "=== rewardsweb directory contents ==="
+          ls -la rewardsweb/ || echo "rewardsweb directory not found"
+          echo "=== Checking for requirements files ==="
+          find . -name "*.txt" | grep -i req
+
       - name: Install dependencies
         run: |
           python -m pip install --upgrade pip

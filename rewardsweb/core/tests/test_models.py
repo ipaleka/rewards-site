@@ -4,7 +4,7 @@ from datetime import datetime
 
 import pytest
 from django.core.exceptions import ValidationError
-from django.db import DataError, models
+from django.db import models
 from django.db.utils import IntegrityError
 from django.utils import timezone
 
@@ -40,42 +40,42 @@ class TestContributorModel:
     @pytest.mark.django_db
     def test_contributor_model_cannot_save_too_long_name(self):
         contributor = Contributor(name="a" * 100)
-        with pytest.raises(DataError):
+        with pytest.raises(ValidationError):
             contributor.save()
             contributor.full_clean()
 
     @pytest.mark.django_db
     def test_contributor_model_cannot_save_too_long_address(self):
         contributor = Contributor(address="a" * 100)
-        with pytest.raises(DataError):
+        with pytest.raises(ValidationError):
             contributor.save()
             contributor.full_clean()
 
     @pytest.mark.django_db
     def test_contributor_model_cannot_save_too_long_reddit(self):
         contributor = Contributor(reddit="a" * 100)
-        with pytest.raises(DataError):
+        with pytest.raises(ValidationError):
             contributor.save()
             contributor.full_clean()
 
     @pytest.mark.django_db
     def test_contributor_model_cannot_save_too_long_github(self):
         contributor = Contributor(reddit="a" * 100)
-        with pytest.raises(DataError):
+        with pytest.raises(ValidationError):
             contributor.save()
             contributor.full_clean()
 
     @pytest.mark.django_db
     def test_contributor_model_cannot_save_too_long_twitter(self):
         contributor = Contributor(reddit="a" * 100)
-        with pytest.raises(DataError):
+        with pytest.raises(ValidationError):
             contributor.save()
             contributor.full_clean()
 
     @pytest.mark.django_db
     def test_contributor_model_cannot_save_too_long_discord(self):
         contributor = Contributor(reddit="a" * 100)
-        with pytest.raises(DataError):
+        with pytest.raises(ValidationError):
             contributor.save()
             contributor.full_clean()
 
@@ -220,7 +220,7 @@ class TestContributionModel:
     def test_contribution_model_cannot_save_too_long_platform(self):
         contributor = Contributor.objects.create()
         contribution = Contribution(contributor=contributor, platform="*" * 100)
-        with pytest.raises(DataError):
+        with pytest.raises(IntegrityError):
             contribution.save()
             contribution.full_clean()
 
@@ -228,7 +228,7 @@ class TestContributionModel:
     def test_contribution_model_cannot_save_too_long_url(self):
         contributor = Contributor.objects.create()
         contribution = Contribution(contributor=contributor, url="xyz" * 200)
-        with pytest.raises(DataError):
+        with pytest.raises(IntegrityError):
             contribution.save()
             contribution.full_clean()
 
@@ -236,7 +236,7 @@ class TestContributionModel:
     def test_contribution_model_cannot_save_too_long_type(self):
         contributor = Contributor.objects.create()
         contribution = Contribution(contributor=contributor, type="a" * 50)
-        with pytest.raises(DataError):
+        with pytest.raises(IntegrityError):
             contribution.save()
             contribution.full_clean()
 
@@ -244,7 +244,7 @@ class TestContributionModel:
     def test_contribution_model_cannot_save_too_big_percentage(self):
         contributor = Contributor.objects.create()
         contribution = Contribution(contributor=contributor, percentage=10e6)
-        with pytest.raises(DataError):
+        with pytest.raises(IntegrityError):
             contribution.save()
             contribution.full_clean()
 
@@ -252,7 +252,7 @@ class TestContributionModel:
     def test_contribution_model_cannot_save_too_big_reward(self):
         contributor = Contributor.objects.create()
         contribution = Contribution(contributor=contributor, percentage=10e12)
-        with pytest.raises(DataError):
+        with pytest.raises(IntegrityError):
             contribution.save()
             contribution.full_clean()
 
@@ -260,7 +260,7 @@ class TestContributionModel:
     def test_contribution_model_cannot_save_too_long_comment(self):
         contributor = Contributor.objects.create()
         contribution = Contribution(contributor=contributor, comment="abc" * 100)
-        with pytest.raises(DataError):
+        with pytest.raises(IntegrityError):
             contribution.save()
             contribution.full_clean()
 
@@ -355,14 +355,14 @@ class TestRewardModel:
     @pytest.mark.django_db
     def test_contribution_model_cannot_save_too_long_type(self):
         reward = Reward(type="*" * 50)
-        with pytest.raises(DataError):
+        with pytest.raises(ValidationError):
             reward.save()
             reward.full_clean()
 
     @pytest.mark.django_db
     def test_contribution_model_cannot_save_too_big_reward(self):
         reward = Reward(reward=10e12)
-        with pytest.raises(DataError):
+        with pytest.raises(ValidationError):
             reward.save()
             reward.full_clean()
 

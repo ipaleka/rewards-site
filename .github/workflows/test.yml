@@ -39,7 +39,6 @@ jobs:
         uses: actions/setup-python@v5
         with:
           python-version: ${{ matrix.python-version }}
-          cache: "pip"
 
       - name: Install dependencies
         run: |
@@ -54,8 +53,18 @@ jobs:
           echo DATABASE_USER="postgres" >> rewardsweb/.env
           echo DATABASE_PASSWORD="postgres" >> rewardsweb/.env
 
+      - name: Wait for PostgreSQL to be ready
+        run: |
+          until pg_isready -h localhost -p 5432; do
+            echo "Waiting for PostgreSQL..."
+            sleep 2
+          done
+
       - name: Run Pytest
         env:
-          DATABASE_URL: postgresql://postgres:postgres@localhost:5432/rewards_db      
+          DJANGO_SETTINGS_MODULE: rewardsweb.settings.development
+          DATABASE_URL: postgresql://postgres:postgres@localhost:5432/rewards_db
+          PYTHONPATH: ${{ github.workspace }}
         run: |
-          pytest
+          cd rewardsweb
+          python -m pytest . --ds=rewardsweb.settings.development -v

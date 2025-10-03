@@ -44,15 +44,15 @@ jobs:
       - name: Install dependencies
         run: |
           python -m pip install --upgrade pip
-          python -m pip install -r rewardsweb/requirements/development.txt
+          # python -m pip install -r rewardsweb/requirements/development.txt
 
       - name: 'Create env file'
         run: |
-          touch dapp/.env
-          echo SECRET_KEY="mysecretkey" >> dapp/.env
-          echo DATABASE_NAME="rewards_db" >> dapp/.env
-          echo DATABASE_USER="postgres" >> dapp/.env
-          echo DATABASE_PASSWORD="postgres" >> dapp/.env
+          touch rewardsweb/.env
+          echo SECRET_KEY="mysecretkey" >> rewardsweb/.env
+          echo DATABASE_NAME="rewards_db" >> rewardsweb/.env
+          echo DATABASE_USER="postgres" >> rewardsweb/.env
+          echo DATABASE_PASSWORD="postgres" >> rewardsweb/.env
 
       - name: Run Pytest
         env:

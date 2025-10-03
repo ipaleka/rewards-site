@@ -8,7 +8,7 @@ from django.db import DataError, models
 from django.db.utils import IntegrityError
 from django.utils import timezone
 
-from core.models import Contribution, Contributor, Cycle, Reward
+from core.models import Contribution, Contributor, Cycle, Handle, Reward, SocialProvider
 
 
 class TestContributorModel:
@@ -20,10 +20,6 @@ class TestContributorModel:
         [
             ("name", models.CharField),
             ("address", models.CharField),
-            ("reddit", models.CharField),
-            ("github", models.CharField),
-            ("twitter", models.CharField),
-            ("discord", models.CharField),
             ("created_at", models.DateTimeField),
             ("updated_at", models.DateTimeField),
         ],
@@ -47,34 +43,6 @@ class TestContributorModel:
     @pytest.mark.django_db
     def test_contributor_model_cannot_save_too_long_address(self):
         contributor = Contributor(address="a" * 100)
-        with pytest.raises(DataError):
-            contributor.save()
-            contributor.full_clean()
-
-    @pytest.mark.django_db
-    def test_contributor_model_cannot_save_too_long_reddit(self):
-        contributor = Contributor(reddit="a" * 100)
-        with pytest.raises(DataError):
-            contributor.save()
-            contributor.full_clean()
-
-    @pytest.mark.django_db
-    def test_contributor_model_cannot_save_too_long_github(self):
-        contributor = Contributor(reddit="a" * 100)
-        with pytest.raises(DataError):
-            contributor.save()
-            contributor.full_clean()
-
-    @pytest.mark.django_db
-    def test_contributor_model_cannot_save_too_long_twitter(self):
-        contributor = Contributor(reddit="a" * 100)
-        with pytest.raises(DataError):
-            contributor.save()
-            contributor.full_clean()
-
-    @pytest.mark.django_db
-    def test_contributor_model_cannot_save_too_long_discord(self):
-        contributor = Contributor(reddit="a" * 100)
         with pytest.raises(DataError):
             contributor.save()
             contributor.full_clean()
@@ -113,6 +81,216 @@ class TestContributorModel:
     def test_contributor_model_string_representation_is_contributor_name(self):
         contributor = Contributor(name="user name")
         assert str(contributor) == "user name"
+
+
+class TestSocialProviderModel:
+    """Testing class for :class:`SocialProvider` model."""
+
+    # # field characteristics
+    @pytest.mark.parametrize(
+        "name,typ",
+        [
+            ("name", models.CharField),
+            ("prefix", models.CharField),
+        ],
+    )
+    def test_socialprovider_model_fields(self, name, typ):
+        assert hasattr(SocialProvider, name)
+        assert isinstance(SocialProvider._meta.get_field(name), typ)
+
+    @pytest.mark.django_db
+    def test_socialprovider_model_name_is_not_optional(self):
+        with pytest.raises(ValidationError):
+            SocialProvider().full_clean()
+
+    @pytest.mark.django_db
+    def test_socialprovider_model_cannot_save_too_long_name(self):
+        social_provider = SocialProvider(name="a" * 100)
+        with pytest.raises(DataError):
+            social_provider.save()
+            social_provider.full_clean()
+
+    @pytest.mark.django_db
+    def test_socialprovider_model_cannot_save_too_long_prefix(self):
+        social_provider = SocialProvider(prefix="abc")
+        with pytest.raises(DataError):
+            social_provider.save()
+            social_provider.full_clean()
+
+    # # Meta
+    @pytest.mark.django_db
+    def test_socialprovider_model_ordering(self):
+        social_provider1 = SocialProvider.objects.create(name="Abcde", prefix="1")
+        social_provider2 = SocialProvider.objects.create(name="aabcde", prefix="5")
+        social_provider3 = SocialProvider.objects.create(name="bcde", prefix="a")
+        social_provider4 = SocialProvider.objects.create(name="Bcde", prefix="c")
+        assert list(SocialProvider.objects.all()) == [
+            social_provider2,
+            social_provider1,
+            social_provider3,
+            social_provider4,
+        ]
+
+    # # save
+    @pytest.mark.django_db
+    def test_socialprovider_model_save_duplicate_name_is_invalid(self):
+        SocialProvider.objects.create(name="name1", prefix="a")
+        with pytest.raises(IntegrityError):
+            social_provider = SocialProvider(name="name1", prefix="b")
+            social_provider.save()
+
+    @pytest.mark.django_db
+    def test_socialprovider_model_save_duplicate_prefix_is_invalid(self):
+        SocialProvider.objects.create(name="name8", prefix="p1")
+        with pytest.raises(IntegrityError):
+            social_provider = SocialProvider(name="name9", prefix="p1")
+            social_provider.save()
+
+    # # __str__
+    @pytest.mark.django_db
+    def test_socialprovider_model_string_representation_is_social_provider_name(self):
+        social_provider = SocialProvider(name="social name")
+        assert str(social_provider) == "social name"
+
+
+class TestHandleModel:
+    """Testing class for :class:`Handle` model."""
+
+    # # field characteristics
+    @pytest.mark.parametrize(
+        "name,typ",
+        [
+            ("contributor", models.ForeignKey),
+            ("provider", models.ForeignKey),
+            ("handle", models.CharField),
+            ("created_at", models.DateTimeField),
+            ("updated_at", models.DateTimeField),
+        ],
+    )
+    def test_handle_model_fields(self, name, typ):
+        assert hasattr(Handle, name)
+        assert isinstance(Handle._meta.get_field(name), typ)
+
+    @pytest.mark.django_db
+    def test_handle_model_handle_is_not_optional(self):
+        contributor = Contributor.objects.create(
+            name="myhandlecontr8", address="addressfoocontrl2"
+        )
+        provider = SocialProvider.objects.create(name="Provider58", prefix="ah")
+        with pytest.raises(ValidationError):
+            Handle(contributor=contributor, provider=provider).full_clean()
+
+    @pytest.mark.django_db
+    def test_handle_model_cannot_save_too_long_name(self):
+        contributor = Contributor.objects.create(
+            name="myhandlecontr9", address="addressfoocontrl3"
+        )
+        provider = SocialProvider.objects.create(name="Provider47", prefix="a3")
+        handle = Handle(handle="a" * 100, contributor=contributor, provider=provider)
+        with pytest.raises(DataError):
+            handle.save()
+            handle.full_clean()
+
+    @pytest.mark.django_db
+    def test_handle_model_is_related_to_contributor(self):
+        contributor = Contributor.objects.create(
+            name="myhandlecontr", address="addressfoocontrl"
+        )
+        provider = SocialProvider.objects.create(name="Provider1", prefix="55")
+        handle = Handle(provider=provider, handle="handle1")
+        handle.contributor = contributor
+        handle.save()
+        assert handle in contributor.handle_set.all()
+
+    @pytest.mark.django_db
+    def test_handle_model_is_related_to_provider(self):
+        contributor = Contributor.objects.create(
+            name="myhandleprov", address="addressfooprov"
+        )
+        provider = SocialProvider.objects.create(name="Provider2", prefix="56")
+        handle = Handle(contributor=contributor, handle="handle2")
+        handle.provider = provider
+        handle.save()
+        assert handle in provider.handle_set.all()
+
+    # # Meta
+    @pytest.mark.django_db
+    def test_handle_model_ordering(self):
+        contributor1 = Contributor.objects.create(
+            name="myhandlecontr78a", address="addressfoocontr3"
+        )
+        provider1 = SocialProvider.objects.create(name="Provider3", prefix="57")
+        contributor2 = Contributor.objects.create(
+            name="myhandlecontr582", address="addressfoocontr4"
+        )
+        provider2 = SocialProvider.objects.create(name="Provider4", prefix="-7")
+        handle1 = Handle.objects.create(
+            handle="Abcde", contributor=contributor1, provider=provider1
+        )
+        handle2 = Handle.objects.create(
+            handle="aabcde", contributor=contributor2, provider=provider2
+        )
+        handle3 = Handle.objects.create(
+            handle="bcde", contributor=contributor1, provider=provider2
+        )
+        handle4 = Handle.objects.create(
+            handle="Bcde", contributor=contributor2, provider=provider1
+        )
+        assert list(Handle.objects.all()) == [
+            handle2,
+            handle1,
+            handle3,
+            handle4,
+        ]
+
+    # # save
+    @pytest.mark.django_db
+    def test_handle_model_save_duplicate_provider_handle_is_invalid(self):
+        contributor = Contributor.objects.create(
+            name="myhandleprov", address="addressfooprov"
+        )
+        contributor1 = Contributor.objects.create(
+            name="myhandleprov1", address="addressfooprov1"
+        )
+        provider = SocialProvider.objects.create(name="Provider2", prefix="56")
+        Handle.objects.create(
+            handle="namehandle", contributor=contributor, provider=provider
+        )
+        with pytest.raises(IntegrityError):
+            handle = Handle(
+                handle="namehandle", contributor=contributor1, provider=provider
+            )
+            handle.save()
+
+    @pytest.mark.django_db
+    def test_handle_model_save_duplicate_handle_other_provider_is_valid(self):
+        contributor = Contributor.objects.create(
+            name="myhandleprov", address="addressfooprov"
+        )
+        contributor1 = Contributor.objects.create(
+            name="myhandleprov1", address="addressfooprov1"
+        )
+        provider = SocialProvider.objects.create(name="Provider5", prefix="56")
+        provider1 = SocialProvider.objects.create(name="Provider6", prefix="2")
+        Handle.objects.create(
+            handle="namehandle2", contributor=contributor, provider=provider
+        )
+        handle = Handle(
+            handle="namehandle2", contributor=contributor1, provider=provider1
+        )
+        handle.save()
+
+    # # __str__
+    @pytest.mark.django_db
+    def test_handle_model_string_representation_is_handle_name(self):
+        contributor = Contributor.objects.create(
+            name="myhandlestr1", address="addressfoostr1"
+        )
+        provider = SocialProvider.objects.create(name="Provider8", prefix="9")
+        handle = Handle(
+            handle="handle name", contributor=contributor, provider=provider
+        )
+        assert str(handle) == "handle name@Provider8"
 
 
 class TestCycleModel:
@@ -393,7 +571,7 @@ class TestRewardModel:
 
     # save
     @pytest.mark.django_db
-    def test_contributor_model_save_duplicate_type_and_level_combination(self):
+    def test_reward_model_model_save_duplicate_type_and_level_combination(self):
         Reward.objects.create(type="type1", level=2)
         with pytest.raises(IntegrityError):
             contributor = Reward(type="type1", level=2)

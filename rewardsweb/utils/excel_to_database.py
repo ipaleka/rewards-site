@@ -48,6 +48,7 @@ def _social_providers():
         ("Reddit", "u/"),
         ("GitHub", "g@"),
         ("Telegram", "t@"),
+        ("Algorand forum", "af@"),
     ]
 
 

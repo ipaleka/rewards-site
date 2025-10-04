@@ -2,26 +2,68 @@
 
 from django.db import models
 from django.db.models.functions import Lower
+from django.http import Http404
+from django.shortcuts import get_object_or_404
 
 from utils.constants.core import ADDRESS_LEN
+
+
+def _parse_full_handle(full_handle):
+    """Return social provider's prefix and user's handle from provided `full_handle`.
+
+    :param full_handle: contributor's unique identifier (provider prefix and handle)
+    :type full_handle: str
+    :var prefix: unique social provider's prefix
+    :type prefix: str
+    :var handle: contributor's handle/username
+    :type handle: str
+    :var provider: social provider's model instance
+    :return: two-tuple
+    """
+    prefix, handle = "", full_handle
+    if "@" in full_handle[:2]:
+        prefix = full_handle[: full_handle.index("@") + 1]
+        handle = full_handle[full_handle.index("@") + 1 :]
+
+    elif full_handle.startswith("u/"):
+        prefix = "u/"
+        handle = full_handle[2:]
+
+    return prefix, handle
 
 
 class ContributorManager(models.Manager):
     """ASA Stats contributor's data manager."""
 
-    def from_full_handle(self, full_handle):
-        """TODO: implement validation for no record found, add docstring, and tests"""
-        prefix, handle = "", full_handle
-        if "@" in full_handle[:2]:
-            prefix = full_handle[: full_handle.index("@") + 1]
-            handle = full_handle[full_handle.index("@") + 1 :]
+    def from_full_handle(self, full_handle, address=None):
+        """Return contributor model instance created from provided `full_handle`.
 
-        elif full_handle.startswith("u/"):
-            prefix = "u/"
-            handle = full_handle[2:]
+        :param full_handle: contributor's unique identifier (provider prefix and handle)
+        :type full_handle: str
+        :param address: public Algorand address
+        :type address: str
+        :var prefix: unique social provider's prefix
+        :type prefix: str
+        :var handle: contributor's handle/username
+        :type handle: str
+        :var provider: social provider's model instance
+        :type provider: :class:`SocialProvider`
+        :var contributor: contributor's model instance
+        :type contributor: :class:`Contributor`
+        :return: :class:`Handle`
+        """
+        prefix, handle = _parse_full_handle(full_handle)
+        provider = get_object_or_404(SocialProvider, prefix=prefix)
+        try:
+            handle = get_object_or_404(Handle, provider=provider, handle=handle)
 
-        provider = SocialProvider.objects.get(prefix=prefix)
-        handle = Handle.objects.get(provider=provider, handle=handle)
+        except Http404:
+            contributor = self.model(name=full_handle, address=address)
+            contributor.save()
+            handle = Handle.objects.create(
+                contributor=contributor, provider=provider, handle=handle
+            )
+
         return handle.contributor
 
 
@@ -29,7 +71,7 @@ class Contributor(models.Model):
     """ASA Stats contributor's data model."""
 
     name = models.CharField(max_length=50)
-    address = models.CharField(max_length=ADDRESS_LEN, blank=True)
+    address = models.CharField(max_length=ADDRESS_LEN, null=True)
     created_at = models.DateTimeField(auto_now_add=True)
     updated_at = models.DateTimeField(auto_now=True)
 
@@ -93,18 +135,32 @@ class HandleManager(models.Manager):
     """ASA Stats social media handle data manager."""
 
     def from_address_and_full_handle(self, address, full_handle):
-        """TODO: docstring and tests"""
-        prefix, handle = "", full_handle
-        if "@" in full_handle[:2]:
-            prefix = full_handle[: full_handle.index("@") + 1]
-            handle = full_handle[full_handle.index("@") + 1 :]
+        """Return handle model instance derived from provided `address` and `full_handle`.
 
-        elif full_handle.startswith("u/"):
-            prefix = "u/"
-            handle = full_handle[2:]
+        :param address: public Algorand address
+        :type address: str
+        :param full_handle: contributor's unique identifier (provider prefix and handle)
+        :type full_handle: str
+        :var prefix: unique social provider's prefix
+        :type prefix: str
+        :var handle: contributor's handle/username
+        :type handle: str
+        :var contributor: contributor's model instance
+        :type contributor: :class:`Contributor`
+        :var provider: social provider's model instance
+        :type provider: :class:`SocialProvider`
+        :return: :class:`Handle`
+        """
+        prefix, handle = _parse_full_handle(full_handle)
+        try:
+            contributor = get_object_or_404(Contributor, address=address)
+        except Http404:
+            contributor = Contributor.objects.from_full_handle(
+                full_handle, address=address
+            )
+            contributor.save()
 
-        contributor = Contributor.objects.get(address=address)
-        provider = SocialProvider.objects.get(prefix=prefix)
+        provider = get_object_or_404(SocialProvider, prefix=prefix)
         return self.model(contributor=contributor, provider=provider, handle=handle)
 
 

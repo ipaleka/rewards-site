@@ -1,8 +1,22 @@
 """Module containing helper functions for importing contributions to database."""
 
-import pandas as pd
+import re
+from pathlib import Path
 
-from core.models import Contributor, Cycle, Handle, SocialProvider
+import pandas as pd
+from django.db.utils import IntegrityError
+from django.http import Http404
+from django.shortcuts import get_object_or_404
+
+from core.models import (
+    Contributor,
+    Contribution,
+    Cycle,
+    Handle,
+    Reward,
+    RewardType,
+    SocialPlatform,
+)
 
 
 ADDRESSES_CSV_COLUMNS = ["handle", "address"]
@@ -41,14 +55,24 @@ def _parse_addresses():
     return grouped.values.tolist()
 
 
-def _social_providers():
+def _parse_label_and_name_from_reward_type(typ):
+    if not pd.isna(typ):
+        pattern = r"\[([^\]]+)\]\s*(.+)"
+        match = re.match(pattern, typ)
+        if match:
+            return match.group(1), match.group(2)
+
+    return "CST", "Custom"
+
+
+def _social_platforms():
     return [
         ("Discord", ""),
         ("Twitter", "@"),
         ("Reddit", "u/"),
         ("GitHub", "g@"),
         ("Telegram", "t@"),
-        ("Algorand forum", "af@"),
+        ("Forum", "f@"),
     ]
 
 
@@ -92,7 +116,8 @@ def convert_and_clean_excel(input_file, output_file, legacy_contributions):
     df[0] = df[0].str.strip()  # Remove leading and trailing spaces from column 0
 
     # full csv export for debugging
-    df.to_csv("fixtures/fullcsv.csv", index=False, header=None, na_rep="NULL")
+    path = Path(__file__).resolve().parent.parent / "fixtures" / "fullcsv.csv"
+    df.to_csv(path, index=False, header=None, na_rep="NULL")
 
     # FINAL EXPORT
 
@@ -104,10 +129,10 @@ def convert_and_clean_excel(input_file, output_file, legacy_contributions):
 
 
 def import_from_csv(contributions_path, legacy_contributions_path):
-    SocialProvider.objects.bulk_create(
-        SocialProvider(name=name, prefix=prefix) for name, prefix in _social_providers()
+    SocialPlatform.objects.bulk_create(
+        SocialPlatform(name=name, prefix=prefix) for name, prefix in _social_platforms()
     )
-    print("Social providers created: ", len(SocialProvider.objects.all()))
+    print("Social platforms created: ", len(SocialPlatform.objects.all()))
 
     # ADDRESSES
     addresses = _parse_addresses()
@@ -130,3 +155,52 @@ def import_from_csv(contributions_path, legacy_contributions_path):
         Cycle(start=start, end=end) for start, end in cycles_data.values.tolist()
     )
     print("Cycles imported: ", len(Cycle.objects.all()))
+
+    reward_data = data[["type", "level", "reward"]]
+    for typ, level, reward in reward_data.values.tolist():
+        label, name = _parse_label_and_name_from_reward_type(typ)
+        try:
+            reward_type = get_object_or_404(RewardType, label=label, name=name)
+
+        except Http404:
+            reward_type = RewardType.objects.create(label=label, name=name)
+
+        try:
+            Reward.objects.create(
+                type=reward_type,
+                level=level if not pd.isna(level) else 1,
+                amount=round(reward * 1_000_000) if not pd.isna(reward) else 20_000,
+            )
+        except IntegrityError:
+            pass
+
+    print("Rewards imported: ", len(Reward.objects.all()))
+
+    for _, row in data.iterrows():
+        contributor = Contributor.objects.from_full_handle(row["contributor"])
+        cycle = Cycle.objects.get(start=row["cycle_start"])
+        platform = SocialPlatform.objects.get(name__iexact=row["platform"])
+        label, name = _parse_label_and_name_from_reward_type(row["type"])
+        reward_type = get_object_or_404(RewardType, label=label, name=name)
+        reward = Reward.objects.get(
+            type=reward_type,
+            level=row["level"] if not pd.isna(row["level"]) else 1,
+            amount=(
+                round(row["reward"] * 1_000_000)
+                if not pd.isna(row["reward"])
+                else 20_000
+            ),
+        )
+        percentage = row["percentage"] if not pd.isna(row["percentage"]) else 1
+        url = row["url"]
+        comment = row["comment"] if not pd.isna(row["comment"]) else None
+        Contribution.objects.create(
+            contributor=contributor,
+            cycle=cycle,
+            platform=platform,
+            reward=reward,
+            percentage=percentage,
+            url=url,
+            comment=comment,
+        )
+    print("Contributions imported: ", len(Contribution.objects.all()))

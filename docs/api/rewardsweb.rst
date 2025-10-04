@@ -162,6 +162,15 @@
   :show-inheritance:
 
 
+:mod:`utils.excel_to_database` -- Website's utility functions for importing data from the old system
+----------------------------------------------------------------------------------------------------
+
+.. automodule:: utils.helpers
+  :members:
+  :undoc-members:
+  :show-inheritance:
+
+
 :mod:`utils.helpers` -- Website's helper utility functions
 ----------------------------------------------------------
 

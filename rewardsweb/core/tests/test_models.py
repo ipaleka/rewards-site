@@ -5,6 +5,7 @@ from datetime import datetime
 import pytest
 from django.core.exceptions import ValidationError
 from django.db import DataError, models
+from django.http import Http404
 from django.db.utils import IntegrityError
 from django.utils import timezone
 
@@ -17,11 +18,96 @@ from core.models import (
     HandleManager,
     Reward,
     SocialProvider,
+    _parse_full_handle,
 )
 
 
-class TestContributorModel:
-    """Testing class for :class:`Contributor` model."""
+class TestCoreCoreModelsHelpers:
+    """Testing class for :py:mod:`core.models` helper functions."""
+
+    # # _parse_full_handle
+    @pytest.mark.parametrize(
+        "full_handle,prefix,handle",
+        [
+            ("u/user1", "u/", "user1"),
+            ("address", "", "address"),
+            ("g@address", "g@", "address"),
+            ("handle", "", "handle"),
+            ("@handle", "@", "handle"),
+            ("u/username", "u/", "username"),
+            ("username", "", "username"),
+            ("@address", "@", "address"),
+            ("t@handle", "t@", "handle"),
+            ("g@handle", "g@", "handle"),
+        ],
+    )
+    def test_core_models_parse_full_handle_functionality(
+        self, full_handle, prefix, handle
+    ):
+        assert _parse_full_handle(full_handle) == (prefix, handle)
+
+
+class TestCoreContributorManager:
+    """Testing class for :class:`core.models.ContributorManager` class."""
+
+    # # from_full_handle
+
+    @pytest.mark.django_db
+    def test_core_contributormanager_from_full_handle_raises_error_for_no_provider(
+        self,
+    ):
+        prefix, username = "h@", "username1"
+        address, full_handle = "contributormanager1address", f"{prefix}{username}"
+        with pytest.raises(Http404):
+            Contributor.objects.from_full_handle(full_handle, address)
+
+    @pytest.mark.django_db
+    def test_core_contributormanager_from_full_handle_for_existing_handle(self, mocker):
+        prefix, username = "c@", "username2"
+        address, full_handle = "contributormanager2address", f"{prefix}{username}"
+        contributor = Contributor.objects.create(name=full_handle, address=address)
+        provider = SocialProvider.objects.create(
+            name="contributormanagerprovider2", prefix=prefix
+        )
+        Handle.objects.create(
+            contributor=contributor, provider=provider, handle=username
+        )
+        mocked_save = mocker.patch("core.models.Contributor.save")
+        returned = Contributor.objects.from_full_handle(full_handle, address)
+        assert returned == contributor
+        mocked_save.assert_not_called()
+
+    @pytest.mark.django_db
+    def test_core_contributormanager_from_full_handle_creates_handle(self):
+        prefix, username = "h@", "username3"
+        address, full_handle = "contributormanager3address", f"{prefix}{username}"
+        SocialProvider.objects.create(name="contributormanagerprovider3", prefix=prefix)
+        assert Contributor.objects.count() == 0
+        assert Handle.objects.count() == 0
+        returned = Contributor.objects.from_full_handle(full_handle, address)
+        assert isinstance(returned, Contributor)
+        assert returned.name == full_handle
+        assert returned.address == address
+        assert Contributor.objects.count() == 1
+        assert Handle.objects.count() == 1
+
+    @pytest.mark.django_db
+    def test_core_contributormanager_from_full_handle_for_no_address_provided(self):
+        prefix, username = "h@", "username4"
+        full_handle = f"{prefix}{username}"
+        SocialProvider.objects.create(name="contributormanagerprovider4", prefix=prefix)
+        assert Contributor.objects.count() == 0
+        assert Handle.objects.count() == 0
+        returned = Contributor.objects.from_full_handle(full_handle)
+        assert isinstance(returned, Contributor)
+        assert returned.name == full_handle
+        assert returned.address is None
+        assert Contributor.objects.count() == 1
+        assert Handle.objects.count() == 1
+
+
+class TestCoreContributorModel:
+    """Testing class for :class:`core.models.Contributor` model."""
 
     # # field characteristics
     @pytest.mark.parametrize(
@@ -33,35 +119,35 @@ class TestContributorModel:
             ("updated_at", models.DateTimeField),
         ],
     )
-    def test_contributor_model_fields(self, name, typ):
+    def test_core_contributor_model_fields(self, name, typ):
         assert hasattr(Contributor, name)
         assert isinstance(Contributor._meta.get_field(name), typ)
 
     @pytest.mark.django_db
-    def test_contributor_model_name_is_not_optional(self):
+    def test_core_contributor_model_name_is_not_optional(self):
         with pytest.raises(ValidationError):
             Contributor().full_clean()
 
     @pytest.mark.django_db
-    def test_contributor_model_cannot_save_too_long_name(self):
+    def test_core_contributor_model_cannot_save_too_long_name(self):
         contributor = Contributor(name="a" * 100)
         with pytest.raises(DataError):
             contributor.save()
             contributor.full_clean()
 
     @pytest.mark.django_db
-    def test_contributor_model_cannot_save_too_long_address(self):
+    def test_core_contributor_model_cannot_save_too_long_address(self):
         contributor = Contributor(address="a" * 100)
         with pytest.raises(DataError):
             contributor.save()
             contributor.full_clean()
 
-    def test_contributor_objects_is_contributormanager_instance(self):
+    def test_core_contributor_objects_is_contributormanager_instance(self):
         assert isinstance(Contributor.objects, ContributorManager)
 
     # # Meta
     @pytest.mark.django_db
-    def test_contributor_model_ordering(self):
+    def test_core_contributor_model_ordering(self):
         contributor1 = Contributor.objects.create(name="Abcde", address="address1")
         contributor2 = Contributor.objects.create(name="aabcde", address="address2")
         contributor3 = Contributor.objects.create(name="bcde", address="address3")
@@ -75,14 +161,14 @@ class TestContributorModel:
 
     # # save
     @pytest.mark.django_db
-    def test_contributor_model_save_duplicate_name_is_invalid(self):
+    def test_core_contributor_model_save_duplicate_name_is_invalid(self):
         Contributor.objects.create(name="name1")
         with pytest.raises(IntegrityError):
             contributor = Contributor(name="name1")
             contributor.save()
 
     @pytest.mark.django_db
-    def test_contributor_model_save_duplicate_address_is_invalid(self):
+    def test_core_contributor_model_save_duplicate_address_is_invalid(self):
         Contributor.objects.create(address="address1")
         with pytest.raises(IntegrityError):
             contributor = Contributor(address="address1")
@@ -90,13 +176,13 @@ class TestContributorModel:
 
     # # __str__
     @pytest.mark.django_db
-    def test_contributor_model_string_representation_is_contributor_name(self):
+    def test_core_contributor_model_string_representation_is_contributor_name(self):
         contributor = Contributor(name="user name")
         assert str(contributor) == "user name"
 
 
-class TestSocialProviderModel:
-    """Testing class for :class:`SocialProvider` model."""
+class TestCoreSocialProviderModel:
+    """Testing class for :class:`core.models.SocialProvider` model."""
 
     # # field characteristics
     @pytest.mark.parametrize(
@@ -106,24 +192,24 @@ class TestSocialProviderModel:
             ("prefix", models.CharField),
         ],
     )
-    def test_socialprovider_model_fields(self, name, typ):
+    def test_core_socialprovider_model_fields(self, name, typ):
         assert hasattr(SocialProvider, name)
         assert isinstance(SocialProvider._meta.get_field(name), typ)
 
     @pytest.mark.django_db
-    def test_socialprovider_model_name_is_not_optional(self):
+    def test_core_socialprovider_model_name_is_not_optional(self):
         with pytest.raises(ValidationError):
             SocialProvider().full_clean()
 
     @pytest.mark.django_db
-    def test_socialprovider_model_cannot_save_too_long_name(self):
+    def test_core_socialprovider_model_cannot_save_too_long_name(self):
         social_provider = SocialProvider(name="a" * 100)
         with pytest.raises(DataError):
             social_provider.save()
             social_provider.full_clean()
 
     @pytest.mark.django_db
-    def test_socialprovider_model_cannot_save_too_long_prefix(self):
+    def test_core_socialprovider_model_cannot_save_too_long_prefix(self):
         social_provider = SocialProvider(prefix="abc")
         with pytest.raises(DataError):
             social_provider.save()
@@ -131,7 +217,7 @@ class TestSocialProviderModel:
 
     # # Meta
     @pytest.mark.django_db
-    def test_socialprovider_model_ordering(self):
+    def test_core_socialprovider_model_ordering(self):
         social_provider1 = SocialProvider.objects.create(name="Abcde", prefix="1")
         social_provider2 = SocialProvider.objects.create(name="aabcde", prefix="5")
         social_provider3 = SocialProvider.objects.create(name="bcde", prefix="a")
@@ -145,14 +231,14 @@ class TestSocialProviderModel:
 
     # # save
     @pytest.mark.django_db
-    def test_socialprovider_model_save_duplicate_name_is_invalid(self):
+    def test_core_socialprovider_model_save_duplicate_name_is_invalid(self):
         SocialProvider.objects.create(name="name1", prefix="a")
         with pytest.raises(IntegrityError):
             social_provider = SocialProvider(name="name1", prefix="b")
             social_provider.save()
 
     @pytest.mark.django_db
-    def test_socialprovider_model_save_duplicate_prefix_is_invalid(self):
+    def test_core_socialprovider_model_save_duplicate_prefix_is_invalid(self):
         SocialProvider.objects.create(name="name8", prefix="p1")
         with pytest.raises(IntegrityError):
             social_provider = SocialProvider(name="name9", prefix="p1")
@@ -160,13 +246,63 @@ class TestSocialProviderModel:
 
     # # __str__
     @pytest.mark.django_db
-    def test_socialprovider_model_string_representation_is_social_provider_name(self):
+    def test_core_socialprovider_model_string_representation_is_social_provider_name(
+        self,
+    ):
         social_provider = SocialProvider(name="social name")
         assert str(social_provider) == "social name"
 
 
-class TestHandleModel:
-    """Testing class for :class:`Handle` model."""
+class TestCoreHandleManager:
+    """Testing class for :class:`core.models.HandleManager` class."""
+
+    # # from_address_and_full_handle
+    @pytest.mark.django_db
+    def test_core_handlemanager_from_address_and_full_handle_for_existing_contributor(
+        self, mocker
+    ):
+        prefix, username = "h@", "username1"
+        address, full_handle = "handlemanager1address", f"{prefix}{username}"
+        contributor = Contributor.objects.create(name=full_handle, address=address)
+        provider = SocialProvider.objects.create(
+            name="handlemanagerprovider1", prefix=prefix
+        )
+        mocked_save = mocker.patch("core.models.Contributor.save")
+        returned = Handle.objects.from_address_and_full_handle(address, full_handle)
+        assert isinstance(returned, Handle)
+        assert returned.contributor == contributor
+        assert returned.provider == provider
+        assert returned.handle == username
+        mocked_save.assert_not_called()
+
+    @pytest.mark.django_db
+    def test_core_handlemanager_from_address_and_full_handle_creates_contributor(self):
+        prefix, username = "h@", "username2"
+        address, full_handle = "handlemanager2address", f"{prefix}{username}"
+        provider = SocialProvider.objects.create(
+            name="handlemanagerprovider1", prefix=prefix
+        )
+        assert Contributor.objects.count() == 0
+        returned = Handle.objects.from_address_and_full_handle(address, full_handle)
+        contributor = Contributor.objects.get(address=address)
+        assert isinstance(returned, Handle)
+        assert returned.contributor == contributor
+        assert returned.provider == provider
+        assert returned.handle == username
+
+    @pytest.mark.django_db
+    def test_core_handlemanager_from_address_and_full_handle_raises_error_for_no_provider(
+        self,
+    ):
+        prefix, username = "h@", "username3"
+        address, full_handle = "handlemanager3address", f"{prefix}{username}"
+        Contributor.objects.create(name=full_handle, address=address)
+        with pytest.raises(Http404):
+            Handle.objects.from_address_and_full_handle(address, full_handle)
+
+
+class TestCoreHandleModel:
+    """Testing class for :class:`core.models.Handle` model."""
 
     # # field characteristics
     @pytest.mark.parametrize(
@@ -179,12 +315,12 @@ class TestHandleModel:
             ("updated_at", models.DateTimeField),
         ],
     )
-    def test_handle_model_fields(self, name, typ):
+    def test_core_handle_model_fields(self, name, typ):
         assert hasattr(Handle, name)
         assert isinstance(Handle._meta.get_field(name), typ)
 
     @pytest.mark.django_db
-    def test_handle_model_handle_is_not_optional(self):
+    def test_core_handle_model_handle_is_not_optional(self):
         contributor = Contributor.objects.create(
             name="myhandlecontr8", address="addressfoocontrl2"
         )
@@ -193,7 +329,7 @@ class TestHandleModel:
             Handle(contributor=contributor, provider=provider).full_clean()
 
     @pytest.mark.django_db
-    def test_handle_model_cannot_save_too_long_name(self):
+    def test_core_handle_model_cannot_save_too_long_name(self):
         contributor = Contributor.objects.create(
             name="myhandlecontr9", address="addressfoocontrl3"
         )
@@ -204,7 +340,7 @@ class TestHandleModel:
             handle.full_clean()
 
     @pytest.mark.django_db
-    def test_handle_model_is_related_to_contributor(self):
+    def test_core_handle_model_is_related_to_contributor(self):
         contributor = Contributor.objects.create(
             name="myhandlecontr", address="addressfoocontrl"
         )
@@ -215,7 +351,7 @@ class TestHandleModel:
         assert handle in contributor.handle_set.all()
 
     @pytest.mark.django_db
-    def test_handle_model_is_related_to_provider(self):
+    def test_core_handle_model_is_related_to_provider(self):
         contributor = Contributor.objects.create(
             name="myhandleprov", address="addressfooprov"
         )
@@ -225,12 +361,12 @@ class TestHandleModel:
         handle.save()
         assert handle in provider.handle_set.all()
 
-    def test_handle_objects_is_handlemanager_instance(self):
+    def test_core_handle_objects_is_handlemanager_instance(self):
         assert isinstance(Handle.objects, HandleManager)
 
     # # Meta
     @pytest.mark.django_db
-    def test_handle_model_ordering(self):
+    def test_core_handle_model_ordering(self):
         contributor1 = Contributor.objects.create(
             name="myhandlecontr78a", address="addressfoocontr3"
         )
@@ -260,7 +396,7 @@ class TestHandleModel:
 
     # # save
     @pytest.mark.django_db
-    def test_handle_model_save_duplicate_provider_handle_is_invalid(self):
+    def test_core_handle_model_save_duplicate_provider_handle_is_invalid(self):
         contributor = Contributor.objects.create(
             name="myhandleprov", address="addressfooprov"
         )
@@ -278,7 +414,7 @@ class TestHandleModel:
             handle.save()
 
     @pytest.mark.django_db
-    def test_handle_model_save_duplicate_handle_other_provider_is_valid(self):
+    def test_core_handle_model_save_duplicate_handle_other_provider_is_valid(self):
         contributor = Contributor.objects.create(
             name="myhandleprov", address="addressfooprov"
         )
@@ -297,7 +433,7 @@ class TestHandleModel:
 
     # # __str__
     @pytest.mark.django_db
-    def test_handle_model_string_representation_is_handle_name(self):
+    def test_core_handle_model_string_representation_is_handle_name(self):
         contributor = Contributor.objects.create(
             name="myhandlestr1", address="addressfoostr1"
         )
@@ -308,8 +444,8 @@ class TestHandleModel:
         assert str(handle) == "handle name@Provider8"
 
 
-class TestCycleModel:
-    """Testing class for :class:`Cycle` model."""
+class TestCoreCycleModel:
+    """Testing class for :class:`core.models.Cycle` model."""
 
     # # field characteristics
     @pytest.mark.parametrize(
@@ -321,28 +457,28 @@ class TestCycleModel:
             ("updated_at", models.DateTimeField),
         ],
     )
-    def test_cycle_model_fields(self, name, typ):
+    def test_core_cycle_model_fields(self, name, typ):
         assert hasattr(Cycle, name)
         assert isinstance(Cycle._meta.get_field(name), typ)
 
     @pytest.mark.django_db
-    def test_cycle_model_start_is_not_optional(self):
+    def test_core_cycle_model_start_is_not_optional(self):
         with pytest.raises(ValidationError):
             Cycle().full_clean()
 
     @pytest.mark.django_db
-    def test_cycle_model_created_at_datetime_field_set(self):
+    def test_core_cycle_model_created_at_datetime_field_set(self):
         cycle = Cycle.objects.create(start=datetime(2025, 3, 22))
         assert cycle.created_at <= timezone.now()
 
     @pytest.mark.django_db
-    def test_cycle_model_updated_at_datetime_field_set(self):
+    def test_core_cycle_model_updated_at_datetime_field_set(self):
         cycle = Cycle.objects.create(start=datetime(2025, 3, 22))
         assert cycle.updated_at <= timezone.now()
 
     # # Meta
     @pytest.mark.django_db
-    def test_cycle_model_ordering(self):
+    def test_core_cycle_model_ordering(self):
         cycle1 = Cycle.objects.create(start=datetime(2025, 3, 25))
         cycle2 = Cycle.objects.create(start=datetime(2025, 3, 22))
         cycle3 = Cycle.objects.create(start=datetime(2024, 4, 22))
@@ -350,20 +486,20 @@ class TestCycleModel:
 
     # # __str__
     @pytest.mark.django_db
-    def test_cycle_model_string_representation_for_end(self):
+    def test_core_cycle_model_string_representation_for_end(self):
         cycle = Cycle.objects.create(
             start=datetime(2025, 3, 25), end=datetime(2025, 4, 25)
         )
         assert str(cycle) == "25-03-25 - 25-04-25"
 
     @pytest.mark.django_db
-    def test_cycle_model_string_representation_without_end(self):
+    def test_core_cycle_model_string_representation_without_end(self):
         cycle = Cycle.objects.create(start=datetime(2025, 3, 25))
         assert str(cycle) == ""
 
 
-class TestContributionModel:
-    """Testing class for :class:`Contribution` model."""
+class TestCoreContributionModel:
+    """Testing class for :class:`core.models.Contribution` model."""
 
     # # field characteristics
     @pytest.mark.parametrize(
@@ -383,12 +519,12 @@ class TestContributionModel:
             ("updated_at", models.DateTimeField),
         ],
     )
-    def test_contribution_model_fields(self, name, typ):
+    def test_core_contribution_model_fields(self, name, typ):
         assert hasattr(Contribution, name)
         assert isinstance(Contribution._meta.get_field(name), typ)
 
     @pytest.mark.django_db
-    def test_contribution_model_is_related_to_contributor(self):
+    def test_core_contribution_model_is_related_to_contributor(self):
         contributor = Contributor.objects.create(
             name="mynamecontr", address="addressfoocontr"
         )
@@ -399,7 +535,7 @@ class TestContributionModel:
         assert contribution in contributor.contribution_set.all()
 
     @pytest.mark.django_db
-    def test_contribution_model_is_related_to_cycle(self):
+    def test_core_contribution_model_is_related_to_cycle(self):
         contributor = Contributor.objects.create(
             name="mynamecycle", address="addresscycle"
         )
@@ -410,7 +546,7 @@ class TestContributionModel:
         assert contribution in cycle.contribution_set.all()
 
     @pytest.mark.django_db
-    def test_contribution_model_cannot_save_too_long_platform(self):
+    def test_core_contribution_model_cannot_save_too_long_platform(self):
         contributor = Contributor.objects.create()
         contribution = Contribution(contributor=contributor, platform="*" * 100)
         with pytest.raises(DataError):
@@ -418,7 +554,7 @@ class TestContributionModel:
             contribution.full_clean()
 
     @pytest.mark.django_db
-    def test_contribution_model_cannot_save_too_long_url(self):
+    def test_core_contribution_model_cannot_save_too_long_url(self):
         contributor = Contributor.objects.create()
         contribution = Contribution(contributor=contributor, url="xyz" * 200)
         with pytest.raises(DataError):
@@ -426,7 +562,7 @@ class TestContributionModel:
             contribution.full_clean()
 
     @pytest.mark.django_db
-    def test_contribution_model_cannot_save_too_long_type(self):
+    def test_core_contribution_model_cannot_save_too_long_type(self):
         contributor = Contributor.objects.create()
         contribution = Contribution(contributor=contributor, type="a" * 50)
         with pytest.raises(DataError):
@@ -434,7 +570,7 @@ class TestContributionModel:
             contribution.full_clean()
 
     @pytest.mark.django_db
-    def test_contribution_model_cannot_save_too_big_percentage(self):
+    def test_core_contribution_model_cannot_save_too_big_percentage(self):
         contributor = Contributor.objects.create()
         contribution = Contribution(contributor=contributor, percentage=10e6)
         with pytest.raises(DataError):
@@ -442,7 +578,7 @@ class TestContributionModel:
             contribution.full_clean()
 
     @pytest.mark.django_db
-    def test_contribution_model_cannot_save_too_big_reward(self):
+    def test_core_contribution_model_cannot_save_too_big_reward(self):
         contributor = Contributor.objects.create()
         contribution = Contribution(contributor=contributor, percentage=10e12)
         with pytest.raises(DataError):
@@ -450,7 +586,7 @@ class TestContributionModel:
             contribution.full_clean()
 
     @pytest.mark.django_db
-    def test_contribution_model_cannot_save_too_long_comment(self):
+    def test_core_contribution_model_cannot_save_too_long_comment(self):
         contributor = Contributor.objects.create()
         contribution = Contribution(contributor=contributor, comment="abc" * 100)
         with pytest.raises(DataError):
@@ -458,7 +594,7 @@ class TestContributionModel:
             contribution.full_clean()
 
     @pytest.mark.django_db
-    def test_contribution_model_created_at_datetime_field_set(self):
+    def test_core_contribution_model_created_at_datetime_field_set(self):
         contributor = Contributor.objects.create(
             name="mynamecreated", address="addressfoocreated"
         )
@@ -469,7 +605,7 @@ class TestContributionModel:
         assert contribution.created_at <= timezone.now()
 
     @pytest.mark.django_db
-    def test_contribution_model_updated_at_datetime_field_set(self):
+    def test_core_contribution_model_updated_at_datetime_field_set(self):
         contributor = Contributor.objects.create(
             name="mynameupd", address="addressfooupd"
         )
@@ -481,7 +617,7 @@ class TestContributionModel:
 
     # # Meta
     @pytest.mark.django_db
-    def test_contribution_model_contributions_ordering(self):
+    def test_core_contribution_model_contributions_ordering(self):
         cycle1 = Cycle.objects.create(start=datetime(2025, 3, 22))
         cycle2 = Cycle.objects.create(start=datetime(2025, 4, 20))
         cycle3 = Cycle.objects.create(start=datetime(2025, 5, 20))
@@ -512,7 +648,7 @@ class TestContributionModel:
 
     # #  __str__
     @pytest.mark.django_db
-    def test_contribution_model_string_representation(self):
+    def test_core_contribution_model_string_representation(self):
         contributor = Contributor.objects.create(name="MyName")
         cycle = Cycle.objects.create(start=datetime(2025, 3, 22))
         contribution = Contribution.objects.create(
@@ -521,8 +657,8 @@ class TestContributionModel:
         assert "/".join(str(contribution).split("/")[:2]) == "MyName/platform2"
 
 
-class TestRewardModel:
-    """Testing class for :class:`Reward` model."""
+class TestCoreRewardModel:
+    """Testing class for :class:`core.models.Reward` model."""
 
     # # field characteristics
     @pytest.mark.parametrize(
@@ -537,48 +673,48 @@ class TestRewardModel:
             ("updated_at", models.DateTimeField),
         ],
     )
-    def test_reward_model_fields(self, name, typ):
+    def test_core_reward_model_fields(self, name, typ):
         assert hasattr(Reward, name)
         assert isinstance(Reward._meta.get_field(name), typ)
 
-    def test_reward_model_default_level(self):
+    def test_core_reward_model_default_level(self):
         reward = Reward()
         assert reward.level == 1
 
     @pytest.mark.django_db
-    def test_contribution_model_cannot_save_too_long_type(self):
+    def test_core_contribution_model_cannot_save_too_long_type(self):
         reward = Reward(type="*" * 50)
         with pytest.raises(DataError):
             reward.save()
             reward.full_clean()
 
     @pytest.mark.django_db
-    def test_contribution_model_cannot_save_too_big_reward(self):
+    def test_core_contribution_model_cannot_save_too_big_reward(self):
         reward = Reward(reward=10e12)
         with pytest.raises(DataError):
             reward.save()
             reward.full_clean()
 
     @pytest.mark.django_db
-    def test_contribution_model_cannot_save_too_long_description(self):
+    def test_core_contribution_model_cannot_save_too_long_description(self):
         reward = Reward(reward="*" * 500)
         with pytest.raises(ValidationError):
             reward.save()
             reward.full_clean()
 
     @pytest.mark.django_db
-    def test_reward_model_created_at_datetime_field_set(self):
+    def test_core_reward_model_created_at_datetime_field_set(self):
         reward = Reward.objects.create()
         assert reward.created_at <= timezone.now()
 
     @pytest.mark.django_db
-    def test_reward_model_updated_at_datetime_field_set(self):
+    def test_core_reward_model_updated_at_datetime_field_set(self):
         reward = Reward.objects.create()
         assert reward.updated_at <= timezone.now()
 
     # # Meta
     @pytest.mark.django_db
-    def test_reward_model_ordering(self):
+    def test_core_reward_model_ordering(self):
         reward1 = Reward.objects.create(type="type2", level=2)
         reward2 = Reward.objects.create(type="type1", level=2)
         reward3 = Reward.objects.create(type="type2", level=1)
@@ -586,7 +722,7 @@ class TestRewardModel:
 
     # save
     @pytest.mark.django_db
-    def test_reward_model_model_save_duplicate_type_and_level_combination(self):
+    def test_core_reward_model_model_save_duplicate_type_and_level_combination(self):
         Reward.objects.create(type="type1", level=2)
         with pytest.raises(IntegrityError):
             contributor = Reward(type="type1", level=2)
@@ -594,6 +730,6 @@ class TestRewardModel:
 
     # # __str__
     @pytest.mark.django_db
-    def test_reward_model_string_representation(self):
+    def test_core_reward_model_string_representation(self):
         reward = Reward.objects.create(type="type2", level=1)
         assert str(reward) == "type2 1"

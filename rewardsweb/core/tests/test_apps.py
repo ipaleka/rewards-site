@@ -6,7 +6,7 @@ from core.apps import CoreConfig
 
 
 class TestCoreApps:
-    """Testing class for :py:mod:`rewardsweb.core.apps` module."""
+    """Testing class for :py:mod:`core.apps` module."""
 
     # # CoreConfig
     def test_core_apps_coreconfig_is_subclass_of_appconfig(self):

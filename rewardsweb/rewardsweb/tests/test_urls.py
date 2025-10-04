@@ -6,7 +6,7 @@ from rewardsweb import urls
 
 
 class TestRewardsWebUrls:
-    """Testing class for :py:mod:`rewardsweb.rewardsweb.urls` module."""
+    """Testing class for :py:mod:`rewardsweb.urls` module."""
 
     def _url_from_pattern(self, pattern):
         return next(url for url in urls.urlpatterns if str(url.pattern) == pattern)

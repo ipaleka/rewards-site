@@ -9,3 +9,4 @@ docs/_build
 db.sqlite3
 rewardsweb/fixtures/*.csv
 rewardsweb/fixtures/*.xlsx
+rewardsweb/.coverage

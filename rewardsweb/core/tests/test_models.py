@@ -586,6 +586,7 @@ class TestCoreRewardModel:
             ("amount", models.IntegerField),
             ("description", models.CharField),
             ("general_description", models.TextField),
+            ("active", models.BooleanField),
             ("created_at", models.DateTimeField),
             ("updated_at", models.DateTimeField),
         ],
@@ -605,6 +606,10 @@ class TestCoreRewardModel:
     def test_core_reward_model_default_level(self):
         reward = Reward()
         assert reward.level == 1
+
+    def test_core_reward_model_default_active(self):
+        reward = Reward()
+        assert reward.active
 
     @pytest.mark.django_db
     def test_core_reward_model_cannot_save_too_big_amount(self):

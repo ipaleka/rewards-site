@@ -260,6 +260,7 @@ class Reward(models.Model):
     amount = models.IntegerField(default=10000)
     description = models.CharField(max_length=255, blank=True)
     general_description = models.TextField(blank=True)
+    active = models.BooleanField(default=True)
     created_at = models.DateTimeField(auto_now_add=True)
     updated_at = models.DateTimeField(auto_now=True)
 
@@ -310,41 +311,6 @@ class Contribution(models.Model):
             self.contributor.name
             + "/"
             + str(self.platform)
-            + "/"
-            + self.created_at.strftime("%d-%m-%y")
-        )
-
-
-class LegacyContribution(models.Model):
-    """Previous rewards system data model."""
-
-    contributor = models.ForeignKey(Contributor, default=None, on_delete=models.CASCADE)
-    cycle = models.ForeignKey(Cycle, default=None, on_delete=models.CASCADE)
-    platform = models.CharField(max_length=20, blank=True)
-    url = models.CharField(max_length=255, blank=True)
-    type = models.CharField(max_length=20, blank=True)
-    level = models.IntegerField(null=True)
-    percentage = models.DecimalField(max_digits=5, decimal_places=2, null=True)
-    reward = models.DecimalField(max_digits=10, decimal_places=3, null=True)
-    comment = models.CharField(max_length=255, blank=True)
-    confirmed = models.BooleanField(default=True)
-    created_at = models.DateTimeField(auto_now_add=True)
-    updated_at = models.DateTimeField(auto_now=True)
-
-    class Meta:
-        """Define model's ordering."""
-
-        ordering = ["cycle"]
-
-    def __str__(self):
-        """Return legacy contribution's instance string representation.
-
-        :return: str
-        """
-        return (
-            self.contributor.name
-            + "/"
-            + self.platform
             + "/"
             + self.created_at.strftime("%d-%m-%y")
         )

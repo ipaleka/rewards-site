@@ -84,7 +84,7 @@ class ContributorManager(models.Manager):
         """
         handles = Handle.objects.filter(handle=handle)
         if not handles:
-            handles = Handle.objects.filter(handle__icontains=handle)
+            handles = Handle.objects.filter(handle__trigram_similar=handle)
 
         count = len({handle.contributor_id for handle in handles})
         if count == 1:

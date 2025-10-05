@@ -1,0 +1,41 @@
+<!doctype html>
+<html lang="en">
+  <head>
+    {% block title %}
+      <title>ASA Stats rewards web</title>
+    {% endblock %}
+    <meta charset="utf-8" />
+    <meta name="viewport" content="width=device-width, initial-scale=1" />
+  </head>
+  <body>
+    <div>
+      {% block sidebar %}
+      <ul>
+        <li><a href="{% url 'index' %}">Home</a></li>
+        <li><a href="{% url 'cycles' %}">All cycles</a></li>
+        <li><a href="{% url 'contributors' %}">All contributors</a></li>
+      </ul>
+      {% endblock %}
+    </div>
+    <div>
+        {% block content %}{% endblock %}
+        {% block pagination %}
+          {% if is_paginated %}
+          <div>
+            <span>
+              {% if page_obj.has_previous %}
+                <a href="{{ request.path }}?page={{ page_obj.previous_page_number }}">previous</a>
+              {% endif %}
+              <span>
+                Page {{ page_obj.number }} of {{ page_obj.paginator.num_pages }}.
+              </span>
+              {% if page_obj.has_next %}
+                <a href="{{ request.path }}?page={{ page_obj.next_page_number }}">next</a>
+              {% endif %}
+            </span>
+          </div>
+          {% endif %}
+        {% endblock %}
+    </div>
+  </body>
+</html>

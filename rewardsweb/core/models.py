@@ -4,6 +4,7 @@ from django.db import models
 from django.db.models.functions import Lower
 from django.http import Http404
 from django.shortcuts import get_object_or_404
+from django.urls import reverse
 
 from utils.constants.core import ADDRESS_LEN
 
@@ -98,7 +99,11 @@ class Contributor(models.Model):
 
         :return: str
         """
-        return self.name
+        return _parse_full_handle(self.name)[1]
+
+    def get_absolute_url(self):
+        """Returns the URL to access a detail record for this contribuutor."""
+        return reverse("contributor-detail", args=[str(self.id)])
 
 
 class SocialPlatform(models.Model):
@@ -217,6 +222,10 @@ class Cycle(models.Model):
             if self.end
             else ""
         )
+
+    def get_absolute_url(self):
+        """Returns the URL to access a detail record for this cycle."""
+        return reverse("cycle-detail", args=[str(self.id)])
 
 
 class RewardType(models.Model):

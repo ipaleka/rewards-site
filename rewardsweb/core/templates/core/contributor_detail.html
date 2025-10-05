@@ -1,0 +1,21 @@
+{% extends "base_generic.html" %}
+
+{% block content %}
+  <h1>Contributor: {{ contributor }}</h1>
+
+  <p><strong>Name:</strong> {{ contributor.name }}</p>
+  <p><strong>Address:</strong> {% if contributor.address %}**********{% else %}no address provided{% endif %}</p>
+  {% for handle in contributor.handle_set.all %}
+    <p><strong>{{ handle.platform.name }}:</strong> {{ handle.handle }}</p>
+  {% endfor %}  
+
+  <div>
+    <h2>Contributions</h2>
+    {% for contribution in contributor.contribution_set.all %}
+      <hr />
+      <p>
+        Cycle: <a href="{{ contribution.cycle.get_absolute_url }}">{{ contribution.cycle }}</a> | Reward: {{ contribution.reward.amount }}
+      </p>
+    {% endfor %}
+  </div>
+{% endblock %}

@@ -23,7 +23,7 @@ from core.models import (
 )
 
 
-class TestCoreCoreModelsHelpers:
+class TestCoreModelsHelpers:
     """Testing class for :py:mod:`core.models` helper functions."""
 
     # # _parse_full_handle
@@ -178,8 +178,13 @@ class TestCoreContributorModel:
     # # __str__
     @pytest.mark.django_db
     def test_core_contributor_model_string_representation_is_contributor_name(self):
-        contributor = Contributor(name="user name")
+        contributor = Contributor(name="@user name")
         assert str(contributor) == "user name"
+
+    @pytest.mark.django_db
+    def test_core_contributor_model_get_absolute_url(self):
+        contributor = Contributor.objects.create(name="contributorurl")
+        assert contributor.get_absolute_url() == "/contributor/{}".format(contributor.id)
 
 
 class TestCoreSocialPlatformModel:
@@ -497,6 +502,11 @@ class TestCoreCycleModel:
     def test_core_cycle_model_string_representation_without_end(self):
         cycle = Cycle.objects.create(start=datetime(2025, 3, 25))
         assert str(cycle) == ""
+
+    @pytest.mark.django_db
+    def test_core_cycle_model_get_absolute_url(self):
+        cycle = Cycle.objects.create(start=datetime(2021, 10, 1))
+        assert cycle.get_absolute_url() == "/cycle/{}".format(cycle.id)
 
 
 class TestCoreRewardTypeModel:

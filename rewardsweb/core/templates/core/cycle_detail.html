@@ -1,0 +1,20 @@
+{% extends "base_generic.html" %}
+
+{% block content %}
+  <h1>Cycle: {{ cycle }}</h1>
+
+  <p><strong>Start:</strong> {{ cycle.start }}</p>
+  <p><strong>End:</strong> {{ cycle.end }}</p>
+  <p><strong>Created at:</strong> {{ cycle.created_at }}</p>
+  <p><strong>Updated at:</strong> {{ cycle.updated_at }}</p>
+
+  <div>
+    <h2>Contributions</h2>
+    {% for contribution in cycle.contribution_set.all %}
+      <hr />
+      <p>
+        By <a href="{{ contribution.contributor.get_absolute_url }}">{{ contribution.contributor }}</a> | Reward: {{ contribution.reward.amount }}
+      </p>
+    {% endfor %}
+  </div>
+{% endblock %}

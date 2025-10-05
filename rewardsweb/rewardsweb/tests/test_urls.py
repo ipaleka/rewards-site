@@ -12,9 +12,9 @@ class TestRewardsWebUrls:
         return next(url for url in urls.urlpatterns if str(url.pattern) == pattern)
 
     def test_rewardsweb_urls_core_app(self):
-        url = self._url_from_pattern(r"^")
+        url = self._url_from_pattern("")
         assert isinstance(url, URLResolver)
         assert "core.urls" in str(url.urlconf_name)
 
     def test_rewardsweb_urls_pattern_count(self):
-        assert len(urls.urlpatterns) == 2
+        assert len(urls.urlpatterns) == 4

@@ -1,1 +1,15 @@
-<h1>ASA Stats rewards web</h1>
+{% extends "base_generic.html" %}
+
+{% block content %}
+  <h1>ASA Stats rewards web</h1>
+  <p>
+    Welcome to ASA Stats rewards web!
+  </p>
+  <h2>Data</h2>
+  <p>Here's the total record counts:</p>
+  <ul>
+    <li><strong>Cycles:</strong> {{ num_cycles }}</li>
+    <li><strong>Contributors:</strong> {{ num_contributors }}</li>
+    <li><strong>Contributions:</strong> {{ num_contributions }}</li>
+  </ul>
+{% endblock %}

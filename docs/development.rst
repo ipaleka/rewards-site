@@ -73,15 +73,16 @@ Database creation on development machine:
   postgres@debian:~# createdb rewards_db
 
 
-Database user setup on development machine (CREATEDB is needed for running tests):
-
+Database user setup on development machine (CREATEDB is needed for running tests, while
+pg_trgm extension is used for determining the similarity of text based on trigram matching):
 
 .. code-block:: bash
 
   postgres@debian:~# psql
   postgres=# CREATE USER rewards_user WITH ENCRYPTED PASSWORD 'mypassword';
-  postgres=# ALTER DATABASE rewards_db OWNER TO rewards_user;
   postgres=# ALTER USER rewards_user CREATEDB;
+  postgres=# ALTER DATABASE rewards_db OWNER TO rewards_user;
+  postgres=# CREATE EXTENSION IF NOT EXISTS pg_trgm;
 
 
 Finally, under rewards web Python environemnt:

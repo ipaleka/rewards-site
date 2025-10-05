@@ -24,16 +24,20 @@ Including another URLconf
 """
 
 from django.conf import settings
-from django.urls import include, re_path
+from django.contrib import admin
+from django.urls import include, path
 
 from core import urls as core_urls
 
 
 urlpatterns = [
-    re_path(r"^", include(core_urls)),
+    path("admin/", admin.site.urls),
+    path("", include(core_urls)),
 ]
 
 if settings.DEBUG:  # pragma: no cover
+    from django.conf.urls.static import static
     from debug_toolbar.toolbar import debug_toolbar_urls
 
+    urlpatterns += static(settings.STATIC_URL, document_root=settings.STATIC_ROOT)
     urlpatterns += debug_toolbar_urls()

@@ -4,8 +4,9 @@ from django.db import models
 from django.db.models.functions import Lower
 from django.http import Http404
 from django.shortcuts import get_object_or_404
+from django.urls import reverse
 
-from utils.constants.core import ADDRESS_LEN
+from utils.constants.core import ADDRESS_LEN, HANDLE_EXCEPTIONS
 
 
 def _parse_full_handle(full_handle):
@@ -53,6 +54,10 @@ class ContributorManager(models.Manager):
         :return: :class:`Handle`
         """
         prefix, handle = _parse_full_handle(full_handle)
+        contributor = self.from_handle(handle)
+        if contributor:
+            return contributor
+
         platform = get_object_or_404(SocialPlatform, prefix=prefix)
         try:
             handle = get_object_or_404(Handle, platform=platform, handle=handle)
@@ -65,6 +70,32 @@ class ContributorManager(models.Manager):
             )
 
         return handle.contributor
+
+    def from_handle(self, handle):
+        """Return handle model instance located by provided `handle`.
+
+        :param handle: contributor's handle
+        :type handle: str
+        :var handles: handle instances collection
+        :type handles: :class:`django.db.models.query.QuerySet`
+        :var count: total number of located contributors
+        :type count: int
+        :return: :class:`Contributor`
+        """
+        handles = Handle.objects.filter(handle=handle)
+        if not handles:
+            handles = Handle.objects.filter(handle__icontains=handle)
+
+        count = len({handle.contributor_id for handle in handles})
+        if count == 1:
+            return handles[0].contributor
+
+        elif count == 0 or handle in HANDLE_EXCEPTIONS:
+            return None
+
+        raise AssertionError(
+            f"Can't locate a single contributor for {handle} {str(handles)}"
+        )
 
 
 class Contributor(models.Model):
@@ -98,7 +129,11 @@ class Contributor(models.Model):
 
         :return: str
         """
-        return self.name
+        return _parse_full_handle(self.name)[1]
+
+    def get_absolute_url(self):
+        """Returns the URL to access a detail record for this contribuutor."""
+        return reverse("contributor-detail", args=[str(self.id)])
 
 
 class SocialPlatform(models.Model):
@@ -217,6 +252,10 @@ class Cycle(models.Model):
             if self.end
             else ""
         )
+
+    def get_absolute_url(self):
+        """Returns the URL to access a detail record for this cycle."""
+        return reverse("cycle-detail", args=[str(self.id)])
 
 
 class RewardType(models.Model):

@@ -21,9 +21,10 @@ from core.models import (
     SocialPlatform,
     _parse_full_handle,
 )
+from utils.constants.core import HANDLE_EXCEPTIONS
 
 
-class TestCoreCoreModelsHelpers:
+class TestCoreModelsHelpers:
     """Testing class for :py:mod:`core.models` helper functions."""
 
     # # _parse_full_handle
@@ -52,11 +53,28 @@ class TestCoreContributorManager:
     """Testing class for :class:`core.models.ContributorManager` class."""
 
     # # from_full_handle
+    @pytest.mark.django_db
+    def test_core_contributormanager_from_full_handle_returns_from_handle(self, mocker):
+        prefix, username = "d@", "usernamed2"
+        address, full_handle = (
+            "contributormanageraddressfromhandle",
+            f"{prefix}{username}",
+        )
+        contributor = mocker.MagicMock()
+        mocked_handle = mocker.patch(
+            "core.models.ContributorManager.from_handle", return_value=contributor
+        )
+        mocked_get = mocker.patch("core.models.get_object_or_404")
+        returned = Contributor.objects.from_full_handle(full_handle, address)
+        assert returned == contributor
+        mocked_handle.assert_called_once_with(username)
+        mocked_get.assert_not_called()
 
     @pytest.mark.django_db
     def test_core_contributormanager_from_full_handle_raises_error_for_no_platform(
-        self,
+        self, mocker
     ):
+        mocker.patch("core.models.ContributorManager.from_handle", return_value=None)
         prefix, username = "h@", "username1"
         address, full_handle = "contributormanager1address", f"{prefix}{username}"
         with pytest.raises(Http404):
@@ -64,6 +82,7 @@ class TestCoreContributorManager:
 
     @pytest.mark.django_db
     def test_core_contributormanager_from_full_handle_for_existing_handle(self, mocker):
+        mocker.patch("core.models.ContributorManager.from_handle", return_value=None)
         prefix, username = "c@", "username2"
         address, full_handle = "contributormanager2address", f"{prefix}{username}"
         contributor = Contributor.objects.create(name=full_handle, address=address)
@@ -79,7 +98,8 @@ class TestCoreContributorManager:
         mocked_save.assert_not_called()
 
     @pytest.mark.django_db
-    def test_core_contributormanager_from_full_handle_creates_handle(self):
+    def test_core_contributormanager_from_full_handle_creates_handle(self, mocker):
+        mocker.patch("core.models.ContributorManager.from_handle", return_value=None)
         prefix, username = "h@", "username3"
         address, full_handle = "contributormanager3address", f"{prefix}{username}"
         SocialPlatform.objects.create(name="contributormanagerplatform3", prefix=prefix)
@@ -93,7 +113,10 @@ class TestCoreContributorManager:
         assert Handle.objects.count() == 1
 
     @pytest.mark.django_db
-    def test_core_contributormanager_from_full_handle_for_no_address_provided(self):
+    def test_core_contributormanager_from_full_handle_for_no_address_provided(
+        self, mocker
+    ):
+        mocker.patch("core.models.ContributorManager.from_handle", return_value=None)
         prefix, username = "h@", "username4"
         full_handle = f"{prefix}{username}"
         SocialPlatform.objects.create(name="contributormanagerplatform4", prefix=prefix)
@@ -105,6 +128,73 @@ class TestCoreContributorManager:
         assert returned.address is None
         assert Contributor.objects.count() == 1
         assert Handle.objects.count() == 1
+
+    # # from_handle
+    @pytest.mark.django_db
+    def test_core_contributormanager_from_handle_returns_contributor_from_exact(self):
+        handle = "handlefh"
+        contributor = Contributor.objects.create(name=f"z@{handle}")
+        platform = SocialPlatform.objects.create(name="zplatform", prefix="z@")
+        Handle.objects.create(contributor=contributor, platform=platform, handle=handle)
+        returned = Contributor.objects.from_handle(handle)
+        assert returned == contributor
+
+    @pytest.mark.django_db
+    def test_core_contributormanager_from_handle_returns_contributor(self):
+        handle = "handlefh"
+        contributor = Contributor.objects.create(name=f"z@{handle}")
+        platform = SocialPlatform.objects.create(name="zplatform", prefix="z@")
+        Handle.objects.create(
+            contributor=contributor, platform=platform, handle=f"some{handle}"
+        )
+        returned = Contributor.objects.from_handle(handle)
+        assert returned == contributor
+
+    @pytest.mark.django_db
+    def test_core_contributormanager_from_handle_for_no_contributor_found(self):
+        handle = "handle"
+        contributor1 = Contributor.objects.create(name="w@foobar")
+        contributor2 = Contributor.objects.create(name="w@bar")
+        platform = SocialPlatform.objects.create(name="wplatform", prefix="w@")
+        Handle.objects.create(
+            contributor=contributor1, platform=platform, handle="foobar"
+        )
+        Handle.objects.create(contributor=contributor2, platform=platform, handle="bar")
+        returned = Contributor.objects.from_handle(handle)
+        assert returned is None
+
+    @pytest.mark.django_db
+    def test_core_contributormanager_from_handle_for_exceptions(self):
+        handle = HANDLE_EXCEPTIONS[0]
+        contributor1 = Contributor.objects.create(name="n1{handle}")
+        contributor2 = Contributor.objects.create(name="n2{handle}")
+        platform1 = SocialPlatform.objects.create(name="n1platform", prefix="n1")
+        platform2 = SocialPlatform.objects.create(name="n2platform", prefix="n2")
+        Handle.objects.create(
+            contributor=contributor1, platform=platform1, handle=handle
+        )
+        Handle.objects.create(
+            contributor=contributor2, platform=platform2, handle=handle
+        )
+        returned = Contributor.objects.from_handle(handle)
+        assert returned is None
+
+    @pytest.mark.django_db
+    def test_core_contributormanager_from_handle_raises_for_multiple_contributors(self):
+        handle = "handlemulti"
+        contributor1 = Contributor.objects.create(name=f"u@{handle}")
+        contributor2 = Contributor.objects.create(name=f"y@{handle}")
+        platform1 = SocialPlatform.objects.create(name="uplatform", prefix="u@")
+        platform2 = SocialPlatform.objects.create(name="yplatform", prefix="y@")
+        Handle.objects.create(
+            contributor=contributor1, platform=platform1, handle=handle
+        )
+        Handle.objects.create(
+            contributor=contributor2, platform=platform2, handle=handle
+        )
+        with pytest.raises(AssertionError) as exception:
+            Contributor.objects.from_handle(handle)
+            assert "Can't locate a single contributor" in str(exception.value)
 
 
 class TestCoreContributorModel:
@@ -178,8 +268,15 @@ class TestCoreContributorModel:
     # # __str__
     @pytest.mark.django_db
     def test_core_contributor_model_string_representation_is_contributor_name(self):
-        contributor = Contributor(name="user name")
+        contributor = Contributor(name="@user name")
         assert str(contributor) == "user name"
+
+    @pytest.mark.django_db
+    def test_core_contributor_model_get_absolute_url(self):
+        contributor = Contributor.objects.create(name="contributorurl")
+        assert contributor.get_absolute_url() == "/contributor/{}".format(
+            contributor.id
+        )
 
 
 class TestCoreSocialPlatformModel:
@@ -497,6 +594,11 @@ class TestCoreCycleModel:
     def test_core_cycle_model_string_representation_without_end(self):
         cycle = Cycle.objects.create(start=datetime(2025, 3, 25))
         assert str(cycle) == ""
+
+    @pytest.mark.django_db
+    def test_core_cycle_model_get_absolute_url(self):
+        cycle = Cycle.objects.create(start=datetime(2021, 10, 1))
+        assert cycle.get_absolute_url() == "/cycle/{}".format(cycle.id)
 
 
 class TestCoreRewardTypeModel:

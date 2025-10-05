@@ -1,0 +1,16 @@
+{% extends "base_generic.html" %}
+
+{% block content %}
+  <h1>ASA Stats rewards contributor list</h1>
+  {% if contributor_list %}
+    <ul>
+      {% for contributor in contributor_list %}
+      <li>
+        <a href="{{ contributor.get_absolute_url }}">{{ contributor }}</a>
+      </li>
+      {% endfor %}
+    </ul>
+  {% else %}
+    <p>There are no contributors in database.</p>
+  {% endif %}
+{% endblock %}

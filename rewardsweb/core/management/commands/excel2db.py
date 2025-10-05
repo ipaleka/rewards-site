@@ -46,7 +46,11 @@ class Command(BaseCommand):
             "CSV successfully exported into %s file!" % (output_file.name)
         )
 
-        import_from_csv(output_file, legacy_file)
-        self.stdout.write("Database successfully recreated!")
+        response = import_from_csv(output_file, legacy_file)
+        if not response:
+            self.stdout.write("Database successfully recreated!")
+
+        else:
+            self.stdout.write(response)
 
         print(time.time() - a)

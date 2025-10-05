@@ -43,8 +43,55 @@ def _dataframe_from_csv(filename, columns=CONTRIBUTION_CSV_COLUMNS):
     return data
 
 
+def _import_contributions(data, parse_callback, amount_callback):
+    for _, row in data.iterrows():
+        contributor = Contributor.objects.from_full_handle(row["contributor"])
+        cycle = Cycle.objects.get(start=row["cycle_start"])
+        platform = SocialPlatform.objects.get(name__iexact=row["platform"])
+        label, name = parse_callback(row["type"])
+        reward_type = get_object_or_404(RewardType, label=label, name=name)
+        reward = Reward.objects.get(
+            type=reward_type,
+            level=row["level"] if not pd.isna(row["level"]) else 1,
+            amount=amount_callback(row["reward"])
+        )
+        percentage = row["percentage"] if not pd.isna(row["percentage"]) else 1
+        url = row["url"]
+        comment = row["comment"] if not pd.isna(row["comment"]) else None
+        Contribution.objects.create(
+            contributor=contributor,
+            cycle=cycle,
+            platform=platform,
+            reward=reward,
+            percentage=percentage,
+            url=url,
+            comment=comment,
+        )
+
+
+def _import_rewards(data, parse_callback, amount_callback):
+    for typ, level, reward in data.values.tolist():
+        label, name = parse_callback(typ)
+        try:
+            reward_type = get_object_or_404(RewardType, label=label, name=name)
+
+        except Http404:
+            reward_type = RewardType.objects.create(label=label, name=name)
+
+        try:
+            Reward.objects.create(
+                type=reward_type,
+                level=level if not pd.isna(level) else 1,
+                amount=amount_callback(reward),
+            )
+        except IntegrityError:
+            pass
+
+
 def _parse_addresses():
-    addresses_filename = "fixtures/addresses.csv"
+    addresses_filename = (
+        Path(__file__).resolve().parent.parent / "fixtures" / "addresses.csv"
+    )
     data = _dataframe_from_csv(addresses_filename, columns=ADDRESSES_CSV_COLUMNS)
     data = data[["handle", "address"]].drop_duplicates()
     grouped = (
@@ -55,6 +102,24 @@ def _parse_addresses():
     return grouped.values.tolist()
 
 
+def _parse_label_and_name_from_reward_type_legacy(typ):
+    label, name = _parse_label_and_name_from_reward_type(typ)
+    if name == "Custom":
+        if "feature request" in typ:
+            return "F", "Feature Request"
+
+        if "bug report" in typ:
+            return "B", "Bug Report"
+
+        if "ecosystem research" in typ:
+            return "ER", "Ecosystem Research"
+
+        if "suggestion" in typ:
+            return "S", "Suggestion"
+
+    return label, name
+
+
 def _parse_label_and_name_from_reward_type(typ):
     if not pd.isna(typ):
         pattern = r"\[([^\]]+)\]\s*(.+)"
@@ -63,6 +128,14 @@ def _parse_label_and_name_from_reward_type(typ):
             return match.group(1), match.group(2)
 
     return "CST", "Custom"
+
+
+def _reward_amount(reward):
+    return round(reward * 1_000_000) if not pd.isna(reward) else 0
+
+
+def _reward_amount_legacy(reward):
+    return round(round(reward, 2) * 1_000_000) if not pd.isna(reward) else 0
 
 
 def _social_platforms():
@@ -129,78 +202,58 @@ def convert_and_clean_excel(input_file, output_file, legacy_contributions):
 
 
 def import_from_csv(contributions_path, legacy_contributions_path):
+    # # PLATFORMS
     SocialPlatform.objects.bulk_create(
         SocialPlatform(name=name, prefix=prefix) for name, prefix in _social_platforms()
     )
     print("Social platforms created: ", len(SocialPlatform.objects.all()))
 
-    # ADDRESSES
+    # # ADDRESSES
     addresses = _parse_addresses()
-
     Contributor.objects.bulk_create(
         Contributor(name=handles[0], address=address) for address, handles in addresses
     )
     print("Contributors imported: ", len(Contributor.objects.all()))
-
     for address, handles in addresses:
         for full_handle in handles:
             handle = Handle.objects.from_address_and_full_handle(address, full_handle)
             handle.save()
     print("Handles imported: ", len(Handle.objects.all()))
 
+    # # CONTRIBUTIONS
     data = _dataframe_from_csv(contributions_path)
+    legacy_data = _dataframe_from_csv(legacy_contributions_path)
 
     cycles_data = data[["cycle_start", "cycle_end"]].drop_duplicates()
+    legacy_cycles_data = legacy_data[["cycle_start", "cycle_end"]].drop_duplicates()
+    all_cycles_data = pd.concat([cycles_data, legacy_cycles_data ]).sort_values(
+        by=["cycle_start"]
+    )
     Cycle.objects.bulk_create(
-        Cycle(start=start, end=end) for start, end in cycles_data.values.tolist()
+        Cycle(start=start, end=end) for start, end in all_cycles_data.values.tolist()
     )
     print("Cycles imported: ", len(Cycle.objects.all()))
 
-    reward_data = data[["type", "level", "reward"]]
-    for typ, level, reward in reward_data.values.tolist():
-        label, name = _parse_label_and_name_from_reward_type(typ)
-        try:
-            reward_type = get_object_or_404(RewardType, label=label, name=name)
-
-        except Http404:
-            reward_type = RewardType.objects.create(label=label, name=name)
-
-        try:
-            Reward.objects.create(
-                type=reward_type,
-                level=level if not pd.isna(level) else 1,
-                amount=round(reward * 1_000_000) if not pd.isna(reward) else 20_000,
-            )
-        except IntegrityError:
-            pass
-
+    _import_rewards(
+        data[["type", "level", "reward"]],
+        _parse_label_and_name_from_reward_type,
+        _reward_amount,
+    )
+    _import_rewards(
+        legacy_data[["type", "level", "reward"]],
+        _parse_label_and_name_from_reward_type_legacy,
+        _reward_amount_legacy,
+    )
     print("Rewards imported: ", len(Reward.objects.all()))
 
-    for _, row in data.iterrows():
-        contributor = Contributor.objects.from_full_handle(row["contributor"])
-        cycle = Cycle.objects.get(start=row["cycle_start"])
-        platform = SocialPlatform.objects.get(name__iexact=row["platform"])
-        label, name = _parse_label_and_name_from_reward_type(row["type"])
-        reward_type = get_object_or_404(RewardType, label=label, name=name)
-        reward = Reward.objects.get(
-            type=reward_type,
-            level=row["level"] if not pd.isna(row["level"]) else 1,
-            amount=(
-                round(row["reward"] * 1_000_000)
-                if not pd.isna(row["reward"])
-                else 20_000
-            ),
-        )
-        percentage = row["percentage"] if not pd.isna(row["percentage"]) else 1
-        url = row["url"]
-        comment = row["comment"] if not pd.isna(row["comment"]) else None
-        Contribution.objects.create(
-            contributor=contributor,
-            cycle=cycle,
-            platform=platform,
-            reward=reward,
-            percentage=percentage,
-            url=url,
-            comment=comment,
-        )
+    _import_contributions(
+        legacy_data,
+        _parse_label_and_name_from_reward_type_legacy,
+        _reward_amount_legacy,
+    )
+    _import_contributions(
+        data,
+        _parse_label_and_name_from_reward_type,
+        _reward_amount,
+    )
     print("Contributions imported: ", len(Contribution.objects.all()))

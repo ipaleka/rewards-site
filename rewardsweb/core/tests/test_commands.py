@@ -17,7 +17,7 @@ class TestExcel2DbCommand:
             "core.management.commands.excel2db.convert_and_clean_excel"
         )
         mocked_import = mocker.patch(
-            "core.management.commands.excel2db.import_from_csv"
+            "core.management.commands.excel2db.import_from_csv", return_value=False
         )
         with mock.patch(
             "django.core.management.base.OutputWrapper.write"
@@ -43,12 +43,44 @@ class TestExcel2DbCommand:
             fixtures_dir / "legacy_contributions.csv",
         )
 
+    def test_excel2db_command_output_for_default_values_on_response(self, mocker):
+        mocked_convert = mocker.patch(
+            "core.management.commands.excel2db.convert_and_clean_excel"
+        )
+        response = "response"
+        mocked_import = mocker.patch(
+            "core.management.commands.excel2db.import_from_csv", return_value=response
+        )
+        with mock.patch(
+            "django.core.management.base.OutputWrapper.write"
+        ) as output_log:
+            call_command("excel2db")
+            calls = [
+                mocker.call("CSV successfully exported into contributions.csv file!"),
+                mocker.call(response),
+            ]
+            output_log.assert_has_calls(calls, any_order=True)
+            assert output_log.call_count == 2
+
+        fixtures_dir = settings.BASE_DIR.parent / "fixtures"
+        mocked_convert.assert_called_once()
+        mocked_convert.assert_called_with(
+            fixtures_dir / "contributions.xlsx",
+            fixtures_dir / "contributions.csv",
+            fixtures_dir / "legacy_contributions.csv",
+        )
+        mocked_import.assert_called_once()
+        mocked_import.assert_called_with(
+            fixtures_dir / "contributions.csv",
+            fixtures_dir / "legacy_contributions.csv",
+        )
+
     def test_excel2db_command_output_for_provided_arguments(self, mocker):
         mocked_convert = mocker.patch(
             "core.management.commands.excel2db.convert_and_clean_excel"
         )
         mocked_import = mocker.patch(
-            "core.management.commands.excel2db.import_from_csv"
+            "core.management.commands.excel2db.import_from_csv", return_value=False
         )
         input_file, output_file, legacy_file = (
             "input_file",

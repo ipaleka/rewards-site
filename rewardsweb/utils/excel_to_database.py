@@ -202,6 +202,10 @@ def convert_and_clean_excel(input_file, output_file, legacy_contributions):
 
 
 def import_from_csv(contributions_path, legacy_contributions_path):
+    # # CHECK
+    if len(SocialPlatform.objects.all()):
+        return "ERROR: Database is not empty!"
+
     # # PLATFORMS
     SocialPlatform.objects.bulk_create(
         SocialPlatform(name=name, prefix=prefix) for name, prefix in _social_platforms()
@@ -257,3 +261,5 @@ def import_from_csv(contributions_path, legacy_contributions_path):
         _reward_amount,
     )
     print("Contributions imported: ", len(Contribution.objects.all()))
+
+    return False

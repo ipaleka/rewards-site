@@ -30,8 +30,8 @@ PGPASSFILE="/home/{username}/.pgpass"
 - [x] Initialize Django project on this repository
 - [x] Setup environment: docker (optional), database, env file(s)
 - [x] Create data models and migrations
-- [ ] Adjustment of script for contributions spreadsheet parsing
-- [ ] Create script for seeding the database with parsed data
+- [x] Adjustment of script for contributions spreadsheet parsing
+- [x] Create script for seeding the database with parsed data
 - [ ] Add API authentication
 - [ ] Create API routes
 - [ ] Create methods for managing http requests and bind them to API routes

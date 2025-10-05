@@ -11,7 +11,7 @@
 
   <div>
     <h2>Contributions</h2>
-    {% for contribution in contributor.contribution_set.all %}
+    {% for contribution in contributor.contribution_set.all reversed %}
       <hr />
       <p>
         Cycle: <a href="{{ contribution.cycle.get_absolute_url }}">{{ contribution.cycle }}</a> | Reward: {{ contribution.reward.amount }}

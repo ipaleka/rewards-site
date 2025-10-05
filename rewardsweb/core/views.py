@@ -26,7 +26,7 @@ class IndexView(TemplateView):
 
 class ContributorListView(ListView):
     model = Contributor
-    paginate_by = 10
+    paginate_by = 20
 
 
 class ContributorDetailView(DetailView):
@@ -35,7 +35,7 @@ class ContributorDetailView(DetailView):
 
 class CycleListView(ListView):
     model = Cycle
-    paginate_by = 10
+    paginate_by = 20
 
     def get_queryset(self):
         return Cycle.objects.all().reverse()

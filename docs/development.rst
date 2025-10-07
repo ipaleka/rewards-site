@@ -93,6 +93,19 @@ Finally, under rewards web Python environemnt:
   python manage.py migrate
 
 
+DaisyUI
+-------
+
+Follow the instructions found
+`here <https://daisyui.com/docs/install/django/>`. One of the alternatives to **watchman**
+is **entr** (you can install it on Debain based systems with `sudo apt-get install entr`),
+invoke the following trigger build/watch command to use it:
+
+.. code-block:: bash
+
+  $ ls core/static/css/*.css | entr core/static/css/tailwindcss -i core/static/css/input.css -o core/static/css/style.css --minify
+
+
 SonarQube
 ^^^^^^^^^
 

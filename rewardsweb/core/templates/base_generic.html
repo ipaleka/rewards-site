@@ -4,16 +4,18 @@
     {% block title %}
       <title>ASA Stats rewards web</title>
     {% endblock %}
+    {% load static %}
     <meta charset="utf-8" />
     <meta name="viewport" content="width=device-width, initial-scale=1" />
+    <link href="{% static 'css/style.css' %}" rel="stylesheet" type="text/css" />
   </head>
   <body>
     <div>
       {% block sidebar %}
       <ul>
-        <li><a href="{% url 'index' %}">Home</a></li>
-        <li><a href="{% url 'cycles' %}">All cycles</a></li>
-        <li><a href="{% url 'contributors' %}">All contributors</a></li>
+        <li><a href="{% url 'index' %}" class="btn btn-outline btn-primary">Home</a></li>
+        <li><a href="{% url 'cycles' %}" class="btn btn-outline btn-primary">All cycles</a></li>
+        <li><a href="{% url 'contributors' %}" class="btn btn-outline btn-primary">All contributors</a></li>
       </ul>
       {% endblock %}
     </div>
@@ -24,13 +26,13 @@
           <div>
             <span>
               {% if page_obj.has_previous %}
-                <a href="{{ request.path }}?page={{ page_obj.previous_page_number }}">previous</a>
+                <a href="{{ request.path }}?page={{ page_obj.previous_page_number }}" class="btn btn-link">previous</a>
               {% endif %}
               <span>
                 Page {{ page_obj.number }} of {{ page_obj.paginator.num_pages }}.
               </span>
               {% if page_obj.has_next %}
-                <a href="{{ request.path }}?page={{ page_obj.next_page_number }}">next</a>
+                <a href="{{ request.path }}?page={{ page_obj.next_page_number }}" class="btn btn-link">next</a>
               {% endif %}
             </span>
           </div>

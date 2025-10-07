@@ -10,3 +10,4 @@ db.sqlite3
 rewardsweb/fixtures/*.csv
 rewardsweb/fixtures/*.xlsx
 rewardsweb/.coverage
+rewardsweb/core/static/css/tailwindcss

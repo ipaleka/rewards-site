@@ -103,7 +103,9 @@ invoke the following trigger build/watch command to use it:
 
 .. code-block:: bash
 
-  $ ls core/static/css/*.css | entr core/static/css/tailwindcss -i core/static/css/input.css -o core/static/css/style.css --minify
+  $ ls core/static/css/*.css | entr core/static/css/tailwindcss \
+    -i core/static/css/input.css -o core/static/css/style.css \
+    --config tailwind.config.js --minify
 
 
 SonarQube

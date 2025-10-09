@@ -165,7 +165,7 @@
 :mod:`utils.excel_to_database` -- Website's utility functions for importing data from the old system
 ----------------------------------------------------------------------------------------------------
 
-.. automodule:: utils.helpers
+.. automodule:: utils.excel_to_database
   :members:
   :undoc-members:
   :show-inheritance:

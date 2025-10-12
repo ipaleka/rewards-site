@@ -1,6 +1,7 @@
 {% extends "base_generic.html" %}
 
 {% block content %}
+<div>
   <h1>ASA Stats rewards web</h1>
   <p>
     Welcome to ASA Stats rewards web!
@@ -10,6 +11,7 @@
   <ul>
     <li><strong>Cycles:</strong> {{ num_cycles }}</li>
     <li><strong>Contributors:</strong> {{ num_contributors }}</li>
-    <li><strong>Contributions:</strong> {{ num_contributions }}</li>
+    <li><strong>Contributions:</strong> {{ num_contributions|floatformat:"g" }}</li>
   </ul>
+</div>
 {% endblock %}

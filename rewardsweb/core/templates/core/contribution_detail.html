@@ -1,0 +1,15 @@
+{% extends "base_generic.html" %}
+
+{% block content %}
+  <h1>Contribution by <a class="link link-accent" href="{{ contribution.contributor.get_absolute_url }}">{{ contribution.contributor }}</a></h1>
+
+  <p><strong>Cycle:</strong> {{ contribution.cycle }}</p>
+  <p><strong>Platform:</strong> {{ contribution.platform }}</p>
+  <p><strong>Type:</strong> {{ contribution.reward.type }}</p>
+  <p><strong>Reward:</strong> {{ contribution.reward.amount|floatformat:"g" }}</p>
+  {% if contribution.percentage != 1 %}<p><strong>Percentage:</strong> {% widthratio contribution.percentage 1 100 %}%</p>{% endif %}
+  {% if contribution.comment %}<p><strong>Comment:</strong> {{ contribution.comment }}</p>{% endif %}
+  <p><strong>Confirmed:</strong> {{ contribution.confirmed }}</p>
+  <p><strong>Created at:</strong> {{ contribution.created_at }}</p>
+  <p><strong>Updated at:</strong> {{ contribution.updated_at }}</p>
+{% endblock %}

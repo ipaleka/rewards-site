@@ -152,7 +152,8 @@ def _social_platforms():
 def convert_and_clean_excel(input_file, output_file, legacy_contributions):
     df = pd.read_excel(input_file, sheet_name=3, header=None).iloc[2:]
 
-    df.fillna("NULL", inplace=True)
+    with pd.option_context("future.no_silent_downcasting", True):
+        df = df.fillna("NULL").infer_objects(copy=False)
 
     df.drop(columns=[4, 11, 12, 13, 14, 15, 16], inplace=True)
 

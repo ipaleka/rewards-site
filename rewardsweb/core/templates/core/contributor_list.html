@@ -6,7 +6,7 @@
     <ul>
       {% for contributor in contributor_list %}
       <li>
-        <a href="{{ contributor.get_absolute_url }}">{{ contributor }}</a>
+        <a class="link link-accent" href="{{ contributor.get_absolute_url }}">{{ contributor }}</a>
       </li>
       {% endfor %}
     </ul>

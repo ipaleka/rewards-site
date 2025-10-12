@@ -82,6 +82,7 @@ pg_trgm extension is used for determining the similarity of text based on trigra
   postgres=# CREATE USER rewards_user WITH ENCRYPTED PASSWORD 'mypassword';
   postgres=# ALTER USER rewards_user CREATEDB;
   postgres=# ALTER DATABASE rewards_db OWNER TO rewards_user;
+  postgres=# \connect rewards_db
   postgres=# CREATE EXTENSION IF NOT EXISTS pg_trgm;
 
 
@@ -105,7 +106,7 @@ invoke the following trigger build/watch command to use it:
 
   $ ls core/static/css/*.css | entr core/static/css/tailwindcss \
     -i core/static/css/input.css -o core/static/css/style.css \
-    --config tailwind.config.js --minify
+    --config core/static/css/tailwind.config.js --minify
 
 
 SonarQube

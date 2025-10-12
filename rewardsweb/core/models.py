@@ -1,10 +1,12 @@
 """Module containing website's ORM models."""
 
 from django.db import models
+from django.db.models import Sum
 from django.db.models.functions import Lower
 from django.http import Http404
 from django.shortcuts import get_object_or_404
 from django.urls import reverse
+from django.utils.functional import cached_property
 
 from utils.constants.core import ADDRESS_LEN, HANDLE_EXCEPTIONS
 
@@ -132,8 +134,21 @@ class Contributor(models.Model):
         return _parse_full_handle(self.name)[1]
 
     def get_absolute_url(self):
-        """Returns the URL to access a detail record for this contribuutor."""
+        """Returns the URL to access a detail record for this contributor."""
         return reverse("contributor-detail", args=[str(self.id)])
+
+    @cached_property
+    def total_rewards(self):
+        """Return sum of all reward amounts for this contributor (cached).
+
+        :return: int
+        """
+        return (
+            self.contribution_set.aggregate(total_rewards=Sum("reward__amount"))[
+                "total_rewards"
+            ]
+            or 0
+        )
 
 
 class SocialPlatform(models.Model):
@@ -257,6 +272,19 @@ class Cycle(models.Model):
         """Returns the URL to access a detail record for this cycle."""
         return reverse("cycle-detail", args=[str(self.id)])
 
+    @cached_property
+    def total_rewards(self):
+        """Return sum of all reward amounts for this cycle (cached).
+
+        :return: int
+        """
+        return (
+            self.contribution_set.aggregate(total_rewards=Sum("reward__amount"))[
+                "total_rewards"
+            ]
+            or 0
+        )
+
 
 class RewardType(models.Model):
     """ASA Stats reward type data model."""
@@ -319,7 +347,7 @@ class Reward(models.Model):
 
         :return: str
         """
-        return str(self.type) + " " + str(self.level)
+        return str(self.type) + " " + str(self.level) + ": " + str(self.amount)
 
 
 class Contribution(models.Model):
@@ -353,3 +381,7 @@ class Contribution(models.Model):
             + "/"
             + self.created_at.strftime("%d-%m-%y")
         )
+
+    def get_absolute_url(self):
+        """Returns the URL to access a detail record for this contribution."""
+        return reverse("contribution-detail", args=[str(self.id)])

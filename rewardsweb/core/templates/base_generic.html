@@ -29,13 +29,13 @@
         {% if is_paginated %}
         <div class="flex justify-center items-center mt-8 space-x-4">
           {% if page_obj.has_previous %}
-            <a href="{{ request.path }}?page={{ page_obj.previous_page_number }}" class="btn btn-outline btn-primary">previous</a>
+            <a class="link link-hover"  href="{{ request.path }}?page={{ page_obj.previous_page_number }}" class="btn btn-outline btn-primary">previous</a>
           {% endif %}
           <span class="text-sm">
             Page {{ page_obj.number }} of {{ page_obj.paginator.num_pages }}.
           </span>
           {% if page_obj.has_next %}
-            <a href="{{ request.path }}?page={{ page_obj.next_page_number }}" class="btn btn-outline btn-primary">next</a>
+            <a class="link link-hover" href="{{ request.path }}?page={{ page_obj.next_page_number }}" class="btn btn-outline btn-primary">next</a>
           {% endif %}
         </div>
         {% endif %}

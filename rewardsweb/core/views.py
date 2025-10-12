@@ -24,6 +24,10 @@ class IndexView(TemplateView):
         return context
 
 
+class ContributionDetailView(DetailView):
+    model = Contribution
+
+
 class ContributorListView(ListView):
     model = Contributor
     paginate_by = 20

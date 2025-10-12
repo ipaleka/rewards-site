@@ -7,13 +7,15 @@
   <p><strong>End:</strong> {{ cycle.end }}</p>
   <p><strong>Created at:</strong> {{ cycle.created_at }}</p>
   <p><strong>Updated at:</strong> {{ cycle.updated_at }}</p>
-
+  <br>
+  <p><strong>Total rewards:</strong> {{ cycle.total_rewards|floatformat:"g" }}</p>
+  <br>
   <div>
     <h2>Contributions</h2>
     {% for contribution in cycle.contribution_set.all %}
       <hr />
       <p>
-        By <a href="{{ contribution.contributor.get_absolute_url }}">{{ contribution.contributor }}</a> | Reward: {{ contribution.reward.amount }}
+        By <a class="link link-accent" href="{{ contribution.contributor.get_absolute_url }}">{{ contribution.contributor }}</a> | Reward: <a class="link link-accent" href="{{ contribution.get_absolute_url }}">{{ contribution.reward.amount|floatformat:"g" }}</a>
       </p>
     {% endfor %}
   </div>

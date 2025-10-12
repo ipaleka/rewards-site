@@ -12,4 +12,9 @@ urlpatterns = [
         views.ContributorDetailView.as_view(),
         name="contributor-detail",
     ),
+    path(
+        "contribution/<int:pk>",
+        views.ContributionDetailView.as_view(),
+        name="contribution-detail",
+    ),
 ]

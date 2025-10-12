@@ -271,12 +271,40 @@ class TestCoreContributorModel:
         contributor = Contributor(name="@user name")
         assert str(contributor) == "user name"
 
+    # # get_absolute_url
     @pytest.mark.django_db
     def test_core_contributor_model_get_absolute_url(self):
         contributor = Contributor.objects.create(name="contributorurl")
         assert contributor.get_absolute_url() == "/contributor/{}".format(
             contributor.id
         )
+
+    # # total_rewards
+    @pytest.mark.django_db
+    def test_core_contributor_model_total_rewards(self):
+        amount1, amount2, amount3 = 50000, 15000, 10000
+        contributor = Contributor.objects.create(name="MyNametr")
+        contributor2 = Contributor.objects.create(name="OtherNametr")
+        cycle1 = Cycle.objects.create(start=datetime(2025, 3, 3))
+        cycle2 = Cycle.objects.create(start=datetime(2024, 3, 3))
+        platform = SocialPlatform.objects.create(name="platformtr", prefix="tr")
+        reward_type = RewardType.objects.create(label="t1", name="t1")
+        reward1 = Reward.objects.create(type=reward_type, amount=amount1)
+        Contribution.objects.create(
+            contributor=contributor, cycle=cycle1, platform=platform, reward=reward1
+        )
+        reward2 = Reward.objects.create(type=reward_type, amount=amount2)
+        Contribution.objects.create(
+            contributor=contributor, cycle=cycle1, platform=platform, reward=reward2
+        )
+        reward3 = Reward.objects.create(type=reward_type, amount=amount3)
+        Contribution.objects.create(
+            contributor=contributor, cycle=cycle2, platform=platform, reward=reward3
+        )
+        Contribution.objects.create(
+            contributor=contributor2, cycle=cycle2, platform=platform, reward=reward3
+        )
+        assert contributor.total_rewards == amount1 + amount2 + amount3
 
 
 class TestCoreSocialPlatformModel:
@@ -595,10 +623,38 @@ class TestCoreCycleModel:
         cycle = Cycle.objects.create(start=datetime(2025, 3, 25))
         assert str(cycle) == ""
 
+    # # get_absolute_url
     @pytest.mark.django_db
     def test_core_cycle_model_get_absolute_url(self):
         cycle = Cycle.objects.create(start=datetime(2021, 10, 1))
         assert cycle.get_absolute_url() == "/cycle/{}".format(cycle.id)
+
+    # # total_rewards
+    @pytest.mark.django_db
+    def test_core_cycle_model_total_rewards(self):
+        amount1, amount2, amount3 = 250000, 15000, 10000
+        contributor = Contributor.objects.create(name="MyNamecytr")
+        contributor2 = Contributor.objects.create(name="OtherNametcyr")
+        cycle = Cycle.objects.create(start=datetime(2025, 3, 3))
+        cycle2 = Cycle.objects.create(start=datetime(2024, 3, 3))
+        platform = SocialPlatform.objects.create(name="platformcy", prefix="tc")
+        reward_type = RewardType.objects.create(label="c2", name="c2")
+        reward1 = Reward.objects.create(type=reward_type, amount=amount1)
+        Contribution.objects.create(
+            contributor=contributor, cycle=cycle, platform=platform, reward=reward1
+        )
+        reward2 = Reward.objects.create(type=reward_type, amount=amount2)
+        Contribution.objects.create(
+            contributor=contributor, cycle=cycle, platform=platform, reward=reward2
+        )
+        reward3 = Reward.objects.create(type=reward_type, amount=amount3)
+        Contribution.objects.create(
+            contributor=contributor, cycle=cycle2, platform=platform, reward=reward3
+        )
+        Contribution.objects.create(
+            contributor=contributor2, cycle=cycle2, platform=platform, reward=reward3
+        )
+        assert cycle.total_rewards == amount1 + amount2
 
 
 class TestCoreRewardTypeModel:
@@ -770,8 +826,8 @@ class TestCoreRewardModel:
     @pytest.mark.django_db
     def test_core_reward_model_string_representation(self):
         reward_type = RewardType.objects.create(label="TS", name="Task")
-        reward = Reward.objects.create(type=reward_type, level=1)
-        assert str(reward) == "[TS] Task 1"
+        reward = Reward.objects.create(type=reward_type, level=1, amount=20000)
+        assert str(reward) == "[TS] Task 1: 20000"
 
 
 class TestCoreContributionModel:
@@ -1003,3 +1059,18 @@ class TestCoreContributionModel:
             contributor=contributor, cycle=cycle, platform=platform, reward=reward
         )
         assert "/".join(str(contribution).split("/")[:2]) == "MyName/platformstr"
+
+    # # get_absolute_url
+    @pytest.mark.django_db
+    def test_core_contribution_model_get_absolute_url(self):
+        contributor = Contributor.objects.create(name="MyName1")
+        cycle = Cycle.objects.create(start=datetime(2025, 3, 23))
+        platform = SocialPlatform.objects.create(name="platforms1", prefix="s1")
+        reward_type = RewardType.objects.create(label="41", name="reward41")
+        reward = Reward.objects.create(type=reward_type)
+        contribution = Contribution.objects.create(
+            contributor=contributor, cycle=cycle, platform=platform, reward=reward
+        )
+        assert contribution.get_absolute_url() == "/contribution/{}".format(
+            contribution.id
+        )

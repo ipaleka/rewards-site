@@ -8,13 +8,15 @@
   {% for handle in contributor.handle_set.all %}
     <p><strong>{{ handle.platform.name }}:</strong> {{ handle.handle }}</p>
   {% endfor %}  
-
+  <br>
+  <p><strong>Total rewards:</strong> {{ contributor.total_rewards|floatformat:"g" }}</p>
+  <br>
   <div>
     <h2>Contributions</h2>
     {% for contribution in contributor.contribution_set.all reversed %}
       <hr />
       <p>
-        Cycle: <a href="{{ contribution.cycle.get_absolute_url }}">{{ contribution.cycle }}</a> | Reward: {{ contribution.reward.amount }}
+        Cycle: <a class="link link-accent" href="{{ contribution.cycle.get_absolute_url }}">{{ contribution.cycle }}</a> | Reward: <a class="link link-accent" href="{{ contribution.get_absolute_url }}">{{ contribution.reward.amount|floatformat:"g" }}</a>
       </p>
     {% endfor %}
   </div>

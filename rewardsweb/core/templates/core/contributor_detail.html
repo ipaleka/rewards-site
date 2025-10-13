@@ -16,7 +16,7 @@
     {% for contribution in contributor.contribution_set.all reversed %}
       <hr />
       <p>
-        Cycle: <a class="link link-accent" href="{{ contribution.cycle.get_absolute_url }}">{{ contribution.cycle }}</a> | Reward: <a class="link link-accent" href="{{ contribution.get_absolute_url }}">{{ contribution.reward.amount|floatformat:"g" }}</a>
+        Cycle: <a class="link link-accent" href="{{ contribution.cycle.get_absolute_url }}">{{ contribution.cycle }}</a> | <a class="link link-accent" href="{{ contribution.get_absolute_url }}">{{ contribution.reward }}</a>
       </p>
     {% endfor %}
   </div>

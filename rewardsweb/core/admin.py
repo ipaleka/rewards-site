@@ -1,3 +1,5 @@
+"""Module containing website's admin UI setup."""
+
 from django.contrib import admin
 
 from core.models import (

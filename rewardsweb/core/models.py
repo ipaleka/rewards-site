@@ -143,11 +143,8 @@ class Contributor(models.Model):
 
         :return: int
         """
-        return (
-            self.contribution_set.aggregate(total_rewards=Sum("reward__amount"))[
-                "total_rewards"
-            ]
-            or 0
+        return self.contribution_set.aggregate(total_rewards=Sum("reward__amount")).get(
+            "total_rewards", 0
         )
 
 
@@ -278,11 +275,8 @@ class Cycle(models.Model):
 
         :return: int
         """
-        return (
-            self.contribution_set.aggregate(total_rewards=Sum("reward__amount"))[
-                "total_rewards"
-            ]
-            or 0
+        return self.contribution_set.aggregate(total_rewards=Sum("reward__amount")).get(
+            "total_rewards", 0
         )
 
 
@@ -347,7 +341,7 @@ class Reward(models.Model):
 
         :return: str
         """
-        return str(self.type) + " " + str(self.level) + ": " + str(self.amount)
+        return str(self.type) + " " + str(self.level) + ": " + f"{self.amount:,}"
 
 
 class Contribution(models.Model):

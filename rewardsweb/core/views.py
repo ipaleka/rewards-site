@@ -1,3 +1,6 @@
+"""Module containing website's views."""
+
+from django.db.models import Sum
 from django.views.generic import DetailView, ListView
 from django.views.generic.base import TemplateView
 
@@ -17,9 +20,14 @@ class IndexView(TemplateView):
         num_cycles = Cycle.objects.all().count()
         num_contributors = Contributor.objects.all().count()
         num_contributions = Contribution.objects.all().count()
+        total_rewards = Contribution.objects.aggregate(
+            total_rewards=Sum("reward__amount")
+        ).get("total_rewards", 0)
+
         context["num_cycles"] = num_cycles
         context["num_contributors"] = num_contributors
         context["num_contributions"] = num_contributions
+        context["total_rewards"] = total_rewards
 
         return context
 

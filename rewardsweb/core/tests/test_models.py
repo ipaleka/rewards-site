@@ -827,7 +827,7 @@ class TestCoreRewardModel:
     def test_core_reward_model_string_representation(self):
         reward_type = RewardType.objects.create(label="TS", name="Task")
         reward = Reward.objects.create(type=reward_type, level=1, amount=20000)
-        assert str(reward) == "[TS] Task 1: 20000"
+        assert str(reward) == "[TS] Task 1: 20,000"
 
 
 class TestCoreContributionModel:

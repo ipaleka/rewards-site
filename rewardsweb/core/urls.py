@@ -1,3 +1,5 @@
+"""Module containing website's URL configuration."""
+
 from django.urls import path
 
 from core import views

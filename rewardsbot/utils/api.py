@@ -1,48 +1,84 @@
 import aiohttp
+import logging
+
 from config import BASE_URL
+
+logger = logging.getLogger("discord.api")
 
 
 class ApiService:
-    @staticmethod
-    async def make_request(endpoint, params=None, method="GET"):
+    def __init__(self):
+        self.session = None
+
+    async def initialize(self):
+        """Initialize the aiohttp session"""
+        logger.info("🔗 Initializing API service...")
+        self.session = aiohttp.ClientSession(
+            timeout=aiohttp.ClientTimeout(total=30),
+            headers={"Content-Type": "application/json"},
+        )
+        logger.info("✅ API service initialized")
+
+    async def close(self):
+        """Close the aiohttp session"""
+        if self.session:
+            await self.session.close()
+            logger.info("✅ API service closed")
+
+    async def make_request(self, endpoint, params=None, method="GET"):
         if params is None:
             params = {}
 
         url = f"{BASE_URL}/{endpoint}"
+        logger.info(f"🌐 API Request: {method} {url} with params: {params}")
 
-        async with aiohttp.ClientSession() as session:
-            try:
-                if method.upper() == "GET":
-                    async with session.get(url, params=params) as response:
-                        response.raise_for_status()
-                        return await response.json()
-                elif method.upper() == "POST":
-                    async with session.post(url, json=params) as response:
-                        response.raise_for_status()
-                        return await response.json()
-            except aiohttp.ClientError as error:
-                print(f"Error making {method} request to {endpoint}: {error}")
-                raise error
+        try:
+            if method.upper() == "GET":
+                async with self.session.get(url, params=params) as response:
+                    logger.info(f"📡 API Response Status: {response.status} for {url}")
+                    response.raise_for_status()
+                    data = await response.json()
+                    logger.info(
+                        f"✅ API Response received for {endpoint}: {len(str(data))} bytes"
+                    )
+                    return data
+            else:
+                async with self.session.post(url, json=params) as response:
+                    logger.info(f"📡 API Response Status: {response.status} for {url}")
+                    response.raise_for_status()
+                    data = await response.json()
+                    logger.info(
+                        f"✅ API Response received for {endpoint}: {len(str(data))} bytes"
+                    )
+                    return data
 
-    @staticmethod
-    async def fetch_cycle_current():
-        return await ApiService.make_request("cycles/aggregated")
+        except aiohttp.ClientError as error:
+            logger.error(f"❌ API Request error for {endpoint}: {error}")
+            raise
+        except Exception as error:
+            logger.error(f"❌ Unexpected API error for {endpoint}: {error}")
+            raise
 
-    @staticmethod
-    async def fetch_cycle_dates(cycle_id):
-        return await ApiService.make_request(f"cycles/dates/{cycle_id}")
+    # Your existing methods...
+    async def fetch_cycle_current(self):
+        logger.info("🔗 fetch_cycle_current called")
+        return await self.make_request("cycles/aggregated")
 
-    @staticmethod
-    async def fetch_cycle_last():
-        return await ApiService.make_request("contributions/last")
+    async def fetch_cycle_dates(self, cycle_id):
+        logger.info(f"🔗 fetch_cycle_dates called for cycle {cycle_id}")
+        return await self.make_request(f"cycles/dates/{cycle_id}")
 
-    @staticmethod
-    async def fetch_user_contributions(username):
-        return await ApiService.make_request("contributions", {"name": username})
+    async def fetch_cycle_last(self):
+        logger.info("🔗 fetch_cycle_last called")
+        return await self.make_request("contributions/last")
 
-    @staticmethod
-    async def post_suggestion(contribution_type, level, username, message_url):
-        return await ApiService.make_request(
+    async def fetch_user_contributions(self, username):
+        logger.info(f"🔗 fetch_user_contributions called for {username}")
+        return await self.make_request("contributions", {"name": username})
+
+    async def post_suggestion(self, contribution_type, level, username, message_url):
+        logger.info(f"🔗 post_suggestion called for {username}")
+        return await self.make_request(
             "addcontribution",
             {
                 "type": contribution_type,

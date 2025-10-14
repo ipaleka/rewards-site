@@ -3,11 +3,10 @@ from datetime import datetime
 
 class Cycle:
     def __init__(self, data):
+
         self.id = data.get("cycleId")
-        self.start = datetime.fromisoformat(
-            data.get("cycleStart").replace("Z", "+00:00")
-        )
-        self.end = datetime.fromisoformat(data.get("cycleEnd").replace("Z", "+00:00"))
+        self.start = datetime.fromisoformat(data.get("start"))
+        self.end = datetime.fromisoformat(data.get("end"))
         self.contributors_rewards = data.get("contributorsRewards", {})
         self.total_rewards_cycle = data.get("totalRewardsCycle", 0)
 

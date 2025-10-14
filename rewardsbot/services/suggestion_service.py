@@ -1,32 +1,33 @@
+import logging
+
 import discord
 
-from utils.api import ApiService
 from utils.suggestion_parser import SuggestionParser
+
+logger = logging.getLogger("discord.suggestions")
 
 
 class SuggestionService:
     @staticmethod
     async def create_suggestion(
-        interaction: discord.Interaction,
-        type_input: str,
-        level_input: str,
-        user_input: str,
-        message_url: str,
+        interaction, type_input, level_input, user_input, message_url
     ):
         try:
+            # Get the bot instance to access the api_service
+            bot = interaction.client
+
             contribution_type = SuggestionParser.parse_reward_type(type_input.upper())
 
-            # 2.6.4 has better API error handling
-            result = await ApiService.post_suggestion(
+            result = await bot.api_service.post_suggestion(
                 contribution_type, level_input, user_input, message_url
             )
 
-            print(f"✅ Suggestion created: {contribution_type} for {user_input}")
+            logger.info(f"Suggestion created: {contribution_type} for {user_input}")
             return result
 
         except Exception as error:
-            print(f"❌ Suggestion Creation Error: {error}")
-            raise error  # Re-raise to be handled by modal
+            logger.error(f"Suggestion Creation Error: {error}", exc_info=True)
+            raise error
 
     @staticmethod
     async def handle_command(interaction: discord.Interaction):

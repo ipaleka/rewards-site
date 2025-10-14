@@ -1,33 +1,45 @@
+import logging
+
+
+import discord
+
 from models.contribution import Contribution
-from utils.api import ApiService
+
+logger = logging.getLogger("discord.user")
 
 
 class UserService:
     @staticmethod
-    async def handle_command(interaction):
+    async def handle_command(interaction: discord.Interaction, username: str):
         try:
-            username = interaction.data["options"][0]["options"][0]["value"]
-            user_summary = await UserService.get_user_summary(username)
-            await interaction.response.send_message(
+            logger.info(f"🎯 Processing user command for: {username}")
+
+            # Get the bot instance to access the api_service
+            bot = interaction.client
+            user_summary = await UserService.get_user_summary(bot.api_service, username)
+
+            await interaction.followup.send(
                 content=user_summary, allowed_mentions={"parse": []}
             )
         except Exception as error:
-            print(f"User Command Handling Error: {error}")
-            await interaction.response.send_message(
-                "Failed to process user command.", ephemeral=True
+            logger.error(f"❌ User Command Handling Error: {error}", exc_info=True)
+            await interaction.followup.send(
+                "❌ Failed to process user command.", ephemeral=True
             )
 
     @staticmethod
-    async def get_user_summary(username):
+    async def get_user_summary(api_service, username):
         try:
-            contributions = await ApiService.fetch_user_contributions(username)
+            contributions = await api_service.fetch_user_contributions(username)
             if not contributions:
                 return f"No contributions for {username}."
 
-            first_contribution_cycle = await ApiService.fetch_cycle_dates(
-                contributions[0]["cycle_id"]
+            # Get first contribution cycle dates
+            first_contribution_cycle = await api_service.fetch_cycle_dates(
+                contributions[0]["cycle"]
             )
-            first_contribution_date = first_contribution_cycle.get("cycleEnd")
+            first_contribution_date = first_contribution_cycle.get("end")
+
             if first_contribution_date:
                 from datetime import datetime
 
@@ -39,9 +51,6 @@ class UserService:
                 first_contribution_formatted = "Unknown"
 
             total_contributions = len(contributions)
-            total_rewards = sum(
-                float(contribution.get("reward", 0)) for contribution in contributions
-            )
 
             last_five_contributions = sorted(
                 contributions, key=lambda x: x.get("id", 0), reverse=True
@@ -56,9 +65,8 @@ class UserService:
                 f"**{username}**\n\n"
                 f"First contribution cycle: {first_contribution_formatted}\n"
                 f"Total contributions: {total_contributions}\n"
-                f"Total rewards: {total_rewards:.2f} damo\n\n"
                 f"Last contributions:\n\n{contributions_text}"
             )
         except Exception as error:
-            print(f"User Summary Error: {error}")
-            raise Exception("Failed to generate user summary.")
+            logger.error(f"❌ User Summary Error: {error}", exc_info=True)
+            return f"❌ Failed to generate user summary for {username}."

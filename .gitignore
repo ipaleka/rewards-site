@@ -4,10 +4,12 @@ __pycache__
 .vscode
 *.code-workspace
 .scannerwork
-rewardsweb/.env
 docs/_build
 db.sqlite3
+rewardsweb/.env
 rewardsweb/fixtures/*.csv
 rewardsweb/fixtures/*.xlsx
 rewardsweb/.coverage
 rewardsweb/core/static/css/tailwindcss
+rewardsbot/.env
+rewardsbot/*.log

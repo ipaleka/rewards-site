@@ -270,6 +270,22 @@ class Cycle(models.Model):
         return reverse("cycle-detail", args=[str(self.id)])
 
     @cached_property
+    def contributor_rewards(self):
+        """Return collection of all contributors and related rewards for cycle (cached).
+
+        TODO: tests
+
+        :return: dict
+        """
+        result = (
+            self.contribution_set.select_related("contributor")
+            .values("contributor__name")
+            .annotate(total_amount=Sum("reward__amount"))
+            .order_by("contributor__name")
+        )
+        return {item["contributor__name"]: item["total_amount"] for item in result}
+
+    @cached_property
     def total_rewards(self):
         """Return sum of all reward amounts for this cycle (cached).
 

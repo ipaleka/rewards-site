@@ -22,14 +22,14 @@ class CycleService:
                 info = await CycleService.get_current_cycle_info(bot.api_service)
                 logger.info("✅ Current cycle info fetched, sending response...")
                 await interaction.followup.send(info)
-            elif detail == "end":
+            elif detail == "date":
                 logger.info("📅 Fetching cycle end date...")
                 end_date_info = await CycleService.get_cycle_end_date(bot.api_service)
                 logger.info("✅ Cycle end date fetched, sending response...")
                 await interaction.followup.send(end_date_info)
-            elif detail == "last":
-                logger.info("📋 Fetching last cycle contributions...")
-                cycle_last = await CycleService.get_cycle_last(bot.api_service)
+            elif detail == "tail":
+                logger.info("📋 Fetching last contributions...")
+                cycle_last = await CycleService.get_last_contributions(bot.api_service)
                 logger.info("✅ Last cycle fetched, sending response...")
                 await interaction.followup.send(cycle_last)
             else:
@@ -45,8 +45,8 @@ class CycleService:
     @staticmethod
     async def get_current_cycle_info(api_service):
         try:
-            logger.info("🔗 Making API call to fetch_cycle_current...")
-            cycle_data = await api_service.fetch_cycle_current()
+            logger.info("🔗 Making API call to fetch_current_cycle...")
+            cycle_data = await api_service.fetch_current_cycle()
             logger.info(f"✅ API response received: {len(str(cycle_data))} bytes")
 
             logger.info("🔄 Creating Cycle model...")
@@ -65,12 +65,9 @@ class CycleService:
     @staticmethod
     async def get_cycle_end_date(api_service):
         try:
-            logger.info("🔗 Making API call to fetch_cycle_current for end date...")
-            cycle_data = await api_service.fetch_cycle_current()
-            logger.info(f"✅ API response received: {len(str(cycle_data))} bytes")
-
-            logger.info("🔄 Creating Cycle model...")
-            cycle = Cycle(cycle_data)
+            logger.info("🔗 Making API call to fetch_current_cycle_plain for end date...")
+            cycle = await api_service.fetch_current_cycle_plain()
+            logger.info(f"✅ API response received: {len(str(cycle))} bytes")
 
             result = f"The current cycle ends on: {cycle.end.strftime('%Y-%m-%d')}"
             logger.info(f"✅ End date formatted: {result}")
@@ -82,17 +79,17 @@ class CycleService:
             return "❌ Failed to fetch cycle end date."
 
     @staticmethod
-    async def get_cycle_last(api_service):
+    async def get_last_contributions(api_service):
         try:
-            logger.info("🔗 Making API call to fetch_cycle_last...")
-            cycle_data = await api_service.fetch_cycle_last()
+            logger.info("🔗 Making API call to fetch_last_contributions...")
+            contributions_data = await api_service.fetch_last_contributions()
             logger.info(
-                f"✅ API response received: type={type(cycle_data)}, length={len(cycle_data) if isinstance(cycle_data, list) else 'N/A'}"
+                f"✅ API response received: type={type(contributions_data)}, length={len(contributions_data) if isinstance(contributions_data, list) else 'N/A'}"
             )
 
-            if isinstance(cycle_data, list) and len(cycle_data) > 0:
-                logger.info(f"🔄 Formatting {len(cycle_data)} contributions...")
-                contributions = [Contribution(data).format() for data in cycle_data]
+            if isinstance(contributions_data, list) and len(contributions_data) > 0:
+                logger.info(f"🔄 Formatting {len(contributions_data)} contributions...")
+                contributions = [Contribution(data).format() for data in contributions_data]
                 result = "Last 5 contributions:\n\n" + "\n".join(contributions)
                 logger.info("✅ Contributions formatted successfully")
                 return result
@@ -101,5 +98,5 @@ class CycleService:
                 return "No contributions found for the last cycle."
 
         except Exception as e:
-            logger.error(f"❌ Error in get_cycle_last: {e}", exc_info=True)
+            logger.error(f"❌ Error in get_last_contributions: {e}", exc_info=True)
             return "❌ Failed to fetch last cycle contributions."

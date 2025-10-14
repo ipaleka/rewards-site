@@ -60,16 +60,20 @@ class ApiService:
             raise
 
     # Your existing methods...
-    async def fetch_cycle_current(self):
-        logger.info("🔗 fetch_cycle_current called")
-        return await self.make_request("cycles/aggregated")
+    async def fetch_current_cycle(self):
+        logger.info("🔗 fetch_current_cycle called")
+        return await self.make_request("cycles/current")
 
-    async def fetch_cycle_dates(self, cycle_id):
-        logger.info(f"🔗 fetch_cycle_dates called for cycle {cycle_id}")
-        return await self.make_request(f"cycles/dates/{cycle_id}")
+    async def fetch_current_cycle_plain(self):
+        logger.info("🔗 fetch_current_cycle_plain called")
+        return await self.make_request("cycles/current-plain")
 
-    async def fetch_cycle_last(self):
-        logger.info("🔗 fetch_cycle_last called")
+    async def fetch_cycle_by_id(self, cycle_id):
+        logger.info(f"🔗 fetch_cycle_by_id called for cycle {cycle_id}")
+        return await self.make_request(f"cycles/{cycle_id}")
+
+    async def fetch_last_contributions(self):
+        logger.info("🔗 fetch_last_contributions called")
         return await self.make_request("contributions/last")
 
     async def fetch_user_contributions(self, username):

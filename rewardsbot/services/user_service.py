@@ -35,7 +35,7 @@ class UserService:
                 return f"No contributions for {username}."
 
             # Get first contribution cycle dates
-            first_contribution_cycle = await api_service.fetch_cycle_dates(
+            first_contribution_cycle = await api_service.fetch_cycle_by_id(
                 contributions[0]["cycle"]
             )
             first_contribution_date = first_contribution_cycle.get("end")

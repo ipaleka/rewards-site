@@ -5,7 +5,11 @@ from asgiref.sync import sync_to_async
 from django.db import transaction
 
 from core.models import Contribution, Contributor, Cycle
-from api.serializers import ContributionSerializer, CycleSerializer
+from api.serializers import (
+    AggregatedCycleSerializer,
+    ContributionSerializer,
+    CycleSerializer,
+)
 
 
 class ContributionsView(APIView):
@@ -29,15 +33,6 @@ class ContributionsView(APIView):
         return Response(serializer.data)
 
 
-class CycleAggregatedView(APIView):
-    async def get(self, request):
-        # Async database query
-        cycle_data = await sync_to_async(lambda: Cycle.objects.latest("start"))()
-
-        serializer = CycleSerializer(cycle_data)
-        return Response(serializer.data)
-
-
 class AddContributionView(APIView):
     async def post(self, request):
         serializer = ContributionSerializer(data=request.data)
@@ -51,18 +46,53 @@ class AddContributionView(APIView):
         return Response(serializer.errors, status=status.HTTP_400_BAD_REQUEST)
 
 
-class CycleDatesView(APIView):
-    async def get(self, request, cycle_id):
-        cycle_dates = await sync_to_async(
-            lambda: Cycle.objects.filter(id=cycle_id).values("start", "end").first()
-        )()
+class CurrentCycleAggregatedView(APIView):
+    async def get(self, request):
+        # Async database query
+        cycle = await sync_to_async(lambda: Cycle.objects.latest("start"))()
+        data = {
+            "id": cycle.id,
+            "start": cycle.start,
+            "end": cycle.end,
+            "contributor_rewards": cycle.contributor_rewards,
+            "total_rewards": cycle.total_rewards,
+        }
+        serializer = AggregatedCycleSerializer(data=data)
+        serializer.is_valid()
+        return await serializer.adata
 
-        if not cycle_dates:
+
+class CurrentCyclePlainView(APIView):
+    async def get(self, request):
+        # Async database query
+        cycle = await sync_to_async(lambda: Cycle.objects.latest("start"))()
+
+        serializer = CycleSerializer(cycle)
+        return Response(serializer.data)
+
+
+class CycleAggregatedView(APIView):
+    async def get(self, request, cycle_id):
+        cycle = await sync_to_async(lambda: Cycle.objects.filter(id=cycle_id).first())()
+
+        if not cycle:
             return Response(
                 {"error": "Cycle not found"}, status=status.HTTP_404_NOT_FOUND
             )
 
-        return Response(cycle_dates)
+        data = {
+            "id": cycle.id,
+            "start": cycle.start,
+            "end": cycle.end,
+            "contributor_rewards": cycle.contributor_rewards,
+            "total_rewards": cycle.total_rewards,
+        }
+        serializer = AggregatedCycleSerializer(data=data)
+        serializer.is_valid()
+        return await serializer.adata
+
+        # serializer = CycleSerializer(cycle)
+        # return Response(serializer.data)
 
 
 class ContributionsLastView(APIView):

@@ -244,8 +244,8 @@ async def on_app_command_error(
 @app_commands.choices(
     detail=[
         app_commands.Choice(name="current", value="current"),
-        app_commands.Choice(name="end", value="end"),
-        app_commands.Choice(name="last", value="last"),
+        app_commands.Choice(name="date", value="date"),
+        app_commands.Choice(name="tail", value="tail"),
     ]
 )
 async def rewards_command(
@@ -315,8 +315,8 @@ async def suggest_reward_context(
 @app_commands.choices(
     detail=[
         app_commands.Choice(name="current", value="current"),
-        app_commands.Choice(name="end", value="end"),
-        app_commands.Choice(name="last", value="last"),
+        app_commands.Choice(name="date", value="date"),
+        app_commands.Choice(name="tail", value="tail"),
     ]
 )
 async def debug_rewards_command(

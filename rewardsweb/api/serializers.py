@@ -1,6 +1,7 @@
 """Module containing API serializers."""
 
-from adrf.serializers import ModelSerializer
+from adrf.serializers import ModelSerializer, Serializer
+from rest_framework.serializers import DateField, DictField, IntegerField
 from core.models import (
     Contribution,
     Contributor,
@@ -9,6 +10,14 @@ from core.models import (
     RewardType,
     SocialPlatform,
 )
+
+
+class AggregatedCycleSerializer(Serializer):
+    id = IntegerField()
+    start = DateField()
+    end = DateField()
+    contributor_rewards = DictField()
+    total_rewards = IntegerField()
 
 
 class ContributorSerializer(ModelSerializer):

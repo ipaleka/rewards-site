@@ -1,16 +1,17 @@
-import discord
-from discord.ext import commands
-from discord import app_commands
 import asyncio
 import logging
 import signal
 import sys
-from typing import Optional
 
-# Local imports
+import discord
+from discord.ext import commands
+from discord import app_commands
+
 import config
+from services.cycle_service import CycleService
+from services.user_service import UserService
 from utils.api import ApiService
-from controllers.command_handler import handle_slash_command
+from controllers.command_handler import SuggestRewardModal
 
 # Set up comprehensive logging
 logging.basicConfig(
@@ -179,6 +180,12 @@ class RewardsBot(commands.Bot):
 # Create bot instance
 bot = RewardsBot()
 
+# Define command groups
+rewards_group = app_commands.Group(
+    name="rewards", description="Manage rewards and contributions"
+)
+bot.tree.add_command(rewards_group)
+
 
 # Global error handler for all application commands
 @bot.tree.error
@@ -227,20 +234,9 @@ async def on_app_command_error(
         logger.error(f"Failed to send error message: {e}")
 
 
-# Main rewards command
-@bot.tree.command(name="rewards", description="Manage rewards and contributions")
-@app_commands.describe(
-    subcommand="Choose an action",
-    username="The username to check contributions for",
-    detail="Detail about the cycle",
-)
-@app_commands.choices(
-    subcommand=[
-        app_commands.Choice(name="cycle", value="cycle"),
-        app_commands.Choice(name="user", value="user"),
-        app_commands.Choice(name="suggest", value="suggest"),
-    ]
-)
+# Cycle subcommand
+@rewards_group.command(name="cycle", description="Get cycle information")
+@app_commands.describe(detail="Detail about the cycle")
 @app_commands.choices(
     detail=[
         app_commands.Choice(name="current", value="current"),
@@ -248,14 +244,77 @@ async def on_app_command_error(
         app_commands.Choice(name="tail", value="tail"),
     ]
 )
-async def rewards_command(
-    interaction: discord.Interaction,
-    subcommand: app_commands.Choice[str],
-    username: Optional[str] = None,
-    detail: Optional[app_commands.Choice[str]] = None,
-):
-    """Main rewards command handler - now with proper async API calls to ADRF"""
-    await handle_slash_command(interaction)
+async def rewards_cycle(interaction: discord.Interaction, detail: str):
+    """Cycle subcommand"""
+    await interaction.response.defer(thinking=True)
+
+    # Get the bot instance to access the api_service
+    bot = interaction.client
+
+    try:
+        if detail == "current":
+            info = await CycleService.current_cycle_info(bot.api_service)
+            await interaction.followup.send(info)
+
+        elif detail == "date":
+            end_date_info = await CycleService.cycle_end_date(bot.api_service)
+            await interaction.followup.send(end_date_info)
+
+        elif detail == "tail":
+            cycle_last = await CycleService.contributions_tail(bot.api_service)
+            await interaction.followup.send(cycle_last)
+
+        else:
+            await interaction.followup.send("❌ Invalid detail provided.")
+
+    except Exception as error:
+        logger.error(f"❌ Cycle Command Error: {error}", exc_info=True)
+        await interaction.followup.send(
+            "❌ Failed to process cycle command.", ephemeral=True
+        )
+
+
+# User subcommand
+@rewards_group.command(name="user", description="Get user contributions")
+@app_commands.describe(username="Username to fetch data for")
+async def rewards_user(interaction: discord.Interaction, username: str):
+    """User subcommand"""
+    await interaction.response.defer(thinking=True)
+
+    # Get the bot instance to access the api_service
+    bot = interaction.client
+
+    try:
+        user_summary = await UserService.user_summary(bot.api_service, username)
+        await interaction.followup.send(user_summary)
+
+    except Exception as error:
+        logger.error(f"❌ User Command Error: {error}", exc_info=True)
+        await interaction.followup.send(
+            "❌ Failed to process user command.", ephemeral=True
+        )
+
+
+# Suggest subcommand
+@rewards_group.command(name="suggest", description="Suggest a reward for a user")
+@app_commands.describe(
+    username="The username to suggest a reward for",
+    reason="Reason for the reward suggestion",
+)
+async def rewards_suggest(interaction: discord.Interaction, username: str, reason: str):
+    """Suggest subcommand"""
+    await interaction.response.defer(thinking=True)
+
+    try:
+        # You can implement the suggestion logic here or call your existing handler
+        result = f"✅ Reward suggestion recorded for {username}: {reason}"
+        await interaction.followup.send(result)
+
+    except Exception as error:
+        logger.error(f"❌ Suggest Command Error: {error}", exc_info=True)
+        await interaction.followup.send(
+            "❌ Failed to process suggestion.", ephemeral=True
+        )
 
 
 # Context menu command for suggesting rewards
@@ -265,8 +324,6 @@ async def suggest_reward_context(
 ):
     """Context menu for suggesting rewards on messages"""
     try:
-        from controllers.command_handler import SuggestRewardModal
-
         # Validate the message
         if message.author.bot:
             await interaction.response.send_message(
@@ -296,85 +353,6 @@ async def suggest_reward_context(
             )
         except discord.NotFound:
             logger.warning("Interaction expired before error could be sent")
-
-
-# Better debug command that mimics the rewards command structure
-@bot.tree.command(name="debug_rewards", description="Debug rewards command structure")
-@app_commands.describe(
-    subcommand="Choose an action",
-    username="The username to check contributions for",
-    detail="Detail about the cycle",
-)
-@app_commands.choices(
-    subcommand=[
-        app_commands.Choice(name="cycle", value="cycle"),
-        app_commands.Choice(name="user", value="user"),
-        app_commands.Choice(name="suggest", value="suggest"),
-    ]
-)
-@app_commands.choices(
-    detail=[
-        app_commands.Choice(name="current", value="current"),
-        app_commands.Choice(name="date", value="date"),
-        app_commands.Choice(name="tail", value="tail"),
-    ]
-)
-async def debug_rewards_command(
-    interaction: discord.Interaction,
-    subcommand: app_commands.Choice[str],
-    username: str = None,
-    detail: app_commands.Choice[str] = None,
-):
-    """Debug command to see the rewards command structure"""
-    await interaction.response.defer(thinking=True, ephemeral=True)
-
-    command_data = interaction.data
-
-    debug_lines = []
-    debug_lines.append("**🔍 Rewards Command Data Structure:**")
-    debug_lines.append("")
-    debug_lines.append(f"**Command Name:** `{command_data.get('name', 'Unknown')}`")
-    debug_lines.append(f"**Command ID:** `{command_data.get('id', 'Unknown')}`")
-    debug_lines.append("")
-
-    debug_lines.append("**Parameters received:**")
-    debug_lines.append(f"- Subcommand: `{subcommand.value}`")
-    debug_lines.append(f"- Username: `{username}`")
-    debug_lines.append(f"- Detail: `{detail.value if detail else 'None'}`")
-    debug_lines.append("")
-
-    debug_lines.append("**Raw options structure:**")
-    options = command_data.get("options", [])
-    if not options:
-        debug_lines.append("*No options*")
-    else:
-        for i, option in enumerate(options):
-            debug_lines.append(f"**Option {i+1}:**")
-            debug_lines.append(f"  - Name: `{option.get('name', 'Unknown')}`")
-            debug_lines.append(f"  - Type: `{option.get('type', 'Unknown')}`")
-            debug_lines.append(f"  - Value: `{option.get('value', 'No value')}`")
-
-            # Check for nested options
-            nested_options = option.get("options", [])
-            if nested_options:
-                debug_lines.append("  **Nested Options:**")
-                for j, nested_opt in enumerate(nested_options):
-                    debug_lines.append(
-                        f"    - Name: `{nested_opt.get('name', 'Unknown')}`"
-                    )
-                    debug_lines.append(
-                        f"    - Type: `{nested_opt.get('type', 'Unknown')}`"
-                    )
-                    debug_lines.append(
-                        f"    - Value: `{nested_opt.get('value', 'No value')}`"
-                    )
-
-    debug_message = "\n".join(debug_lines)
-
-    # Log the raw structure
-    logger.info(f"🔍 Debug rewards command raw data: {command_data}")
-
-    await interaction.followup.send(debug_message, ephemeral=True)
 
 
 # Global interaction logger

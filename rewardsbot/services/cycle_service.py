@@ -1,7 +1,5 @@
 import logging
 
-import discord
-
 from models.cycle import Cycle
 from models.contribution import Contribution
 
@@ -9,42 +7,6 @@ logger = logging.getLogger("discord.cycle")
 
 
 class CycleService:
-    @staticmethod
-    async def handle_command(interaction: discord.Interaction, detail: str):
-        try:
-            logger.info(f"🎯 Processing cycle command with detail: {detail}")
-
-            # Get the bot instance to access the api_service
-            bot = interaction.client
-
-            if detail == "current":
-                logger.info("📊 Fetching current cycle info...")
-                info = await CycleService.current_cycle_info(bot.api_service)
-                logger.info("✅ Current cycle info fetched, sending response...")
-                await interaction.followup.send(info)
-
-            elif detail == "date":
-                logger.info("📅 Fetching cycle end date...")
-                end_date_info = await CycleService.cycle_end_date(bot.api_service)
-                logger.info("✅ Cycle end date fetched, sending response...")
-                await interaction.followup.send(end_date_info)
-
-            elif detail == "tail":
-                logger.info("📋 Fetching last contributions...")
-                cycle_last = await CycleService.contributions_tail(bot.api_service)
-                logger.info("✅ Last cycle fetched, sending response...")
-                await interaction.followup.send(cycle_last)
-
-            else:
-                logger.warning(f"❌ Invalid detail provided: {detail}")
-                await interaction.followup.send("❌ Invalid detail provided.")
-
-        except Exception as error:
-            logger.error(f"❌ Cycle Command Handling Error: {error}", exc_info=True)
-            await interaction.followup.send(
-                "❌ Failed to process cycle command.", ephemeral=True
-            )
-
     @staticmethod
     async def current_cycle_info(api_service):
         try:
@@ -68,6 +30,7 @@ class CycleService:
     @staticmethod
     async def cycle_end_date(api_service):
         try:
+
             logger.info(
                 "🔗 Making API call to fetch_current_cycle_plain for end date..."
             )
@@ -87,22 +50,22 @@ class CycleService:
     async def contributions_tail(api_service):
         try:
             logger.info("🔗 Making API call to fetch_contributions_tail...")
-            contributions_data = await api_service.fetch_contributions_tail()
+            contributions = await api_service.fetch_contributions_tail()
             size = (
-                len(contributions_data)
-                if isinstance(contributions_data, list)
+                len(contributions)
+                if isinstance(contributions, list)
                 else "N/A"
             )
             logger.info(
-                f"✅ API response received: type={type(contributions_data)},"
+                f"✅ API response received: type={type(contributions)},"
                 f"length={size}"
             )
 
-            if isinstance(contributions_data, list) and len(contributions_data) > 0:
-                logger.info(f"🔄 Formatting {len(contributions_data)} contributions...")
+            if isinstance(contributions, list) and len(contributions) > 0:
+                logger.info(f"🔄 Formatting {len(contributions)} contributions...")
                 contributions = [
                     Contribution(data).formatted_contributions()
-                    for data in contributions_data
+                    for data in contributions
                 ]
                 result = "Last 5 contributions:\n\n" + "\n".join(contributions)
                 logger.info("✅ Contributions formatted successfully")

@@ -12,7 +12,7 @@ class Contribution:
     def __init__(self, data):
         self.id = data.get("id")
         self.contributor_name = data.get("contributor_name")
-        self.cycle_id = data.get("cycle")
+        self.cycle_id = data.get("cycle_id")
         self.platform = data.get("platform")
         self.url = data.get("url")
         self.type = data.get("type")

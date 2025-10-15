@@ -56,7 +56,7 @@ def _import_contributions(data, parse_callback, amount_callback):
             amount=amount_callback(row["reward"])
         )
         percentage = row["percentage"] if not pd.isna(row["percentage"]) else 1
-        url = row["url"]
+        url = row["url"] if not pd.isna(row["url"]) else None
         comment = row["comment"] if not pd.isna(row["comment"]) else None
         Contribution.objects.create(
             contributor=contributor,

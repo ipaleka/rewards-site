@@ -3,9 +3,7 @@ import logging
 import discord
 from discord.ui import Modal, TextInput
 
-from services.cycle_service import CycleService
 from services.suggestion_service import SuggestionService
-from services.user_service import UserService
 
 logger = logging.getLogger("discord.commands")
 
@@ -53,8 +51,10 @@ class SuggestRewardModal(Modal, title="Suggest a Reward"):
         message_url = self.target_message.jump_url
 
         try:
+            # Get the bot instance to access the api_service
+            bot = interaction.client
             await SuggestionService.create_suggestion(
-                interaction, contribution_type, level, username, message_url
+                bot.api_service, contribution_type, level, username, message_url
             )
             await interaction.followup.send(
                 f"✅ Suggestion for [{contribution_type}{level}] submitted for {username}.",
@@ -65,67 +65,3 @@ class SuggestRewardModal(Modal, title="Suggest a Reward"):
             await interaction.followup.send(
                 f"❌ Failed to submit suggestion: {str(e)}", ephemeral=True
             )
-
-
-async def handle_slash_command(interaction: discord.Interaction):
-    """Handle slash commands with proper response management"""
-    if not interaction.command:
-        return
-
-    try:
-        command_data = interaction.data
-        logger.info(f"📋 Raw command data: {command_data}")
-
-        options = command_data.get("options", [])
-        logger.info(f"📋 Command options: {options}")
-
-        if not options:
-            await interaction.response.send_message(
-                "❌ No parameters provided.", ephemeral=True
-            )
-            return
-
-        # Extract parameters from the flat structure
-        params = {}
-        for option in options:
-            params[option["name"]] = option["value"]
-
-        logger.info(f"📋 Extracted parameters: {params}")
-
-        subcommand = params.get("subcommand")
-        username = params.get("username")
-        detail = params.get("detail")
-
-        logger.info(
-            f"🎯 Parsed - Subcommand: {subcommand}, Username: {username}, Detail: {detail}"
-        )
-
-        # DEFER THE RESPONSE FIRST to avoid "thinking..." timeout
-        await interaction.response.defer(thinking=True)
-        logger.info("⏳ Response deferred successfully")
-
-        # Handle the subcommand
-        if subcommand == "cycle":
-            logger.info("🔄 Routing to CycleService...")
-            await CycleService.handle_command(interaction, detail)
-        elif subcommand == "user":
-            logger.info("🔄 Routing to UserService...")
-            await UserService.handle_command(interaction, username)
-        elif subcommand == "suggest":
-            logger.info("🔄 Routing to SuggestionService...")
-            await SuggestionService.handle_command(interaction)
-        else:
-            logger.warning(f"❌ Unknown subcommand: {subcommand}")
-            await interaction.followup.send(
-                f"❌ Unknown subcommand: {subcommand}", ephemeral=True
-            )
-
-    except Exception as error:
-        logger.error(f"❌ Command Handling Error: {error}", exc_info=True)
-        # Use followup since we already deferred
-        try:
-            await interaction.followup.send(
-                "❌ Failed to execute the command.", ephemeral=True
-            )
-        except Exception as e:
-            logger.error(f"Failed to send error message: {e}")

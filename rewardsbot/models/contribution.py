@@ -1,3 +1,13 @@
+import re
+
+
+def _create_link(linktext, url):
+    if url:
+        return f"[{linktext}]({url})"
+
+    return f"{linktext}"
+
+
 class Contribution:
     def __init__(self, data):
         self.id = data.get("id")
@@ -11,14 +21,15 @@ class Contribution:
         self.reward = data.get("reward")
         self.confirmed = data.get("confirmed")
 
-    def format(self, is_user_summary=False):
-        import re
-
+    def formatted_contributions(self, is_user_summary=False):
         type_short = re.search(r"\[(.*?)\]", self.type)
         type_short = type_short.group(1) if type_short else self.type
+        reward = self.reward or 0
+        linktext = (
+            f"{type_short}{self.level}"
+            if is_user_summary
+            else f"{self.contributor_name} [{type_short}{self.level}]"
+        )
+        link = _create_link(linktext, self.url)
 
-        reward = float(self.reward) if self.reward else 0.0
-
-        if is_user_summary:
-            return f"[[{type_short}{self.level}]]({self.url}) {reward:.2f} damo"
-        return f"[{self.contributor_name} [{type_short}{self.level}]]({self.url}) {reward:.2f} damo"
+        return f"{link} {reward:,}"

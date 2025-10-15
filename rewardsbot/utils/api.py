@@ -72,9 +72,9 @@ class ApiService:
         logger.info(f"🔗 fetch_cycle_by_id called for cycle {cycle_id}")
         return await self.make_request(f"cycles/{cycle_id}")
 
-    async def fetch_last_contributions(self):
-        logger.info("🔗 fetch_last_contributions called")
-        return await self.make_request("contributions/last")
+    async def fetch_contributions_tail(self):
+        logger.info("🔗 fetch_contributions_tail called")
+        return await self.make_request("contributions/tail")
 
     async def fetch_user_contributions(self, username):
         logger.info(f"🔗 fetch_user_contributions called for {username}")

@@ -1,7 +1,15 @@
 """Module containing API serializers."""
 
 from adrf.serializers import ModelSerializer, Serializer
-from rest_framework.serializers import DateField, DictField, IntegerField
+from rest_framework.serializers import (
+    BooleanField,
+    CharField,
+    DateField,
+    DecimalField,
+    DictField,
+    IntegerField,
+    URLField,
+)
 from core.models import (
     Contribution,
     Contributor,
@@ -48,6 +56,19 @@ class RewardSerializer(ModelSerializer):
     class Meta:
         model = Reward
         fields = ("type", "level", "amount", "description")
+
+
+class HumanizedContributionSerializer(Serializer):
+    id = IntegerField()
+    contributor_name = CharField()
+    cycle_id = IntegerField()
+    platform = CharField()
+    url = URLField()
+    type = CharField()
+    level = IntegerField()
+    percentage = DecimalField(max_digits=5, decimal_places=2)
+    reward = IntegerField()
+    confirmed = BooleanField()
 
 
 class ContributionSerializer(ModelSerializer):

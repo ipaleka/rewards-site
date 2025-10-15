@@ -9,6 +9,7 @@ from api.serializers import (
     AggregatedCycleSerializer,
     ContributionSerializer,
     CycleSerializer,
+    HumanizedContributionSerializer,
 )
 
 
@@ -50,16 +51,18 @@ class CurrentCycleAggregatedView(APIView):
     async def get(self, request):
         # Async database query
         cycle = await sync_to_async(lambda: Cycle.objects.latest("start"))()
+        contributor_rewards = await sync_to_async(lambda: cycle.contributor_rewards)()
+        total_rewards = await sync_to_async(lambda: cycle.total_rewards)()
         data = {
             "id": cycle.id,
             "start": cycle.start,
             "end": cycle.end,
-            "contributor_rewards": cycle.contributor_rewards,
-            "total_rewards": cycle.total_rewards,
+            "contributor_rewards": contributor_rewards,
+            "total_rewards": total_rewards,
         }
         serializer = AggregatedCycleSerializer(data=data)
         serializer.is_valid()
-        return await serializer.adata
+        return Response(serializer.data)
 
 
 class CurrentCyclePlainView(APIView):
@@ -73,6 +76,7 @@ class CurrentCyclePlainView(APIView):
 
 class CycleAggregatedView(APIView):
     async def get(self, request, cycle_id):
+        # Async database query
         cycle = await sync_to_async(lambda: Cycle.objects.filter(id=cycle_id).first())()
 
         if not cycle:
@@ -80,26 +84,39 @@ class CycleAggregatedView(APIView):
                 {"error": "Cycle not found"}, status=status.HTTP_404_NOT_FOUND
             )
 
+        contributor_rewards = await sync_to_async(lambda: cycle.contributor_rewards)()
+        total_rewards = await sync_to_async(lambda: cycle.total_rewards)()
         data = {
             "id": cycle.id,
             "start": cycle.start,
             "end": cycle.end,
-            "contributor_rewards": cycle.contributor_rewards,
-            "total_rewards": cycle.total_rewards,
+            "contributor_rewards": contributor_rewards,
+            "total_rewards": total_rewards,
         }
         serializer = AggregatedCycleSerializer(data=data)
         serializer.is_valid()
-        return await serializer.adata
-
-        # serializer = CycleSerializer(cycle)
-        # return Response(serializer.data)
+        return Response(serializer.data)
 
 
-class ContributionsLastView(APIView):
+class ContributionsTailView(APIView):
     async def get(self, request):
-        last_contributions = await sync_to_async(
-            lambda: list(Contribution.objects.order_by("-id")[:5])
+        data = await sync_to_async(
+            lambda: [
+                {
+                    "id": contribution.id,
+                    "contributor_name": contribution.contributor.name,
+                    "cycle_id": contribution.cycle.id,
+                    "platform": contribution.platform.name,
+                    "url": contribution.url,
+                    "type": contribution.reward.type,
+                    "level": contribution.reward.level,
+                    "percentage": contribution.percentage,
+                    "reward": contribution.reward.amount,
+                    "confirmed": contribution.confirmed,
+                }
+                for contribution in Contribution.objects.order_by("-id")[:5]
+            ]
         )()
-
-        serializer = ContributionSerializer(last_contributions, many=True)
+        serializer = HumanizedContributionSerializer(data=data, many=True)
+        serializer.is_valid()
         return Response(serializer.data)

@@ -9,6 +9,14 @@ logger = logging.getLogger("discord.suggestions")
 
 class SuggestionService:
     @staticmethod
+    async def handle_command(interaction: discord.Interaction):
+        await interaction.followup.send(
+            ("💡 Use the context menu (right-click on a message "
+             "→ Apps → Suggest Reward) to suggest rewards!"),
+            ephemeral=True,
+        )
+
+    @staticmethod
     async def create_suggestion(
         interaction, type_input, level_input, user_input, message_url
     ):
@@ -28,10 +36,3 @@ class SuggestionService:
         except Exception as error:
             logger.error(f"Suggestion Creation Error: {error}", exc_info=True)
             raise error
-
-    @staticmethod
-    async def handle_command(interaction: discord.Interaction):
-        await interaction.followup.send(
-            "💡 Use the context menu (right-click on a message → Apps → Suggest Reward) to suggest rewards!",
-            ephemeral=True,
-        )

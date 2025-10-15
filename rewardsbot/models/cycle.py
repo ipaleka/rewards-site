@@ -7,10 +7,10 @@ class Cycle:
         self.id = data.get("id")
         self.start = datetime.fromisoformat(data.get("start"))
         self.end = datetime.fromisoformat(data.get("end"))
-        self.contributor_rewards = data.get("contributors_rewards", {})
+        self.contributor_rewards = data.get("contributor_rewards", {})
         self.total_rewards = data.get("total_rewards", 0)
 
-    def get_formatted_cycle_info(self):
+    def formatted_cycle_info(self):
         rewards_info = "\n".join(
             f"{name} {reward:,}"
             for name, reward in self.contributor_rewards.items()

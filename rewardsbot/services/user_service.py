@@ -16,11 +16,12 @@ class UserService:
 
             # Get the bot instance to access the api_service
             bot = interaction.client
-            user_summary = await UserService.get_user_summary(bot.api_service, username)
+            user_summary = await UserService.user_summary(bot.api_service, username)
 
             await interaction.followup.send(
                 content=user_summary, allowed_mentions={"parse": []}
             )
+
         except Exception as error:
             logger.error(f"❌ User Command Handling Error: {error}", exc_info=True)
             await interaction.followup.send(
@@ -28,7 +29,7 @@ class UserService:
             )
 
     @staticmethod
-    async def get_user_summary(api_service, username):
+    async def user_summary(api_service, username):
         try:
             contributions = await api_service.fetch_user_contributions(username)
             if not contributions:
@@ -67,6 +68,7 @@ class UserService:
                 f"Total contributions: {total_contributions}\n"
                 f"Last contributions:\n\n{contributions_text}"
             )
+
         except Exception as error:
             logger.error(f"❌ User Summary Error: {error}", exc_info=True)
             return f"❌ Failed to generate user summary for {username}."

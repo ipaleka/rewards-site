@@ -101,14 +101,34 @@ class ContributionsTailView(APIView):
         return await contributions_response(queryset)
 
 
+# class AddContributionView(APIView):
+#     async def post(self, request):
+#         print(request.data)
+#         serializer = ContributionSerializer(data=request.data)
+
+#         if await sync_to_async(serializer.is_valid)():
+#             # Use atomic transaction for safety
+#             async with transaction.atomic():
+#                 await sync_to_async(serializer.save)()
+#             return Response(serializer.data, status=status.HTTP_201_CREATED)
+
+#         return Response(serializer.errors, status=status.HTTP_400_BAD_REQUEST)
+
+
 class AddContributionView(APIView):
     async def post(self, request):
-        serializer = ContributionSerializer(data=request.data)
 
-        if await sync_to_async(serializer.is_valid)():
-            # Use atomic transaction for safety
-            async with transaction.atomic():
-                await sync_to_async(serializer.save)()
-            return Response(serializer.data, status=status.HTTP_201_CREATED)
+        @sync_to_async
+        def process_contribution(data):
+            serializer = ContributionSerializer(data=data)
+            if serializer.is_valid():
+                with transaction.atomic():
+                    serializer.save()
+                return serializer.data, None
+            return None, serializer.errors
 
-        return Response(serializer.errors, status=status.HTTP_400_BAD_REQUEST)
+        data, errors = await process_contribution(request.data)
+        if data:
+            return Response(data, status=status.HTTP_201_CREATED)
+
+        return Response(errors, status=status.HTTP_400_BAD_REQUEST)

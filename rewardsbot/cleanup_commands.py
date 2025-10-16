@@ -1,4 +1,5 @@
 import asyncio
+from typing import Optional
 
 import discord
 from discord import app_commands
@@ -58,16 +59,27 @@ class CommandCleanup:
         self.tree.add_command(rewards_group)
 
         # Add subcommands
-        @rewards_group.command(name="cycle", description="Get cycle information")
-        @app_commands.describe(detail="Detail about the cycle")
-        @app_commands.choices(
-            detail=[
-                app_commands.Choice(name="current", value="current"),
-                app_commands.Choice(name="date", value="date"),
-                app_commands.Choice(name="tail", value="tail"),
-            ]
+        @rewards_group.command(
+            name="current", description="Get current cycle information"
         )
-        async def rewards_cycle(interaction: discord.Interaction, detail: str):
+        async def rewards_cycle_current(interaction: discord.Interaction):
+            pass
+
+        @rewards_group.command(name="date", description="Get cycle end date")
+        async def rewards_cycle_date(interaction: discord.Interaction):
+            pass
+
+        @rewards_group.command(
+            name="contributions", description="Get recent contributions"
+        )
+        async def rewards_contributions_tail(interaction: discord.Interaction):
+            pass
+
+        @rewards_group.command(
+            name="cycle", description="Get specific cycle information by number"
+        )
+        @app_commands.describe(number="The cycle number to look up")
+        async def rewards_cycle_specific(interaction: discord.Interaction, number: int):
             pass
 
         @rewards_group.command(name="user", description="Get user contributions")

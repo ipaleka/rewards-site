@@ -2,6 +2,7 @@ import asyncio
 import logging
 import signal
 import sys
+from typing import Optional
 
 import discord
 from discord.ext import commands
@@ -234,44 +235,69 @@ async def on_app_command_error(
         logger.error(f"Failed to send error message: {e}")
 
 
-# Cycle subcommand
-@rewards_group.command(name="cycle", description="Get cycle information")
-@app_commands.describe(detail="Detail about the cycle")
-@app_commands.choices(
-    detail=[
-        app_commands.Choice(name="current", value="current"),
-        app_commands.Choice(name="date", value="date"),
-        app_commands.Choice(name="tail", value="tail"),
-    ]
-)
-async def rewards_cycle(interaction: discord.Interaction, detail: str):
-    """Cycle subcommand"""
+# Separate cycle commands
+@rewards_group.command(name="current", description="Get current cycle information")
+async def rewards_cycle_current(interaction: discord.Interaction):
+    """Current cycle subcommand"""
     await interaction.response.defer(thinking=True)
-
-    # Get the bot instance to access the api_service
     bot = interaction.client
-
     try:
-        if detail == "current":
-            info = await CycleService.current_cycle_info(bot.api_service)
-            await interaction.followup.send(info)
-
-        elif detail == "date":
-            end_date_info = await CycleService.cycle_end_date(bot.api_service)
-            await interaction.followup.send(end_date_info)
-
-        elif detail == "tail":
-            cycle_last = await CycleService.contributions_tail(bot.api_service)
-            await interaction.followup.send(cycle_last)
-
-        else:
-            await interaction.followup.send("❌ Invalid detail provided.")
-
+        info = await CycleService.current_cycle_info(bot.api_service)
+        await interaction.followup.send(info)
     except Exception as error:
-        logger.error(f"❌ Cycle Command Error: {error}", exc_info=True)
+        logger.error(f"❌ Cycle Current Command Error: {error}", exc_info=True)
         await interaction.followup.send(
-            "❌ Failed to process cycle command.", ephemeral=True
+            "❌ Failed to get current cycle info.", ephemeral=True
         )
+
+
+@rewards_group.command(name="date", description="Get cycle end date")
+async def rewards_cycle_date(interaction: discord.Interaction):
+    """Cycle date subcommand"""
+    await interaction.response.defer(thinking=True)
+    bot = interaction.client
+    try:
+        end_date_info = await CycleService.cycle_end_date(bot.api_service)
+        await interaction.followup.send(end_date_info)
+    except Exception as error:
+        logger.error(f"❌ Cycle Date Command Error: {error}", exc_info=True)
+        await interaction.followup.send(
+            "❌ Failed to get cycle end date.", ephemeral=True
+        )
+
+
+@rewards_group.command(name="contributions", description="Get recent contributions")
+async def rewards_contributions_tail(interaction: discord.Interaction):
+    """Cycle tail subcommand"""
+    await interaction.response.defer(thinking=True)
+    bot = interaction.client
+    try:
+        cycle_last = await CycleService.contributions_tail(bot.api_service)
+        await interaction.followup.send(cycle_last)
+    except Exception as error:
+        logger.error(f"❌ Cycle Tail Command Error: {error}", exc_info=True)
+        await interaction.followup.send(
+            "❌ Failed to get recent contributions.", ephemeral=True
+        )
+
+
+@rewards_group.command(
+    name="cycle", description="Get specific cycle information by number"
+)
+@app_commands.describe(number="The cycle number to look up")
+async def rewards_cycle_specific(interaction: discord.Interaction, number: int):
+    """Specific cycle subcommand"""
+    await interaction.response.defer(thinking=True)
+    bot = interaction.client
+    try:
+        if number <= 0:
+            await interaction.followup.send("❌ Cycle number must be positive.")
+            return
+        cycle_data = await CycleService.cycle_info(bot.api_service, number)
+        await interaction.followup.send(cycle_data)
+    except Exception as error:
+        logger.error(f"❌ Cycle Specific Command Error: {error}", exc_info=True)
+        await interaction.followup.send("❌ Failed to get cycle info.", ephemeral=True)
 
 
 # User subcommand

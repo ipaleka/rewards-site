@@ -3,18 +3,18 @@
 from .base import *
 
 DEBUG = False
-ADMINS = [("Edi Ravnic", "info@asastats.com"),]
+ADMINS = [
+    ("Eduard Ravnić", "info@asastats.com"),
+    ("Ivica Paleka", "ipaleka@asastats.com"),
+]
 
 ALLOWED_HOSTS = [
     "127.0.0.1",
-    "144.91.85.65",
     "localhost",
-    ".asastats.link",
 ]
 
 CSRF_TRUSTED_ORIGINS = [
     "https://*.asastats.com",
-    "https://*.asastats.link",
 ]
 
 DATABASES = {
@@ -42,7 +42,7 @@ LOGGING = {
         "file": {
             "level": "WARNING",
             "class": "logging.FileHandler",
-            "filename": BASE_DIR.parent / "logs" / "django-warning.log"
+            "filename": BASE_DIR.parent / "logs" / "django-warning.log",
         },
     },
     "loggers": {

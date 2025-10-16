@@ -1,6 +1,7 @@
 """Module containing helper functions for importing contributions to database."""
 
 import re
+from datetime import datetime, timedelta
 from pathlib import Path
 
 import pandas as pd
@@ -34,6 +35,14 @@ CONTRIBUTION_CSV_COLUMNS = [
 ]
 
 
+def _check_current_cycle(cycle_instance):
+    if datetime.now().date() > cycle_instance.end:
+        start = cycle_instance.end + timedelta(days=1)
+        end = start + timedelta(days=92)
+        end = datetime(end.year, end.month, 1) + timedelta(days=-1)
+        Cycle.objects.create(start=start, end=end)
+
+
 def _dataframe_from_csv(filename, columns=CONTRIBUTION_CSV_COLUMNS):
     try:
         data = pd.read_csv(filename, header=None, sep=",")
@@ -53,7 +62,7 @@ def _import_contributions(data, parse_callback, amount_callback):
         reward = Reward.objects.get(
             type=reward_type,
             level=row["level"] if not pd.isna(row["level"]) else 1,
-            amount=amount_callback(row["reward"])
+            amount=amount_callback(row["reward"]),
         )
         percentage = row["percentage"] if not pd.isna(row["percentage"]) else 1
         url = row["url"] if not pd.isna(row["url"]) else None
@@ -233,12 +242,13 @@ def import_from_csv(contributions_path, legacy_contributions_path):
 
     cycles_data = data[["cycle_start", "cycle_end"]].drop_duplicates()
     legacy_cycles_data = legacy_data[["cycle_start", "cycle_end"]].drop_duplicates()
-    all_cycles_data = pd.concat([cycles_data, legacy_cycles_data ]).sort_values(
+    all_cycles_data = pd.concat([cycles_data, legacy_cycles_data]).sort_values(
         by=["cycle_start"]
     )
     Cycle.objects.bulk_create(
         Cycle(start=start, end=end) for start, end in all_cycles_data.values.tolist()
     )
+    _check_current_cycle(Cycle.objects.latest("end"))
     print("Cycles imported: ", len(Cycle.objects.all()))
 
     _import_rewards(

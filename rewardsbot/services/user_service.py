@@ -15,7 +15,7 @@ class UserService:
                 return f"No contributions for {username}."
 
             # Get first contribution cycle dates
-            first_contribution_cycle = await api_service.fetch_cycle_by_id(
+            first_contribution_cycle = await api_service.fetch_cycle_by_id_plain(
                 contributions[0]["cycle_id"]
             )
             first_contribution_date = first_contribution_cycle.get("end")
@@ -50,7 +50,7 @@ class UserService:
                 f"Total rewards: {total_rewards:,}\n\n"
                 f"Last contributions:\n\n{contributions_text}"
             )
-        
+
         except Exception as error:
             logger.error(f"❌ User Summary Error: {error}", exc_info=True)
             return f"❌ Failed to generate user summary for {username}."

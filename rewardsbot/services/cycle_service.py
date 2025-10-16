@@ -37,7 +37,7 @@ class CycleService:
             cycle = await api_service.fetch_current_cycle_plain()
             logger.info(f"✅ API response received: {len(str(cycle))} bytes")
 
-            result = f"The current cycle ends on: {cycle.get('end')}"
+            result = f"The current cycle #{cycle.get('id')} ends on: {cycle.get('end')}"
             logger.info(f"✅ End date formatted: {result}")
 
             return result

@@ -1,6 +1,10 @@
 from datetime import datetime
 
 
+def confirmed_status(confirmed):
+    return "✅" if confirmed else "⍻"
+
+
 class Cycle:
     def __init__(self, data):
         self.id = data.get("id")
@@ -11,7 +15,8 @@ class Cycle:
 
     def formatted_cycle_info(self, current=True):
         rewards_info = "\n".join(
-            f"{name} {reward:,}" for name, reward in self.contributor_rewards.items()
+            f"{name} {reward:,} {confirmed_status(confirmed)}"
+            for name, (reward, confirmed) in self.contributor_rewards.items()
         )
         prefix, suffix = ("current ", "s") if current else ("", "ed")
         return (

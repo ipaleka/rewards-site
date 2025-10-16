@@ -31,5 +31,5 @@ class Contribution:
             else f"{self.contributor_name} [{type_short}{self.level}]"
         )
         link = _create_link(linktext, self.url)
-
-        return f"{link} {reward:,}"
+        status = "✅" if self.confirmed else "⍻"
+        return f"{link} {reward:,} {status}"

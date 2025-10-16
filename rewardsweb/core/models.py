@@ -279,11 +279,14 @@ class Cycle(models.Model):
         """
         result = (
             self.contribution_set.select_related("contributor")
-            .values("contributor__name")
+            .values("contributor__name", "confirmed")
             .annotate(total_amount=Sum("reward__amount"))
             .order_by("contributor__name")
         )
-        return {item["contributor__name"]: item["total_amount"] for item in result}
+        return {
+            item["contributor__name"]: (item["total_amount"], item["confirmed"])
+            for item in result
+        }
 
     @property
     def total_rewards(self):

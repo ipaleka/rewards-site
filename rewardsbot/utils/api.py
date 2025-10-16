@@ -94,7 +94,7 @@ class ApiService:
             {
                 "type": contribution_type,
                 "level": level,
-                "name": username,
+                "username": username,
                 "url": message_url,
                 "platform": "Discord",
             },

@@ -5,6 +5,7 @@ from datetime import datetime, timedelta
 from pathlib import Path
 
 import pandas as pd
+from django.core.exceptions import ObjectDoesNotExist
 from django.db.utils import IntegrityError
 from django.http import Http404
 from django.shortcuts import get_object_or_404
@@ -33,6 +34,16 @@ CONTRIBUTION_CSV_COLUMNS = [
     "reward",
     "comment",
 ]
+REWARDS_COLLECTION = (
+    ("[F] Feature Request", 30000, 60000, 135000),
+    ("[B] Bug Report", 30000, 60000, 135000),
+    ("[AT] Admin Task", 35000, 70000, 150000),
+    ("[CT] Content Task", 100000, 200000, 300000),
+    ("[IC] Issue Creation", 30000, 60000, 135000),
+    ("[TWR] Twitter Post", 30000, 60000, 135000),
+    ("[D] Development", 100000, 200000, 300000),
+    ("[ER] Ecosystem Research", 50000, 100000, 200000),
+)
 
 
 def _check_current_cycle(cycle_instance):
@@ -41,6 +52,32 @@ def _check_current_cycle(cycle_instance):
         end = start + timedelta(days=92)
         end = datetime(end.year, end.month, 1) + timedelta(days=-1)
         Cycle.objects.create(start=start, end=end)
+
+
+def _create_active_rewards():
+    for index in range(len(REWARDS_COLLECTION)):
+        reward = REWARDS_COLLECTION[index]
+        reward_name = reward[0]
+        for level, amount in enumerate(reward):
+            if level == 0:
+                continue
+
+            label, name = (
+                reward_name.split(" ", 1)[0].strip("[]"),
+                reward_name.split(" ", 1)[1].strip(),
+            )
+            reward_type = get_object_or_404(RewardType, label=label, name=name)
+            try:
+                reward = Reward.objects.get(
+                    type=reward_type, level=level, amount=amount
+                )
+                reward.active = True
+                reward.save()
+
+            except ObjectDoesNotExist:
+                Reward.objects.create(
+                    type=reward_type, level=level, amount=amount, active=True
+                )
 
 
 def _dataframe_from_csv(filename, columns=CONTRIBUTION_CSV_COLUMNS):
@@ -92,6 +129,7 @@ def _import_rewards(data, parse_callback, amount_callback):
                 type=reward_type,
                 level=level if not pd.isna(level) else 1,
                 amount=amount_callback(reward),
+                active=False,
             )
         except IntegrityError:
             pass
@@ -261,6 +299,7 @@ def import_from_csv(contributions_path, legacy_contributions_path):
         _parse_label_and_name_from_reward_type_legacy,
         _reward_amount_legacy,
     )
+    _create_active_rewards()
     print("Rewards imported: ", len(Reward.objects.all()))
 
     _import_contributions(

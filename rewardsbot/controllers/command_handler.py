@@ -10,8 +10,8 @@ logger = logging.getLogger("discord.commands")
 
 class SuggestRewardModal(Modal, title="Suggest a Reward"):
     type_input = TextInput(
-        label="Contribution type (F, B, CT...)",
-        placeholder="F, B, CT, TWR, D, IC, S, AT",
+        label="Contribution type (F, B, AT...)",
+        placeholder="F, B, AT, CT, IC, TWR, D, ER",
         style=discord.TextStyle.short,
         required=True,
         min_length=1,

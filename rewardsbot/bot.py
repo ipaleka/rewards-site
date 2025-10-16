@@ -87,14 +87,16 @@ class RewardsBot(commands.Bot):
             synced = await self.tree.sync()
             logger.info(f"✅ Synced {len(synced)} global command(s)")
 
-            # Sync guild-specific commands if configured
-            if hasattr(config, "GUILD_ID") and config.GUILD_ID:
-                guild = discord.Object(id=config.GUILD_ID)
-                self.tree.copy_global_to(guild=guild)
-                synced_guild = await self.tree.sync(guild=guild)
-                logger.info(
-                    f"✅ Synced {len(synced_guild)} command(s) to guild {config.GUILD_ID}"
-                )
+            logger.info(f"🔍 Synced global commands: {[cmd.name for cmd in synced]}")
+
+            # # Sync guild-specific commands if configured
+            # if hasattr(config, "GUILD_ID") and config.GUILD_ID:
+            #     guild = discord.Object(id=config.GUILD_ID)
+            #     self.tree.copy_global_to(guild=guild)
+            #     synced_guild = await self.tree.sync(guild=guild)
+            #     logger.info(
+            #         f"✅ Synced {len(synced_guild)} command(s) to guild {config.GUILD_ID}"
+            #     )
 
         except Exception as e:
             logger.error(f"❌ Failed to setup commands: {e}")
@@ -130,21 +132,21 @@ class RewardsBot(commands.Bot):
 
         logger.info("------ Bot is fully operational! ------")
 
-    async def on_guild_join(self, guild):
-        """Called when bot joins a new guild"""
-        logger.info(f"➕ Joined new guild: {guild.name} (ID: {guild.id})")
+    # async def on_guild_join(self, guild):
+    #     """Called when bot joins a new guild"""
+    #     logger.info(f"➕ Joined new guild: {guild.name} (ID: {guild.id})")
 
-        # Sync commands to the new guild
-        try:
-            self.tree.copy_global_to(guild=guild)
-            await self.tree.sync(guild=guild)
-            logger.info(f"✅ Synced commands to new guild: {guild.name}")
-        except Exception as e:
-            logger.error(f"❌ Failed to sync commands to new guild: {e}")
+    #     # Sync commands to the new guild
+    #     try:
+    #         self.tree.copy_global_to(guild=guild)
+    #         await self.tree.sync(guild=guild)
+    #         logger.info(f"✅ Synced commands to new guild: {guild.name}")
+    #     except Exception as e:
+    #         logger.error(f"❌ Failed to sync commands to new guild: {e}")
 
-    async def on_guild_remove(self, guild):
-        """Called when bot is removed from a guild"""
-        logger.info(f"➖ Removed from guild: {guild.name} (ID: {guild.id})")
+    # async def on_guild_remove(self, guild):
+    #     """Called when bot is removed from a guild"""
+    #     logger.info(f"➖ Removed from guild: {guild.name} (ID: {guild.id})")
 
     async def on_disconnect(self):
         """Called when bot disconnects from Discord"""
@@ -381,6 +383,22 @@ async def suggest_reward_context(
             logger.warning("Interaction expired before error could be sent")
 
 
+async def clear_all_commands(bot):
+    logger.info("🧹 Clearing all registered application commands...")
+    try:
+        # Clear global commands
+        await bot.http.bulk_upsert_global_commands(bot.user.id, [])
+        logger.info("✅ Cleared global commands")
+
+        # Clear guild commands if applicable
+        if hasattr(config, "GUILD_ID") and config.GUILD_ID:
+            await bot.http.bulk_upsert_guild_commands(bot.user.id, config.GUILD_ID, [])
+            logger.info(f"✅ Cleared guild commands for {config.GUILD_ID}")
+
+    except Exception as e:
+        logger.error(f"❌ Error clearing commands: {e}")
+
+
 # Global interaction logger
 @bot.event
 async def on_interaction(interaction: discord.Interaction):
@@ -430,6 +448,15 @@ async def main():
 
         # Start the bot with context manager for proper resource handling
         async with bot:
+
+            # # NOTE: Hook into on_ready just once for cleanup
+            # @bot.event
+            # async def on_ready():
+            #     logger.info("🚿 Running one-time cleanup...")
+            #     await clear_all_commands(bot)
+            #     logger.info("✅ Command cleanup complete, shutting down.")
+            #     await bot.close()
+
             await bot.start(config.DISCORD_TOKEN)
 
         return 0
@@ -448,7 +475,6 @@ async def main():
 
 
 if __name__ == "__main__":
-    # Run the bot with simple error handling
     try:
         exit_code = asyncio.run(main())
         sys.exit(exit_code)

@@ -1,10 +1,18 @@
 from adrf.views import APIView
-from rest_framework.response import Response
-from rest_framework import status
 from asgiref.sync import sync_to_async
 from django.db import transaction
+from django.shortcuts import get_object_or_404
+from rest_framework.response import Response
+from rest_framework import status
 
-from core.models import Contribution, Contributor, Cycle
+from core.models import (
+    Contribution,
+    Contributor,
+    Cycle,
+    Reward,
+    RewardType,
+    SocialPlatform,
+)
 from api.serializers import (
     AggregatedCycleSerializer,
     ContributionSerializer,
@@ -28,7 +36,7 @@ async def aggregated_cycle_response(cycle: Cycle):
         "start": cycle.start,
         "end": cycle.end,
         "contributor_rewards": contributor_rewards,
-        "total_rewards": total_rewards,
+        "total_rewards": total_rewards or 0,
     }
 
     serializer = AggregatedCycleSerializer(data=data)
@@ -103,12 +111,49 @@ class ContributionsTailView(APIView):
 
 class AddContributionView(APIView):
     async def post(self, request):
-        serializer = ContributionSerializer(data=request.data)
 
-        if await sync_to_async(serializer.is_valid)():
-            # Use atomic transaction for safety
-            async with transaction.atomic():
-                await sync_to_async(serializer.save)()
-            return Response(serializer.data, status=status.HTTP_201_CREATED)
+        @sync_to_async
+        def process_contribution(raw_data):
+            # {
+            #     "type": "[B] Bug Report",
+            #     "level": "1",
+            #     "username": "dkhax",
+            #     "url": "https://discord.com/channels/906917846754418770/908054330265960478/1425704228201959495",
+            #     "platform": "Discord",
+            # }
+            contributor = Contributor.objects.from_handle(raw_data.get("username"))
+            cycle = Cycle.objects.latest("start")
+            platform = SocialPlatform.objects.get(name=raw_data.get("platform"))
+            label, name = (
+                raw_data.get("type").split(" ", 1)[0].strip("[]"),
+                raw_data.get("type").split(" ", 1)[1].strip(),
+            )
+            reward_type = get_object_or_404(RewardType, label=label, name=name)
+            rewards = Reward.objects.filter(
+                type=reward_type, level=int(raw_data.get("level", 1)), active=True
+            )
+            data = {
+                "contributor": contributor.id,
+                "cycle": cycle.id,
+                "platform": platform.id,
+                "reward": rewards[0].id,
+                "percentage": 1,
+                "url": raw_data.get("url"),
+                "comment": None,
+                "confirmed": False,
+            }
 
-        return Response(serializer.errors, status=status.HTTP_400_BAD_REQUEST)
+            serializer = ContributionSerializer(data=data)
+            if serializer.is_valid():
+                with transaction.atomic():
+                    serializer.save()
+
+                return serializer.data, None
+
+            return None, serializer.errors
+
+        data, errors = await process_contribution(request.data)
+        if data:
+            return Response(data, status=status.HTTP_201_CREATED)
+
+        return Response(errors, status=status.HTTP_400_BAD_REQUEST)

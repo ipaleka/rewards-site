@@ -59,7 +59,10 @@ class ApiService:
             logger.error(f"❌ Unexpected API error for {endpoint}: {error}")
             raise
 
-    # Your existing methods...
+    async def fetch_cycle(self, cycle_number):
+        logger.info("🔗 fetch_cycle called")
+        return await self.make_request(f"cycles/{cycle_number}")
+
     async def fetch_current_cycle(self):
         logger.info("🔗 fetch_current_cycle called")
         return await self.make_request("cycles/current")

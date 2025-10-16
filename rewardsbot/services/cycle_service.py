@@ -8,6 +8,26 @@ logger = logging.getLogger("discord.cycle")
 
 class CycleService:
     @staticmethod
+    async def cycle_info(api_service, cycle_number):
+        try:
+            logger.info("🔗 Making API call to fetch_cycle...")
+            cycle_data = await api_service.fetch_cycle(cycle_number)
+            logger.info(f"✅ API response received: {len(str(cycle_data))} bytes")
+
+            logger.info("🔄 Creating Cycle model...")
+            cycle = Cycle(cycle_data)
+
+            logger.info("🔄 Formatting cycle info...")
+            result = cycle.formatted_cycle_info(current=False)
+            logger.info("✅ Cycle info formatted successfully")
+
+            return result
+
+        except Exception as e:
+            logger.error(f"❌ Error in cycle_info: {e}", exc_info=True)
+            return "❌ Failed to fetch cycle information."
+
+    @staticmethod
     async def current_cycle_info(api_service):
         try:
             logger.info("🔗 Making API call to fetch_current_cycle...")
@@ -51,11 +71,7 @@ class CycleService:
         try:
             logger.info("🔗 Making API call to fetch_contributions_tail...")
             contributions = await api_service.fetch_contributions_tail()
-            size = (
-                len(contributions)
-                if isinstance(contributions, list)
-                else "N/A"
-            )
+            size = len(contributions) if isinstance(contributions, list) else "N/A"
             logger.info(
                 f"✅ API response received: type={type(contributions)},"
                 f"length={size}"

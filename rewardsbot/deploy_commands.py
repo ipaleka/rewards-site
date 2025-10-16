@@ -1,7 +1,7 @@
 import asyncio
-
 import discord
 from discord import app_commands
+from typing import Optional
 
 import config
 
@@ -21,18 +21,28 @@ class CommandDeployer:
         )
         self.tree.add_command(rewards_group)
 
-        # Cycle subcommand
-        @rewards_group.command(name="cycle", description="Get cycle information")
-        @app_commands.describe(detail="Detail about the cycle")
-        @app_commands.choices(
-            detail=[
-                app_commands.Choice(name="current", value="current"),
-                app_commands.Choice(name="date", value="date"),
-                app_commands.Choice(name="tail", value="tail"),
-            ]
+        # Cycle subcommands
+        @rewards_group.command(
+            name="current", description="Get current cycle information"
         )
-        async def rewards_cycle(interaction: discord.Interaction, detail: str):
-            """Cycle subcommand"""
+        async def rewards_cycle_current(interaction: discord.Interaction):
+            pass
+
+        @rewards_group.command(name="date", description="Get cycle end date")
+        async def rewards_cycle_date(interaction: discord.Interaction):
+            pass
+
+        @rewards_group.command(
+            name="contributions", description="Get recent contributions"
+        )
+        async def rewards_contributions_tail(interaction: discord.Interaction):
+            pass
+
+        @rewards_group.command(
+            name="cycle", description="Get specific cycle information by number"
+        )
+        @app_commands.describe(number="The cycle number to look up")
+        async def rewards_cycle_specific(interaction: discord.Interaction, number: int):
             pass
 
         # User subcommand
@@ -113,6 +123,11 @@ async def main():
     await deployer.deploy()
     print("✅ Deployment completed successfully!")
     print("📋 Commands should appear in your server within the hour")
+    print("\n🎯 Cycle command usage examples:")
+    print("  /rewards current")
+    print("  /rewards date")
+    print("  /rewards contributions")
+    print("  /rewards cycle 40")
 
 
 if __name__ == "__main__":

@@ -50,7 +50,7 @@ class UserService:
                 f"Total rewards: {total_rewards:,}\n\n"
                 f"Last contributions:\n\n{contributions_text}"
             )
-        
+
         except Exception as error:
             logger.error(f"❌ User Summary Error: {error}", exc_info=True)
             return f"❌ Failed to generate user summary for {username}."

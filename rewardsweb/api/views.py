@@ -28,7 +28,7 @@ async def aggregated_cycle_response(cycle: Cycle):
         "start": cycle.start,
         "end": cycle.end,
         "contributor_rewards": contributor_rewards,
-        "total_rewards": total_rewards,
+        "total_rewards": total_rewards or 0,
     }
 
     serializer = AggregatedCycleSerializer(data=data)
@@ -99,20 +99,6 @@ class ContributionsTailView(APIView):
     async def get(self, request):
         queryset = Contribution.objects.order_by("-id")[:CONTRIBUTIONS_TAIL_SIZE]
         return await contributions_response(queryset)
-
-
-# class AddContributionView(APIView):
-#     async def post(self, request):
-#         print(request.data)
-#         serializer = ContributionSerializer(data=request.data)
-
-#         if await sync_to_async(serializer.is_valid)():
-#             # Use atomic transaction for safety
-#             async with transaction.atomic():
-#                 await sync_to_async(serializer.save)()
-#             return Response(serializer.data, status=status.HTTP_201_CREATED)
-
-#         return Response(serializer.errors, status=status.HTTP_400_BAD_REQUEST)
 
 
 class AddContributionView(APIView):

@@ -1,5 +1,6 @@
 """Module containing website's ORM models."""
 
+from django.contrib.auth.models import User
 from django.db import models
 from django.db.models import Sum
 from django.db.models.functions import Lower
@@ -9,30 +10,49 @@ from django.urls import reverse
 from django.utils.functional import cached_property
 
 from utils.constants.core import ADDRESS_LEN, HANDLE_EXCEPTIONS
+from utils.helpers import parse_full_handle
 
 
-def _parse_full_handle(full_handle):
-    """Return social platform's prefix and user's handle from provided `full_handle`.
+class Profile(models.Model):
+    """App's connection to main django user model."""
 
-    :param full_handle: contributor's unique identifier (platform prefix and handle)
-    :type full_handle: str
-    :var prefix: unique social platform's prefix
-    :type prefix: str
-    :var handle: contributor's handle/username
-    :type handle: str
-    :var platform: social platform's model instance
-    :return: two-tuple
-    """
-    prefix, handle = "", full_handle
-    if "@" in full_handle[:2]:
-        prefix = full_handle[: full_handle.index("@") + 1]
-        handle = full_handle[full_handle.index("@") + 1 :]
+    user = models.OneToOneField(User, on_delete=models.CASCADE, null=True)
+    github_token = models.CharField(max_length=100, blank=True)
 
-    elif full_handle.startswith("u/"):
-        prefix = "u/"
-        handle = full_handle[2:]
+    def __str__(self):
+        """Return string representation of the profile instance
 
-    return prefix, handle
+        :return: str
+        """
+        return self.name
+
+    def get_absolute_url(self):
+        """Return url of the profile home page.
+
+        :return: url
+        """
+        return reverse("profile")
+
+    def profile(self):
+        """Return self instance for generic templating purposes.
+
+        It is accessed by 'object.profile' in some templates.
+
+        :return: :class:`Profile`
+        """
+        return self
+
+    @property
+    def name(self):
+        """Return user/profile name made depending on data fields availability.
+
+        :return: str
+        """
+        return (
+            "{} {}".format(self.user.first_name, self.user.last_name).strip()
+            if (self.user.first_name or self.user.last_name)
+            else self.user.username or self.user.email.split("@")[0]
+        )
 
 
 class ContributorManager(models.Manager):
@@ -55,7 +75,7 @@ class ContributorManager(models.Manager):
         :type contributor: :class:`Contributor`
         :return: :class:`Handle`
         """
-        prefix, handle = _parse_full_handle(full_handle)
+        prefix, handle = parse_full_handle(full_handle)
         contributor = self.from_handle(handle)
         if contributor:
             return contributor
@@ -131,7 +151,7 @@ class Contributor(models.Model):
 
         :return: str
         """
-        return _parse_full_handle(self.name)[1]
+        return parse_full_handle(self.name)[1]
 
     def get_absolute_url(self):
         """Returns the URL to access a detail record for this contributor."""
@@ -198,7 +218,7 @@ class HandleManager(models.Manager):
         :type platform: :class:`SocialPlatform`
         :return: :class:`Handle`
         """
-        prefix, handle = _parse_full_handle(full_handle)
+        prefix, handle = parse_full_handle(full_handle)
         try:
             contributor = get_object_or_404(Contributor, address=address)
         except Http404:

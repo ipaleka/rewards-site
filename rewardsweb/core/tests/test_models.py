@@ -3,6 +3,7 @@
 from datetime import datetime
 
 import pytest
+from django.contrib.auth import get_user_model
 from django.core.exceptions import ValidationError
 from django.db import DataError, models
 from django.http import Http404
@@ -18,37 +19,101 @@ from core.models import (
     HandleManager,
     Issue,
     IssueStatus,
+    Profile,
     Reward,
     RewardType,
     SocialPlatform,
-    _parse_full_handle,
 )
 from utils.constants.core import HANDLE_EXCEPTIONS
 
+user_model = get_user_model()
 
-class TestCoreModelsHelpers:
-    """Testing class for :py:mod:`core.models` helper functions."""
 
-    # # _parse_full_handle
+class TestCoreProfileModel:
+    """Testing class for :class:`core.models.Profile` model."""
+
+    # # fields characteristics
     @pytest.mark.parametrize(
-        "full_handle,prefix,handle",
+        "name,typ",
         [
-            ("u/user1", "u/", "user1"),
-            ("address", "", "address"),
-            ("g@address", "g@", "address"),
-            ("handle", "", "handle"),
-            ("@handle", "@", "handle"),
-            ("u/username", "u/", "username"),
-            ("username", "", "username"),
-            ("@address", "@", "address"),
-            ("t@handle", "t@", "handle"),
-            ("g@handle", "g@", "handle"),
+            ("user", models.OneToOneField),
+            ("github_token", models.CharField),
         ],
     )
-    def test_core_models_parse_full_handle_functionality(
-        self, full_handle, prefix, handle
-    ):
-        assert _parse_full_handle(full_handle) == (prefix, handle)
+    def test_core_profile_model_fields(self, name, typ):
+        assert hasattr(Profile, name)
+        assert isinstance(Profile._meta.get_field(name), typ)
+
+    @pytest.mark.django_db
+    def test_core_profile_model_user_is_not_optional(self):
+        with pytest.raises(ValidationError):
+            Profile().full_clean()
+
+    @pytest.mark.django_db
+    def test_core_profile_model_delete_new_user_delete_its_profile(self):
+        user = user_model.objects.create(username="userrname")
+        profile_id = user.profile.id
+        user.delete()
+        with pytest.raises(Profile.DoesNotExist):
+            Profile.objects.get(pk=profile_id)
+
+    @pytest.mark.django_db
+    def test_core_profile_model_cannot_save_too_long_github_token(self):
+        user = user_model.objects.create(username="username2")
+        profile = Profile(user=user, github_token="a" * 200)
+        with pytest.raises(DataError):
+            profile.save()
+            profile.full_clean()
+
+    # # __str__
+    @pytest.mark.django_db
+    def test_core_profile_model_string_representation_is_profile_name(self):
+        user = user_model.objects.create(
+            first_name="John", last_name="Doe", username="username", email="abs@abc.com"
+        )
+        profile = Profile(user=user)
+        assert str(profile) == profile.name
+
+    # # profile
+    @pytest.mark.django_db
+    def test_profile_model_profile_returns_self(self):
+        user = user_model.objects.create(username="userrname10")
+        assert user.profile.profile() == user.profile
+
+    # # name
+    @pytest.mark.django_db
+    def test_profile_model_name_is_user_first_name_and_last_name(self):
+        user = user_model.objects.create(
+            first_name="John",
+            last_name="Doe",
+            username="username22",
+            email="abs@abc.com",
+        )
+        assert user.profile.name == "{} {}".format(user.first_name, user.last_name)
+
+    @pytest.mark.django_db
+    def test_profile_model_name_is_user_first_name(self):
+        user = user_model.objects.create(
+            first_name="John", username="username23", email="abs@abc.com"
+        )
+        assert user.profile.name == user.first_name
+
+    @pytest.mark.django_db
+    def test_profile_model_name_is_user_last_name(self):
+        user = user_model.objects.create(
+            last_name="Doe", username="username55", email="abs@abc.com"
+        )
+        assert user.profile.name == user.last_name
+
+    @pytest.mark.django_db
+    def test_profile_model_name_is_user_username(self):
+        user = user_model.objects.create(username="username57", email="abs@abc.com")
+        assert user.profile.name == user.username
+
+    @pytest.mark.django_db
+    def test_profile_model_name_is_user_email_without_domain(self):
+        user = user_model.objects.create(email="abs@abc.com")
+        assert user.profile.name == "abs"
 
 
 class TestCoreContributorManager:
@@ -1006,9 +1071,7 @@ class TestCoreContributionModel:
             name="mynameissuec", address="addressissuec"
         )
         cycle = Cycle.objects.create(start=datetime(2023, 10, 1))
-        platform = SocialPlatform.objects.create(
-            name="contrplatformc", prefix="cc"
-        )
+        platform = SocialPlatform.objects.create(name="contrplatformc", prefix="cc")
         reward_type = RewardType.objects.create(label="rc", name="rewardrc")
         reward = Reward.objects.create(type=reward_type)
         issue = Issue.objects.create(number=100)

@@ -5,6 +5,7 @@ from datetime import datetime, timedelta
 from pathlib import Path
 
 import pandas as pd
+from django.contrib.auth import get_user_model
 from django.core.exceptions import ObjectDoesNotExist
 from django.db.utils import IntegrityError
 from django.http import Http404
@@ -19,6 +20,7 @@ from core.models import (
     RewardType,
     SocialPlatform,
 )
+from utils.helpers import get_env_variable
 
 
 ADDRESSES_CSV_COLUMNS = ["handle", "address"]
@@ -78,6 +80,14 @@ def _create_active_rewards():
                 Reward.objects.create(
                     type=reward_type, level=level, amount=amount, active=True
                 )
+
+
+def _create_admin_users():
+    password = get_env_variable("DEFAULT_USER_PASSWORD")
+    for admin in get_env_variable("INITIAL_ADMINS").split(","):
+        user = get_user_model().objects.create(username=admin)
+        user.set_password(password)
+        user.save()
 
 
 def _dataframe_from_csv(filename, columns=CONTRIBUTION_CSV_COLUMNS):
@@ -313,5 +323,7 @@ def import_from_csv(contributions_path, legacy_contributions_path):
         _reward_amount,
     )
     print("Contributions imported: ", len(Contribution.objects.all()))
+
+    _create_admin_users()
 
     return False

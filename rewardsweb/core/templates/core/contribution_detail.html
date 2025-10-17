@@ -2,7 +2,7 @@
 
 {% block content %}
   <h1>Contribution by <a class="link link-accent" href="{{ contribution.contributor.get_absolute_url }}">{{ contribution.contributor }}</a></h1>
-
+  <br>
   <p><strong>Cycle:</strong> {{ contribution.cycle }}</p>
   <p><strong>Platform:</strong> {{ contribution.platform }}</p>
   <p><strong>Type:</strong> {{ contribution.reward.type }}</p>

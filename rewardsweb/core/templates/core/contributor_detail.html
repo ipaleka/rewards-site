@@ -2,7 +2,7 @@
 
 {% block content %}
   <h1>Contributor: {{ contributor }}</h1>
-
+  <br>
   <p><strong>Name:</strong> {{ contributor.name }}</p>
   <p><strong>Address:</strong> {% if contributor.address %}**********{% else %}no address provided{% endif %}</p>
   {% for handle in contributor.handle_set.all %}

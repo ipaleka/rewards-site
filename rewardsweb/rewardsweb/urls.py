@@ -34,6 +34,7 @@ from core import urls as core_urls
 urlpatterns = [
     path("admin/", admin.site.urls),
     path("api/", include(api_urls)),
+    path("accounts/", include("allauth.urls")),
     path("", include(core_urls)),
 ]
 

@@ -44,6 +44,14 @@ INSTALLED_APPS = [
     "django.contrib.messages",
     "django.contrib.staticfiles",
     "django.contrib.postgres",
+    "allauth",
+    "allauth.account",
+    "allauth.socialaccount",
+    "allauth.socialaccount.providers.discord",
+    "allauth.socialaccount.providers.github",
+    "allauth.socialaccount.providers.google",
+    "allauth.socialaccount.providers.reddit",
+    "allauth.socialaccount.providers.twitter_oauth2",
     "adrf",
     "rest_framework",
 ]
@@ -55,7 +63,12 @@ MIDDLEWARE = [
     "django.middleware.csrf.CsrfViewMiddleware",
     "django.contrib.auth.middleware.AuthenticationMiddleware",
     "django.contrib.messages.middleware.MessageMiddleware",
+    "allauth.account.middleware.AccountMiddleware",
     "django.middleware.clickjacking.XFrameOptionsMiddleware",
+]
+
+AUTHENTICATION_BACKENDS = [
+    "allauth.account.auth_backends.AuthenticationBackend",
 ]
 
 ROOT_URLCONF = "rewardsweb.urls"
@@ -95,6 +108,74 @@ AUTH_PASSWORD_VALIDATORS = [
         "NAME": "django.contrib.auth.password_validation.NumericPasswordValidator",
     },
 ]
+
+
+# allauth
+ACCOUNT_ADAPTER = "core.adapters.NoSignupAccountAdapter"
+ACCOUNT_LOGIN_METHODS = {"username", "email"}
+LOGIN_REDIRECT_URL = "/profile/"
+ACCOUNT_EMAIL_VERIFICATION = "optional"
+ACCOUNT_EMAIL_SUBJECT_PREFIX = ""
+ACCOUNT_DEFAULT_HTTP_PROTOCOL = "http"
+SOCIALACCOUNT_QUERY_EMAIL = True
+ACCOUNT_LOGOUT_ON_GET = True
+SOCIALACCOUNT_EMAIL_VERIFICATION = "none"
+ACCOUNT_LOGIN_ON_EMAIL_CONFIRMATION = True
+ACCOUNT_USER_DISPLAY = "utils.helpers.user_display"
+
+SOCIALACCOUNT_PROVIDERS = {
+    # https://discord.com/developers/applications
+    "discord": {
+        "APP": {
+            "client_id": get_env_variable("DISCORD_APPLICATION_ID", ""),
+            "secret": get_env_variable("DISCORD_SECRET", ""),
+            "key": get_env_variable("DISCORD_PUBLIC_KEY", ""),
+        }
+    },
+    # https://developer.x.com/en/portal/projects-and-apps
+    "twitter_oauth2": {
+        "APP": {
+            "client_id": get_env_variable("TWITTER_CLIENT_ID", ""),
+            "secret": get_env_variable("TWITTER_SECRET", ""),
+            "key": "",
+        }
+    },
+    # https://www.reddit.com/prefs/apps/
+    "reddit": {
+        "APP": {
+            "client_id": get_env_variable("REDDIT_CLIENT_ID", ""),
+            "secret": get_env_variable("REDDIT_SECRET", ""),
+            "key": "",
+        },
+        "SCOPE": ["identity"],
+        "USER_AGENT": "django:eIdhm4jSx-TM772A96uC7Q:1.0 (by /u/hopemeetme)",
+    },
+    # https://github.com/settings/developers
+    "github": {
+        "VERIFIED_EMAIL": True,
+        "APP": {
+            "client_id": get_env_variable("GITHUB_CLIENT_ID", ""),
+            "secret": get_env_variable("GITHUB_SECRET", ""),
+            "key": "",
+        },
+    },
+    # https://console.developers.google.com/
+    "google": {
+        "APP": {
+            "client_id": get_env_variable("GOOGLE_CLIENT_ID", ""),
+            "secret": get_env_variable("GOOGLE_SECRET", ""),
+            "key": "",
+        },
+        "SCOPE": [
+            "profile",
+            "email",
+        ],
+        "AUTH_PARAMS": {
+            "access_type": "online",
+        },
+        "OAUTH_PKCE_ENABLED": True,
+    },
+}
 
 
 # Internationalization

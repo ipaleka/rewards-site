@@ -90,12 +90,13 @@ class RewardsBot(commands.Bot):
             logger.info(f"🔍 Synced global commands: {[cmd.name for cmd in synced]}")
 
             # # Sync guild-specific commands if configured
-            # if hasattr(config, "GUILD_ID") and config.GUILD_ID:
-            #     guild = discord.Object(id=config.GUILD_ID)
+            # # NOTE: meanwhile env variable changed to comma separated list            
+            # if hasattr(config, "GUILD_IDS") and config.GUILD_IDS:
+            #     guild = discord.Object(id=config.GUILD_IDS)
             #     self.tree.copy_global_to(guild=guild)
             #     synced_guild = await self.tree.sync(guild=guild)
             #     logger.info(
-            #         f"✅ Synced {len(synced_guild)} command(s) to guild {config.GUILD_ID}"
+            #         f"✅ Synced {len(synced_guild)} command(s) to guild {config.GUILD_IDS}"
             #     )
 
         except Exception as e:
@@ -390,10 +391,11 @@ async def clear_all_commands(bot):
         await bot.http.bulk_upsert_global_commands(bot.user.id, [])
         logger.info("✅ Cleared global commands")
 
-        # Clear guild commands if applicable
-        if hasattr(config, "GUILD_ID") and config.GUILD_ID:
-            await bot.http.bulk_upsert_guild_commands(bot.user.id, config.GUILD_ID, [])
-            logger.info(f"✅ Cleared guild commands for {config.GUILD_ID}")
+        # # Clear guild commands if applicable
+        # # NOTE: meanwhile env variable changed to comma separated list
+        # if hasattr(config, "GUILD_IDS") and config.GUILD_IDS:
+        #     await bot.http.bulk_upsert_guild_commands(bot.user.id, config.GUILD_IDS, [])
+        #     logger.info(f"✅ Cleared guild commands for {config.GUILD_IDS}")
 
     except Exception as e:
         logger.error(f"❌ Error clearing commands: {e}")

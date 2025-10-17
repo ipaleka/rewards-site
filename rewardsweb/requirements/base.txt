@@ -10,3 +10,4 @@ drf-spectacular-sidecar==2025.10.1
 ## bot
 discord.py>=2.6.4
 aiohttp>=3.13
+requests>=2.32.5

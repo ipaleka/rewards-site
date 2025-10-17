@@ -38,8 +38,107 @@ def _github_repository(client):
     return client.get_repo(f"{settings.GITHUB_REPO_OWNER}/{settings.GITHUB_REPO_NAME}")
 
 
+def add_labels_to_issue(user, issue_number, labels_to_add):
+    """Add provided `labels` to the issue defined by `issue_number` on behalf `user`.
+
+    :param user: Django user instance
+    :type user: class:`django.contrib.auth.models.User`
+    :param issue_number: unique issue's number
+    :type issue_number: int
+    :param labels_to_add: collection of GitHub labels to add to the issue
+    :type labels_to_add: list
+    :var client: GitHub client instance
+    :type client: :class:`github.Github`
+    :var repo: GitHub repository instance
+    :type repo: :class:`github.Repository.Repository`
+    :var issue: GitHub issue instance
+    :type issue: :class:`github.Issue.Issue`
+    :return: dict
+    """
+    try:
+        client = _github_client(user)
+        if not client:
+            return {
+                "success": False,
+                "error": "Please provide a GitHub access token in your profile page!",
+            }
+
+        repo = _github_repository(client)
+        issue = repo.get_issue(issue_number)
+
+        # Add labels to the issue
+        issue.add_to_labels(*labels_to_add)
+
+        client.close()
+
+        return {
+            "success": True,
+            "message": f"Added labels {labels_to_add} to issue #{issue_number}",
+            "current_labels": [label.name for label in issue.labels],
+        }
+
+    except Exception as e:
+        return {"success": False, "error": str(e)}
+
+
+def close_issue_with_labels(user, issue_number, labels_to_add=None, comment=None):
+    """Close GitHub issue defined by `issue_number` on behalf `user`.
+
+    :param user: Django user instance
+    :type user: class:`django.contrib.auth.models.User`
+    :param issue_number: unique issue's number
+    :type issue_number: int
+    :param body: formatted issue's body text
+    :type body: str
+    :param labels_to_add: collection of GitHub labels to add to the issue
+    :type labels_to_add: list
+    :var comment: text to add as a GitHub comment
+    :type comment: str
+    :var client: GitHub client instance
+    :type client: :class:`github.Github`
+    :var repo: GitHub repository instance
+    :type repo: :class:`github.Repository.Repository`
+    :var issue: GitHub issue instance
+    :type issue: :class:`github.Issue.Issue`
+    :return: dict
+    """
+    try:
+        client = _github_client(user)
+        if not client:
+            return {
+                "success": False,
+                "error": "Please provide a GitHub access token in your profile page!",
+            }
+
+        repo = _github_repository(client)
+        issue = repo.get_issue(issue_number)
+
+        # Add labels if provided
+        if labels_to_add:
+            issue.add_to_labels(*labels_to_add)
+
+        # Add comment if provided
+        if comment:
+            issue.create_comment(comment)
+
+        # Close the issue
+        issue.edit(state="closed")
+
+        client.close()
+
+        return {
+            "success": True,
+            "message": f"Closed issue #{issue_number} with labels {labels_to_add}",
+            "issue_state": issue.state,
+            "current_labels": [label.name for label in issue.labels],
+        }
+
+    except Exception as e:
+        return {"success": False, "error": str(e)}
+
+
 def create_github_issue(user, title, body, labels=None):
-    """Create GitHub issue on behalf `user` defined by provided arguments .
+    """Create GitHub issue on behalf `user` defined by provided arguments.
 
     :param user: Django user instance
     :type user: class:`django.contrib.auth.models.User`

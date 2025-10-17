@@ -10,14 +10,14 @@ logger = logging.getLogger("discord.suggestions")
 class SuggestionService:
     @staticmethod
     async def create_suggestion(
-        api_service, type_input, level_input, user_input, message_url
+        api_service, type_input, level_input, user_input, comment_input, message_url
     ):
         """Create a suggestion using the API service"""
         try:
             contribution_type = SuggestionParser.parse_reward_type(type_input.upper())
 
             result = await api_service.post_suggestion(
-                contribution_type, level_input, user_input, message_url
+                contribution_type, level_input, user_input, comment_input, message_url
             )
 
             logger.info(f"✅ Suggestion created: {contribution_type} for {user_input}")

@@ -17,7 +17,6 @@ class SuggestRewardModal(Modal, title="Suggest a Reward"):
         min_length=1,
         max_length=10,
     )
-
     level_input = TextInput(
         label="Level - time spent [1-3]",
         placeholder="1, 2, or 3",
@@ -26,7 +25,6 @@ class SuggestRewardModal(Modal, title="Suggest a Reward"):
         min_length=1,
         max_length=1,
     )
-
     user_input = TextInput(
         label="The contributor",
         placeholder="Username",
@@ -34,6 +32,14 @@ class SuggestRewardModal(Modal, title="Suggest a Reward"):
         required=True,
         min_length=1,
         max_length=32,
+    )
+    comment_input = TextInput(
+        label="Additional info (name for the issue, ...)",
+        placeholder="Comment",
+        style=discord.TextStyle.short,
+        required=False,
+        min_length=1,
+        max_length=100,
     )
 
     def __init__(self, target_message: discord.Message):
@@ -48,13 +54,14 @@ class SuggestRewardModal(Modal, title="Suggest a Reward"):
         contribution_type = self.type_input.value.upper()
         level = self.level_input.value
         username = self.user_input.value
+        comment = self.comment_input.value
         message_url = self.target_message.jump_url
 
         try:
             # Get the bot instance to access the api_service
             bot = interaction.client
             await SuggestionService.create_suggestion(
-                bot.api_service, contribution_type, level, username, message_url
+                bot.api_service, contribution_type, level, username, comment, message_url
             )
             await interaction.followup.send(
                 f"✅ Suggestion for [{contribution_type}{level}] submitted for {username}.",

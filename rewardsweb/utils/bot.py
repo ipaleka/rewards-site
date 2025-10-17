@@ -26,7 +26,7 @@ def add_reaction_to_message(channel_id, message_id, emoji):
     :var url: fully formatted URL to add reaction to the message
     :type url: str
     :var response: HTTP response instance
-    :type response: :requests.Response`
+    :type response: :class:`requests.Response`
     :return: Boolean
     """
     bot_token = get_env_variable("DISCORD_BOT_TOKEN")

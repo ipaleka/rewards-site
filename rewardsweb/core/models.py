@@ -363,6 +363,39 @@ class Reward(models.Model):
         return str(self.type) + " " + str(self.level) + ": " + f"{self.amount:,}"
 
 
+class IssueStatus(models.TextChoices):
+    """ASA Stats GitHub channel issue status choices."""
+
+    CREATED = "created", "Created"
+    WONTFIX = "wontfix", "Wontfix"
+    ADDRESSED = "addressed", "Addressed"
+    ARCHIVED = "archived", "Archived"
+
+
+class Issue(models.Model):
+    """ASA Stats GitHub issue model."""
+
+    number = models.IntegerField()
+    status = models.CharField(
+        max_length=20, choices=IssueStatus.choices, default=IssueStatus.CREATED
+    )
+    created_at = models.DateTimeField(auto_now_add=True)
+    updated_at = models.DateTimeField(auto_now=True)
+
+    class Meta:
+        """Define ordering and fields that make unique indexes."""
+
+        constraints = [models.UniqueConstraint("number", name="unique_issue_number")]
+        ordering = ["-number"]
+
+    def __str__(self):
+        """Return reward's instance string representation.
+
+        :return: str
+        """
+        return str(self.number) + ": " + self.status
+
+
 class Contribution(models.Model):
     """Community member contributions data model."""
 
@@ -370,6 +403,7 @@ class Contribution(models.Model):
     cycle = models.ForeignKey(Cycle, default=None, on_delete=models.CASCADE)
     platform = models.ForeignKey(SocialPlatform, default=None, on_delete=models.CASCADE)
     reward = models.ForeignKey(Reward, default=None, on_delete=models.CASCADE)
+    issue = models.ForeignKey(Issue, null=True, blank=True, on_delete=models.CASCADE)
     percentage = models.DecimalField(max_digits=5, decimal_places=2, null=True)
     url = models.CharField(max_length=255, null=True)
     comment = models.CharField(max_length=255, null=True)

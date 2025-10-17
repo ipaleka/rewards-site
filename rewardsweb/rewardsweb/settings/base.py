@@ -127,3 +127,6 @@ REST_FRAMEWORK = {
         "rest_framework.parsers.JSONParser",
     ],
 }
+
+GITHUB_REPO_OWNER = "asastats"
+GITHUB_REPO_NAME = "channel"

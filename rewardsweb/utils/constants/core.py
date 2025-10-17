@@ -12,3 +12,17 @@ DISCORD_NOTED_EMOJI = "noted:930825381974523954"
 DISCORD_ADDRESSED_EMOJI = "addressed:930825322654470204"
 DISCORD_NOTAPPLICABLE_EMOJI = "na:910968758284202015"
 DISCORD_EXISTS_EMOJI = "exists:929454747801489438"
+
+GITHUB_LABELS = (
+    "high priority",
+    "medium priority",
+    "low priority",
+    "feature",
+    "bug",
+    "task",
+    "research",
+    "mobile",
+    "addressed",
+    "archived",
+    "wontfix",
+)

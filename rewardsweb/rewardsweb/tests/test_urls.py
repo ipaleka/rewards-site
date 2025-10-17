@@ -17,9 +17,14 @@ class TestRewardsWebUrls:
         assert "api.urls" in str(url.urlconf_name)
 
     def test_rewardsweb_urls_core_app(self):
+        url = self._url_from_pattern("accounts/")
+        assert isinstance(url, URLResolver)
+        assert "allauth.urls" in str(url.urlconf_name)
+
+    def test_rewardsweb_urls_core_app(self):
         url = self._url_from_pattern("")
         assert isinstance(url, URLResolver)
         assert "core.urls" in str(url.urlconf_name)
 
     def test_rewardsweb_urls_pattern_count(self):
-        assert len(urls.urlpatterns) == 5
+        assert len(urls.urlpatterns) == 6

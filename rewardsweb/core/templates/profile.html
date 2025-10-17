@@ -1,0 +1,64 @@
+{% extends "base_generic.html" %}
+{% load static %}
+{% block title %}Profile page - ASA Stats rewards web{% endblock %}
+{% block content %}
+<form method="POST" enctype="multipart/form-data" action="." id="id_form">
+  <div class="row col s12 m7 midrow">
+  {% csrf_token %}
+  {% for field in form.visible_fields %}
+    <div>
+      {{ field.label_tag }}
+      {{ field }}
+      {% if field.errors %}<span>{{ field.errors|escape }}</span>{% endif %}
+      {% if field.help_text %}<p>{{ field.help_text|safe }}</p>{% endif %}
+    </div>
+  {% endfor %}
+
+  {% if form.non_field_errors %}<div><span>{{ form.non_field_errors }}</span></div>{% endif %}
+  <fieldset class="profile">
+    {{ profile_form.management_form }}
+    {% for form in profile_form %}
+      {% for field in form.visible_fields %}
+        {% if field.name != 'DELETE' %}
+          <div>
+            {{ field.label_tag }}
+            {{ field }}
+            {% if field.errors %}<span>{{ field.errors|escape }}</span>{% endif %}
+            {% if field.help_text %}<p>{{ field.help_text|safe }}</p>{% endif %}
+          </div>
+        {% endif %}
+      {% endfor %}
+
+      {% for field in form.hidden_fields %}
+        {{ field }}
+      {% endfor %}
+      {% if form.non_field_errors %}<div><span>{{ form.non_field_errors }}</span></div>{% endif %}
+    {% endfor %}
+  </fieldset>
+  <br>
+  {% if messages %}
+  <div>
+    {% for message in messages %}
+    <div>
+      {{ message }}  
+    </div>
+    {% endfor %}
+  </div>
+  {% endif %}    
+  </div>
+  <div>
+    <a class="btn" href="{% url 'index' %}">Back</a>&nbsp;
+    <button class="btn" id="id_submit" type="submit">Update</button>
+    <br><br>
+    <div>
+      <a class="btn" href="{% url 'account_change_password' %}" id="id_changepassword">Password</a>
+    </div>
+    <div>
+      <a class="btn" href="{% url 'account_email' %}" id="id_emails">Emails</a>
+    </div>
+    <div>
+      <a class="btn" href="{% url 'socialaccount_connections' %}" id="id_connections">Social</a>
+    </div>
+  </div>
+</form>
+{% endblock %}

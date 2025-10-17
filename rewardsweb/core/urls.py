@@ -1,6 +1,6 @@
 """Module containing website's URL configuration."""
 
-from django.urls import path
+from django.urls import path, re_path
 
 from core import views
 
@@ -19,4 +19,5 @@ urlpatterns = [
         views.ContributionDetailView.as_view(),
         name="contribution-detail",
     ),
+    path("profile/", views.ProfileEditView.as_view(), name="profile"),
 ]

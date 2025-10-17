@@ -26,3 +26,6 @@ GITHUB_LABELS = (
     "archived",
     "wontfix",
 )
+
+TOO_LONG_USER_FIRST_NAME_ERROR = "User name is limited to 30 characters only"
+TOO_LONG_USER_LAST_NAME_ERROR = "User last name is limited to 150 characters only"

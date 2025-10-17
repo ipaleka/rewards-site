@@ -52,6 +52,8 @@ jobs:
           echo DATABASE_NAME="rewards_db" >> rewardsweb/.env
           echo DATABASE_USER="postgres" >> rewardsweb/.env
           echo DATABASE_PASSWORD="postgres" >> rewardsweb/.env
+          echo DISCORD_GUILD_IDS="906917846754418770" >> rewardsweb/.env
+          echo DISCORD_BOT_TOKEN=${{ secrets.DISCORD_BOT_TOKEN }} >> rewardsweb/.env
 
       - name: Wait for PostgreSQL to be ready
         run: |

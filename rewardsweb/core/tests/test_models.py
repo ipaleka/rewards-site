@@ -16,6 +16,8 @@ from core.models import (
     Cycle,
     Handle,
     HandleManager,
+    Issue,
+    IssueStatus,
     Reward,
     RewardType,
     SocialPlatform,
@@ -830,6 +832,84 @@ class TestCoreRewardModel:
         assert str(reward) == "[TS] Task 1: 20,000"
 
 
+class TestCoreIssueStatus:
+    """Testing class for :class:`core.models.IssueStatus`."""
+
+    @pytest.mark.parametrize("choice", ["CREATED", "WONTFIX", "ADDRESSED", "ARCHIVED"])
+    def test_core_issuestatus_choice(self, choice):
+        assert hasattr(IssueStatus, choice)
+        assert getattr(IssueStatus, choice) == choice.lower()
+
+
+class TestCoreIssueModel:
+    """Testing class for :class:`core.models.Issue` model."""
+
+    # # field characteristics
+    @pytest.mark.parametrize(
+        "name,typ",
+        [
+            ("number", models.IntegerField),
+            ("status", models.CharField),
+            ("created_at", models.DateTimeField),
+            ("updated_at", models.DateTimeField),
+        ],
+    )
+    def test_core_issue_model_fields(self, name, typ):
+        assert hasattr(Issue, name)
+        assert isinstance(Issue._meta.get_field(name), typ)
+
+    def test_core_issue_model_status_field(self):
+        status_field = Issue._meta.get_field("status")
+        assert isinstance(status_field, models.CharField)
+        assert status_field.max_length == 20
+        assert status_field.choices == IssueStatus.choices
+
+    @pytest.mark.django_db
+    def test_core_issue_model_number_is_not_optional(self):
+        with pytest.raises(ValidationError):
+            Issue(status="created").full_clean()
+
+    @pytest.mark.django_db
+    def test_core_issue_model_default_status_set(self):
+        issue = Issue.objects.create(number=19)
+        assert issue.status == "created"
+
+    @pytest.mark.django_db
+    def test_core_issue_model_created_at_datetime_field_set(self):
+        issue = Issue.objects.create(number=20)
+        assert issue.created_at <= timezone.now()
+
+    @pytest.mark.django_db
+    def test_core_issue_model_updated_at_datetime_field_set(self):
+        issue = Issue.objects.create(number=21)
+        assert issue.updated_at <= timezone.now()
+
+    # # Meta
+    @pytest.mark.django_db
+    def test_core_issue_model_ordering(self):
+        issue1 = Issue.objects.create(number=180)
+        issue2 = Issue.objects.create(number=105, status="wontfix")
+        issue3 = Issue.objects.create(number=106)
+        issue4 = Issue.objects.create(number=200)
+        assert list(Issue.objects.all()) == [issue4, issue1, issue3, issue2]
+
+    # # save
+    @pytest.mark.django_db
+    def test_core_issue_model_save_duplicate_number_is_invalid(self):
+        Issue.objects.create(number=505, status="wontfix")
+        with pytest.raises(IntegrityError):
+            social_platform = Issue(number=505)
+            social_platform.save()
+
+    # # __str__
+    @pytest.mark.django_db
+    def test_core_issue_model_string_representation_is_social_platform_name(
+        self,
+    ):
+        issue = Issue(number=506)
+        assert str(issue) == "506: created"
+
+
 class TestCoreContributionModel:
     """Testing class for :class:`core.models.Contribution` model."""
 
@@ -841,6 +921,7 @@ class TestCoreContributionModel:
             ("cycle", models.ForeignKey),
             ("platform", models.ForeignKey),
             ("reward", models.ForeignKey),
+            ("issue", models.ForeignKey),
             ("percentage", models.DecimalField),
             ("url", models.CharField),
             ("comment", models.CharField),
@@ -918,6 +999,38 @@ class TestCoreContributionModel:
         contribution.reward = reward
         contribution.save()
         assert contribution in reward.contribution_set.all()
+
+    @pytest.mark.django_db
+    def test_core_contribution_model_is_related_to_issue(self):
+        contributor = Contributor.objects.create(
+            name="mynameissuec", address="addressissuec"
+        )
+        cycle = Cycle.objects.create(start=datetime(2023, 10, 1))
+        platform = SocialPlatform.objects.create(
+            name="contrplatformc", prefix="cc"
+        )
+        reward_type = RewardType.objects.create(label="rc", name="rewardrc")
+        reward = Reward.objects.create(type=reward_type)
+        issue = Issue.objects.create(number=100)
+        contribution = Contribution(
+            contributor=contributor, cycle=cycle, platform=platform, reward=reward
+        )
+        contribution.issue = issue
+        contribution.save()
+        assert contribution in issue.contribution_set.all()
+
+    @pytest.mark.django_db
+    def test_core_contribution_model_can_save_without_issue(self):
+        contributor = Contributor.objects.create()
+        cycle = Cycle.objects.create(start=datetime(2024, 8, 1))
+        platform = SocialPlatform.objects.create(
+            name="contributionplatform2", prefix="c2"
+        )
+        reward_type = RewardType.objects.create(label="92", name="reward92")
+        reward = Reward.objects.create(type=reward_type)
+        Contribution.objects.create(
+            contributor=contributor, cycle=cycle, platform=platform, reward=reward
+        )
 
     @pytest.mark.django_db
     def test_core_contribution_model_cannot_save_too_long_url(self):

@@ -87,7 +87,9 @@ class ApiService:
         logger.info(f"🔗 fetch_user_contributions called for {username}")
         return await self.make_request("contributions", {"name": username})
 
-    async def post_suggestion(self, contribution_type, level, username, message_url):
+    async def post_suggestion(
+        self, contribution_type, level, username, comment, message_url
+    ):
         logger.info(f"🔗 post_suggestion called for {username}")
         return await self.make_request(
             "addcontribution",
@@ -95,6 +97,7 @@ class ApiService:
                 "type": contribution_type,
                 "level": level,
                 "username": username,
+                "comment": comment,
                 "url": message_url,
                 "platform": "Discord",
             },

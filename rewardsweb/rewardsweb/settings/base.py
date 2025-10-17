@@ -20,6 +20,7 @@ from utils.helpers import get_env_variable
 BASE_DIR = Path(__file__).resolve().parent.parent
 
 load_dotenv(BASE_DIR.parent / ".env")
+load_dotenv(BASE_DIR.parent.parent / "rewardsbot" / ".env")
 
 # Quick-start development settings - unsuitable for production
 # See https://docs.djangoproject.com/en/4.2/howto/deployment/checklist/
@@ -126,3 +127,6 @@ REST_FRAMEWORK = {
         "rest_framework.parsers.JSONParser",
     ],
 }
+
+GITHUB_REPO_OWNER = "asastats"
+GITHUB_REPO_NAME = "channel"

@@ -139,7 +139,7 @@ class AddContributionView(APIView):
                 "reward": rewards[0].id,
                 "percentage": 1,
                 "url": raw_data.get("url"),
-                "comment": None,
+                "comment": raw_data.get("comment"),
                 "confirmed": False,
             }
 

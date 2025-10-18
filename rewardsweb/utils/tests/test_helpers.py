@@ -59,7 +59,6 @@ class TestUtilsHelpersFunctions:
     ):
         assert parse_full_handle(full_handle) == (prefix, handle)
 
-
     # # user_display
     def test_utils_userhelpers_user_display_calls_and_returns_profile_name(
         self, mocker

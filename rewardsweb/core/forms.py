@@ -27,7 +27,7 @@ from utils.constants.core import (
 class CreateIssueForm(Form):
     """TODO: docstring and tests"""
 
-    multiple_labels = MultipleChoiceField(
+    labels = MultipleChoiceField(
         choices=ISSUE_CREATION_LABEL_CHOICES,
         widget=CheckboxSelectMultiple(),
         label="Select labels",
@@ -40,17 +40,6 @@ class CreateIssueForm(Form):
         required=True,
         initial="medium priority",
     )
-    issue_body = CharField(
-        widget=Textarea(
-            attrs={
-                "class": "textarea textarea-bordered w-full h-32",
-                "placeholder": "Enter issue body text here...",
-            }
-        ),
-        label="Body",
-        max_length=500,
-        required=True,
-    )
     issue_title = CharField(
         max_length=100,
         label="Title",
@@ -62,10 +51,21 @@ class CreateIssueForm(Form):
         ),
         required=True,
     )
+    issue_body = CharField(
+        widget=Textarea(
+            attrs={
+                "class": "textarea textarea-bordered w-full h-32",
+                "placeholder": "Enter issue body text here...",
+            }
+        ),
+        label="Body",
+        max_length=500,
+        required=True,
+    )
 
-    def clean_multiple_labels(self):
+    def clean_labels(self):
         """TODO: docstring and tests"""
-        data = self.cleaned_data["multiple_labels"]
+        data = self.cleaned_data["labels"]
         if len(data) < 1:
             raise ValidationError("Please select at least one option.")
         return data

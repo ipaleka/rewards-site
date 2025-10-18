@@ -234,8 +234,8 @@ class CreateIssueView(FormView):
 
         else:
             data["priority"] = "medium priority"
-            data["issue_body"] = "Please provide your description here."
-            data["issue_title"] = "default-value"
+            data["issue_body"] = "Please provide issue description here."
+            data["issue_title"] = "Issue title"
 
         initial.update(data)
         return initial
@@ -243,19 +243,10 @@ class CreateIssueView(FormView):
     def get_context_data(self, **kwargs):
         context = super().get_context_data(**kwargs)
 
-        # Add your variables to context - these will be used for initial values
+        info = Contribution.objects.get(id=self.contribution_id).info()
         context["contribution_id"] = self.contribution_id
-
-        # You can add any other variables you want to use
-        context["page_title"] = f"Form for ID {self.contribution_id}"
-        context["current_date"] = "2024-01-01"  # Example dynamic data
-
-        # Add any calculation results from previous submission
-        if "calculation_result" in self.request.session:
-            context["calculation_result"] = self.request.session.pop(
-                "calculation_result"
-            )
-            context["submitted_data"] = self.request.session.pop("submitted_data", {})
+        context["contribution_info"] = info
+        context["page_title"] = f"Create issue for {info}"
 
         return context
 
@@ -265,24 +256,11 @@ class CreateIssueView(FormView):
         calculated_value = self.your_calculation_function(
             cleaned_data, self.contribution_id
         )
-
-        self.request.session["calculation_result"] = calculated_value
-        self.request.session["submitted_data"] = {
-            "selected_labels": cleaned_data.get("multiple_labels", []),
-            "text_preview": (
-                cleaned_data.get("issue_body", "")[:50] + "..."
-                if cleaned_data.get("issue_body")
-                else ""
-            ),
-            "input_value": cleaned_data.get("issue_title", ""),
-            "contribution_id": self.contribution_id,
-        }
-
         return super().form_valid(form)
 
     def your_calculation_function(self, form_data, contribution_id):
         # Your existing calculation logic
-        selected_labels = form_data.get("multiple_labels", [])
+        labels = form_data.get("labels", [])
         priority = form_data.get("priority", "")
         issue_body = form_data.get("issue_body", "")
         issue_title = form_data.get("issue_title", "")
@@ -290,11 +268,11 @@ class CreateIssueView(FormView):
         result = {
             "contribution_id": contribution_id,
             "priority": priority,
-            "total_categories": len(selected_labels),
+            "total_labels": len(labels),
             "text_length": len(issue_body),
             "processed_input": issue_title.upper(),
-            "categories": selected_labels,
-            "combined_result": f"ID-{contribution_id}-{priority}-{issue_title}-{len(selected_labels)}cats",
+            "categories": labels,
+            "combined_result": f"ID-{contribution_id}-{priority}-{issue_title}-{len(labels)}cats",
         }
 
         return result

@@ -11,7 +11,7 @@ from utils.issues import (
 )
 
 
-class TestUtilsIssuesFunctions:
+class TestUtilsIssuesGithubFunctions:
     """Testing class for :py:mod:`utils.issues` functions."""
 
     # # _github_client
@@ -264,3 +264,15 @@ class TestUtilsIssuesFunctions:
         mocked_repo.assert_called_once_with(client)
         repo.create_issue.assert_called_once_with(title=title, body=body, labels=labels)
         client.close.assert_called_once_with()
+
+
+class TestUtilsIssuesPrepareIssueFunctions:
+    """Testing class for :py:mod:`utils.issues` issue preparing functions."""
+
+    # # issue_data_for_contribution
+    def test_utils_issues_issue_data_for_contribution(self, mocker):
+        pass
+
+    # # issue_data_for_contribution
+    def test_utils_issues_issue_data_for_contribution(self, mocker):
+        pass

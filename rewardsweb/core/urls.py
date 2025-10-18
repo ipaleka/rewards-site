@@ -20,4 +20,5 @@ urlpatterns = [
         name="contribution-detail",
     ),
     path("profile/", views.ProfileEditView.as_view(), name="profile"),
+    path('create-issue/<int:contribution_id>', views.CreateIssueView.as_view(), name='create-issue'),
 ]

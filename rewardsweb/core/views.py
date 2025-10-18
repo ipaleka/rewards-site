@@ -2,25 +2,26 @@
 
 import logging
 
-from django.contrib.auth.decorators import login_required
+from django.contrib.auth.decorators import login_required, user_passes_test
 from django.contrib.auth.models import User
 from django.db.models import Sum
 from django.http import HttpResponseRedirect
 from django.urls import reverse_lazy
 from django.utils.decorators import method_decorator
 from django.views import View
-from django.views.generic import DetailView, ListView, UpdateView
-from django.views.generic.base import TemplateView
+from django.views.generic import DetailView, FormView, ListView, UpdateView
 from django.views.generic.detail import SingleObjectMixin
 
-from core.forms import ProfileFormSet, UpdateUserForm
-from core.models import Contribution, Contributor, Cycle
-
+from core.forms import CreateIssueForm, ProfileFormSet, UpdateUserForm
+from core.models import Contribution, Contributor, Cycle, Issue
+from utils.issues import issue_data_for_contribution
 
 logger = logging.getLogger(__name__)
 
 
-class IndexView(TemplateView):
+class IndexView(ListView):
+    model = Contribution
+    paginate_by = 20
     template_name = "index.html"
 
     def get_context_data(self, *args, **kwargs):
@@ -43,6 +44,9 @@ class IndexView(TemplateView):
         context["total_rewards"] = total_rewards
 
         return context
+
+    def get_queryset(self):
+        return Contribution.objects.filter(confirmed=False).reverse()
 
 
 class ContributionDetailView(DetailView):
@@ -197,3 +201,100 @@ class ProfileEditView(View):
         """
         view = ProfileUpdate.as_view()
         return view(request, *args, **kwargs)
+
+
+@method_decorator(user_passes_test(lambda user: user.is_superuser), name="dispatch")
+class CreateIssueView(FormView):
+    """TODO: docstring and tests"""
+
+    template_name = "create_issue.html"
+    form_class = CreateIssueForm
+
+    def get(self, request, *args, **kwargs):
+        # Store the initial ID from URL when the form is first loaded
+        self.contribution_id = kwargs.get("contribution_id")
+        return super().get(request, *args, **kwargs)
+
+    def post(self, request, *args, **kwargs):
+        # Store the initial ID from URL when form is submitted
+        self.contribution_id = kwargs.get("contribution_id")
+        return super().post(request, *args, **kwargs)
+
+    def get_success_url(self):
+        return reverse_lazy("contribution-detail", args=[self.contribution_id])
+
+    def get_initial(self):
+        """Set initial data using the separate method"""
+        initial = super().get_initial()
+
+        if self.contribution_id:
+            data = issue_data_for_contribution(
+                Contribution.objects.get(id=self.contribution_id)
+            )
+
+        else:
+            data["priority"] = "medium priority"
+            data["issue_body"] = "Please provide your description here."
+            data["issue_title"] = "default-value"
+
+        initial.update(data)
+        return initial
+
+    def get_context_data(self, **kwargs):
+        context = super().get_context_data(**kwargs)
+
+        # Add your variables to context - these will be used for initial values
+        context["contribution_id"] = self.contribution_id
+
+        # You can add any other variables you want to use
+        context["page_title"] = f"Form for ID {self.contribution_id}"
+        context["current_date"] = "2024-01-01"  # Example dynamic data
+
+        # Add any calculation results from previous submission
+        if "calculation_result" in self.request.session:
+            context["calculation_result"] = self.request.session.pop(
+                "calculation_result"
+            )
+            context["submitted_data"] = self.request.session.pop("submitted_data", {})
+
+        return context
+
+    def form_valid(self, form):
+        # Your existing form validation logic
+        cleaned_data = form.cleaned_data
+        calculated_value = self.your_calculation_function(
+            cleaned_data, self.contribution_id
+        )
+
+        self.request.session["calculation_result"] = calculated_value
+        self.request.session["submitted_data"] = {
+            "selected_labels": cleaned_data.get("multiple_labels", []),
+            "text_preview": (
+                cleaned_data.get("issue_body", "")[:50] + "..."
+                if cleaned_data.get("issue_body")
+                else ""
+            ),
+            "input_value": cleaned_data.get("issue_title", ""),
+            "contribution_id": self.contribution_id,
+        }
+
+        return super().form_valid(form)
+
+    def your_calculation_function(self, form_data, contribution_id):
+        # Your existing calculation logic
+        selected_labels = form_data.get("multiple_labels", [])
+        priority = form_data.get("priority", "")
+        issue_body = form_data.get("issue_body", "")
+        issue_title = form_data.get("issue_title", "")
+
+        result = {
+            "contribution_id": contribution_id,
+            "priority": priority,
+            "total_categories": len(selected_labels),
+            "text_length": len(issue_body),
+            "processed_input": issue_title.upper(),
+            "categories": selected_labels,
+            "combined_result": f"ID-{contribution_id}-{priority}-{issue_title}-{len(selected_labels)}cats",
+        }
+
+        return result

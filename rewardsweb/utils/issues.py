@@ -180,3 +180,26 @@ def create_github_issue(user, title, body, labels=None):
 
     except Exception as e:
         return {"success": False, "error": str(e)}
+
+
+def issue_data_for_contribution(contribution):
+    """TODO: implement, docstring, and tests"""
+    data = {}
+    # Compute your initial values here
+    data[
+        "issue_body"
+    ] = f"""
+This form is for processing ID:
+
+Please provide the necessary information below.
+The initial ID will be used in the calculation process.
+"""
+    data["issue_title"] = f"prefilled-"
+
+    # Set initial values for multiple select checkboxes
+    # Provide a list of values that should be pre-checked
+    data["multiple_labels"] = ["task", "work in progress"]
+
+    data["priority"] = "medium priority"
+
+    return data

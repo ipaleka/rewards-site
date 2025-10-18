@@ -1,0 +1,160 @@
+{% extends "base_generic.html" %}
+{% load static %}
+{% block content %}
+
+<div class="container mx-auto px-4 py-8">
+    <div class="max-w-2xl mx-auto">
+        <!-- Header -->
+        <div class="text-center mb-8">
+            <div class="badge badge-primary badge-lg mb-4">ID: {{ contribution_id }}</div>
+            <h1 class="text-4xl font-bold text-primary">Your Form</h1>
+            <p class="text-lg text-base-content mt-2">Processing for ID: <strong>{{ contribution_id }}</strong></p>
+        </div>
+
+        <!-- Results Alert -->
+        {% if calculation_result %}
+        <div class="alert alert-success shadow-lg mb-6">
+            <div>
+                <svg xmlns="http://www.w3.org/2000/svg" class="stroke-current flex-shrink-0 h-6 w-6" fill="none" viewBox="0 0 24 24">
+                    <path stroke-linecap="round" stroke-linejoin="round" stroke-width="2" d="M9 12l2 2 4-4m6 2a9 9 0 11-18 0 9 9 0 0118 0z" />
+                </svg>
+                <div>
+                    <h3 class="font-bold">Calculation Complete!</h3>
+                    <div class="text-xs mt-2">
+                        <div class="grid grid-cols-1 md:grid-cols-2 gap-2">
+                            <div>
+                                <p><strong>Initial ID:</strong> {{ calculation_result.contribution_id }}</p>
+                                <p><strong>Categories selected:</strong> {{ calculation_result.total_categories }}</p>
+                                <p><strong>Text length:</strong> {{ calculation_result.text_length }} characters</p>
+                            </div>
+                            <div>
+                                <p><strong>Processed input:</strong> {{ calculation_result.processed_input }}</p>
+                                <p><strong>Combined result:</strong> {{ calculation_result.combined_result }}</p>
+                                {% if calculation_result.categories %}
+                                <p><strong>Selected:</strong> {{ calculation_result.categories|join:", " }}</p>
+                                {% endif %}
+                            </div>
+                        </div>
+                    </div>
+                </div>
+            </div>
+        </div>
+        {% endif %}
+
+        <!-- Form Card -->
+        <div class="card bg-base-100 shadow-xl">
+            <div class="card-body">
+
+<form method="post" novalidate>
+    {% csrf_token %}
+    
+    <!-- Multiple Select Field - Manual Rendering -->
+    <div class="form-control w-full">
+        <label class="label">
+            <span class="label-text font-semibold text-lg">{{ form.multiple_labels.label }}</span>
+        </label>
+        
+        <!-- Responsive grid -->
+        <div class="grid grid-cols-2 sm:grid-cols-3 md:grid-cols-4 lg:grid-cols-5 gap-3 bg-base-100 p-4 rounded-lg border border-base-300">
+            {% for checkbox in form.multiple_labels %}
+            <label class="flex items-center space-x-2 cursor-pointer hover:bg-base-200 p-2 rounded transition-colors duration-200">
+                {{ checkbox.tag }}
+                <span class="label-text text-sm">{{ checkbox.choice_label }}</span>
+            </label>
+            {% endfor %}
+        </div>
+        
+        {% if form.multiple_labels.errors %}
+        <label class="label">
+            <span class="label-text-alt text-error">
+                {% for error in form.multiple_labels.errors %}
+                    {{ error }}
+                {% endfor %}
+            </span>
+        </label>
+        {% endif %}
+    </div>
+
+    <!-- Radio Buttons -->
+    <div class="form-control w-full mt-6">
+        <label class="label">
+            <span class="label-text font-semibold text-lg">{{ form.priority.label }}</span>
+        </label>
+        
+        <!-- Horizontal layout for radio buttons -->
+        <div class="flex flex-wrap gap-6 bg-base-100 p-6 rounded-lg border border-base-300">
+            {% for radio in form.priority %}
+            <label class="flex items-center space-x-3 cursor-pointer hover:bg-base-200 px-4 py-3 rounded-lg transition-colors duration-200">
+                {{ radio.tag }}
+                <span class="label-text text-base font-medium">{{ radio.choice_label }}</span>
+            </label>
+            {% endfor %}
+        </div>
+        
+        {% if form.priority.errors %}
+        <label class="label">
+            <span class="label-text-alt text-error">
+                {% for error in form.priority.errors %}
+                    {{ error }}
+                {% endfor %}
+            </span>
+        </label>
+        {% endif %}
+    </div>
+
+    <!-- Text Area Field - Manual Rendering -->
+    <div class="form-control w-full mt-4">
+        <label class="label">
+            <span class="label-text font-semibold">Description</span>
+        </label>
+        <textarea name="issue_body" class="textarea textarea-bordered w-full h-32" 
+                  placeholder="Enter your description here...">{% if form.issue_body.value %}{{ form.issue_body.value }}{% endif %}</textarea>
+        {% if form.issue_body.errors %}
+        <label class="label">
+            <span class="label-text-alt text-error">
+                {% for error in form.issue_body.errors %}
+                    {{ error }}
+                {% endfor %}
+            </span>
+        </label>
+        {% endif %}
+    </div>
+
+    <!-- Input Field - Manual Rendering -->
+    <div class="form-control w-full mt-4">
+        <label class="label">
+            <span class="label-text font-semibold">Input Field</span>
+        </label>
+        <input type="text" name="issue_title" 
+               value="{% if form.issue_title.value %}{{ form.issue_title.value }}{% endif %}"
+               class="input input-bordered w-full" 
+               placeholder="Enter your input...">
+        {% if form.issue_title.errors %}
+        <label class="label">
+            <span class="label-text-alt text-error">
+                {% for error in form.issue_title.errors %}
+                    {{ error }}
+                {% endfor %}
+            </span>
+        </label>
+        {% endif %}
+    </div>
+
+    <!-- Submit Button -->
+    <div class="form-control mt-6">
+        <button type="submit" class="btn btn-primary">Process Form for ID {{ initial_id }}</button>
+    </div>
+</form>
+
+            </div>
+        </div>
+
+        <!-- Form Instructions -->
+        <div class="mt-6 text-center text-sm text-base-content/70">
+            <p>Select multiple categories using Ctrl/Cmd + Click</p>
+            <p class="mt-1">Form is associated with ID: <strong>{{ contribution_id }}</strong></p>
+        </div>
+    </div>
+</div>
+
+{% endblock %}

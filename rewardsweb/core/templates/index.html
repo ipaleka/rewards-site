@@ -8,6 +8,7 @@
     Welcome to ASA Stats rewards web!
   </p>
   <h2>Data</h2>
+  <br>
   <p>Here's the total record counts:</p>
   <ul>
     <li><strong>Cycles:</strong> {{ num_cycles }}</li>
@@ -16,4 +17,19 @@
     <li><strong>Total rewards:</strong> {{ total_rewards|floatformat:"g" }}</li>
   </ul>
 </div>
+<br>
+<h2>Unconfirmed contributions</h2>
+<br>
+{% if contribution_list %}
+  <ul>
+    {% for contribution in contribution_list %}
+    <li>
+      <a class="link link-accent" href="{{ contribution.get_absolute_url }}">{{ contribution.info }}</a>
+    </li>
+    {% endfor %}
+  </ul>
+{% else %}
+  <p>There are no unconfirmed contributions in database.</p>
+{% endif %}
+
 {% endblock %}

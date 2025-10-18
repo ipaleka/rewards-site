@@ -452,3 +452,22 @@ class Contribution(models.Model):
     def get_absolute_url(self):
         """Returns the URL to access a detail record for this contribution."""
         return reverse("contribution-detail", args=[str(self.id)])
+
+    def info(self):
+        """Return basic information for this contribution.
+
+        TODO: docstring and tests
+
+        """
+        main_text = (
+            "["
+            + self.created_at.strftime("%d %b %H:%M")
+            + "] "
+            + self.reward.type.name
+            + " by "
+            + str(self.contributor)
+        )
+        if self.comment:
+            main_text += " // " + self.comment
+
+        return main_text

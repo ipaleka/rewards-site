@@ -17,7 +17,7 @@ class TestUtilsIssuesGithubFunctions:
     # # _github_client
     def test_utils_issues_github_client_for_no_token(self, mocker):
         user = mocker.MagicMock()
-        user.profile.github_access_token = None
+        user.profile.github_token = None
         mocked_auth = mocker.patch("utils.issues.Auth.Token")
         returned = _github_client(user)
         assert returned is False
@@ -29,7 +29,7 @@ class TestUtilsIssuesGithubFunctions:
         auth, client = mocker.MagicMock(), mocker.MagicMock()
         mocked_auth = mocker.patch("utils.issues.Auth.Token", return_value=auth)
         mocked_client = mocker.patch("utils.issues.Github", return_value=client)
-        user.profile.github_access_token = token
+        user.profile.github_token = token
         returned = _github_client(user)
         assert returned == client
         mocked_auth.assert_called_once_with(token)

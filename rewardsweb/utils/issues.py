@@ -17,17 +17,17 @@ def _github_client(user):
 
     :param user: Django user instance
     :type user: class:`django.contrib.auth.models.User`
-    :var github_access_token: GitHub user's access token
-    :type github_access_token: str
+    :var github_token: GitHub user's access token
+    :type github_token: str
     :var auth: GitHub authentication token instance
     :type auth: :class:`github.Github`
     :return: :class:`github.Github
     """
-    github_access_token = user.profile.github_access_token
-    if not github_access_token:
+    github_token = user.profile.github_token
+    if not github_token:
         return False
 
-    auth = Auth.Token(github_access_token)
+    auth = Auth.Token(github_token)
 
     return Github(auth=auth)
 

@@ -25,4 +25,9 @@ urlpatterns = [
         views.CreateIssueView.as_view(),
         name="create-issue",
     ),
+    path(
+        "issue/<int:pk>",
+        views.IssueDetailView.as_view(),
+        name="issue-detail",
+    ),
 ]

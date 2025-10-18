@@ -10,7 +10,11 @@
   <p><strong>Reward:</strong> {{ contribution.reward.amount|floatformat:"g" }}</p>
   {% if contribution.percentage != 1 %}<p><strong>Percentage:</strong> {% widthratio contribution.percentage 1 100 %}%</p>{% endif %}
   {% if contribution.comment %}<p><strong>Comment:</strong> {{ contribution.comment }}</p>{% endif %}
+  {% if not contribution.confirmed %}
   <p><strong>Confirmed:</strong> {{ contribution.confirmed }}</p>
+  {% elif contribution.issue %}
+  <p><strong>Issue:</strong> <a class="link link-accent" href="{{ contribution.issue.get_absolute_url }}">{{ contribution.issue }}</a></p>
+  {% endif %}
   <p><strong>Created at:</strong> {{ contribution.created_at }}</p>
   <p><strong>Updated at:</strong> {{ contribution.updated_at }}</p>
   <br>

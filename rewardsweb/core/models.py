@@ -383,6 +383,32 @@ class Reward(models.Model):
         return str(self.type) + " " + str(self.level) + ": " + f"{self.amount:,}"
 
 
+class IssueManager(models.Manager):
+    """ASA Stats issues data manager."""
+
+    def confirm_contribution_with_issue(self, issue_number, contribution_id):
+        """Create issue instance from provided number and assign it to contribution.
+
+        Also confirm the contribution.
+
+        :param issue_number: unique GitHub issue number
+        :type issue_number: int
+        :param contribution_id: contribution's unique identifier
+        :type contribution_id: int
+        :var contribution: contribution's model instance
+        :type contribution: :class:`Contribution`
+        :var issue: issue's model instance
+        :type issue: :class:`Issue`
+        :return: :class:`Issue`
+        """
+        contribution = Contribution.objects.get(id=contribution_id)
+        issue = Issue.objects.create(number=issue_number)
+        contribution.issue = issue
+        contribution.confirmed = True
+        contribution.save()
+        return issue
+
+
 class IssueStatus(models.TextChoices):
     """ASA Stats GitHub channel issue status choices."""
 
@@ -402,6 +428,8 @@ class Issue(models.Model):
     created_at = models.DateTimeField(auto_now_add=True)
     updated_at = models.DateTimeField(auto_now=True)
 
+    objects = IssueManager()
+
     class Meta:
         """Define ordering and fields that make unique indexes."""
 
@@ -414,6 +442,10 @@ class Issue(models.Model):
         :return: str
         """
         return str(self.number) + ": " + self.status
+
+    def get_absolute_url(self):
+        """Returns the URL to access a detail record for this issue."""
+        return reverse("issue-detail", args=[str(self.id)])
 
 
 class Contribution(models.Model):

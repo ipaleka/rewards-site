@@ -5,7 +5,7 @@ from datetime import datetime, timedelta
 from pathlib import Path
 
 import pandas as pd
-from django.contrib.auth import get_user_model
+from django.contrib.auth.models import User
 from django.core.exceptions import ObjectDoesNotExist
 from django.db.utils import IntegrityError
 from django.http import Http404
@@ -82,12 +82,12 @@ def _create_active_rewards():
                 )
 
 
-def _create_admin_users():
-    password = get_env_variable("DEFAULT_USER_PASSWORD")
-    for admin in get_env_variable("INITIAL_ADMINS").split(","):
-        user = get_user_model().objects.create(username=admin)
-        user.set_password(password)
-        user.save()
+def _create_superusers():
+    superusers = get_env_variable("INITIAL_SUPERUSERS").split(",")
+    passwords = get_env_variable("DEFAULT_USER_PASSWORD").split(",")
+    assert len(superusers) == len(passwords)
+    for index, superuser in enumerate(superusers):
+        User.objects.create_superuser(superuser, password=passwords[index])
 
 
 def _dataframe_from_csv(filename, columns=CONTRIBUTION_CSV_COLUMNS):
@@ -324,6 +324,6 @@ def import_from_csv(contributions_path, legacy_contributions_path):
     )
     print("Contributions imported: ", len(Contribution.objects.all()))
 
-    _create_admin_users()
+    _create_superusers()
 
     return False

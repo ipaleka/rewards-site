@@ -2,25 +2,26 @@
 
 import logging
 
-from django.contrib.auth.decorators import login_required
+from django.contrib.auth.decorators import login_required, user_passes_test
 from django.contrib.auth.models import User
 from django.db.models import Sum
 from django.http import HttpResponseRedirect
 from django.urls import reverse_lazy
 from django.utils.decorators import method_decorator
 from django.views import View
-from django.views.generic import DetailView, ListView, UpdateView
-from django.views.generic.base import TemplateView
+from django.views.generic import DetailView, FormView, ListView, UpdateView
 from django.views.generic.detail import SingleObjectMixin
 
-from core.forms import ProfileFormSet, UpdateUserForm
-from core.models import Contribution, Contributor, Cycle
-
+from core.forms import CreateIssueForm, ProfileFormSet, UpdateUserForm
+from core.models import Contribution, Contributor, Cycle, Issue
+from utils.issues import issue_data_for_contribution
 
 logger = logging.getLogger(__name__)
 
 
-class IndexView(TemplateView):
+class IndexView(ListView):
+    model = Contribution
+    paginate_by = 20
     template_name = "index.html"
 
     def get_context_data(self, *args, **kwargs):
@@ -43,6 +44,9 @@ class IndexView(TemplateView):
         context["total_rewards"] = total_rewards
 
         return context
+
+    def get_queryset(self):
+        return Contribution.objects.filter(confirmed=False).reverse()
 
 
 class ContributionDetailView(DetailView):
@@ -197,3 +201,78 @@ class ProfileEditView(View):
         """
         view = ProfileUpdate.as_view()
         return view(request, *args, **kwargs)
+
+
+@method_decorator(user_passes_test(lambda user: user.is_superuser), name="dispatch")
+class CreateIssueView(FormView):
+    """TODO: docstring and tests"""
+
+    template_name = "create_issue.html"
+    form_class = CreateIssueForm
+
+    def get(self, request, *args, **kwargs):
+        # Store the initial ID from URL when the form is first loaded
+        self.contribution_id = kwargs.get("contribution_id")
+        return super().get(request, *args, **kwargs)
+
+    def post(self, request, *args, **kwargs):
+        # Store the initial ID from URL when form is submitted
+        self.contribution_id = kwargs.get("contribution_id")
+        return super().post(request, *args, **kwargs)
+
+    def get_success_url(self):
+        return reverse_lazy("contribution-detail", args=[self.contribution_id])
+
+    def get_initial(self):
+        """Set initial data using the separate method"""
+        initial = super().get_initial()
+
+        if self.contribution_id:
+            data = issue_data_for_contribution(
+                Contribution.objects.get(id=self.contribution_id)
+            )
+
+        else:
+            data["priority"] = "medium priority"
+            data["issue_body"] = "Please provide issue description here."
+            data["issue_title"] = "Issue title"
+
+        initial.update(data)
+        return initial
+
+    def get_context_data(self, **kwargs):
+        context = super().get_context_data(**kwargs)
+
+        info = Contribution.objects.get(id=self.contribution_id).info()
+        context["contribution_id"] = self.contribution_id
+        context["contribution_info"] = info
+        context["page_title"] = f"Create issue for {info}"
+
+        return context
+
+    def form_valid(self, form):
+        # Your existing form validation logic
+        cleaned_data = form.cleaned_data
+        calculated_value = self.your_calculation_function(
+            cleaned_data, self.contribution_id
+        )
+        return super().form_valid(form)
+
+    def your_calculation_function(self, form_data, contribution_id):
+        # Your existing calculation logic
+        labels = form_data.get("labels", [])
+        priority = form_data.get("priority", "")
+        issue_body = form_data.get("issue_body", "")
+        issue_title = form_data.get("issue_title", "")
+
+        result = {
+            "contribution_id": contribution_id,
+            "priority": priority,
+            "total_labels": len(labels),
+            "text_length": len(issue_body),
+            "processed_input": issue_title.upper(),
+            "categories": labels,
+            "combined_result": f"ID-{contribution_id}-{priority}-{issue_title}-{len(labels)}cats",
+        }
+
+        return result

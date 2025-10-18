@@ -6,6 +6,9 @@ A website dedicated to ASA Stats contributions. Previously written in Laravel, n
 
 It provides a preview for all historic and latest contributions, hot tasks, contributions guide and more. Community members can use our [Discord Bot](url) to suggest rewards for contributions which appear on this website.
 
+> [!IMPORTANT]
+> In order for the bot to access all the channels in the ASA Stats Discord, an admin has to assign it the `Verified` role.
+
 ### Environment variables
 
 Environment variables shouldn't reside in repository, so `.env` file with the following content has to be created in the `rewards-site/rewardsweb` directory:

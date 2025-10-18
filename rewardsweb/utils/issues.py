@@ -1,13 +1,17 @@
 """Module containing functions for GitHub issues management."""
 
 import logging
+from datetime import datetime
 
 from django.conf import settings
 from github import Auth, Github
 
+from utils.bot import message_from_url
+
 logger = logging.getLogger(__name__)
 
 
+# # GITHUB
 def _github_client(user):
     """Instantiate and return GitHub client instance on behalf `user`.
 
@@ -180,3 +184,72 @@ def create_github_issue(user, title, body, labels=None):
 
     except Exception as e:
         return {"success": False, "error": str(e)}
+
+
+# # PREPARE ISSUE
+def _prepare_issue_body_from_contribution(contribution):
+    """TODO: implement, docstring, and tests"""
+    issue_body = "** Please provide the necessary information **"
+    if not contribution.url:
+        return issue_body
+
+    message = message_from_url(contribution.url)
+    if message.get("success"):
+        author = message.get("author")
+        timestamp = datetime.strptime(
+            message.get("timestamp"), "%Y-%m-%dT%H:%M:%S.%f%z"
+        ).strftime("%d %b %H:%M")
+        issue_body = f"By {author} on {timestamp} in [Discord]({contribution.url}):\n"
+        for line in message.get("content").split("\n"):
+            issue_body += f"> {line}\n"
+
+    return issue_body
+
+
+def _prepare_issue_labels_from_contribution(contribution):
+    """TODO: implement, docstring, and tests"""
+    labels = []
+    if "Bug" in contribution.reward.type.name:
+        labels.append("bug")
+
+    elif "Feature" in contribution.reward.type.name:
+        labels.append("feature")
+
+    elif "Task" in contribution.reward.type.name:
+        labels.append("task")
+
+    elif "Twitter" in contribution.reward.type.name:
+        labels.append("task")
+
+    elif "Research" in contribution.reward.type.name:
+        labels.append("research")
+
+    return labels
+
+
+def _prepare_issue_priority_from_contribution(contribution):
+    """TODO: implement, docstring, and tests"""
+    if "Bug" in contribution.reward.type.name:
+        return "high priority"
+
+    return "medium priority"
+
+
+def _prepare_issue_title_from_contribution(contribution):
+    """TODO: implement, docstring, and tests"""
+    issue_title = f"[{contribution.reward.type.label}{contribution.reward.level}] "
+    if contribution.comment:
+        issue_title += contribution.comment
+
+    return issue_title
+
+
+def issue_data_for_contribution(contribution):
+    """TODO: implement, docstring, and tests"""
+
+    return {
+        "issue_title": _prepare_issue_title_from_contribution(contribution),
+        "issue_body": _prepare_issue_body_from_contribution(contribution),
+        "labels": _prepare_issue_labels_from_contribution(contribution),
+        "priority": _prepare_issue_priority_from_contribution(contribution),
+    }

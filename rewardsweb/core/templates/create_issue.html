@@ -1,0 +1,126 @@
+{% extends "base_generic.html" %}
+{% load static %}
+{% block title %}<title>{{ page_title }}</title>{% endblock %}
+
+{% block content %}
+
+<div class="container mx-auto px-4 py-8">
+    <div class="max-w-2xl mx-auto">
+        <!-- Header -->
+        <div class="text-center mb-8">
+            <h1 class="text-4xl font-bold text-primary">Create issue</h1>
+            <p class="text-lg text-base-content mt-2">For {{ contribution_info }}</p>
+        </div>
+
+        <!-- Form Card -->
+        <div class="card bg-base-100 shadow-xl">
+            <div class="card-body">
+
+                <form method="post" novalidate>
+                    {% csrf_token %}
+                    
+                    <!-- Multiple Select Field - Manual Rendering -->
+                    <div class="form-control w-full">
+                        <label class="label">
+                            <span class="label-text font-semibold text-lg">{{ form.labels.label }}</span>
+                        </label>
+                        
+                        <!-- Responsive grid -->
+                        <div class="grid grid-cols-2 sm:grid-cols-3 md:grid-cols-4 lg:grid-cols-5 gap-3 bg-base-100 p-4 rounded-lg border border-base-300">
+                            {% for checkbox in form.labels %}
+                            <label class="flex items-center space-x-2 cursor-pointer hover:bg-base-200 p-2 rounded transition-colors duration-200">
+                                {{ checkbox.tag }}
+                                <span class="label-text text-sm">{{ checkbox.choice_label }}</span>
+                            </label>
+                            {% endfor %}
+                        </div>
+                        
+                        {% if form.labels.errors %}
+                        <label class="label">
+                            <span class="label-text-alt text-error">
+                                {% for error in form.labels.errors %}
+                                    {{ error }}
+                                {% endfor %}
+                            </span>
+                        </label>
+                        {% endif %}
+                    </div>
+
+                    <!-- Radio Buttons -->
+                    <div class="form-control w-full mt-6">
+                        <label class="label">
+                            <span class="label-text font-semibold text-lg">{{ form.priority.label }}</span>
+                        </label>
+                        
+                        <!-- Horizontal layout for radio buttons -->
+                        <div class="flex flex-wrap gap-6 bg-base-100 p-6 rounded-lg border border-base-300">
+                            {% for radio in form.priority %}
+                            <label class="flex items-center space-x-3 cursor-pointer hover:bg-base-200 px-4 py-3 rounded-lg transition-colors duration-200">
+                                {{ radio.tag }}
+                                <span class="label-text text-base font-medium">{{ radio.choice_label }}</span>
+                            </label>
+                            {% endfor %}
+                        </div>
+                        
+                        {% if form.priority.errors %}
+                        <label class="label">
+                            <span class="label-text-alt text-error">
+                                {% for error in form.priority.errors %}
+                                    {{ error }}
+                                {% endfor %}
+                            </span>
+                        </label>
+                        {% endif %}
+                    </div>
+
+                    <!-- Input Field - Manual Rendering -->
+                    <div class="form-control w-full mt-4">
+                        <label class="label">
+                            <span class="label-text font-semibold">Issue title</span>
+                        </label>
+                        <input type="text" name="issue_title" 
+                            value="{% if form.issue_title.value %}{{ form.issue_title.value }}{% endif %}"
+                            class="input input-bordered w-full" 
+                            placeholder="Enter issue title...">
+                        {% if form.issue_title.errors %}
+                        <label class="label">
+                            <span class="label-text-alt text-error">
+                                {% for error in form.issue_title.errors %}
+                                    {{ error }}
+                                {% endfor %}
+                            </span>
+                        </label>
+                        {% endif %}
+                    </div>
+
+                    <!-- Text Area Field - Manual Rendering -->
+                    <div class="form-control w-full mt-4">
+                        <label class="label">
+                            <span class="label-text font-semibold">Issue body</span>
+                        </label>
+                        <textarea name="issue_body" class="textarea textarea-bordered w-full h-32" 
+                                placeholder="Enter issue body text here...">{% if form.issue_body.value %}{{ form.issue_body.value }}{% endif %}</textarea>
+                        {% if form.issue_body.errors %}
+                        <label class="label">
+                            <span class="label-text-alt text-error">
+                                {% for error in form.issue_body.errors %}
+                                    {{ error }}
+                                {% endfor %}
+                            </span>
+                        </label>
+                        {% endif %}
+                    </div>
+
+                    <!-- Submit Button -->
+                    <div class="form-control mt-6">
+                        <button type="submit" class="btn btn-primary">Create issue</button>
+                    </div>
+                </form>
+
+            </div>
+        </div>
+
+    </div>
+</div>
+
+{% endblock %}

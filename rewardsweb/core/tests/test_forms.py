@@ -13,7 +13,7 @@ from utils.constants.core import (
 )
 
 
-# # CORE
+# # PROFILE
 class TestUpdateUserForm:
     """Testing class for :class:`UpdateUserForm`."""
 

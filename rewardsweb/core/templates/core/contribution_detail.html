@@ -5,6 +5,7 @@
   <br>
   <p><strong>Cycle:</strong> {{ contribution.cycle }}</p>
   <p><strong>Platform:</strong> {{ contribution.platform }}</p>
+  <p><strong>URL:</strong> <span class="link link-accent"><a href="{{ contribution.url }}">{{ contribution.url|urlizetrunc:50 }}</a></span>
   <p><strong>Type:</strong> {{ contribution.reward.type }}</p>
   <p><strong>Reward:</strong> {{ contribution.reward.amount|floatformat:"g" }}</p>
   {% if contribution.percentage != 1 %}<p><strong>Percentage:</strong> {% widthratio contribution.percentage 1 100 %}%</p>{% endif %}
@@ -12,4 +13,10 @@
   <p><strong>Confirmed:</strong> {{ contribution.confirmed }}</p>
   <p><strong>Created at:</strong> {{ contribution.created_at }}</p>
   <p><strong>Updated at:</strong> {{ contribution.updated_at }}</p>
+  <br>
+  {% if user.is_superuser and not contribution.confirmed %}
+    <a class="btn btn-outline btn-primary" href="{% url 'create-issue' contribution.id %}">Create issue</a>
+  {% endif %}
+
 {% endblock %}
+

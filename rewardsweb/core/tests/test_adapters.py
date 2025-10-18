@@ -16,6 +16,6 @@ class TestCoreAdapters:
 
     # # is_open_for_signup
     def test_core_adapters_nosignupaccountadapter_is_open_for_signup_functionality(
-        self
+        self,
     ):
         assert NoSignupAccountAdapter().is_open_for_signup(None) is False

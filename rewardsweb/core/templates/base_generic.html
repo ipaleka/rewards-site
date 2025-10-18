@@ -19,7 +19,7 @@
           <ul class="menu menu-horizontal px-1">
 
             {% if user.is_authenticated %}
-            <li><a href="{% url 'account_logout' %}">Logout</a></li>
+            <li><a href="{% url 'account_logout' %}">Logout {{ user }}</a></li>
             <li><a href="{% url 'profile' %}">Profile</a></li>
             {% else %}
             <li><a href="{% url 'account_login' %}">Login</a></li>

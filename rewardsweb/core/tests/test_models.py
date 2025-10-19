@@ -914,7 +914,7 @@ class TestCoreIssueManager:
         )
         issue_number = 505
         issue = Issue.objects.confirm_contribution_with_issue(
-            issue_number, contribution.id
+            issue_number, contribution
         )
         assert isinstance(issue, Issue)
         assert issue.number == issue_number

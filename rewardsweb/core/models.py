@@ -386,22 +386,17 @@ class Reward(models.Model):
 class IssueManager(models.Manager):
     """ASA Stats issues data manager."""
 
-    def confirm_contribution_with_issue(self, issue_number, contribution_id):
-        """Create issue instance from provided number and assign it to contribution.
-
-        Also confirm the contribution.
+    def confirm_contribution_with_issue(self, issue_number, contribution):
+        """Create issue from provided number and assign it to confirmed `contribution`.
 
         :param issue_number: unique GitHub issue number
         :type issue_number: int
-        :param contribution_id: contribution's unique identifier
-        :type contribution_id: int
-        :var contribution: contribution's model instance
+        :param contribution: contribution's model instance
         :type contribution: :class:`Contribution`
         :var issue: issue's model instance
         :type issue: :class:`Issue`
         :return: :class:`Issue`
         """
-        contribution = Contribution.objects.get(id=contribution_id)
         issue = Issue.objects.create(number=issue_number)
         contribution.issue = issue
         contribution.confirmed = True

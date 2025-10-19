@@ -1,26 +1,67 @@
 {% extends "base_generic.html" %}
 
 {% block content %}
-  <h1>Contribution by <a class="link link-accent" href="{{ contribution.contributor.get_absolute_url }}">{{ contribution.contributor }}</a></h1>
+<div class="max-w-4xl mx-auto">
+  <div class="flex justify-between items-center mb-6">
+    <h1 class="text-3xl font-bold">Contribution Details</h1>
+  </div>
+
+  <div class="card bg-base-100 shadow-xl">
+    <div class="card-body">
+      <div class="grid grid-cols-1 md:grid-cols-2 gap-6">
+        <!-- Left Column -->
+        <div>
+          <h2 class="text-xl font-semibold mb-4">Contributor Information</h2>
+          <p><strong>Contributor:</strong> <a class="link link-accent" href="{{ contribution.contributor.get_absolute_url }}">{{ contribution.contributor }}</a></p>
+          <p><strong>Cycle:</strong> {{ contribution.cycle }}</p>
+          <p><strong>Platform:</strong> {{ contribution.platform }}</p>
+          <p><strong>URL:</strong> <a href="{{ contribution.url }}" class="link link-accent" target="_blank">{{ contribution.url|urlizetrunc:50 }}</a></p>
+        </div>
+
+        <!-- Right Column -->
+        <div>
+          <h2 class="text-xl font-semibold mb-4">Reward Information</h2>
+          <p><strong>Type:</strong> {{ contribution.reward.type }}</p>
+          <p><strong>Reward Amount:</strong> {{ contribution.reward.amount|floatformat:"g" }}</p>
+          {% if contribution.percentage != 1 %}
+          <p><strong>Percentage:</strong> {% widthratio contribution.percentage 1 100 %}%</p>
+          {% endif %}
+          {% if contribution.comment %}
+          <p><strong>Comment:</strong> {{ contribution.comment }}</p>
+          {% endif %}
+        </div>
+      </div>
+
+      <!-- Status Information -->
+      <div class="mt-6 pt-6 border-t">
+        {% if not contribution.confirmed %}
+        <div class="alert alert-warning">
+          <p><strong>Status:</strong> Not Confirmed</p>
+        </div>
+        {% elif contribution.issue %}
+        <p><strong>Issue:</strong> <a class="link link-accent" href="{{ contribution.issue.get_absolute_url }}">{{ contribution.issue }}</a></p>
+        {% endif %}
+        
+        <div class="text-sm text-base-content/70 mt-4">
+          <p><strong>Created at:</strong> {{ contribution.created_at }}</p>
+          <p><strong>Updated at:</strong> {{ contribution.updated_at }}</p>
+        </div>
+      </div>
+
+    </div>
+  </div>
   <br>
-  <p><strong>Cycle:</strong> {{ contribution.cycle }}</p>
-  <p><strong>Platform:</strong> {{ contribution.platform }}</p>
-  <p><strong>URL:</strong> <span class="link link-accent"><a href="{{ contribution.url }}">{{ contribution.url|urlizetrunc:50 }}</a></span>
-  <p><strong>Type:</strong> {{ contribution.reward.type }}</p>
-  <p><strong>Reward:</strong> {{ contribution.reward.amount|floatformat:"g" }}</p>
-  {% if contribution.percentage != 1 %}<p><strong>Percentage:</strong> {% widthratio contribution.percentage 1 100 %}%</p>{% endif %}
-  {% if contribution.comment %}<p><strong>Comment:</strong> {{ contribution.comment }}</p>{% endif %}
-  {% if not contribution.confirmed %}
-  <p><strong>Confirmed:</strong> {{ contribution.confirmed }}</p>
-  {% elif contribution.issue %}
-  <p><strong>Issue:</strong> <a class="link link-accent" href="{{ contribution.issue.get_absolute_url }}">{{ contribution.issue }}</a></p>
-  {% endif %}
-  <p><strong>Created at:</strong> {{ contribution.created_at }}</p>
-  <p><strong>Updated at:</strong> {{ contribution.updated_at }}</p>
-  <br>
-  {% if user.is_superuser and not contribution.confirmed %}
-    <a class="btn btn-outline btn-primary" href="{% url 'create-issue' contribution.id %}">Create issue</a>
+  {% if user.is_superuser %}
+
+    <a href="{% url 'contribution-edit' contribution.pk %}" class="btn btn-primary btn-sm">
+    Edit Contribution
+    </a>&emsp;
+    {% if not contribution.confirmed %}
+      <a class="btn btn-outline btn-primary" href="{% url 'create-issue' contribution.id %}">Create issue</a>
+    {% endif %}
+
   {% endif %}
 
+</div>
 {% endblock %}
 

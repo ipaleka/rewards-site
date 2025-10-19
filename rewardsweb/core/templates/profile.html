@@ -1,63 +1,96 @@
 {% extends "base_generic.html" %}
+
 {% load static %}
+
 {% block content %}
-<form method="POST" enctype="multipart/form-data" action="." id="id_form">
-  <div class="row col s12 m7 midrow">
-  {% csrf_token %}
-  {% for field in form.visible_fields %}
-    <div>
-      {{ field.label_tag }}
-      {{ field }}
-      {% if field.errors %}<span>{{ field.errors|escape }}</span>{% endif %}
-      {% if field.help_text %}<p>{{ field.help_text|safe }}</p>{% endif %}
-    </div>
-  {% endfor %}
+    <form method="POST" enctype="multipart/form-data" action="." id="id_form">
+        <div>
+            {% csrf_token %}
 
-  {% if form.non_field_errors %}<div><span>{{ form.non_field_errors }}</span></div>{% endif %}
-  <fieldset class="profile">
-    {{ profile_form.management_form }}
-    {% for form in profile_form %}
-      {% for field in form.visible_fields %}
-        {% if field.name != 'DELETE' %}
-          <div>
-            {{ field.label_tag }}
-            {{ field }}
-            {% if field.errors %}<span>{{ field.errors|escape }}</span>{% endif %}
-            {% if field.help_text %}<p>{{ field.help_text|safe }}</p>{% endif %}
-          </div>
-        {% endif %}
-      {% endfor %}
+            {# Main form fields #}
+            {% for field in form.visible_fields %}
+                <div class="field-wrapper">
+                    {{ field.label_tag }}
+                    {{ field }}
 
-      {% for field in form.hidden_fields %}
-        {{ field }}
-      {% endfor %}
-      {% if form.non_field_errors %}<div><span>{{ form.non_field_errors }}</span></div>{% endif %}
-    {% endfor %}
-  </fieldset>
-  <br>
-  {% if messages %}
-  <div>
-    {% for message in messages %}
-    <div>
-      {{ message }}  
-    </div>
-    {% endfor %}
-  </div>
-  {% endif %}    
-  </div>
-  <div>
-    <a class="btn" href="{% url 'index' %}">Back</a>&nbsp;
-    <button class="btn" id="id_submit" type="submit">Update</button>
-    <br><br>
-    <div>
-      <a class="btn" href="{% url 'account_change_password' %}" id="id_changepassword">Password</a>
-    </div>
-    <div>
-      <a class="btn" href="{% url 'account_email' %}" id="id_emails">Emails</a>
-    </div>
-    <div>
-      <a class="btn" href="{% url 'socialaccount_connections' %}" id="id_connections">Social</a>
-    </div>
-  </div>
-</form>
+                    {% if field.errors %}
+                        <span class="error">{{ field.errors|escape }}</span>
+                    {% endif %}
+
+                    {% if field.help_text %}
+                        <p class="help-text">{{ field.help_text|safe }}</p>
+                    {% endif %}
+                </div>
+            {% endfor %}
+
+            {# Non-field errors #}
+            {% if form.non_field_errors %}
+                <div class="non-field-errors">
+                    <span>{{ form.non_field_errors }}</span>
+                </div>
+            {% endif %}
+
+            {# Profile formset #}
+            <fieldset class="profile">
+                <legend>Profile Information</legend>
+                {{ profile_form.management_form }}
+
+                {% for form in profile_form %}
+                    {% for field in form.visible_fields %}
+                        {% if field.name != 'DELETE' %}
+                            <div class="field-wrapper">
+                                {{ field.label_tag }}
+                                {{ field }}
+
+                                {% if field.errors %}
+                                    <span class="error">{{ field.errors|escape }}</span>
+                                {% endif %}
+
+                                {% if field.help_text %}
+                                    <p class="help-text">{{ field.help_text|safe }}</p>
+                                {% endif %}
+                            </div>
+                        {% endif %}
+                    {% endfor %}
+
+                    {# Hidden fields #}
+                    {% for field in form.hidden_fields %}
+                        {{ field }}
+                    {% endfor %}
+
+                    {# Form non-field errors #}
+                    {% if form.non_field_errors %}
+                        <div class="non-field-errors">
+                            <span>{{ form.non_field_errors }}</span>
+                        </div>
+                    {% endif %}
+                {% endfor %}
+            </fieldset>
+
+            <br>
+
+            {# Action buttons #}
+            <div class="form-actions">
+                <a class="btn" href="{% url 'index' %}">Back</a>&nbsp;
+                <button class="btn" id="id_submit" type="submit">Update</button>
+
+                <br><br>
+
+                {# Account management links #}
+                <div class="account-links">
+                    <a class="btn" href="{% url 'account_change_password' %}" id="id_changepassword">
+                        Password
+                    </a>
+
+                    <a class="btn" href="{% url 'account_email' %}" id="id_emails">
+                        Emails
+                    </a>
+
+                    <a class="btn" href="{% url 'socialaccount_connections' %}" id="id_connections">
+                        Social
+                    </a>
+                </div>
+            </div>
+        </div>
+    </form>
 {% endblock %}

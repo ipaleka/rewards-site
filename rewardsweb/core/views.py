@@ -2,6 +2,7 @@
 
 import logging
 
+from django.contrib import messages
 from django.contrib.auth.decorators import login_required, user_passes_test
 from django.contrib.auth.models import User
 from django.db.models import Sum
@@ -13,8 +14,15 @@ from django.views import View
 from django.views.generic import DetailView, FormView, ListView, UpdateView
 from django.views.generic.detail import SingleObjectMixin
 
-from core.forms import CreateIssueForm, ProfileFormSet, UpdateUserForm
+from core.forms import (
+    ContributionEditForm,
+    CreateIssueForm,
+    ProfileFormSet,
+    UpdateUserForm,
+)
 from core.models import Contribution, Contributor, Cycle, Issue
+from utils.bot import add_reaction_to_message
+from utils.constants.core import DISCORD_NOTED_EMOJI
 from utils.issues import create_github_issue, issue_data_for_contribution
 
 logger = logging.getLogger(__name__)
@@ -52,6 +60,21 @@ class IndexView(ListView):
 
 class ContributionDetailView(DetailView):
     model = Contribution
+
+
+@method_decorator(user_passes_test(lambda user: user.is_superuser), name="dispatch")
+class ContributionUpdateView(UpdateView):
+    model = Contribution
+    form_class = ContributionEditForm
+    template_name = "core/contribution_edit.html"
+
+    def get_success_url(self):
+        messages.success(self.request, 'Contribution updated successfully!')
+        return reverse_lazy('contribution-detail', kwargs={'pk': self.object.pk})
+
+    def form_valid(self, form):
+        # Add any additional logic here if needed
+        return super().form_valid(form)
 
 
 class ContributorListView(ListView):
@@ -271,8 +294,11 @@ class CreateIssueView(FormView):
             )  # None adds to non-field errors
             return self.form_invalid(form)
 
+        contribution = Contribution.objects.get(id=self.contribution_id)
         Issue.objects.confirm_contribution_with_issue(
-            data.get("issue_number"), self.contribution_id
+            data.get("issue_number"), contribution
         )
+
+        add_reaction_to_message(contribution.url, DISCORD_NOTED_EMOJI)
 
         return super().form_valid(form)

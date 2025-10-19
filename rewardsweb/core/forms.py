@@ -6,22 +6,53 @@ from django.forms import (
     CharField,
     CheckboxSelectMultiple,
     ChoiceField,
-    MultipleChoiceField,
+    DecimalField,
     Form,
+    ModelChoiceField,
+    MultipleChoiceField,
+    NumberInput,
     RadioSelect,
+    Select,
     Textarea,
     TextInput,
     ValidationError,
 )
 from django.forms.models import ModelForm, inlineformset_factory
 
-from core.models import Profile
+from core.models import Contribution, Profile, Reward
 from utils.constants.core import (
     ISSUE_CREATION_LABEL_CHOICES,
     ISSUE_PRIORITY_CHOICES,
     TOO_LONG_USER_FIRST_NAME_ERROR,
     TOO_LONG_USER_LAST_NAME_ERROR,
 )
+
+
+class ContributionEditForm(ModelForm):
+    reward = ModelChoiceField(
+        queryset=Reward.objects.filter(active=True),
+        empty_label="Select a reward type",
+        widget=Select(attrs={"class": "select select-bordered w-full"}),
+    )
+    percentage = DecimalField(
+        max_digits=5,
+        decimal_places=2,
+        widget=NumberInput(
+            attrs={
+                "class": "input input-bordered w-full",
+                "step": "0.01",
+                "min": "0",
+                "max": "100",
+            }
+        ),
+    )
+    comment = CharField(
+        required=False, widget=TextInput(attrs={"class": "input input-bordered w-full"})
+    )
+
+    class Meta:
+        model = Contribution
+        fields = ["reward", "percentage", "comment"]
 
 
 class CreateIssueForm(Form):
@@ -59,7 +90,7 @@ class CreateIssueForm(Form):
             }
         ),
         label="Body",
-        max_length=500,
+        max_length=2000,
         required=True,
     )
 

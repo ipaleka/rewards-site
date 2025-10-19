@@ -22,3 +22,11 @@ Then build the pdf with:
 .. code-block:: bash
 
   make latexpdf
+
+
+Run bot
+-------
+
+.. code-block:: bash
+
+  PYTHONPATH=rewardsweb python -m rewardsbot.bo

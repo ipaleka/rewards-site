@@ -9,7 +9,7 @@ import discord
 from unittest import mock
 
 from rewardsbot.controllers.command_handler import SuggestRewardModal
-from rewardsbot.services.suggestion_service import SuggestionService
+from rewardsbot.services.suggestion import SuggestionService
 
 
 class MockTextInput:

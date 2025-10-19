@@ -8,8 +8,8 @@ from discord.ext import commands
 from discord import app_commands
 
 from rewardsbot import config
-from rewardsbot.services.cycle_service import CycleService
-from rewardsbot.services.user_service import UserService
+from rewardsbot.services.cycle import CycleService
+from rewardsbot.services.user import UserService
 from rewardsbot.utils.api import ApiService
 from rewardsbot.controllers.command_handler import SuggestRewardModal
 

@@ -49,6 +49,11 @@ REWARDS_COLLECTION = (
 
 
 def _check_current_cycle(cycle_instance):
+    """Check if current cycle has ended and create new cycle if needed.
+
+    :param cycle_instance: The latest cycle instance to check
+    :type cycle_instance: :class:`core.models.Cycle`
+    """
     if datetime.now().date() > cycle_instance.end:
         start = cycle_instance.end + timedelta(days=1)
         end = start + timedelta(days=92)
@@ -57,6 +62,7 @@ def _check_current_cycle(cycle_instance):
 
 
 def _create_active_rewards():
+    """Create or activate reward objects based on REWARDS_COLLECTION."""
     for index in range(len(REWARDS_COLLECTION)):
         reward = REWARDS_COLLECTION[index]
         reward_name = reward[0]
@@ -83,6 +89,7 @@ def _create_active_rewards():
 
 
 def _create_superusers():
+    """Create initial superusers from environment variables."""
     superusers = get_env_variable("INITIAL_SUPERUSERS").split(",")
     passwords = get_env_variable("DEFAULT_USER_PASSWORD").split(",")
     assert len(superusers) == len(passwords)
@@ -91,6 +98,15 @@ def _create_superusers():
 
 
 def _dataframe_from_csv(filename, columns=CONTRIBUTION_CSV_COLUMNS):
+    """Create pandas DataFrame from CSV file.
+
+    :param filename: Path to the CSV file
+    :type filename: str
+    :param columns: List of column names for the DataFrame
+    :type columns: list
+    :return: DataFrame with specified columns or None if file not found/empty
+    :rtype: :class:`pandas.DataFrame` or None
+    """
     try:
         data = pd.read_csv(filename, header=None, sep=",")
     except (pd.errors.EmptyDataError, FileNotFoundError):
@@ -100,6 +116,15 @@ def _dataframe_from_csv(filename, columns=CONTRIBUTION_CSV_COLUMNS):
 
 
 def _import_contributions(data, parse_callback, amount_callback):
+    """Import contributions from DataFrame to database.
+
+    :param data: DataFrame containing contribution data
+    :type data: :class:`pandas.DataFrame`
+    :param parse_callback: Function to parse reward type from string
+    :type parse_callback: callable
+    :param amount_callback: Function to calculate reward amount
+    :type amount_callback: callable
+    """
     for _, row in data.iterrows():
         contributor = Contributor.objects.from_full_handle(row["contributor"])
         cycle = Cycle.objects.get(start=row["cycle_start"])
@@ -126,6 +151,15 @@ def _import_contributions(data, parse_callback, amount_callback):
 
 
 def _import_rewards(data, parse_callback, amount_callback):
+    """Import rewards from DataFrame to database.
+
+    :param data: DataFrame containing reward data
+    :type data: :class:`pandas.DataFrame`
+    :param parse_callback: Function to parse reward type from string
+    :type parse_callback: callable
+    :param amount_callback: Function to calculate reward amount
+    :type amount_callback: callable
+    """
     for typ, level, reward in data.values.tolist():
         label, name = parse_callback(typ)
         try:
@@ -146,10 +180,18 @@ def _import_rewards(data, parse_callback, amount_callback):
 
 
 def _parse_addresses():
+    """Parse addresses from CSV file and group by address.
+
+    :return: List of addresses with associated handles
+    :rtype: list
+    """
     addresses_filename = (
         Path(__file__).resolve().parent.parent / "fixtures" / "addresses.csv"
     )
     data = _dataframe_from_csv(addresses_filename, columns=ADDRESSES_CSV_COLUMNS)
+    if data is None:
+        return []
+
     data = data[["handle", "address"]].drop_duplicates()
     grouped = (
         data.groupby("address")["handle"]
@@ -160,6 +202,13 @@ def _parse_addresses():
 
 
 def _parse_label_and_name_from_reward_type_legacy(typ):
+    """Parse reward type label and name from legacy format.
+
+    :param typ: Reward type string in legacy format
+    :type typ: str
+    :return: Tuple of (label, name)
+    :rtype: tuple
+    """
     label, name = _parse_label_and_name_from_reward_type(typ)
     if name == "Custom":
         if "feature request" in typ:
@@ -178,6 +227,13 @@ def _parse_label_and_name_from_reward_type_legacy(typ):
 
 
 def _parse_label_and_name_from_reward_type(typ):
+    """Parse reward type label and name from standard format.
+
+    :param typ: Reward type string in format "[LABEL] Name"
+    :type typ: str
+    :return: Tuple of (label, name)
+    :rtype: tuple
+    """
     if not pd.isna(typ):
         pattern = r"\[([^\]]+)\]\s*(.+)"
         match = re.match(pattern, typ)
@@ -188,14 +244,33 @@ def _parse_label_and_name_from_reward_type(typ):
 
 
 def _reward_amount(reward):
+    """Calculate reward amount in base units.
+
+    :param reward: Reward amount
+    :type reward: float
+    :return: Reward amount in base units
+    :rtype: int
+    """
     return round(reward * 1_000_000) if not pd.isna(reward) else 0
 
 
 def _reward_amount_legacy(reward):
+    """Calculate legacy reward amount in base units.
+
+    :param reward: Reward amount
+    :type reward: float
+    :return: Reward amount in base units
+    :rtype: int
+    """
     return round(round(reward, 2) * 1_000_000) if not pd.isna(reward) else 0
 
 
 def _social_platforms():
+    """Return list of social platforms with their prefixes.
+
+    :return: List of tuples (platform_name, prefix)
+    :rtype: list
+    """
     return [
         ("Discord", ""),
         ("Twitter", "@"),
@@ -207,6 +282,15 @@ def _social_platforms():
 
 
 def convert_and_clean_excel(input_file, output_file, legacy_contributions):
+    """Convert and clean Excel file to CSV format for import.
+
+    :param input_file: Path to input Excel file
+    :type input_file: str
+    :param output_file: Path to output CSV file for current contributions
+    :type output_file: str
+    :param legacy_contributions: Path to output CSV file for legacy contributions
+    :type legacy_contributions: str
+    """
     df = pd.read_excel(input_file, sheet_name=3, header=None).iloc[2:]
 
     with pd.option_context("future.no_silent_downcasting", True):
@@ -260,6 +344,15 @@ def convert_and_clean_excel(input_file, output_file, legacy_contributions):
 
 
 def import_from_csv(contributions_path, legacy_contributions_path):
+    """Import contributions from CSV files to database.
+
+    :param contributions_path: Path to current contributions CSV file
+    :type contributions_path: str
+    :param legacy_contributions_path: Path to legacy contributions CSV file
+    :type legacy_contributions_path: str
+    :return: Error message string or False if successful
+    :rtype: str or bool
+    """
     # # CHECK
     if len(SocialPlatform.objects.all()):
         return "ERROR: Database is not empty!"

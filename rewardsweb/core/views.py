@@ -69,8 +69,8 @@ class ContributionUpdateView(UpdateView):
     template_name = "core/contribution_edit.html"
 
     def get_success_url(self):
-        messages.success(self.request, 'Contribution updated successfully!')
-        return reverse_lazy('contribution-detail', kwargs={'pk': self.object.pk})
+        messages.success(self.request, "Contribution updated successfully!")
+        return reverse_lazy("contribution-detail", kwargs={"pk": self.object.pk})
 
     def form_valid(self, form):
         # Add any additional logic here if needed

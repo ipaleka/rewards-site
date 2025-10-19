@@ -34,8 +34,6 @@ def get_env_variable(name, default=None):
 def humanize_contributions(contributions):
     """Return collection of provided `contributions` formatted for output.
 
-    TODO: tests
-
     :param contributions: collectin of users' contribution instances
     :type contributions: :class:`django.db.models.query.QuerySet`
     :return: list

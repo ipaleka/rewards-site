@@ -9,17 +9,12 @@ from django.contrib.auth import get_user_model
 from django.contrib.auth.models import User
 from django.test import RequestFactory, TestCase
 from django.urls import reverse, reverse_lazy
-from django.utils.html import escape
 from django.views import View
 from django.views.generic import DetailView, UpdateView
 from django.views.generic.detail import SingleObjectMixin
 
 from core.forms import ProfileFormSet, UpdateUserForm
 from core.views import ProfileDisplay, ProfileEditView, ProfileUpdate
-from utils.constants.core import (
-    TOO_LONG_USER_FIRST_NAME_ERROR,
-    TOO_LONG_USER_LAST_NAME_ERROR,
-)
 
 user_model = get_user_model()
 
@@ -138,20 +133,6 @@ class EditProfilePageTest(TestCase):
         user = user_model.objects.last()
         self.assertEqual(user.first_name, "Newname")
         self.assertEqual(user.last_name, "Newlastname")
-
-    def test_profile_page_for_too_long_first_name_shows_errors_on_page(self):
-        response = self.client.post(
-            reverse("profile"),
-            data=get_user_edit_fake_post_data(self.user, first_name="xyz" * 51),
-        )
-        self.assertContains(response, escape(TOO_LONG_USER_FIRST_NAME_ERROR))
-
-    def test_profile_page_for_too_long_lastname_shows_errors_on_page(self):
-        response = self.client.post(
-            reverse("profile"),
-            data=get_user_edit_fake_post_data(self.user, last_name="xyz " * 40),
-        )
-        self.assertContains(response, escape(TOO_LONG_USER_LAST_NAME_ERROR))
 
     def test_profile_page_edit_profile_for_invalid_input_nothing_saved_to_db(self):
         oldname = self.user.first_name

@@ -5,9 +5,14 @@ from django.conf import settings
 from utils.issues import (
     _github_client,
     _github_repository,
+    _prepare_issue_body_from_contribution,
+    _prepare_issue_labels_from_contribution,
+    _prepare_issue_priority_from_contribution,
+    _prepare_issue_title_from_contribution,
     add_labels_to_issue,
     close_issue_with_labels,
     create_github_issue,
+    issue_data_for_contribution,
 )
 
 
@@ -266,13 +271,216 @@ class TestUtilsIssuesGithubFunctions:
         client.close.assert_called_once_with()
 
 
-class TestUtilsIssuesPrepareIssueFunctions:
-    """Testing class for :py:mod:`utils.issues` issue preparing functions."""
+class TestUtilsIssuesPrepareFunctions:
+    """Testing class for :py:mod:`utils.issues` issue preparation functions."""
+
+    # # _prepare_issue_body_from_contribution
+    def test_utils_issues_prepare_issue_body_from_contribution_no_url(self, mocker):
+        contribution = mocker.MagicMock()
+        contribution.url = None
+
+        result = _prepare_issue_body_from_contribution(contribution)
+
+        assert result == "** Please provide the necessary information **"
+
+    def test_utils_issues_prepare_issue_body_from_contribution_url_no_success(
+        self, mocker
+    ):
+        contribution = mocker.MagicMock()
+        contribution.url = "https://discord.com/channels/test"
+
+        mocked_message_from_url = mocker.patch("utils.issues.message_from_url")
+        mocked_message_from_url.return_value = {"success": False}
+
+        result = _prepare_issue_body_from_contribution(contribution)
+
+        assert result == "** Please provide the necessary information **"
+        mocked_message_from_url.assert_called_once_with(contribution.url)
+
+    def test_utils_issues_prepare_issue_body_from_contribution_successful_parsing(
+        self, mocker
+    ):
+        contribution = mocker.MagicMock()
+        contribution.url = "https://discord.com/channels/test"
+
+        test_message = {
+            "success": True,
+            "author": "testuser",
+            "timestamp": "2023-10-15T14:30:00.000000+00:00",
+            "content": "This is a test message\nwith multiple lines",
+        }
+
+        mocked_message_from_url = mocker.patch("utils.issues.message_from_url")
+        mocked_message_from_url.return_value = test_message
+        mocked_datetime = mocker.patch("utils.issues.datetime")
+        mocked_datetime.strptime.return_value.strftime.return_value = "15 Oct 14:30"
+
+        result = _prepare_issue_body_from_contribution(contribution)
+
+        expected_body = "By testuser on 15 Oct 14:30 in [Discord](https://discord.com/channels/test):\n> This is a test message\n> with multiple lines\n"
+        assert result == expected_body
+        mocked_message_from_url.assert_called_once_with(contribution.url)
+        mocked_datetime.strptime.assert_called_once_with(
+            "2023-10-15T14:30:00.000000+00:00", "%Y-%m-%dT%H:%M:%S.%f%z"
+        )
+
+    # # _prepare_issue_labels_from_contribution
+    def test_utils_issues_prepare_issue_labels_bug_type(self, mocker):
+        contribution = mocker.MagicMock()
+        reward_type = mocker.MagicMock()
+        reward_type.name = "Bug Fix"
+        contribution.reward.type = reward_type
+
+        result = _prepare_issue_labels_from_contribution(contribution)
+
+        assert result == ["bug"]
+
+    def test_utils_issues_prepare_issue_labels_feature_type(self, mocker):
+        contribution = mocker.MagicMock()
+        reward_type = mocker.MagicMock()
+        reward_type.name = "Feature Request"
+        contribution.reward.type = reward_type
+
+        result = _prepare_issue_labels_from_contribution(contribution)
+
+        assert result == ["feature"]
+
+    def test_utils_issues_prepare_issue_labels_task_type(self, mocker):
+        contribution = mocker.MagicMock()
+        reward_type = mocker.MagicMock()
+        reward_type.name = "General Task"
+        contribution.reward.type = reward_type
+
+        result = _prepare_issue_labels_from_contribution(contribution)
+
+        assert result == ["task"]
+
+    def test_utils_issues_prepare_issue_labels_twitter_type(self, mocker):
+        contribution = mocker.MagicMock()
+        reward_type = mocker.MagicMock()
+        reward_type.name = "Twitter Engagement"
+        contribution.reward.type = reward_type
+
+        result = _prepare_issue_labels_from_contribution(contribution)
+
+        assert result == ["task"]
+
+    def test_utils_issues_prepare_issue_labels_research_type(self, mocker):
+        contribution = mocker.MagicMock()
+        reward_type = mocker.MagicMock()
+        reward_type.name = "Research Work"
+        contribution.reward.type = reward_type
+
+        result = _prepare_issue_labels_from_contribution(contribution)
+
+        assert result == ["research"]
+
+    def test_utils_issues_prepare_issue_labels_unknown_type(self, mocker):
+        contribution = mocker.MagicMock()
+        reward_type = mocker.MagicMock()
+        reward_type.name = "Unknown Type"
+        contribution.reward.type = reward_type
+
+        result = _prepare_issue_labels_from_contribution(contribution)
+
+        assert result == []
+
+    # # _prepare_issue_priority_from_contribution
+    def test_utils_issues_prepare_issue_priority_bug_type(self, mocker):
+        contribution = mocker.MagicMock()
+        reward_type = mocker.MagicMock()
+        reward_type.name = "Critical Bug"
+        contribution.reward.type = reward_type
+
+        result = _prepare_issue_priority_from_contribution(contribution)
+
+        assert result == "high priority"
+
+    def test_utils_issues_prepare_issue_priority_non_bug_type(self, mocker):
+        contribution = mocker.MagicMock()
+        reward_type = mocker.MagicMock()
+        reward_type.name = "Feature Implementation"
+        contribution.reward.type = reward_type
+
+        result = _prepare_issue_priority_from_contribution(contribution)
+
+        assert result == "medium priority"
+
+    # # _prepare_issue_title_from_contribution
+    def test_utils_issues_prepare_issue_title_with_comment(self, mocker):
+        contribution = mocker.MagicMock()
+        reward_type = mocker.MagicMock()
+        reward_type.label = "FEAT"
+        contribution.reward.type = reward_type
+        contribution.reward.level = "A"
+        contribution.comment = "Implement new authentication system"
+
+        result = _prepare_issue_title_from_contribution(contribution)
+
+        expected_title = "[FEATA] Implement new authentication system"
+        assert result == expected_title
+
+    def test_utils_issues_prepare_issue_title_without_comment(self, mocker):
+        contribution = mocker.MagicMock()
+        reward_type = mocker.MagicMock()
+        reward_type.label = "BUG"
+        contribution.reward.type = reward_type
+        contribution.reward.level = "B"
+        contribution.comment = ""
+
+        result = _prepare_issue_title_from_contribution(contribution)
+
+        expected_title = "[BUGB] "
+        assert result == expected_title
 
     # # issue_data_for_contribution
-    def test_utils_issues_issue_data_for_contribution(self, mocker):
-        pass
+    def test_utils_issues_issue_data_for_contribution_complete_data(self, mocker):
+        contribution = mocker.MagicMock()
 
-    # # issue_data_for_contribution
-    def test_utils_issues_issue_data_for_contribution(self, mocker):
-        pass
+        # Mock all the helper functions
+        mocker.patch(
+            "utils.issues._prepare_issue_title_from_contribution",
+            return_value="Test Title",
+        )
+        mocker.patch(
+            "utils.issues._prepare_issue_body_from_contribution",
+            return_value="Test Body",
+        )
+        mocker.patch(
+            "utils.issues._prepare_issue_labels_from_contribution", return_value=["bug"]
+        )
+        mocker.patch(
+            "utils.issues._prepare_issue_priority_from_contribution",
+            return_value="high priority",
+        )
+
+        result = issue_data_for_contribution(contribution)
+
+        expected_data = {
+            "issue_title": "Test Title",
+            "issue_body": "Test Body",
+            "labels": ["bug"],
+            "priority": "high priority",
+        }
+        assert result == expected_data
+
+    def test_utils_issues_issue_data_for_contribution_calls_all_helpers(self, mocker):
+        contribution = mocker.MagicMock()
+
+        mocked_title = mocker.patch(
+            "utils.issues._prepare_issue_title_from_contribution"
+        )
+        mocked_body = mocker.patch("utils.issues._prepare_issue_body_from_contribution")
+        mocked_labels = mocker.patch(
+            "utils.issues._prepare_issue_labels_from_contribution"
+        )
+        mocked_priority = mocker.patch(
+            "utils.issues._prepare_issue_priority_from_contribution"
+        )
+
+        issue_data_for_contribution(contribution)
+
+        mocked_title.assert_called_once_with(contribution)
+        mocked_body.assert_called_once_with(contribution)
+        mocked_labels.assert_called_once_with(contribution)
+        mocked_priority.assert_called_once_with(contribution)

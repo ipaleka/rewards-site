@@ -2,7 +2,6 @@
 
 from django.contrib.auth.models import User
 from django.forms import (
-    BaseInlineFormSet,
     CharField,
     CheckboxSelectMultiple,
     ChoiceField,
@@ -20,15 +19,20 @@ from django.forms import (
 from django.forms.models import ModelForm, inlineformset_factory
 
 from core.models import Contribution, Profile, Reward
-from utils.constants.core import (
-    ISSUE_CREATION_LABEL_CHOICES,
-    ISSUE_PRIORITY_CHOICES,
-    TOO_LONG_USER_FIRST_NAME_ERROR,
-    TOO_LONG_USER_LAST_NAME_ERROR,
-)
+from utils.constants.core import ISSUE_CREATION_LABEL_CHOICES, ISSUE_PRIORITY_CHOICES
 
 
 class ContributionEditForm(ModelForm):
+    """Model form class for editing contribution data.
+
+    :var ContributionEditForm.reward: reward type for the contribution
+    :type ContributionEditForm.reward: :class:`django.forms.ModelChoiceField`
+    :var ContributionEditForm.percentage: percentage value for the contribution
+    :type ContributionEditForm.percentage: :class:`django.forms.DecimalField`
+    :var ContributionEditForm.comment: optional comment for the contribution
+    :type ContributionEditForm.comment: :class:`django.forms.CharField`
+    """
+
     reward = ModelChoiceField(
         queryset=Reward.objects.filter(active=True),
         empty_label="Select a reward type",
@@ -56,7 +60,17 @@ class ContributionEditForm(ModelForm):
 
 
 class CreateIssueForm(Form):
-    """TODO: docstring and tests"""
+    """Form class for creating GitHub issues.
+
+    :var CreateIssueForm.labels: issue labels selection
+    :type CreateIssueForm.labels: :class:`django.forms.MultipleChoiceField`
+    :var CreateIssueForm.priority: issue priority level
+    :type CreateIssueForm.priority: :class:`django.forms.ChoiceField`
+    :var CreateIssueForm.issue_title: title of the issue
+    :type CreateIssueForm.issue_title: :class:`django.forms.CharField`
+    :var CreateIssueForm.issue_body: body content of the issue
+    :type CreateIssueForm.issue_body: :class:`django.forms.CharField`
+    """
 
     labels = MultipleChoiceField(
         choices=ISSUE_CREATION_LABEL_CHOICES,
@@ -95,58 +109,81 @@ class CreateIssueForm(Form):
     )
 
     def clean_labels(self):
-        """TODO: docstring and tests"""
+        """Ensure at least one label is selected.
+
+        Raise ValidationError if no labels are selected.
+
+        :var data: collection of form data
+        :type data: dict
+        :return: dict
+        """
         data = self.cleaned_data["labels"]
         if len(data) < 1:
             raise ValidationError("Please select at least one option.")
-        return data
 
-    def clean(self):
-        cleaned_data = super().clean()
-        # Add any custom validation logic here
-        return cleaned_data
+        return data
 
 
 # # PROFILE
 class UpdateUserForm(ModelForm):
-    """Model form class for editing user's data."""
+    """Model form class for editing user's data.
+
+    :var UpdateUserForm.first_name: user's first name field
+    :type UpdateUserForm.first_name: :class:`django.forms.CharField`
+    :var UpdateUserForm.last_name: user's last name field
+    :type UpdateUserForm.last_name: :class:`django.forms.CharField`
+    """
+
+    first_name = CharField(
+        required=False,
+        widget=TextInput(
+            attrs={
+                "class": "input input-bordered w-full",
+                "placeholder": "Enter your first name",
+            }
+        ),
+    )
+    last_name = CharField(
+        required=False,
+        widget=TextInput(
+            attrs={
+                "class": "input input-bordered w-full",
+                "placeholder": "Enter your last name",
+            }
+        ),
+    )
 
     class Meta:
         model = User
-        fields = ("first_name", "last_name")
-        labels = {
-            "first_name": "First name",
-            "last_name": "Last name",
-        }
-        error_messages = {
-            "first_name": {
-                "max_length": TOO_LONG_USER_FIRST_NAME_ERROR,
-            },
-            "last_name": {
-                "max_length": TOO_LONG_USER_LAST_NAME_ERROR,
-            },
-        }
+        fields = ["first_name", "last_name"]
 
 
-class ProfileInlineForm(BaseInlineFormSet):
+class ProfileForm(ModelForm):
     """Form class for editing user profile's data.
 
-    :var github_token: user's GitHub access token
-    :type github_token: str
+    :var ProfileForm.github_token: user's personal GitHub access token
+    :type ProfileForm.github_token: :class:`django.forms.CharField`
     """
 
-    github_token = CharField(required=False, max_length=100)
+    github_token = CharField(
+        required=False,
+        widget=TextInput(
+            attrs={
+                "class": "input input-bordered w-full",
+                "placeholder": "Enter your GitHub token (optional)",
+            }
+        ),
+        help_text="Optional: GitHub personal access token for enhanced API limits",
+    )
 
     class Meta:
         model = Profile
         fields = ["github_token"]
+        exclude = ["user"]
 
 
 ProfileFormSet = inlineformset_factory(
-    User,
-    Profile,
-    formset=ProfileInlineForm,
-    fields=("github_token",),
+    User, Profile, form=ProfileForm, extra=1, can_delete=False, max_num=1
 )
 """Formset for editing profile's data.
 It is instantiated together with :class:`UpdateUserForm` form instance

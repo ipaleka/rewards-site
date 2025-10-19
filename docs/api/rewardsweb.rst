@@ -252,7 +252,7 @@
   :show-inheritance:
 
 
-:mod:`utils` -- Package with carious website's utility functions and constants
+:mod:`utils` -- Package with various website's utility functions and constants
 ******************************************************************************
 
 .. automodule:: utils

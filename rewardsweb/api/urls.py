@@ -1,3 +1,6 @@
+"""Module containing ASA Stats Rewards API URL configuration."""
+
+
 from django.urls import path
 
 from . import views

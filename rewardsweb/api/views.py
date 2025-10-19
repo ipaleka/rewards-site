@@ -1,3 +1,5 @@
+"""Module containing ASA Stats Rewards API views."""
+
 from adrf.views import APIView
 from asgiref.sync import sync_to_async
 from django.db import transaction
@@ -114,13 +116,6 @@ class AddContributionView(APIView):
 
         @sync_to_async
         def process_contribution(raw_data):
-            # {
-            #     "type": "[B] Bug Report",
-            #     "level": "1",
-            #     "username": "dkhax",
-            #     "url": "https://discord.com/channels/906917846754418770/908054330265960478/1425704228201959495",
-            #     "platform": "Discord",
-            # }
             contributor = Contributor.objects.from_handle(raw_data.get("username"))
             cycle = Cycle.objects.latest("start")
             platform = SocialPlatform.objects.get(name=raw_data.get("platform"))

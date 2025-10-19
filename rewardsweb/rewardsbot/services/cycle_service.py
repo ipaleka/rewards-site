@@ -1,7 +1,7 @@
 import logging
 
-from models.cycle import Cycle
-from models.contribution import Contribution
+from rewardsbot.models.cycle import Cycle
+from rewardsbot.models.contribution import Contribution
 
 logger = logging.getLogger("discord.cycle")
 

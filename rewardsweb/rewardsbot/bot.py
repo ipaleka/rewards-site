@@ -2,17 +2,16 @@ import asyncio
 import logging
 import signal
 import sys
-from typing import Optional
 
 import discord
 from discord.ext import commands
 from discord import app_commands
 
-import config
-from services.cycle_service import CycleService
-from services.user_service import UserService
-from utils.api import ApiService
-from controllers.command_handler import SuggestRewardModal
+from rewardsbot import config
+from rewardsbot.services.cycle_service import CycleService
+from rewardsbot.services.user_service import UserService
+from rewardsbot.utils.api import ApiService
+from rewardsbot.controllers.command_handler import SuggestRewardModal
 
 # Set up comprehensive logging
 logging.basicConfig(

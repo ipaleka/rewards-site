@@ -2,7 +2,7 @@ import logging
 
 import discord
 
-from utils.suggestion_parser import SuggestionParser
+from rewardsbot.utils.suggestion_parser import SuggestionParser
 
 logger = logging.getLogger("discord.suggestions")
 

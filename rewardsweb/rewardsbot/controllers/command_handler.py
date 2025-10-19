@@ -3,7 +3,7 @@ import logging
 import discord
 from discord.ui import Modal, TextInput
 
-from services.suggestion_service import SuggestionService
+from rewardsbot.services.suggestion_service import SuggestionService
 
 logger = logging.getLogger("discord.commands")
 
@@ -49,6 +49,7 @@ class SuggestRewardModal(Modal, title="Suggest a Reward"):
         self.user_input.default = target_message.author.name
 
     async def on_submit(self, interaction: discord.Interaction) -> None:
+        """"""
         await interaction.response.defer(thinking=True, ephemeral=True)
 
         contribution_type = self.type_input.value.upper()

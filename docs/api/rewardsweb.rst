@@ -1,7 +1,61 @@
+:mod:`api` -- ASA Stats rewards API package
+*******************************************
+
+.. automodule:: api
+  :members:
+  :undoc-members:
+  :show-inheritance:
+
+
+:mod:`api.serializers` -- ASA Stats rewards API serializers
+-----------------------------------------------------------
+
+.. automodule:: api.serializers
+  :members:
+  :undoc-members:
+  :show-inheritance:
+
+
+:mod:`api.urls` -- ASA Stats rewards API URL configuration module
+-----------------------------------------------------------------
+
+.. automodule:: api.urls
+  :members:
+  :undoc-members:
+  :show-inheritance:
+
+
+:mod:`api.views` -- ASA Stats rewards API views module
+------------------------------------------------------
+
+.. automodule:: api.views
+  :members:
+  :undoc-members:
+  :show-inheritance:
+
+
 :mod:`core` -- Main application package
 ***************************************
 
 .. automodule:: core
+  :members:
+  :undoc-members:
+  :show-inheritance:
+
+
+:mod:`core.adapters` -- Main application adapters module
+--------------------------------------------------------
+
+.. automodule:: core.adapters
+  :members:
+  :undoc-members:
+  :show-inheritance:
+
+
+:mod:`core.admin` -- Main application administration module
+-----------------------------------------------------------
+
+.. automodule:: core.admin
   :members:
   :undoc-members:
   :show-inheritance:
@@ -16,6 +70,15 @@
   :show-inheritance:
 
 
+:mod:`core.forms` -- Module with main application's forms
+---------------------------------------------------------
+
+.. automodule:: core.forms
+  :members:
+  :undoc-members:
+  :show-inheritance:
+
+
 :mod:`core.models` -- Main application ORM module
 -------------------------------------------------
 
@@ -25,8 +88,17 @@
   :show-inheritance:
 
 
-:mod:`core.urls` -- Main application URL configuration
-------------------------------------------------------
+:mod:`core.signals` -- Module with main application's database signals and triggers
+-----------------------------------------------------------------------------------
+
+.. automodule:: core.signals
+  :members:
+  :undoc-members:
+  :show-inheritance:
+
+
+:mod:`core.urls` -- Main application URL configuration module
+-------------------------------------------------------------
 
 .. automodule:: core.urls
   :members:
@@ -38,6 +110,42 @@
 ---------------------------------------------------------
 
 .. automodule:: core.views
+  :members:
+  :undoc-members:
+  :show-inheritance:
+
+
+:mod:`core.migrations` -- Main application database migrations package
+----------------------------------------------------------------------
+
+.. automodule:: core.migrations
+  :members:
+  :undoc-members:
+  :show-inheritance:
+
+
+:mod:`core.static` -- Directory holding main application static files
+---------------------------------------------------------------------
+
+.. automodule:: core.static
+  :members:
+  :undoc-members:
+  :show-inheritance:
+
+
+:mod:`core.static.css` -- Directory holding main application CSS files
+----------------------------------------------------------------------
+
+.. automodule:: core.static.css
+  :members:
+  :undoc-members:
+  :show-inheritance:
+
+
+:mod:`core.templates` -- Directory holding main application Django template files
+---------------------------------------------------------------------------------
+
+.. automodule:: core.templates
   :members:
   :undoc-members:
   :show-inheritance:
@@ -108,6 +216,15 @@
   :show-inheritance:
 
 
+:mod:`rewardsweb.tests` -- Project's unit-tests package
+-------------------------------------------------------
+
+.. automodule:: rewardsweb.tests
+  :members:
+  :undoc-members:
+  :show-inheritance:
+
+
 :mod:`rewardsweb.asgi` -- Module containing asynchronous application
 --------------------------------------------------------------------
 
@@ -117,8 +234,8 @@
   :show-inheritance:
 
 
-:mod:`rewardsweb.urls` -- Main website's URL configuration
-----------------------------------------------------------
+:mod:`rewardsweb.urls` -- Main website's URL configuration module
+-----------------------------------------------------------------
 
 .. automodule:: rewardsweb.urls
   :members:
@@ -162,6 +279,15 @@
   :show-inheritance:
 
 
+:mod:`utils.bot` -- Website's utility functions for manipulating the Discord bot
+--------------------------------------------------------------------------------
+
+.. automodule:: utils.bot
+  :members:
+  :undoc-members:
+  :show-inheritance:
+
+
 :mod:`utils.excel_to_database` -- Website's utility functions for importing data from the old system
 ----------------------------------------------------------------------------------------------------
 
@@ -175,6 +301,15 @@
 ----------------------------------------------------------
 
 .. automodule:: utils.helpers
+  :members:
+  :undoc-members:
+  :show-inheritance:
+
+
+:mod:`utils.issues` -- Website's utility functions for manipulating GitHub issues
+---------------------------------------------------------------------------------
+
+.. automodule:: utils.issues
   :members:
   :undoc-members:
   :show-inheritance:

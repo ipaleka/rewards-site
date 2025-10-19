@@ -13,7 +13,7 @@ from django.views import View
 from django.views.generic import DetailView, ListView, UpdateView
 from django.views.generic.detail import SingleObjectMixin
 
-from core.models import Contribution, Contributor, Cycle, Issue
+from core.models import Contribution, Contributor, Cycle, Handle, Issue, SocialPlatform
 from core.forms import ProfileFormSet, UpdateUserForm
 from core.views import (
     ContributionDetailView,
@@ -122,7 +122,7 @@ class TestDbIndexView:
 
     def test_indexview_get_queryset(self, contribution):
         # Create a confirmed contribution that should not appear
-        confirmed_contribution = Contribution.objects.create(
+        Contribution.objects.create(
             contributor=contribution.contributor,
             cycle=contribution.cycle,
             platform=contribution.platform,
@@ -289,6 +289,331 @@ class TestDbContributorListView:
 
         assert queryset.count() == 2
         assert all(isinstance(obj, Contributor) for obj in queryset)
+
+
+class TestContributorListViewSearch:
+    """Testing class for :class:`core.views.ContributorListView` search functionality."""
+
+    def test_contributorlistview_search_inheritance(self):
+        assert issubclass(ContributorListView, ListView)
+
+    def test_contributorlistview_model(self):
+        view = ContributorListView()
+        assert view.model == Contributor
+
+    def test_contributorlistview_paginate_by(self):
+        view = ContributorListView()
+        assert view.paginate_by == 20
+
+    def test_contributorlistview_template_name_suffix(self):
+        view = ContributorListView()
+        assert view.template_name_suffix == "_list"
+
+
+@pytest.mark.django_db
+class TestDbContributorListViewSearch:
+    """Testing class for :class:`core.views.ContributorListView` search with database."""
+
+    def test_contributorlistview_search_by_name(self, rf):
+        # Create test contributors
+        contributor1 = Contributor.objects.create(name="John Doe", address="addr1")
+        contributor2 = Contributor.objects.create(name="Jane Smith", address="addr2")
+        contributor3 = Contributor.objects.create(name="Bob Johnson", address="addr3")
+
+        # Create request with search query
+        request = rf.get("/contributors/", {"q": "john"})
+        view = ContributorListView()
+        view.setup(request)
+
+        queryset = view.get_queryset()
+
+        # Should find John Doe and Bob Johnson
+        assert queryset.count() == 2
+        assert contributor1 in queryset
+        assert contributor3 in queryset
+        assert contributor2 not in queryset
+
+    def test_contributorlistview_search_by_handle(self, rf):
+        # Create test contributors
+        contributor1 = Contributor.objects.create(name="User1", address="addr1")
+        contributor2 = Contributor.objects.create(name="User2", address="addr2")
+
+        # Create social platforms
+        github = SocialPlatform.objects.create(name="GitHub", prefix="g@")
+        discord = SocialPlatform.objects.create(name="Discord", prefix="")
+
+        # Create handles
+        Handle.objects.create(
+            contributor=contributor1, platform=github, handle="developer"
+        )
+        Handle.objects.create(
+            contributor=contributor2, platform=discord, handle="tester"
+        )
+
+        # Create request with search query
+        request = rf.get("/contributors/", {"q": "test"})
+        view = ContributorListView()
+        view.setup(request)
+
+        queryset = view.get_queryset()
+
+        # Should find contributor with "tester" handle
+        assert queryset.count() == 1
+        assert contributor2 in queryset
+        assert contributor1 not in queryset
+
+    def test_contributorlistview_search_by_name_and_handle(self, rf):
+        # Create test contributors
+        contributor1 = Contributor.objects.create(name="Alice", address="addr1")
+        contributor2 = Contributor.objects.create(name="Bob", address="addr2")
+        contributor3 = Contributor.objects.create(name="Charlie", address="addr3")
+
+        # Create social platform
+        github = SocialPlatform.objects.create(name="GitHub", prefix="g@")
+
+        # Create handles
+        Handle.objects.create(
+            contributor=contributor1, platform=github, handle="alice_dev"
+        )
+        Handle.objects.create(
+            contributor=contributor2, platform=github, handle="charlie_fan"
+        )
+
+        # Create request with search query
+        request = rf.get("/contributors/", {"q": "charlie"})
+        view = ContributorListView()
+        view.setup(request)
+
+        queryset = view.get_queryset()
+
+        # Should find Charlie by name and Bob by handle
+        assert queryset.count() == 2
+        assert contributor2 in queryset  # Has handle "charlie_fan"
+        assert contributor3 in queryset  # Name is "Charlie"
+        assert contributor1 not in queryset
+
+    def test_contributorlistview_search_case_insensitive(self, rf):
+        # Create test contributors
+        contributor1 = Contributor.objects.create(name="John Doe", address="addr1")
+        contributor2 = Contributor.objects.create(name="Mary Jane", address="addr2")
+
+        # Create social platform
+        github = SocialPlatform.objects.create(name="GitHub", prefix="g@")
+        Handle.objects.create(
+            contributor=contributor2, platform=github, handle="SuperUser"
+        )
+
+        # Test different case variations
+        test_cases = ["john", "JOHN", "John", "super", "SUPER", "Super"]
+
+        for search_term in test_cases:
+            request = rf.get("/contributors/", {"q": search_term})
+            view = ContributorListView()
+            view.setup(request)
+
+            queryset = view.get_queryset()
+
+            if search_term.lower() == "john":
+                assert queryset.count() == 1
+                assert contributor1 in queryset
+            elif search_term.lower() == "super":
+                assert queryset.count() == 1
+                assert contributor2 in queryset
+
+    def test_contributorlistview_search_partial_match(self, rf):
+        # Create test contributors
+        contributor1 = Contributor.objects.create(name="Alexander", address="addr1")
+        contributor2 = Contributor.objects.create(name="Sandra", address="addr2")
+
+        # Create social platform
+        github = SocialPlatform.objects.create(name="GitHub", prefix="g@")
+        Handle.objects.create(
+            contributor=contributor2, platform=github, handle="pythonista"
+        )
+
+        # Test partial searches
+        request = rf.get("/contributors/", {"q": "alex"})
+        view = ContributorListView()
+        view.setup(request)
+        queryset = view.get_queryset()
+
+        assert queryset.count() == 1
+        assert contributor1 in queryset
+
+        request = rf.get("/contributors/", {"q": "thon"})
+        view = ContributorListView()
+        view.setup(request)
+        queryset = view.get_queryset()
+
+        assert queryset.count() == 1
+        assert contributor2 in queryset
+
+    def test_contributorlistview_no_search_query(self, rf):
+        # Create test contributors
+        Contributor.objects.create(name="User1", address="addr1")
+        Contributor.objects.create(name="User2", address="addr2")
+        Contributor.objects.create(name="User3", address="addr3")
+
+        # Create request without search query
+        request = rf.get("/contributors/")
+        view = ContributorListView()
+        view.setup(request)
+
+        queryset = view.get_queryset()
+
+        # Should return all contributors
+        assert queryset.count() == 3
+
+    def test_contributorlistview_empty_search_query(self, rf):
+        # Create test contributors
+        Contributor.objects.create(name="User1", address="addr1")
+        Contributor.objects.create(name="User2", address="addr2")
+
+        # Create request with empty search query
+        request = rf.get("/contributors/", {"q": ""})
+        view = ContributorListView()
+        view.setup(request)
+
+        queryset = view.get_queryset()
+
+        # Should return all contributors
+        assert queryset.count() == 2
+
+    def test_contributorlistview_search_no_results(self, rf):
+        # Create test contributors
+        Contributor.objects.create(name="Alice", address="addr1")
+        Contributor.objects.create(name="Bob", address="addr2")
+
+        # Create request with non-matching search query
+        request = rf.get("/contributors/", {"q": "xyz123"})
+        view = ContributorListView()
+        view.setup(request)
+
+        queryset = view.get_queryset()
+
+        # Should return empty queryset
+        assert queryset.count() == 0
+
+    def test_contributorlistview_search_context_data(self, rf):
+        # Create a contributor
+        Contributor.objects.create(name="Test User", address="addr1")
+
+        # Create request with search query
+        request = rf.get("/contributors/", {"q": "test"})
+        view = ContributorListView()
+        view.setup(request)
+        view.object_list = view.get_queryset()
+
+        context = view.get_context_data()
+
+        # Should include search query in context
+        assert "search_query" in context
+        assert context["search_query"] == "test"
+
+    def test_contributorlistview_search_context_no_query(self, rf):
+        # Create a contributor
+        Contributor.objects.create(name="Test User", address="addr1")
+
+        # Create request without search query
+        request = rf.get("/contributors/")
+        view = ContributorListView()
+        view.setup(request)
+        view.object_list = view.get_queryset()
+
+        context = view.get_context_data()
+
+        # Should include empty search query in context
+        assert "search_query" in context
+        assert context["search_query"] == ""
+
+    def test_contributorlistview_search_duplicate_handles(self, rf):
+        # Create test contributors
+        contributor1 = Contributor.objects.create(name="User1", address="addr1")
+        contributor2 = Contributor.objects.create(name="User2", address="addr2")
+
+        # Create social platform
+        platform = SocialPlatform.objects.create(name="Platformxs", prefix="xs")
+
+        # Create handles with similar names
+        Handle.objects.create(
+            contributor=contributor1, platform=platform, handle="developer1"
+        )
+        Handle.objects.create(
+            contributor=contributor2, platform=platform, handle="developer2"
+        )
+
+        # Create request with search query
+        request = rf.get("/contributors/", {"q": "developer"})
+        view = ContributorListView()
+        view.setup(request)
+
+        queryset = view.get_queryset()
+
+        # Should find both contributors (distinct results)
+        assert queryset.count() == 2
+        assert contributor1 in queryset
+        assert contributor2 in queryset
+
+    def test_contributorlistview_search_multiple_handles_same_contributor(self, rf):
+        # Create test contributor
+        contributor = Contributor.objects.create(name="Test User", address="addr1")
+
+        # Create social platforms
+        github = SocialPlatform.objects.create(name="GitHub", prefix="g@")
+        discord = SocialPlatform.objects.create(name="Discord", prefix="")
+
+        # Create multiple handles for same contributor
+        Handle.objects.create(
+            contributor=contributor, platform=github, handle="python_dev"
+        )
+        Handle.objects.create(
+            contributor=contributor, platform=discord, handle="python_lover"
+        )
+
+        # Create request with search query
+        request = rf.get("/contributors/", {"q": "python"})
+        view = ContributorListView()
+        view.setup(request)
+
+        queryset = view.get_queryset()
+
+        # Should find contributor only once (distinct results)
+        assert queryset.count() == 1
+        assert contributor in queryset
+
+    def test_contributorlistview_integration_search(self, client):
+        # Create test data
+        contributor1 = Contributor.objects.create(
+            name="Alice Developer", address="addr1"
+        )
+        contributor2 = Contributor.objects.create(name="Bob Tester", address="addr2")
+
+        github = SocialPlatform.objects.create(name="GitHub", prefix="g@")
+        Handle.objects.create(
+            contributor=contributor1, platform=github, handle="alice_codes"
+        )
+
+        # Test search by name
+        response = client.get(reverse("contributors"), {"q": "alice"})
+
+        assert response.status_code == 200
+        assert "search_query" in response.context
+        assert response.context["search_query"] == "alice"
+        assert contributor1 in response.context["contributor_list"]
+        assert contributor2 not in response.context["contributor_list"]
+
+        # Test search by handle
+        response = client.get(reverse("contributors"), {"q": "codes"})
+
+        assert response.status_code == 200
+        assert contributor1 in response.context["contributor_list"]
+        assert contributor2 not in response.context["contributor_list"]
+
+        # Test no results
+        response = client.get(reverse("contributors"), {"q": "nonexistent"})
+
+        assert response.status_code == 200
+        assert len(response.context["contributor_list"]) == 0
 
 
 class TestContributorDetailView:

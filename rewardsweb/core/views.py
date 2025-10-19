@@ -5,7 +5,7 @@ import logging
 from django.contrib import messages
 from django.contrib.auth.decorators import login_required, user_passes_test
 from django.contrib.auth.models import User
-from django.db.models import Sum
+from django.db.models import Q, Sum
 from django.forms import ValidationError
 from django.http import HttpResponseRedirect
 from django.urls import reverse_lazy
@@ -26,8 +26,6 @@ from utils.constants.core import DISCORD_NOTED_EMOJI
 from utils.issues import create_github_issue, issue_data_for_contribution
 
 logger = logging.getLogger(__name__)
-
-# core/views.py
 
 
 class IndexView(ListView):
@@ -131,6 +129,36 @@ class ContributorListView(ListView):
 
     model = Contributor
     paginate_by = 20
+
+    def get_queryset(self):
+        """Return filtered queryset based on search query.
+
+        :return: QuerySet of contributors filtered by search term
+        :rtype: :class:`django.db.models.QuerySet`
+        """
+        queryset = super().get_queryset()
+
+        # Get search query from GET parameters
+        search_query = self.request.GET.get("q")
+        if search_query:
+            # Search in contributor names and handle handles
+            queryset = queryset.filter(
+                Q(name__icontains=search_query)
+                | Q(handle__handle__icontains=search_query)
+            ).distinct()
+
+        return queryset
+
+    def get_context_data(self, **kwargs):
+        """Add search query to template context.
+
+        :param kwargs: Additional keyword arguments
+        :return: Context dictionary with search data
+        :rtype: dict
+        """
+        context = super().get_context_data(**kwargs)
+        context["search_query"] = self.request.GET.get("q", "")
+        return context
 
 
 class ContributorDetailView(DetailView):

@@ -32,6 +32,7 @@
         <div class="space-y-3">
           <h2 class="text-xl font-semibold">Reward Information</h2>
           <p><strong>Type:</strong> {{ contribution.reward.type }}</p>
+          <p><strong>Reward Level:</strong> {{ contribution.reward.level }}</p>
           <p><strong>Reward Amount:</strong> {{ contribution.reward.amount|floatformat:"g" }}</p>
           {% if contribution.percentage != 1 %}
           <p><strong>Percentage:</strong> {% widthratio contribution.percentage 1 100 %}%</p>

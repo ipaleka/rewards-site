@@ -23,13 +23,11 @@
       <h2 class="text-xl font-semibold mb-4">Contributions</h2>
       <div class="space-y-4">
         {% for contribution in cycle.contribution_set.all %}
-        <div class="border-b pb-4 last:border-b-0 last:pb-0">
-          <p class="mb-2">
-            By <a class="link link-accent" href="{{ contribution.contributor.get_absolute_url }}">{{ contribution.contributor }}</a>
-          </p>
-          <p>
-            Reward: <a class="link link-accent" href="{{ contribution.get_absolute_url }}">{{ contribution.reward.amount|floatformat:"g" }}</a>
-          </p>
+        <div class="flex items-center gap-2">
+          <span class="font-medium">By </span>
+          <a class="link link-accent" href="{{ contribution.contributor.get_absolute_url }}">{{ contribution.contributor }}</a>
+          <span class="font-medium">Reward:</span>
+          <a class="link link-accent" href="{{ contribution.get_absolute_url }}">{{ contribution.reward }}</a>
         </div>
         {% endfor %}
       </div>

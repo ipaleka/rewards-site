@@ -1,3 +1,12 @@
+"""User service for handling user-related operations.
+
+This module provides the UserService class for fetching and formatting
+user contribution summaries and statistics.
+
+:var logger: User service logger instance
+:type logger: :class:`logging.Logger`
+"""
+
 import logging
 from datetime import datetime
 
@@ -7,8 +16,23 @@ logger = logging.getLogger("discord.user")
 
 
 class UserService:
+    """Service class for user-related operations.
+
+    This class handles user contribution data fetching and formatting
+    user summaries for display in Discord messages.
+    """
+
     @staticmethod
     async def user_summary(api_service, username):
+        """Generate a summary of user contributions and statistics.
+
+        :param api_service: API service instance for data fetching
+        :type api_service: :class:`APIService`
+        :param username: Username to generate summary for
+        :type username: str
+        :return: Formatted user summary or error message
+        :rtype: str
+        """
         try:
             contributions = await api_service.fetch_user_contributions(username)
             if not contributions:

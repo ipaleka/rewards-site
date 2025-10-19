@@ -8,8 +8,8 @@ from discord.ext import commands
 from discord import app_commands
 
 from rewardsbot import config
-from rewardsbot.services.cycle_service import CycleService
-from rewardsbot.services.user_service import UserService
+from rewardsbot.services.cycle import CycleService
+from rewardsbot.services.user import UserService
 from rewardsbot.utils.api import ApiService
 from rewardsbot.controllers.command_handler import SuggestRewardModal
 
@@ -89,7 +89,7 @@ class RewardsBot(commands.Bot):
             logger.info(f"🔍 Synced global commands: {[cmd.name for cmd in synced]}")
 
             # # Sync guild-specific commands if configured
-            # # NOTE: meanwhile env variable changed to comma separated list            
+            # # NOTE: meanwhile env variable changed to comma separated list
             # if hasattr(config, "GUILD_IDS") and config.GUILD_IDS:
             #     guild = discord.Object(id=config.GUILD_IDS)
             #     self.tree.copy_global_to(guild=guild)

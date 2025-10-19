@@ -1,3 +1,12 @@
+"""Cycle service for handling cycle-related API operations.
+
+This module provides the CycleService class for fetching and formatting
+cycle information from the API service.
+
+:var logger: Cycle service logger instance
+:type logger: :class:`logging.Logger`
+"""
+
 import logging
 
 from rewardsbot.models.cycle import Cycle
@@ -7,8 +16,23 @@ logger = logging.getLogger("discord.cycle")
 
 
 class CycleService:
+    """Service class for cycle-related operations.
+
+    This class handles API interactions for cycle data and formats
+    the results for display in Discord messages.
+    """
+
     @staticmethod
     async def cycle_info(api_service, cycle_number):
+        """Fetch and format information for a specific cycle.
+
+        :param api_service: API service instance for data fetching
+        :type api_service: :class:`APIService`
+        :param cycle_number: The cycle number to fetch
+        :type cycle_number: int
+        :return: Formatted cycle information or error message
+        :rtype: str
+        """
         try:
             logger.info("🔗 Making API call to fetch_cycle...")
             cycle_data = await api_service.fetch_cycle(cycle_number)
@@ -29,6 +53,13 @@ class CycleService:
 
     @staticmethod
     async def current_cycle_info(api_service):
+        """Fetch and format information for the current cycle.
+
+        :param api_service: API service instance for data fetching
+        :type api_service: :class:`APIService`
+        :return: Formatted current cycle information or error message
+        :rtype: str
+        """
         try:
             logger.info("🔗 Making API call to fetch_current_cycle...")
             cycle_data = await api_service.fetch_current_cycle()
@@ -49,6 +80,13 @@ class CycleService:
 
     @staticmethod
     async def cycle_end_date(api_service):
+        """Fetch and format the end date of the current cycle.
+
+        :param api_service: API service instance for data fetching
+        :type api_service: :class:`APIService`
+        :return: Formatted end date information or error message
+        :rtype: str
+        """
         try:
 
             logger.info(
@@ -68,6 +106,13 @@ class CycleService:
 
     @staticmethod
     async def contributions_tail(api_service):
+        """Fetch and format the most recent contributions.
+
+        :param api_service: API service instance for data fetching
+        :type api_service: :class:`APIService`
+        :return: Formatted recent contributions or error message
+        :rtype: str
+        """
         try:
             logger.info("🔗 Making API call to fetch_contributions_tail...")
             contributions = await api_service.fetch_contributions_tail()

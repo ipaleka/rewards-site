@@ -52,28 +52,28 @@
   :show-inheritance:
 
 
-:mod:`rewardsbot.services.cycle_service` --  ASA Stats rewards bot's cycle service module
------------------------------------------------------------------------------------------
+:mod:`rewardsbot.services.cycle` --  ASA Stats rewards bot's cycle service module
+---------------------------------------------------------------------------------
 
-.. automodule:: rewardsbot.services.cycle_service
+.. automodule:: rewardsbot.services.cycle
   :members:
   :undoc-members:
   :show-inheritance:
 
 
-:mod:`rewardsbot.services.suggestion_service` --  ASA Stats rewards bot's suggestion service module
----------------------------------------------------------------------------------------------------
+:mod:`rewardsbot.services.suggestion` --  ASA Stats rewards bot's suggestion service module
+-------------------------------------------------------------------------------------------
 
-.. automodule:: rewardsbot.services.suggestion_service
+.. automodule:: rewardsbot.services.suggestion
   :members:
   :undoc-members:
   :show-inheritance:
 
 
-:mod:`rewardsbot.services.user_service` --  ASA Stats rewards bot's user service module
----------------------------------------------------------------------------------------
+:mod:`rewardsbot.services.user` --  ASA Stats rewards bot's user service module
+-------------------------------------------------------------------------------
 
-.. automodule:: rewardsbot.services.user_service
+.. automodule:: rewardsbot.services.user
   :members:
   :undoc-members:
   :show-inheritance:

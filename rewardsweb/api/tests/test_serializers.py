@@ -156,7 +156,7 @@ class TestApiSerializersRewardSerializer:
         # Mock the related objects since Reward has ForeignKey relationships
         mock_reward_type = mocker.MagicMock(spec=RewardType)
         mock_reward_type.pk = 1
-        
+
         reward_data = {
             "type": mock_reward_type.pk,  # Use primary key for ForeignKey
             "level": 2,
@@ -166,10 +166,15 @@ class TestApiSerializersRewardSerializer:
         serializer = RewardSerializer(data=reward_data)
         # This might still fail due to unique constraints, but we test the basic structure
         # In practice, you'd mock the queryset or use fixtures
-        
+
     def test_api_serializers_reward_serializer_fields(self):
         serializer = RewardSerializer()
-        assert set(serializer.fields.keys()) == {"type", "level", "amount", "description"}
+        assert set(serializer.fields.keys()) == {
+            "type",
+            "level",
+            "amount",
+            "description",
+        }
 
 
 class TestApiSerializersHumanizedContributionSerializer:
@@ -194,7 +199,10 @@ class TestApiSerializersHumanizedContributionSerializer:
         assert serializer.validated_data["contributor_name"] == "John Doe"
         assert serializer.validated_data["cycle_id"] == 5
         assert serializer.validated_data["platform"] == "twitter"
-        assert serializer.validated_data["url"] == "https://twitter.com/johndoe/status/123456"
+        assert (
+            serializer.validated_data["url"]
+            == "https://twitter.com/johndoe/status/123456"
+        )
         assert serializer.validated_data["type"] == "retweet"
         assert serializer.validated_data["level"] == 1
         assert serializer.validated_data["percentage"] == 25.50
@@ -275,7 +283,14 @@ class TestApiSerializersContributionSerializer:
     def test_api_serializers_contribution_serializer_fields(self):
         serializer = ContributionSerializer()
         expected_fields = {
-            "id", "contributor", "cycle", "platform", "reward", 
-            "percentage", "url", "comment", "confirmed"
+            "id",
+            "contributor",
+            "cycle",
+            "platform",
+            "reward",
+            "percentage",
+            "url",
+            "comment",
+            "confirmed",
         }
         assert set(serializer.fields.keys()) == expected_fields

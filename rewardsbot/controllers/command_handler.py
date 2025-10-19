@@ -49,6 +49,7 @@ class SuggestRewardModal(Modal, title="Suggest a Reward"):
         self.user_input.default = target_message.author.name
 
     async def on_submit(self, interaction: discord.Interaction) -> None:
+        """"""
         await interaction.response.defer(thinking=True, ephemeral=True)
 
         contribution_type = self.type_input.value.upper()

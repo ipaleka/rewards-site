@@ -1,17 +1,58 @@
 {% extends "base_generic.html" %}
 
 {% block content %}
-  <h1>ASA Stats rewards contributor list</h1>
-  <br>
-  {% if contributor_list %}
-    <ul>
-      {% for contributor in contributor_list %}
-      <li>
-        <a class="link link-accent" href="{{ contributor.get_absolute_url }}">{{ contributor }}</a>
-      </li>
-      {% endfor %}
-    </ul>
-  {% else %}
-    <p>There are no contributors in database.</p>
+<div class="max-w-4xl mx-auto">
+  <h1 class="text-3xl font-bold mb-6">ASA Stats Contributors</h1>
+
+  <!-- Simple Search Form -->
+  <div class="mb-6">
+    <form method="get" action="." class="flex gap-2">
+      <input 
+        type="text" 
+        name="q" 
+        value="{{ search_query }}" 
+        placeholder="Search contributors..." 
+        class="input input-bordered flex-1"
+      >
+      <button type="submit" class="btn btn-primary">Search</button>
+      {% if search_query %}
+        <a href="." class="btn btn-ghost">Clear</a>
+      {% endif %}
+    </form>
+  </div>
+
+  <!-- Search Results Info -->
+  {% if search_query and contributor_list %}
+    <div class="alert alert-info mb-4">
+      <span>Found {{ page_obj.paginator.count }} contributor(s) for "{{ search_query }}"</span>
+    </div>
   {% endif %}
+
+  <!-- Contributors List -->
+  <div class="card bg-base-100 shadow-md">
+    <div class="card-body">
+      {% if contributor_list %}
+        <div class="space-y-3">
+          {% for contributor in contributor_list %}
+          <div class="flex items-center">
+            <a class="link link-accent text-lg" href="{{ contributor.get_absolute_url }}">
+              {{ contributor.info }}
+            </a>
+          </div>
+          {% endfor %}
+        </div>
+      {% else %}
+        {% if search_query %}
+          <div class="text-center py-8">
+            <p class="text-base-content/70 mb-4">No contributors found matching "{{ search_query }}"</p>
+            <a href="." class="btn btn-outline">View all contributors</a>
+          </div>
+        {% else %}
+          <p class="text-base-content/70 text-center py-8">There are no contributors in database.</p>
+        {% endif %}
+      {% endif %}
+    </div>
+  </div>
+
+</div>
 {% endblock %}

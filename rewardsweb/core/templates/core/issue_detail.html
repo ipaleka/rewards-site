@@ -1,10 +1,24 @@
 {% extends "base_generic.html" %}
 
 {% block content %}
-  <h1><a class="link link-accent" href="https://github.com/asastats/rewards-site/issues/{{ issue.number }}">GitHub issue</a></h1>
-  <br>
-  <p><strong>Number:</strong> {{ issue.number }}</p>
-  <p><strong>Status:</strong> {{ issue.status }}</p>
-  <br>
-{% endblock %}
+<div class="max-w-4xl mx-auto">
+  <h1 class="text-3xl font-bold mb-6">
+    <a class="link link-accent" href="https://github.com/asastats/rewards-site/issues/{{ issue.number }}">
+      GitHub Issue #{{ issue.number }}
+    </a>
+  </h1>
 
+  <div class="card bg-base-100 shadow-md">
+    <div class="card-body">
+      <div class="space-y-3">
+        <p><strong>Number:</strong> {{ issue.number }}</p>
+        <p><strong>Status:</strong> 
+          <span class="badge badge-{% if issue.status == 'open' %}success{% else %}neutral{% endif %}">
+            {{ issue.status }}
+          </span>
+        </p>
+      </div>
+    </div>
+  </div>
+</div>
+{% endblock %}

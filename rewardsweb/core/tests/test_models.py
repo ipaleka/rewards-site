@@ -347,6 +347,167 @@ class TestCoreContributorModel:
             contributor.id
         )
 
+    # # info
+    @pytest.mark.django_db
+    def test_core_contributor_model_info_single_handle(self):
+        contributor = Contributor.objects.create(
+            name="test_contributor", address="test_address"
+        )
+        platform = SocialPlatform.objects.create(name="GitHub", prefix="g@")
+
+        # Create a single handle
+        Handle.objects.create(
+            contributor=contributor, platform=platform, handle="githubuser"
+        )
+
+        result = contributor.info()
+
+        assert result == "test_contributor"
+
+    @pytest.mark.django_db
+    def test_core_contributor_model_info_multiple_handles(self):
+        contributor = Contributor.objects.create(
+            name="test_contributor", address="test_address"
+        )
+        github_platform = SocialPlatform.objects.create(name="GitHub", prefix="g@")
+        discord_platform = SocialPlatform.objects.create(name="Discord", prefix="")
+        twitter_platform = SocialPlatform.objects.create(name="Twitter", prefix="@")
+
+        # Create multiple handles
+        Handle.objects.create(
+            contributor=contributor, platform=github_platform, handle="githubuser"
+        )
+        Handle.objects.create(
+            contributor=contributor, platform=discord_platform, handle="discorduser"
+        )
+        Handle.objects.create(
+            contributor=contributor, platform=twitter_platform, handle="twitteruser"
+        )
+
+        result = contributor.info()
+
+        returned = "test_contributor (discorduser, githubuser, twitteruser)"
+        assert result == returned
+
+    @pytest.mark.django_db
+    def test_core_contributor_model_info_no_handles(self):
+        contributor = Contributor.objects.create(
+            name="test_contributor", address="test_address"
+        )
+
+        result = contributor.info()
+
+        # Should return just the name when no handles exist
+        assert result == "test_contributor"
+
+    @pytest.mark.django_db
+    def test_core_contributor_model_info_handles_order(self):
+        contributor = Contributor.objects.create(
+            name="test_contributor", address="test_address"
+        )
+        platform1 = SocialPlatform.objects.create(name="GitHub", prefix="g@")
+        platform2 = SocialPlatform.objects.create(name="Discord", prefix="")
+        platform3 = SocialPlatform.objects.create(name="Twitter", prefix="@")
+
+        # Create handles in specific order
+        Handle.objects.create(
+            contributor=contributor, platform=platform1, handle="z_last"
+        )
+        Handle.objects.create(
+            contributor=contributor, platform=platform2, handle="a_first"
+        )
+        Handle.objects.create(
+            contributor=contributor, platform=platform3, handle="m_middle"
+        )
+
+        result = contributor.info()
+
+        # Handles should appear in the order they were created (database order)
+        # The exact order depends on the database, but we can verify all handles are present
+        assert "test_contributor (" in result
+        assert "z_last" in result
+        assert "a_first" in result
+        assert "m_middle" in result
+        assert result.endswith(")")
+
+    @pytest.mark.django_db
+    def test_core_contributor_model_info_special_characters_in_handles(self):
+        contributor = Contributor.objects.create(
+            name="test_contributor", address="test_address"
+        )
+        platform1 = SocialPlatform.objects.create(name="GitHub", prefix="g@")
+        platform2 = SocialPlatform.objects.create(name="Discord", prefix="")
+
+        # Create handles with special characters
+        Handle.objects.create(
+            contributor=contributor, platform=platform1, handle="user-with-dashes"
+        )
+        Handle.objects.create(
+            contributor=contributor, platform=platform2, handle="user_with_underscores"
+        )
+
+        result = contributor.info()
+
+        returned = "test_contributor (user-with-dashes, user_with_underscores)"
+        assert result == returned
+
+    @pytest.mark.django_db
+    def test_core_contributor_model_info_empty_handle_strings(self):
+        contributor = Contributor.objects.create(
+            name="test_contributor", address="test_address"
+        )
+        platform = SocialPlatform.objects.create(name="GitHub", prefix="g@")
+
+        # Create handle with empty string
+        Handle.objects.create(contributor=contributor, platform=platform, handle="")
+
+        result = contributor.info()
+
+        # Should include empty handles in the list
+        assert result == "test_contributor"
+
+    @pytest.mark.django_db
+    def test_core_contributor_model_info_unicode_handles(self):
+        contributor = Contributor.objects.create(
+            name="test_contributor", address="test_address"
+        )
+        platform = SocialPlatform.objects.create(name="GitHub", prefix="g@")
+
+        # Create handles with unicode characters
+        Handle.objects.create(
+            contributor=contributor, platform=platform, handle="user_🎉"
+        )
+        Handle.objects.create(
+            contributor=contributor, platform=platform, handle="user_😊"
+        )
+
+        result = contributor.info()
+
+        returned = "test_contributor (user_🎉, user_😊)"
+        assert result == returned
+
+    @pytest.mark.django_db
+    def test_core_contributor_model_info_duplicate_handles(self):
+        contributor = Contributor.objects.create(
+            name="test_contributor", address="test_address"
+        )
+        platform1 = SocialPlatform.objects.create(name="GitHub", prefix="g@")
+        platform2 = SocialPlatform.objects.create(name="Discord", prefix="")
+
+        # Create handles with same value but different platforms
+        Handle.objects.create(
+            contributor=contributor, platform=platform1, handle="sameuser"
+        )
+        Handle.objects.create(
+            contributor=contributor, platform=platform2, handle="sameuser"
+        )
+
+        result = contributor.info()
+
+        # Should include duplicate handle values
+        returned = "test_contributor (sameuser, sameuser)"
+        assert result == returned
+
     # # total_rewards
     @pytest.mark.django_db
     def test_core_contributor_model_total_rewards(self):
@@ -689,13 +850,331 @@ class TestCoreCycleModel:
     @pytest.mark.django_db
     def test_core_cycle_model_string_representation_without_end(self):
         cycle = Cycle.objects.create(start=datetime(2025, 3, 25))
-        assert str(cycle) == ""
+        assert str(cycle) == "25-03-25"
 
     # # get_absolute_url
     @pytest.mark.django_db
     def test_core_cycle_model_get_absolute_url(self):
         cycle = Cycle.objects.create(start=datetime(2021, 10, 1))
         assert cycle.get_absolute_url() == "/cycle/{}".format(cycle.id)
+
+    # # info
+    @pytest.mark.django_db
+    def test_core_cycle_model_info_for_end(self):
+        cycle = Cycle.objects.create(
+            start=datetime(2025, 2, 25), end=datetime(2025, 5, 25)
+        )
+        assert cycle.info() == "From Tuesday, February 25, 2025 to Sunday, May 25, 2025"
+
+    @pytest.mark.django_db
+    def test_core_cycle_model_string_info_without_end(self):
+        cycle = Cycle.objects.create(start=datetime(2025, 8, 25))
+        assert cycle.info() == "Started on Monday, August 25, 2025"
+
+
+# core/tests/test_models.py
+
+import pytest
+from django.db.models import Sum
+from core.models import (
+    Cycle,
+    Contributor,
+    Contribution,
+    SocialPlatform,
+    Reward,
+    RewardType,
+)
+
+
+class TestCycleModel:
+    """Testing class for :class:`core.models.Cycle` model."""
+
+    @pytest.mark.django_db
+    def test_cycle_contributor_rewards_empty_cycle(self):
+        cycle = Cycle.objects.create(start="2023-01-01", end="2023-01-31")
+
+        result = cycle.contributor_rewards
+
+        assert result == {}
+
+    @pytest.mark.django_db
+    def test_cycle_contributor_rewards_single_contributor_single_contribution(self):
+        # Create test data
+        cycle = Cycle.objects.create(start="2023-01-01", end="2023-01-31")
+        contributor = Contributor.objects.create(
+            name="test_contributor", address="test_address"
+        )
+        platform = SocialPlatform.objects.create(name="GitHub", prefix="g@")
+        reward_type = RewardType.objects.create(label="F", name="Feature")
+        reward = Reward.objects.create(
+            type=reward_type, level=1, amount=1000000, active=True
+        )
+
+        # Create contribution
+        Contribution.objects.create(
+            contributor=contributor,
+            cycle=cycle,
+            platform=platform,
+            reward=reward,
+            percentage=100.0,
+            confirmed=True,
+        )
+
+        result = cycle.contributor_rewards
+
+        returned = {"test_contributor": (1000000, True)}
+        assert result == returned
+
+    @pytest.mark.django_db
+    def test_cycle_contributor_rewards_single_contributor_multiple_contributions(self):
+        # Create test data
+        cycle = Cycle.objects.create(start="2023-01-01", end="2023-01-31")
+        contributor = Contributor.objects.create(
+            name="test_contributor", address="test_address"
+        )
+        platform = SocialPlatform.objects.create(name="GitHub", prefix="g@")
+        reward_type = RewardType.objects.create(label="F", name="Feature")
+
+        # Create multiple rewards
+        reward1 = Reward.objects.create(
+            type=reward_type, level=1, amount=1000000, active=True
+        )
+        reward2 = Reward.objects.create(
+            type=reward_type, level=2, amount=2000000, active=True
+        )
+
+        # Create multiple contributions for same contributor
+        Contribution.objects.create(
+            contributor=contributor,
+            cycle=cycle,
+            platform=platform,
+            reward=reward1,
+            percentage=100.0,
+            confirmed=True,
+        )
+        Contribution.objects.create(
+            contributor=contributor,
+            cycle=cycle,
+            platform=platform,
+            reward=reward2,
+            percentage=50.0,  # This should calculate as 50% of 2000000 = 1000000
+            confirmed=True,
+        )
+
+        result = cycle.contributor_rewards
+
+        # Total should be 1000000 (full first reward) + 1000000 (50% of second reward) = 2000000
+        returned = {"test_contributor": (2000000, True)}
+        assert result == returned
+
+    @pytest.mark.django_db
+    def test_cycle_contributor_rewards_multiple_contributors(self):
+        # Create test data
+        cycle = Cycle.objects.create(start="2023-01-01", end="2023-01-31")
+        contributor1 = Contributor.objects.create(name="contributor1", address="addr1")
+        contributor2 = Contributor.objects.create(name="contributor2", address="addr2")
+        platform = SocialPlatform.objects.create(name="GitHub", prefix="g@")
+        reward_type = RewardType.objects.create(label="F", name="Feature")
+        reward = Reward.objects.create(
+            type=reward_type, level=1, amount=1000000, active=True
+        )
+
+        # Create contributions for different contributors
+        Contribution.objects.create(
+            contributor=contributor1,
+            cycle=cycle,
+            platform=platform,
+            reward=reward,
+            percentage=100.0,
+            confirmed=True,
+        )
+        Contribution.objects.create(
+            contributor=contributor2,
+            cycle=cycle,
+            platform=platform,
+            reward=reward,
+            percentage=75.0,
+            confirmed=False,
+        )
+
+        result = cycle.contributor_rewards
+
+        returned = {
+            "contributor1": (1000000, True),  # 100% of 1000000 = 1000000, confirmed
+            "contributor2": (750000, False),  # 75% of 1000000 = 750000, not confirmed
+        }
+        assert result == returned
+
+    @pytest.mark.django_db
+    def test_cycle_contributor_rewards_mixed_confirmation_status(self):
+        # Create test data
+        cycle = Cycle.objects.create(start="2023-01-01", end="2023-01-31")
+        contributor = Contributor.objects.create(
+            name="test_contributor", address="test_address"
+        )
+        platform = SocialPlatform.objects.create(name="GitHub", prefix="g@")
+        reward_type = RewardType.objects.create(label="F", name="Feature")
+        reward = Reward.objects.create(
+            type=reward_type, level=1, amount=1000000, active=True
+        )
+
+        # Create contributions with mixed confirmation status
+        Contribution.objects.create(
+            contributor=contributor,
+            cycle=cycle,
+            platform=platform,
+            reward=reward,
+            percentage=100.0,
+            confirmed=True,
+        )
+        Contribution.objects.create(
+            contributor=contributor,
+            cycle=cycle,
+            platform=platform,
+            reward=reward,
+            percentage=50.0,
+            confirmed=False,
+        )
+
+        result = cycle.contributor_rewards
+
+        # When mixing confirmed and unconfirmed, the result should show as unconfirmed (False)
+        # Total amount is still calculated: 1000000 + 500000 = 1500000
+        returned = {"test_contributor": (1500000, False)}
+        assert result == returned
+
+    @pytest.mark.django_db
+    def test_cycle_contributor_rewards_different_cycles(self):
+        # Create multiple cycles
+        cycle1 = Cycle.objects.create(start="2023-01-01", end="2023-01-31")
+        cycle2 = Cycle.objects.create(start="2023-02-01", end="2023-02-28")
+
+        contributor = Contributor.objects.create(
+            name="test_contributor", address="test_address"
+        )
+        platform = SocialPlatform.objects.create(name="GitHub", prefix="g@")
+        reward_type = RewardType.objects.create(label="F", name="Feature")
+        reward = Reward.objects.create(
+            type=reward_type, level=1, amount=1000000, active=True
+        )
+
+        # Create contributions in different cycles
+        Contribution.objects.create(
+            contributor=contributor,
+            cycle=cycle1,
+            platform=platform,
+            reward=reward,
+            percentage=100.0,
+            confirmed=True,
+        )
+        Contribution.objects.create(
+            contributor=contributor,
+            cycle=cycle2,
+            platform=platform,
+            reward=reward,
+            percentage=50.0,
+            confirmed=True,
+        )
+
+        # Test cycle1 only contains its own contributions
+        result1 = cycle1.contributor_rewards
+        returned1 = {"test_contributor": (1000000, True)}
+        assert result1 == returned1
+
+        # Test cycle2 only contains its own contributions
+        result2 = cycle2.contributor_rewards
+        returned2 = {"test_contributor": (500000, True)}
+        assert result2 == returned2
+
+    @pytest.mark.django_db
+    def test_cycle_contributor_rewards_order_by_name(self):
+        # Create test data with contributors in reverse alphabetical order
+        cycle = Cycle.objects.create(start="2023-01-01", end="2023-01-31")
+        contributor_z = Contributor.objects.create(name="Zebra", address="addr_z")
+        contributor_a = Contributor.objects.create(name="Alpha", address="addr_a")
+        contributor_m = Contributor.objects.create(name="Mike", address="addr_m")
+
+        platform = SocialPlatform.objects.create(name="GitHub", prefix="g@")
+        reward_type = RewardType.objects.create(label="F", name="Feature")
+        reward = Reward.objects.create(
+            type=reward_type, level=1, amount=1000000, active=True
+        )
+
+        # Create contributions for all contributors
+        for contributor in [contributor_z, contributor_a, contributor_m]:
+            Contribution.objects.create(
+                contributor=contributor,
+                cycle=cycle,
+                platform=platform,
+                reward=reward,
+                percentage=100.0,
+                confirmed=True,
+            )
+
+        result = cycle.contributor_rewards
+
+        # The result should be ordered by contributor name alphabetically
+        returned_keys = ["Alpha", "Mike", "Zebra"]
+        assert list(result.keys()) == returned_keys
+
+        # Verify all have correct amounts
+        for name in returned_keys:
+            assert result[name] == (1000000, True)
+
+    @pytest.mark.django_db
+    def test_cycle_contributor_rewards_zero_percentage(self):
+        # Test edge case with 0% percentage
+        cycle = Cycle.objects.create(start="2023-01-01", end="2023-01-31")
+        contributor = Contributor.objects.create(
+            name="test_contributor", address="test_address"
+        )
+        platform = SocialPlatform.objects.create(name="GitHub", prefix="g@")
+        reward_type = RewardType.objects.create(label="F", name="Feature")
+        reward = Reward.objects.create(
+            type=reward_type, level=1, amount=1000000, active=True
+        )
+
+        Contribution.objects.create(
+            contributor=contributor,
+            cycle=cycle,
+            platform=platform,
+            reward=reward,
+            percentage=0.0,  # 0% of reward amount
+            confirmed=True,
+        )
+
+        result = cycle.contributor_rewards
+
+        returned = {"test_contributor": (0, True)}  # 0% of 1000000 = 0
+        assert result == returned
+
+    @pytest.mark.django_db
+    def test_cycle_contributor_rewards_null_percentage(self):
+        cycle = Cycle.objects.create(start="2023-01-01", end="2023-01-31")
+        contributor = Contributor.objects.create(
+            name="test_contributor", address="test_address"
+        )
+        platform = SocialPlatform.objects.create(name="GitHub", prefix="g@")
+        reward_type = RewardType.objects.create(label="F", name="Feature")
+        reward = Reward.objects.create(
+            type=reward_type, level=1, amount=1000000, active=True
+        )
+
+        Contribution.objects.create(
+            contributor=contributor,
+            cycle=cycle,
+            platform=platform,
+            reward=reward,
+            percentage=None,  # Null percentage
+            confirmed=True,
+        )
+
+        result = cycle.contributor_rewards
+
+        # The database Sum should handle null percentage as 0 in calculation
+        # So amount should be 0
+        returned = {"test_contributor": (0, True)}
+        assert result == returned
 
     # # total_rewards
     @pytest.mark.django_db
@@ -1285,3 +1764,42 @@ class TestCoreContributionModel:
         assert contribution.get_absolute_url() == "/contribution/{}".format(
             contribution.id
         )
+
+    # # info
+    @pytest.mark.django_db
+    def test_core_contribution_model_info_for_comment(self):
+        contributor = Contributor.objects.create(name="MyName5")
+        cycle = Cycle.objects.create(start=datetime(2025, 3, 24))
+        platform = SocialPlatform.objects.create(name="platforms5", prefix="s5")
+        reward_type = RewardType.objects.create(label="45", name="Reward45")
+        reward = Reward.objects.create(type=reward_type)
+        comment = "my comment"
+        contribution = Contribution.objects.create(
+            contributor=contributor,
+            cycle=cycle,
+            platform=platform,
+            reward=reward,
+            comment=comment,
+        )
+        split = contribution.info().split("]")
+        created_at = datetime.strptime(split[0][1:], "%d %b %H:%M")
+        assert created_at <= datetime.now()
+        assert split[1] == " Reward45 by MyName5 // my comment"
+
+    @pytest.mark.django_db
+    def test_core_contribution_model_info_without_comment(self):
+        contributor = Contributor.objects.create(name="MyName6")
+        cycle = Cycle.objects.create(start=datetime(2025, 3, 26))
+        platform = SocialPlatform.objects.create(name="platforms6", prefix="s6")
+        reward_type = RewardType.objects.create(label="46", name="Reward46")
+        reward = Reward.objects.create(type=reward_type)
+        contribution = Contribution.objects.create(
+            contributor=contributor,
+            cycle=cycle,
+            platform=platform,
+            reward=reward,
+        )
+        split = contribution.info().split("]")
+        created_at = datetime.strptime(split[0][1:], "%d %b %H:%M")
+        assert created_at <= datetime.now()
+        assert split[1] == " Reward46 by MyName6"

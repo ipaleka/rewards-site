@@ -1,17 +1,24 @@
 {% extends "base_generic.html" %}
 
 {% block content %}
-  <h1>ASA Stats rewards cycle list</h1>
-  <br>
-  {% if cycle_list %}
-    <ul>
-      {% for cycle in cycle_list %}
-      <li>
-        <a class="link link-accent" href="{{ cycle.get_absolute_url }}">{{ cycle }}</a>
-      </li>
-      {% endfor %}
-    </ul>
-  {% else %}
-    <p>There are no cycles in database.</p>
-  {% endif %}
+<div class="max-w-4xl mx-auto">
+  <h1 class="text-3xl font-bold mb-6">ASA Stats Cycles</h1>
+
+  <div class="card bg-base-100 shadow-md">
+    <div class="card-body">
+      {% if cycle_list %}
+      <div class="space-y-3">
+        {% for cycle in cycle_list %}
+        <div class="flex items-center">
+          <a class="link link-accent text-lg" href="{{ cycle.get_absolute_url }}">{{ cycle.info }}</a>
+        </div>
+        {% endfor %}
+      </div>
+      {% else %}
+      <p class="text-base-content/70">There are no cycles in database.</p>
+      {% endif %}
+    </div>
+  </div>
+
+</div>
 {% endblock %}

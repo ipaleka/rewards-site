@@ -1,22 +1,37 @@
 {% extends "base_generic.html" %}
 
 {% block content %}
-  <h1>Cycle: {{ cycle }}</h1>
-  <br>
-  <p><strong>Start:</strong> {{ cycle.start }}</p>
-  <p><strong>End:</strong> {{ cycle.end }}</p>
-  <p><strong>Created at:</strong> {{ cycle.created_at }}</p>
-  <p><strong>Updated at:</strong> {{ cycle.updated_at }}</p>
-  <br>
-  <p><strong>Total rewards:</strong> {{ cycle.total_rewards|floatformat:"g" }}</p>
-  <br>
-  <div>
-    <h2>Contributions</h2>
-    {% for contribution in cycle.contribution_set.all %}
-      <hr />
-      <p>
-        By <a class="link link-accent" href="{{ contribution.contributor.get_absolute_url }}">{{ contribution.contributor }}</a> | Reward: <a class="link link-accent" href="{{ contribution.get_absolute_url }}">{{ contribution.reward.amount|floatformat:"g" }}</a>
-      </p>
-    {% endfor %}
+<div class="max-w-4xl mx-auto">
+  <h1 class="text-3xl font-bold mb-6">Cycle: {{ cycle }}</h1>
+
+  <div class="card bg-base-100 shadow-md mb-6">
+    <div class="card-body">
+      <div class="space-y-3">
+        <p><strong>Start:</strong> {{ cycle.start }}</p>
+        <p><strong>End:</strong> {{ cycle.end }}</p>
+        <p><strong>Total rewards:</strong> {{ cycle.total_rewards|floatformat:"g" }}</p>
+        <div class="text-sm text-base-content/70 space-y-1">
+          <p><strong>Created at:</strong> {{ cycle.created_at }}</p>
+          <p><strong>Updated at:</strong> {{ cycle.updated_at }}</p>
+        </div>
+      </div>
+    </div>
   </div>
+
+  <div class="card bg-base-100 shadow-md">
+    <div class="card-body">
+      <h2 class="text-xl font-semibold mb-4">Contributions</h2>
+      <div class="space-y-4">
+        {% for contribution in cycle.contribution_set.all %}
+        <div class="flex items-center gap-2">
+          <span class="font-medium">By </span>
+          <a class="link link-accent" href="{{ contribution.contributor.get_absolute_url }}">{{ contribution.contributor }}</a>
+          <span class="font-medium">Reward:</span>
+          <a class="link link-accent" href="{{ contribution.get_absolute_url }}">{{ contribution.reward }}</a>
+        </div>
+        {% endfor %}
+      </div>
+    </div>
+  </div>
+</div>
 {% endblock %}

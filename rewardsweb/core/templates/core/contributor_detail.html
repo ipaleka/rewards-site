@@ -1,23 +1,37 @@
 {% extends "base_generic.html" %}
 
 {% block content %}
-  <h1>Contributor: {{ contributor }}</h1>
-  <br>
-  <p><strong>Name:</strong> {{ contributor.name }}</p>
-  <p><strong>Address:</strong> {% if contributor.address %}**********{% else %}no address provided{% endif %}</p>
-  {% for handle in contributor.handle_set.all %}
-    <p><strong>{{ handle.platform.name }}:</strong> {{ handle.handle }}</p>
-  {% endfor %}  
-  <br>
-  <p><strong>Total rewards:</strong> {{ contributor.total_rewards|floatformat:"g" }}</p>
-  <br>
-  <div>
-    <h2>Contributions</h2>
-    {% for contribution in contributor.contribution_set.all reversed %}
-      <hr />
-      <p>
-        Cycle: <a class="link link-accent" href="{{ contribution.cycle.get_absolute_url }}">{{ contribution.cycle }}</a> | <a class="link link-accent" href="{{ contribution.get_absolute_url }}">{{ contribution.reward }}</a>
-      </p>
-    {% endfor %}
+<div class="max-w-4xl mx-auto">
+  <h1 class="text-3xl font-bold mb-6">Contributor: {{ contributor }}</h1>
+
+  <div class="card bg-base-100 shadow-md mb-6">
+    <div class="card-body">
+      <div class="space-y-3">
+        <p><strong>Name:</strong> {{ contributor.name }}</p>
+        <p><strong>Address:</strong> {% if contributor.address %}**********{% else %}no address provided{% endif %}</p>
+        {% for handle in contributor.handle_set.all %}
+        <p><strong>{{ handle.platform.name }}:</strong> {{ handle.handle }}</p>
+        {% endfor %}
+        <p><strong>Total rewards:</strong> {{ contributor.total_rewards|floatformat:"g" }}</p>
+      </div>
+    </div>
   </div>
+
+  <div class="card bg-base-100 shadow-md">
+    <div class="card-body">
+      <h2 class="text-xl font-semibold mb-4">Contributions</h2>
+      <div class="space-y-3">
+        {% for contribution in contributor.contribution_set.all reversed %}
+        <div class="flex items-center gap-2">
+          <span class="font-medium">Cycle:</span>
+          <a class="link link-accent" href="{{ contribution.cycle.get_absolute_url }}">{{ contribution.cycle }}</a>
+          <span class="font-medium">Reward:</span>
+          <a class="link link-accent" href="{{ contribution.get_absolute_url }}">{{ contribution.reward }}</a>
+        </div>
+        {% endfor %}
+      </div>
+    </div>
+  </div>
+
+</div>
 {% endblock %}

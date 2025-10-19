@@ -689,13 +689,331 @@ class TestCoreCycleModel:
     @pytest.mark.django_db
     def test_core_cycle_model_string_representation_without_end(self):
         cycle = Cycle.objects.create(start=datetime(2025, 3, 25))
-        assert str(cycle) == ""
+        assert str(cycle) == "25-03-25"
 
     # # get_absolute_url
     @pytest.mark.django_db
     def test_core_cycle_model_get_absolute_url(self):
         cycle = Cycle.objects.create(start=datetime(2021, 10, 1))
         assert cycle.get_absolute_url() == "/cycle/{}".format(cycle.id)
+
+    # # info
+    @pytest.mark.django_db
+    def test_core_cycle_model_info_for_end(self):
+        cycle = Cycle.objects.create(
+            start=datetime(2025, 2, 25), end=datetime(2025, 5, 25)
+        )
+        assert cycle.info() == "From Tuesday, February 25, 2025 to Sunday, May 25, 2025"
+
+    @pytest.mark.django_db
+    def test_core_cycle_model_string_info_without_end(self):
+        cycle = Cycle.objects.create(start=datetime(2025, 8, 25))
+        assert cycle.info() == "Started on Monday, August 25, 2025"
+
+
+# core/tests/test_models.py
+
+import pytest
+from django.db.models import Sum
+from core.models import (
+    Cycle,
+    Contributor,
+    Contribution,
+    SocialPlatform,
+    Reward,
+    RewardType,
+)
+
+
+class TestCycleModel:
+    """Testing class for :class:`core.models.Cycle` model."""
+
+    @pytest.mark.django_db
+    def test_cycle_contributor_rewards_empty_cycle(self):
+        cycle = Cycle.objects.create(start="2023-01-01", end="2023-01-31")
+
+        result = cycle.contributor_rewards
+
+        assert result == {}
+
+    @pytest.mark.django_db
+    def test_cycle_contributor_rewards_single_contributor_single_contribution(self):
+        # Create test data
+        cycle = Cycle.objects.create(start="2023-01-01", end="2023-01-31")
+        contributor = Contributor.objects.create(
+            name="test_contributor", address="test_address"
+        )
+        platform = SocialPlatform.objects.create(name="GitHub", prefix="g@")
+        reward_type = RewardType.objects.create(label="F", name="Feature")
+        reward = Reward.objects.create(
+            type=reward_type, level=1, amount=1000000, active=True
+        )
+
+        # Create contribution
+        Contribution.objects.create(
+            contributor=contributor,
+            cycle=cycle,
+            platform=platform,
+            reward=reward,
+            percentage=100.0,
+            confirmed=True,
+        )
+
+        result = cycle.contributor_rewards
+
+        expected = {"test_contributor": (1000000, True)}
+        assert result == expected
+
+    @pytest.mark.django_db
+    def test_cycle_contributor_rewards_single_contributor_multiple_contributions(self):
+        # Create test data
+        cycle = Cycle.objects.create(start="2023-01-01", end="2023-01-31")
+        contributor = Contributor.objects.create(
+            name="test_contributor", address="test_address"
+        )
+        platform = SocialPlatform.objects.create(name="GitHub", prefix="g@")
+        reward_type = RewardType.objects.create(label="F", name="Feature")
+
+        # Create multiple rewards
+        reward1 = Reward.objects.create(
+            type=reward_type, level=1, amount=1000000, active=True
+        )
+        reward2 = Reward.objects.create(
+            type=reward_type, level=2, amount=2000000, active=True
+        )
+
+        # Create multiple contributions for same contributor
+        Contribution.objects.create(
+            contributor=contributor,
+            cycle=cycle,
+            platform=platform,
+            reward=reward1,
+            percentage=100.0,
+            confirmed=True,
+        )
+        Contribution.objects.create(
+            contributor=contributor,
+            cycle=cycle,
+            platform=platform,
+            reward=reward2,
+            percentage=50.0,  # This should calculate as 50% of 2000000 = 1000000
+            confirmed=True,
+        )
+
+        result = cycle.contributor_rewards
+
+        # Total should be 1000000 (full first reward) + 1000000 (50% of second reward) = 2000000
+        expected = {"test_contributor": (2000000, True)}
+        assert result == expected
+
+    @pytest.mark.django_db
+    def test_cycle_contributor_rewards_multiple_contributors(self):
+        # Create test data
+        cycle = Cycle.objects.create(start="2023-01-01", end="2023-01-31")
+        contributor1 = Contributor.objects.create(name="contributor1", address="addr1")
+        contributor2 = Contributor.objects.create(name="contributor2", address="addr2")
+        platform = SocialPlatform.objects.create(name="GitHub", prefix="g@")
+        reward_type = RewardType.objects.create(label="F", name="Feature")
+        reward = Reward.objects.create(
+            type=reward_type, level=1, amount=1000000, active=True
+        )
+
+        # Create contributions for different contributors
+        Contribution.objects.create(
+            contributor=contributor1,
+            cycle=cycle,
+            platform=platform,
+            reward=reward,
+            percentage=100.0,
+            confirmed=True,
+        )
+        Contribution.objects.create(
+            contributor=contributor2,
+            cycle=cycle,
+            platform=platform,
+            reward=reward,
+            percentage=75.0,
+            confirmed=False,
+        )
+
+        result = cycle.contributor_rewards
+
+        expected = {
+            "contributor1": (1000000, True),  # 100% of 1000000 = 1000000, confirmed
+            "contributor2": (750000, False),  # 75% of 1000000 = 750000, not confirmed
+        }
+        assert result == expected
+
+    @pytest.mark.django_db
+    def test_cycle_contributor_rewards_mixed_confirmation_status(self):
+        # Create test data
+        cycle = Cycle.objects.create(start="2023-01-01", end="2023-01-31")
+        contributor = Contributor.objects.create(
+            name="test_contributor", address="test_address"
+        )
+        platform = SocialPlatform.objects.create(name="GitHub", prefix="g@")
+        reward_type = RewardType.objects.create(label="F", name="Feature")
+        reward = Reward.objects.create(
+            type=reward_type, level=1, amount=1000000, active=True
+        )
+
+        # Create contributions with mixed confirmation status
+        Contribution.objects.create(
+            contributor=contributor,
+            cycle=cycle,
+            platform=platform,
+            reward=reward,
+            percentage=100.0,
+            confirmed=True,
+        )
+        Contribution.objects.create(
+            contributor=contributor,
+            cycle=cycle,
+            platform=platform,
+            reward=reward,
+            percentage=50.0,
+            confirmed=False,
+        )
+
+        result = cycle.contributor_rewards
+
+        # When mixing confirmed and unconfirmed, the result should show as unconfirmed (False)
+        # Total amount is still calculated: 1000000 + 500000 = 1500000
+        expected = {"test_contributor": (1500000, False)}
+        assert result == expected
+
+    @pytest.mark.django_db
+    def test_cycle_contributor_rewards_different_cycles(self):
+        # Create multiple cycles
+        cycle1 = Cycle.objects.create(start="2023-01-01", end="2023-01-31")
+        cycle2 = Cycle.objects.create(start="2023-02-01", end="2023-02-28")
+
+        contributor = Contributor.objects.create(
+            name="test_contributor", address="test_address"
+        )
+        platform = SocialPlatform.objects.create(name="GitHub", prefix="g@")
+        reward_type = RewardType.objects.create(label="F", name="Feature")
+        reward = Reward.objects.create(
+            type=reward_type, level=1, amount=1000000, active=True
+        )
+
+        # Create contributions in different cycles
+        Contribution.objects.create(
+            contributor=contributor,
+            cycle=cycle1,
+            platform=platform,
+            reward=reward,
+            percentage=100.0,
+            confirmed=True,
+        )
+        Contribution.objects.create(
+            contributor=contributor,
+            cycle=cycle2,
+            platform=platform,
+            reward=reward,
+            percentage=50.0,
+            confirmed=True,
+        )
+
+        # Test cycle1 only contains its own contributions
+        result1 = cycle1.contributor_rewards
+        expected1 = {"test_contributor": (1000000, True)}
+        assert result1 == expected1
+
+        # Test cycle2 only contains its own contributions
+        result2 = cycle2.contributor_rewards
+        expected2 = {"test_contributor": (500000, True)}
+        assert result2 == expected2
+
+    @pytest.mark.django_db
+    def test_cycle_contributor_rewards_order_by_name(self):
+        # Create test data with contributors in reverse alphabetical order
+        cycle = Cycle.objects.create(start="2023-01-01", end="2023-01-31")
+        contributor_z = Contributor.objects.create(name="Zebra", address="addr_z")
+        contributor_a = Contributor.objects.create(name="Alpha", address="addr_a")
+        contributor_m = Contributor.objects.create(name="Mike", address="addr_m")
+
+        platform = SocialPlatform.objects.create(name="GitHub", prefix="g@")
+        reward_type = RewardType.objects.create(label="F", name="Feature")
+        reward = Reward.objects.create(
+            type=reward_type, level=1, amount=1000000, active=True
+        )
+
+        # Create contributions for all contributors
+        for contributor in [contributor_z, contributor_a, contributor_m]:
+            Contribution.objects.create(
+                contributor=contributor,
+                cycle=cycle,
+                platform=platform,
+                reward=reward,
+                percentage=100.0,
+                confirmed=True,
+            )
+
+        result = cycle.contributor_rewards
+
+        # The result should be ordered by contributor name alphabetically
+        expected_keys = ["Alpha", "Mike", "Zebra"]
+        assert list(result.keys()) == expected_keys
+
+        # Verify all have correct amounts
+        for name in expected_keys:
+            assert result[name] == (1000000, True)
+
+    @pytest.mark.django_db
+    def test_cycle_contributor_rewards_zero_percentage(self):
+        # Test edge case with 0% percentage
+        cycle = Cycle.objects.create(start="2023-01-01", end="2023-01-31")
+        contributor = Contributor.objects.create(
+            name="test_contributor", address="test_address"
+        )
+        platform = SocialPlatform.objects.create(name="GitHub", prefix="g@")
+        reward_type = RewardType.objects.create(label="F", name="Feature")
+        reward = Reward.objects.create(
+            type=reward_type, level=1, amount=1000000, active=True
+        )
+
+        Contribution.objects.create(
+            contributor=contributor,
+            cycle=cycle,
+            platform=platform,
+            reward=reward,
+            percentage=0.0,  # 0% of reward amount
+            confirmed=True,
+        )
+
+        result = cycle.contributor_rewards
+
+        expected = {"test_contributor": (0, True)}  # 0% of 1000000 = 0
+        assert result == expected
+
+    @pytest.mark.django_db
+    def test_cycle_contributor_rewards_null_percentage(self):
+        cycle = Cycle.objects.create(start="2023-01-01", end="2023-01-31")
+        contributor = Contributor.objects.create(
+            name="test_contributor", address="test_address"
+        )
+        platform = SocialPlatform.objects.create(name="GitHub", prefix="g@")
+        reward_type = RewardType.objects.create(label="F", name="Feature")
+        reward = Reward.objects.create(
+            type=reward_type, level=1, amount=1000000, active=True
+        )
+
+        Contribution.objects.create(
+            contributor=contributor,
+            cycle=cycle,
+            platform=platform,
+            reward=reward,
+            percentage=None,  # Null percentage
+            confirmed=True,
+        )
+
+        result = cycle.contributor_rewards
+
+        # The database Sum should handle null percentage as 0 in calculation
+        # So amount should be 0
+        expected = {"test_contributor": (0, True)}
+        assert result == expected
 
     # # total_rewards
     @pytest.mark.django_db
@@ -1285,3 +1603,42 @@ class TestCoreContributionModel:
         assert contribution.get_absolute_url() == "/contribution/{}".format(
             contribution.id
         )
+
+    # # info
+    @pytest.mark.django_db
+    def test_core_contribution_model_info_for_comment(self):
+        contributor = Contributor.objects.create(name="MyName5")
+        cycle = Cycle.objects.create(start=datetime(2025, 3, 24))
+        platform = SocialPlatform.objects.create(name="platforms5", prefix="s5")
+        reward_type = RewardType.objects.create(label="45", name="Reward45")
+        reward = Reward.objects.create(type=reward_type)
+        comment = "my comment"
+        contribution = Contribution.objects.create(
+            contributor=contributor,
+            cycle=cycle,
+            platform=platform,
+            reward=reward,
+            comment=comment,
+        )
+        split = contribution.info().split("]")
+        created_at = datetime.strptime(split[0][1:], "%d %b %H:%M")
+        assert created_at <= datetime.now()
+        assert split[1] == " Reward45 by MyName5 // my comment"
+
+    @pytest.mark.django_db
+    def test_core_contribution_model_info_without_comment(self):
+        contributor = Contributor.objects.create(name="MyName6")
+        cycle = Cycle.objects.create(start=datetime(2025, 3, 26))
+        platform = SocialPlatform.objects.create(name="platforms6", prefix="s6")
+        reward_type = RewardType.objects.create(label="46", name="Reward46")
+        reward = Reward.objects.create(type=reward_type)
+        contribution = Contribution.objects.create(
+            contributor=contributor,
+            cycle=cycle,
+            platform=platform,
+            reward=reward,
+        )
+        split = contribution.info().split("]")
+        created_at = datetime.strptime(split[0][1:], "%d %b %H:%M")
+        assert created_at <= datetime.now()
+        assert split[1] == " Reward46 by MyName6"

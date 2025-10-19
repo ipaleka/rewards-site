@@ -1,35 +1,55 @@
 {% extends "base_generic.html" %}
 
 {% block content %}
-<div>
-  <h1>ASA Stats rewards web</h1>
-  <br>
-  <p>
-    Welcome to ASA Stats rewards web!
-  </p>
-  <h2>Data</h2>
-  <br>
-  <p>Here's the total record counts:</p>
-  <ul>
-    <li><strong>Cycles:</strong> {{ num_cycles }}</li>
-    <li><strong>Contributors:</strong> {{ num_contributors }}</li>
-    <li><strong>Contributions:</strong> {{ num_contributions|floatformat:"g" }}</li>
-    <li><strong>Total rewards:</strong> {{ total_rewards|floatformat:"g" }}</li>
-  </ul>
-</div>
-<br>
-<h2>Unconfirmed contributions</h2>
-<br>
-{% if contribution_list %}
-  <ul>
-    {% for contribution in contribution_list %}
-    <li>
-      <a class="link link-accent" href="{{ contribution.get_absolute_url }}">{{ contribution.info }}</a>
-    </li>
-    {% endfor %}
-  </ul>
-{% else %}
-  <p>There are no unconfirmed contributions in database.</p>
-{% endif %}
+<div class="space-y-6">
+  <div>
+    <h1 class="text-3xl font-bold">ASA Stats Rewards Web</h1>
+    <p class="mt-2 text-lg">
+      Welcome to ASA Stats rewards web!
+    </p>
+  </div>
 
+  <div class="card bg-base-100 shadow-sm">
+    <div class="card-body">
+      <h2 class="card-title text-xl">Data Overview</h2>
+      <div class="stats stats-vertical md:stats-horizontal shadow">
+        <div class="stat">
+          <div class="stat-title">Cycles</div>
+          <div class="stat-value">{{ num_cycles }}</div>
+        </div>
+        <div class="stat">
+          <div class="stat-title">Contributors</div>
+          <div class="stat-value">{{ num_contributors }}</div>
+        </div>
+        <div class="stat">
+          <div class="stat-title">Contributions</div>
+          <div class="stat-value">{{ num_contributions|floatformat:"g" }}</div>
+        </div>
+        <div class="stat">
+          <div class="stat-title">Total Rewards</div>
+          <div class="stat-value">{{ total_rewards|floatformat:"g" }}</div>
+        </div>
+      </div>
+    </div>
+  </div>
+
+  <div class="card bg-base-100 shadow-sm">
+    <div class="card-body">
+      <h2 class="card-title text-xl">Unconfirmed Contributions</h2>
+      {% if contribution_list %}
+        <div class="space-y-2">
+          {% for contribution in contribution_list %}
+          <div class="flex items-center">
+            <a class="link link-accent" href="{{ contribution.get_absolute_url }}">
+              {{ contribution.info }}
+            </a>
+          </div>
+          {% endfor %}
+        </div>
+      {% else %}
+        <p class="text-base-content/70">There are no unconfirmed contributions in database.</p>
+      {% endif %}
+    </div>
+  </div>
+</div>
 {% endblock %}

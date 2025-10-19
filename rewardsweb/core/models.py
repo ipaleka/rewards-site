@@ -2,7 +2,7 @@
 
 from django.contrib.auth.models import User
 from django.db import models
-from django.db.models import Sum
+from django.db.models import BooleanField, Case, F, Min, Sum, Value, When
 from django.db.models.functions import Lower
 from django.http import Http404
 from django.shortcuts import get_object_or_404
@@ -279,32 +279,59 @@ class Cycle(models.Model):
 
         :return: str
         """
-        return (
-            self.start.strftime("%d-%m-%y") + " - " + self.end.strftime("%d-%m-%y")
-            if self.end
-            else ""
-        )
+        start = self.start.strftime("%d-%m-%y")
+        return start + " - " + self.end.strftime("%d-%m-%y") if self.end else start
 
     def get_absolute_url(self):
         """Returns the URL to access a detail record for this cycle."""
         return reverse("cycle-detail", args=[str(self.id)])
 
+    def info(self):
+        """Return extended string representation of the cycle instance
+
+        :return: str
+        """
+        start = self.start.strftime("%A, %B %d, %Y")
+        return (
+            "From " + start + " to " + self.end.strftime("%A, %B %d, %Y")
+            if self.end
+            else "Started on " + start
+        )
+
     @property
     def contributor_rewards(self):
         """Return collection of all contributors and related rewards for cycle (cached).
 
-        TODO: tests
-
+        :var result: collection of contributors and related total reward amounts
+        :type result: :class:`django.db.models.query.QuerySet`
         :return: dict
         """
+
+        # First, calculate the total amount for each contributor considering percentages
         result = (
             self.contribution_set.select_related("contributor")
-            .values("contributor__name", "confirmed")
-            .annotate(total_amount=Sum("reward__amount"))
+            .values("contributor__name")
+            .annotate(
+                total_amount=Sum(
+                    F("reward__amount") * F("percentage") / 100.0,
+                    output_field=models.DecimalField(),
+                ),
+                # Use Min to get False if any contribution is not confirmed
+                all_confirmed=Min(
+                    Case(
+                        When(confirmed=True, then=Value(1)),
+                        When(confirmed=False, then=Value(0)),
+                        output_field=BooleanField(),
+                    )
+                ),
+            )
             .order_by("contributor__name")
         )
         return {
-            item["contributor__name"]: (item["total_amount"], item["confirmed"])
+            item["contributor__name"]: (
+                int(item.get("total_amount") or 0),
+                bool(item["all_confirmed"]),
+            )
             for item in result
         }
 
@@ -483,8 +510,9 @@ class Contribution(models.Model):
     def info(self):
         """Return basic information for this contribution.
 
-        TODO: docstring and tests
-
+        :var main_text: starting text
+        :type main_text: str
+        :return: str
         """
         main_text = (
             "["

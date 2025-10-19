@@ -1,20 +1,34 @@
 """Testing module for :py:mod:`core.views` module."""
 
-from unittest import mock
 import time
 
 import pytest
 from allauth.account.forms import LoginForm
 from django.contrib.auth import get_user_model
 from django.contrib.auth.models import User
+from django.contrib.messages.storage.fallback import FallbackStorage
 from django.test import RequestFactory, TestCase
 from django.urls import reverse, reverse_lazy
 from django.views import View
-from django.views.generic import DetailView, UpdateView
+from django.views.generic import DetailView, ListView, UpdateView
 from django.views.generic.detail import SingleObjectMixin
 
+from core.models import Contribution, Contributor, Cycle, Issue
 from core.forms import ProfileFormSet, UpdateUserForm
-from core.views import ProfileDisplay, ProfileEditView, ProfileUpdate
+from core.views import (
+    ContributionDetailView,
+    ContributionUpdateView,
+    ContributorListView,
+    ContributorDetailView,
+    CreateIssueView,
+    CycleListView,
+    CycleDetailView,
+    IndexView,
+    IssueDetailView,
+    ProfileDisplay,
+    ProfileEditView,
+    ProfileUpdate,
+)
 
 user_model = get_user_model()
 
@@ -81,6 +95,526 @@ class IndexPageTest(TestCase):
 
         self.assertEqual(response.status_code, 200)
         self.assertTemplateUsed(response, "index.html")
+
+
+class TestIndexView:
+    """Testing class for :class:`core.views.IndexView`."""
+
+    def test_indexview_is_subclass_of_listview(self):
+        assert issubclass(IndexView, ListView)
+
+    def test_indexview_model(self):
+        view = IndexView()
+        assert view.model == Contribution
+
+    def test_indexview_paginate_by(self):
+        view = IndexView()
+        assert view.paginate_by == 20
+
+    def test_indexview_template_name(self):
+        view = IndexView()
+        assert view.template_name == "index.html"
+
+
+@pytest.mark.django_db
+class TestDbIndexView:
+    """Testing class for :class:`core.views.IndexView` with database."""
+
+    def test_indexview_get_queryset(self, contribution):
+        # Create a confirmed contribution that should not appear
+        confirmed_contribution = Contribution.objects.create(
+            contributor=contribution.contributor,
+            cycle=contribution.cycle,
+            platform=contribution.platform,
+            reward=contribution.reward,
+            percentage=100.0,
+            confirmed=True,
+        )
+
+        view = IndexView()
+        queryset = view.get_queryset()
+
+        # Should only include unconfirmed contributions
+        assert queryset.filter(confirmed=True).count() == 0
+        assert queryset.filter(confirmed=False).count() == 1
+
+    def test_indexview_get_context_data(self, rf):
+        request = rf.get("/")
+
+        # Create test data first
+        Cycle.objects.create(start="2023-01-01", end="2023-01-31")
+        Cycle.objects.create(start="2023-02-01", end="2023-02-28")
+        Contributor.objects.create(name="contributor1", address="addr1")
+        Contributor.objects.create(name="contributor2", address="addr2")
+
+        # Setup view properly
+        view = IndexView()
+        view.setup(request)
+        view.object_list = Contribution.objects.none()
+        view.request = request
+
+        context = view.get_context_data()
+
+        assert context["num_cycles"] == 2
+        assert context["num_contributors"] == 2
+        assert context["num_contributions"] == 0
+        # When there are no contributions, total_rewards can be None
+        assert context["total_rewards"] in [0, None]
+
+
+class TestContributionDetailView:
+    """Testing class for :class:`core.views.ContributionDetailView`."""
+
+    def test_contributiondetailview_is_subclass_of_detailview(self):
+        assert issubclass(ContributionDetailView, DetailView)
+
+    def test_contributiondetailview_model(self):
+        view = ContributionDetailView()
+        assert view.model == Contribution
+
+
+@pytest.mark.django_db
+class TestDbContributionDetailView:
+    """Testing class for :class:`core.views.ContributionDetailView` with database."""
+
+    def test_contributiondetailview_get_object(self, rf, contribution):
+        request = rf.get(f"/contributions/{contribution.id}/")
+
+        view = ContributionDetailView()
+        view.setup(request, pk=contribution.id)
+
+        obj = view.get_object()
+
+        assert obj == contribution
+        assert obj.id == contribution.id
+
+
+class TestContributionUpdateView:
+    """Testing class for :class:`core.views.ContributionUpdateView`."""
+
+    def test_contributionupdateview_is_subclass_of_updateview(self):
+        assert issubclass(ContributionUpdateView, UpdateView)
+
+    def test_contributionupdateview_model(self):
+        view = ContributionUpdateView()
+        assert view.model == Contribution
+
+    def test_contributionupdateview_form_class(self):
+        view = ContributionUpdateView()
+        from core.forms import ContributionEditForm
+
+        assert view.form_class == ContributionEditForm
+
+    def test_contributionupdateview_template_name(self):
+        view = ContributionUpdateView()
+        assert view.template_name == "core/contribution_edit.html"
+
+
+@pytest.mark.django_db
+class TestDbContributionUpdateView:
+    """Testing class for :class:`core.views.ContributionUpdateView` with database."""
+
+    def test_contributionupdateview_get_success_url(self, rf, superuser, contribution):
+        request = rf.get(f"/contributions/{contribution.id}/edit/")
+        request.user = superuser
+
+        # Setup messages framework
+        setattr(request, "session", "session")
+        messages = FallbackStorage(request)
+        setattr(request, "_messages", messages)
+
+        view = ContributionUpdateView()
+        view.setup(request, pk=contribution.id)
+        view.object = contribution
+        view.request = request
+
+        success_url = view.get_success_url()
+
+        expected_url = reverse("contribution-detail", kwargs={"pk": contribution.pk})
+        assert success_url == expected_url
+
+    def test_contributionupdateview_requires_superuser(
+        self, rf, regular_user, contribution
+    ):
+        request = rf.get(f"/contributions/{contribution.id}/edit/")
+        request.user = regular_user
+
+        response = ContributionUpdateView.as_view()(request, pk=contribution.id)
+
+        # Should redirect to login (302) for non-superusers
+        assert response.status_code == 302
+
+    def test_contributionupdateview_superuser_access_granted(
+        self, rf, superuser, contribution
+    ):
+        request = rf.get(f"/contributions/{contribution.id}/edit/")
+        request.user = superuser
+
+        response = ContributionUpdateView.as_view()(request, pk=contribution.id)
+
+        # Should return 200 for superuser
+        assert response.status_code == 200
+
+
+class TestContributorListView:
+    """Testing class for :class:`core.views.ContributorListView`."""
+
+    def test_contributorlistview_is_subclass_of_listview(self):
+        assert issubclass(ContributorListView, ListView)
+
+    def test_contributorlistview_model(self):
+        view = ContributorListView()
+        assert view.model == Contributor
+
+    def test_contributorlistview_paginate_by(self):
+        view = ContributorListView()
+        assert view.paginate_by == 20
+
+
+@pytest.mark.django_db
+class TestDbContributorListView:
+    """Testing class for :class:`core.views.ContributorListView` with database."""
+
+    def test_contributorlistview_queryset(self, rf):
+        request = rf.get("/contributors/")
+
+        # Create test contributors
+        Contributor.objects.create(name="contributor1", address="addr1")
+        Contributor.objects.create(name="contributor2", address="addr2")
+
+        view = ContributorListView()
+        view.setup(request)
+
+        queryset = view.get_queryset()
+
+        assert queryset.count() == 2
+        assert all(isinstance(obj, Contributor) for obj in queryset)
+
+
+class TestContributorDetailView:
+    """Testing class for :class:`core.views.ContributorDetailView`."""
+
+    def test_contributordetailview_is_subclass_of_detailview(self):
+        assert issubclass(ContributorDetailView, DetailView)
+
+    def test_contributordetailview_model(self):
+        view = ContributorDetailView()
+        assert view.model == Contributor
+
+
+@pytest.mark.django_db
+class TestDbContributorDetailView:
+    """Testing class for :class:`core.views.ContributorDetailView` with database."""
+
+    def test_contributordetailview_get_object(self, rf):
+        contributor = Contributor.objects.create(
+            name="test_contributor", address="test_address"
+        )
+        request = rf.get(f"/contributors/{contributor.id}/")
+
+        view = ContributorDetailView()
+        view.setup(request, pk=contributor.id)
+
+        obj = view.get_object()
+
+        assert obj == contributor
+        assert obj.name == "test_contributor"
+
+
+class TestCycleListView:
+    """Testing class for :class:`core.views.CycleListView`."""
+
+    def test_cyclelistview_is_subclass_of_listview(self):
+        assert issubclass(CycleListView, ListView)
+
+    def test_cyclelistview_model(self):
+        view = CycleListView()
+        assert view.model == Cycle
+
+    def test_cyclelistview_paginate_by(self):
+        view = CycleListView()
+        assert view.paginate_by == 10
+
+
+@pytest.mark.django_db
+class TestDbCycleListView:
+    """Testing class for :class:`core.views.CycleListView` with database."""
+
+    def test_cyclelistview_get_queryset(self, rf):
+        request = rf.get("/cycles/")
+
+        # Create test cycles
+        cycle1 = Cycle.objects.create(start="2023-01-01", end="2023-01-31")
+        cycle2 = Cycle.objects.create(start="2023-02-01", end="2023-02-28")
+
+        view = CycleListView()
+        view.setup(request)
+
+        queryset = view.get_queryset()
+
+        # Should be in reverse order (most recent first)
+        assert queryset.count() == 2
+        assert queryset.first() == cycle2  # Most recent
+        assert queryset.last() == cycle1  # Oldest
+
+
+class TestCycleDetailView:
+    """Testing class for :class:`core.views.CycleDetailView`."""
+
+    def test_cycledetailview_is_subclass_of_detailview(self):
+        assert issubclass(CycleDetailView, DetailView)
+
+    def test_cycledetailview_model(self):
+        view = CycleDetailView()
+        assert view.model == Cycle
+
+
+@pytest.mark.django_db
+class TestDbCycleDetailView:
+    """Testing class for :class:`core.views.CycleDetailView` with database."""
+
+    def test_cycledetailview_get_object(self, rf):
+        cycle = Cycle.objects.create(start="2023-01-01", end="2023-01-31")
+        request = rf.get(f"/cycles/{cycle.id}/")
+
+        view = CycleDetailView()
+        view.setup(request, pk=cycle.id)
+
+        obj = view.get_object()
+
+        assert obj == cycle
+        assert obj.start.strftime("%Y-%m-%d") == "2023-01-01"
+
+
+class TestIssueDetailView:
+    """Testing class for :class:`core.views.IssueDetailView`."""
+
+    def test_issuedetailview_is_subclass_of_detailview(self):
+        assert issubclass(IssueDetailView, DetailView)
+
+    def test_issuedetailview_model(self):
+        view = IssueDetailView()
+        assert view.model == Issue
+
+
+@pytest.mark.django_db
+class TestDbIssueDetailView:
+    """Testing class for :class:`core.views.IssueDetailView` with database."""
+
+    def test_issuedetailview_get_object(self, rf, issue):
+        request = rf.get(f"/issues/{issue.id}/")
+
+        view = IssueDetailView()
+        view.setup(request, pk=issue.id)
+
+        obj = view.get_object()
+
+        assert obj == issue
+        # Use the correct field name from your Issue model
+        assert obj.number == issue.number  # Changed from issue_number to number
+
+
+@pytest.mark.django_db
+class TestDbCreateIssueView:
+    """Testing class for :class:`core.views.CreateIssueView` with database."""
+
+    def test_createissueview_get_stores_contribution_id(
+        self, rf, superuser, contribution
+    ):
+        request = rf.get(f"/create-issue/{contribution.id}/")
+        request.user = superuser
+        view = CreateIssueView()
+        view.setup(request, contribution_id=contribution.id)
+
+        response = view.get(request, contribution_id=contribution.id)
+
+        assert view.contribution_id == contribution.id
+        assert response.status_code == 200
+
+    def test_createissueview_post_stores_contribution_id(
+        self, rf, superuser, contribution
+    ):
+        request = rf.post(f"/create-issue/{contribution.id}/")
+        request.user = superuser
+        view = CreateIssueView()
+        view.setup(request, contribution_id=contribution.id)
+
+        response = view.post(request, contribution_id=contribution.id)
+
+        assert view.contribution_id == contribution.id
+        assert response.status_code == 200
+
+    def test_createissueview_get_success_url(self, rf, superuser, contribution):
+        request = rf.get(f"/create-issue/{contribution.id}/")
+        request.user = superuser
+        view = CreateIssueView()
+        view.setup(request, contribution_id=contribution.id)
+        view.contribution_id = contribution.id
+
+        success_url = view.get_success_url()
+
+        expected_url = reverse("contribution-detail", args=[contribution.id])
+        assert success_url == expected_url
+
+    def test_createissueview_get_initial_with_contribution_id(
+        self, rf, superuser, contribution, mocker
+    ):
+        request = rf.get(f"/create-issue/{contribution.id}/")
+        request.user = superuser
+        view = CreateIssueView()
+        view.setup(request, contribution_id=contribution.id)
+        view.contribution_id = contribution.id
+
+        # Mock the issue_data_for_contribution function
+        mock_issue_data = mocker.patch("core.views.issue_data_for_contribution")
+        mock_issue_data.return_value = {
+            "priority": "high priority",
+            "issue_body": "Test body",
+            "issue_title": "Test title",
+            "labels": ["bug"],
+        }
+
+        initial = view.get_initial()
+
+        assert "priority" in initial
+        assert "issue_body" in initial
+        assert "issue_title" in initial
+        assert "labels" in initial
+
+    def test_createissueview_get_initial_without_contribution_id(self, rf, superuser):
+        request = rf.get("/create-issue/")
+        request.user = superuser
+        view = CreateIssueView()
+        view.setup(request)
+        view.contribution_id = None
+
+        initial = view.get_initial()
+
+        expected_data = {
+            "priority": "medium priority",
+            "issue_body": "Please provide issue description here.",
+            "issue_title": "Issue title",
+        }
+        assert initial == expected_data
+
+    def test_createissueview_get_context_data(
+        self, rf, superuser, contribution, mocker
+    ):
+        request = rf.get(f"/create-issue/{contribution.id}/")
+        request.user = superuser
+        view = CreateIssueView()
+        view.setup(request, contribution_id=contribution.id)
+        view.contribution_id = contribution.id
+        view.object = None
+
+        # Mock the info method
+        mock_info = mocker.patch.object(Contribution, "info")
+        mock_info.return_value = "Test Contribution Info"
+
+        context = view.get_context_data()
+
+        assert context["contribution_id"] == contribution.id
+        assert context["contribution_info"] == "Test Contribution Info"
+        assert "Create issue for Test Contribution Info" in context["page_title"]
+
+    def test_createissueview_form_valid_success(
+        self, rf, superuser, contribution, mocker
+    ):
+        request = rf.post(f"/create-issue/{contribution.id}/")
+        request.user = superuser
+        view = CreateIssueView()
+        view.setup(request, contribution_id=contribution.id)
+        view.contribution_id = contribution.id
+
+        # Mock external dependencies
+        mock_create_github_issue = mocker.patch("core.views.create_github_issue")
+        mock_create_github_issue.return_value = {"success": True, "issue_number": 123}
+
+        mock_confirm_contribution = mocker.patch(
+            "core.views.Issue.objects.confirm_contribution_with_issue"
+        )
+        mock_add_reaction = mocker.patch("core.views.add_reaction_to_message")
+
+        # Create mock form with valid data
+        mock_form = mocker.MagicMock()
+        mock_form.cleaned_data = {
+            "labels": ["bug", "feature"],
+            "priority": "high priority",
+            "issue_body": "Test issue body",
+            "issue_title": "Test issue title",
+        }
+
+        response = view.form_valid(mock_form)
+
+        # Verify GitHub issue creation was called with correct data
+        mock_create_github_issue.assert_called_once_with(
+            superuser,
+            "Test issue title",
+            "Test issue body",
+            labels=["bug", "feature", "high priority"],
+        )
+
+        # Verify contribution was confirmed with issue
+        mock_confirm_contribution.assert_called_once_with(123, contribution)
+
+        # Verify Discord reaction was added
+        mock_add_reaction.assert_called_once_with(contribution.url, mocker.ANY)
+
+        # Verify response is successful
+        assert response.status_code == 302
+
+    def test_createissueview_form_valid_failure(
+        self, rf, superuser, contribution, mocker
+    ):
+        request = rf.post(f"/create-issue/{contribution.id}/")
+        request.user = superuser
+        view = CreateIssueView()
+        view.setup(request, contribution_id=contribution.id)
+        view.contribution_id = contribution.id
+
+        # Mock GitHub issue creation to fail
+        mock_create_github_issue = mocker.patch("core.views.create_github_issue")
+        mock_create_github_issue.return_value = {
+            "success": False,
+            "error": "GitHub API error",
+        }
+
+        # Create mock form with valid data
+        mock_form = mocker.MagicMock()
+        mock_form.cleaned_data = {
+            "labels": ["bug"],
+            "priority": "medium priority",
+            "issue_body": "Test issue body",
+            "issue_title": "Test issue title",
+        }
+
+        response = view.form_valid(mock_form)
+
+        # Verify form error was added
+        mock_form.add_error.assert_called_once_with(None, mocker.ANY)
+
+        # Verify response indicates form is invalid
+        assert response.status_code == 200
+
+    def test_createissueview_requires_superuser(self, rf, regular_user, contribution):
+        request = rf.get(f"/create-issue/{contribution.id}/")
+        request.user = regular_user
+
+        response = CreateIssueView.as_view()(request, contribution_id=contribution.id)
+
+        # Should redirect to login or show permission denied
+        assert response.status_code in [302, 403]
+
+    def test_createissueview_superuser_access_granted(
+        self, rf, superuser, contribution
+    ):
+        request = rf.get(f"/create-issue/{contribution.id}/")
+        request.user = superuser
+
+        response = CreateIssueView.as_view()(request, contribution_id=contribution.id)
+
+        # Should return 200 for superuser
+        assert response.status_code == 200
 
 
 class EditProfilePageTest(TestCase):

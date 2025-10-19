@@ -1,9 +1,8 @@
 """Module containing ASA Stats Rewards API URL configuration."""
 
-
 from django.urls import path
 
-from . import views
+from api import views
 
 urlpatterns = [
     path("contributions", views.ContributionsView.as_view(), name="contributions"),

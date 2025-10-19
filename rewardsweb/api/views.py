@@ -27,6 +27,13 @@ from utils.helpers import humanize_contributions
 
 # # HELPERS
 async def aggregated_cycle_response(cycle: Cycle):
+    """Generate aggregated cycle response with contributor rewards data.
+
+    :param cycle: Cycle instance to aggregate data for
+    :type cycle: :class:`core.models.Cycle`
+    :return: DRF Response with aggregated cycle data
+    :rtype: :class:`rest_framework.response.Response`
+    """
     if not cycle:
         return Response({"error": "Cycle not found"}, status=status.HTTP_404_NOT_FOUND)
 
@@ -47,7 +54,13 @@ async def aggregated_cycle_response(cycle: Cycle):
 
 
 async def contributions_response(contributions):
-    """Fetch, humanize, serialize, and return contributions."""
+    """Fetch, humanize, serialize, and return contributions.
+
+    :param contributions: QuerySet of Contribution objects
+    :type contributions: :class:`django.db.models.QuerySet`
+    :return: DRF Response with humanized contributions data
+    :rtype: :class:`rest_framework.response.Response`
+    """
 
     # Run DB-dependent humanization on a thread pool
     data = await sync_to_async(lambda: humanize_contributions(contributions))()
@@ -57,19 +70,58 @@ async def contributions_response(contributions):
 
 
 class CycleAggregatedView(APIView):
+    """API view to retrieve aggregated data for a specific cycle.
+
+    :var cycle_id: URL parameter specifying the cycle identifier
+    :type cycle_id: int
+    """
+
     async def get(self, request, cycle_id):
+        """Handle GET request for specific cycle aggregated data.
+
+        :param request: HTTP request object
+        :type request: :class:`rest_framework.request.Request`
+        :param cycle_id: cycle identifier from URL
+        :type cycle_id: int
+        :return: aggregated cycle data response
+        :rtype: :class:`rest_framework.response.Response`
+        """
         cycle = await sync_to_async(lambda: Cycle.objects.filter(id=cycle_id).first())()
         return await aggregated_cycle_response(cycle)
 
 
 class CurrentCycleAggregatedView(APIView):
+    """API view to retrieve aggregated data for the current cycle."""
+
     async def get(self, request):
+        """Handle GET request for current cycle aggregated data.
+
+        :param request: HTTP request object
+        :type request: :class:`rest_framework.request.Request`
+        :return: aggregated current cycle data response
+        :rtype: :class:`rest_framework.response.Response`
+        """
         cycle = await sync_to_async(lambda: Cycle.objects.latest("start"))()
         return await aggregated_cycle_response(cycle)
 
 
 class CyclePlainView(APIView):
+    """API view to retrieve plain cycle data for a specific cycle.
+
+    :var cycle_id: URL parameter specifying the cycle identifier
+    :type cycle_id: int
+    """
+
     async def get(self, request, cycle_id):
+        """Handle GET request for specific cycle plain data.
+
+        :param request: HTTP request object
+        :type request: :class:`rest_framework.request.Request`
+        :param cycle_id: cycle identifier from URL
+        :type cycle_id: int
+        :return: plain cycle data response
+        :rtype: :class:`rest_framework.response.Response`
+        """
         cycle = await sync_to_async(lambda: Cycle.objects.filter(id=cycle_id).first())()
         if not cycle:
             return Response(
@@ -81,7 +133,16 @@ class CyclePlainView(APIView):
 
 
 class CurrentCyclePlainView(APIView):
+    """API view to retrieve plain cycle data for the current cycle."""
+
     async def get(self, request):
+        """Handle GET request for current cycle plain data.
+
+        :param request: HTTP request object
+        :type request: :class:`rest_framework.request.Request`
+        :return: plain current cycle data response
+        :rtype: :class:`rest_framework.response.Response`
+        """
         # Async database query
         cycle = await sync_to_async(lambda: Cycle.objects.latest("start"))()
         serializer = CycleSerializer(cycle)
@@ -89,7 +150,18 @@ class CurrentCyclePlainView(APIView):
 
 
 class ContributionsView(APIView):
+    """API view to retrieve contributions with optional contributor filtering."""
+
     async def get(self, request):
+        """Handle GET request for contributions data.
+
+        :param request: HTTP request object with optional 'name' query parameter
+        :type request: :class:`rest_framework.request.Request`
+        :var name: query parameter to filter by contributor username
+        :type name: str
+        :return: contributions data response
+        :rtype: :class:`rest_framework.response.Response`
+        """
         username = request.GET.get("name")
 
         if username:
@@ -106,16 +178,53 @@ class ContributionsView(APIView):
 
 
 class ContributionsTailView(APIView):
+    """API view to retrieve the most recent contributions (tail)."""
+
     async def get(self, request):
+        """Handle GET request for recent contributions tail.
+
+        :param request: HTTP request object
+        :type request: :class:`rest_framework.request.Request`
+        :return: recent contributions data response
+        :rtype: :class:`rest_framework.response.Response`
+        """
         queryset = Contribution.objects.order_by("-id")[:CONTRIBUTIONS_TAIL_SIZE]
         return await contributions_response(queryset)
 
 
 class AddContributionView(APIView):
+    """API view to add new contributions."""
+
     async def post(self, request):
+        """Handle POST request to create a new contribution.
+
+        :param request: HTTP request object with contribution data
+        :type request: :class:`rest_framework.request.Request`
+        :var username: contributor username
+        :type username: str
+        :var platform: social platform name
+        :type platform: str
+        :var type: reward type in format "[label] name"
+        :type type: str
+        :var level: contribution level
+        :type level: int
+        :var url: contribution URL
+        :type url: str
+        :var comment: optional comment
+        :type comment: str
+        :return: created contribution data or validation errors
+        :rtype: :class:`rest_framework.response.Response`
+        """
 
         @sync_to_async
         def process_contribution(raw_data):
+            """Process contribution data synchronously in thread pool.
+
+            :param raw_data: raw contribution data from request
+            :type raw_data: dict
+            :return: tuple of (serialized_data, errors)
+            :rtype: tuple
+            """
             contributor = Contributor.objects.from_handle(raw_data.get("username"))
             cycle = Cycle.objects.latest("start")
             platform = SocialPlatform.objects.get(name=raw_data.get("platform"))

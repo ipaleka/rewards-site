@@ -8,7 +8,7 @@
 
 
 :mod:`api.serializers` -- ASA Stats rewards API serializers
---------------------------------------------------------
+-----------------------------------------------------------
 
 .. automodule:: api.serializers
   :members:

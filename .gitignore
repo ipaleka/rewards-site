@@ -6,10 +6,12 @@ __pycache__
 .scannerwork
 docs/_build
 db.sqlite3
+*.log
 rewardsweb/.env
+rewardsweb/*.log
 rewardsweb/fixtures/*.csv
 rewardsweb/fixtures/*.xlsx
 rewardsweb/.coverage
 rewardsweb/core/static/css/tailwindcss
-rewardsbot/.env
-rewardsbot/*.log
+rewardsweb/rewardsbot/.env
+rewardsweb/rewardsbot/*.log

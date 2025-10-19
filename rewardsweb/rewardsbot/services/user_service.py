@@ -1,7 +1,7 @@
 import logging
 from datetime import datetime
 
-from models.contribution import Contribution
+from rewardsbot.models.contribution import Contribution
 
 logger = logging.getLogger("discord.user")
 

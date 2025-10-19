@@ -3,7 +3,7 @@ import logging
 import discord
 from discord.ui import Modal, TextInput
 
-from services.suggestion_service import SuggestionService
+from rewardsbot.services.suggestion_service import SuggestionService
 
 logger = logging.getLogger("discord.commands")
 

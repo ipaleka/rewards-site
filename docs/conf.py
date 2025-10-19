@@ -19,8 +19,12 @@ import sys
 
 import django
 
-sys.path.insert(0, os.path.abspath("../rewardsbot"))
+# sys.path.insert(0, os.path.abspath('..'))
 sys.path.insert(0, os.path.abspath("../rewardsweb"))
+
+project_root = os.path.abspath(os.path.join(os.path.dirname(__file__), '..'))
+sys.path.insert(0, project_root)
+
 
 django.setup()
 

@@ -18,6 +18,7 @@ from core.models import (
     Handle,
     HandleManager,
     Issue,
+    IssueManager,
     IssueStatus,
     Profile,
     Reward,
@@ -897,6 +898,30 @@ class TestCoreRewardModel:
         assert str(reward) == "[TS] Task 1: 20,000"
 
 
+class TestCoreIssueManager:
+    """Testing class for :class:`core.models.IssueManager` class."""
+
+    # # confirm_contribution_with_issue
+    @pytest.mark.django_db
+    def test_core_issuemanager_confirm_contribution_with_issue_functionality(self):
+        contributor = Contributor.objects.create()
+        cycle = Cycle.objects.create(start=datetime(2024, 8, 8))
+        platform = SocialPlatform.objects.create(name="contributionissue2", prefix="ci")
+        reward_type = RewardType.objects.create(label="ci", name="rewardci")
+        reward = Reward.objects.create(type=reward_type)
+        contribution = Contribution.objects.create(
+            contributor=contributor, cycle=cycle, platform=platform, reward=reward
+        )
+        issue_number = 505
+        issue = Issue.objects.confirm_contribution_with_issue(
+            issue_number, contribution
+        )
+        assert isinstance(issue, Issue)
+        assert issue.number == issue_number
+        assert contribution.confirmed is True
+        assert contribution in issue.contribution_set.all()
+
+
 class TestCoreIssueStatus:
     """Testing class for :class:`core.models.IssueStatus`."""
 
@@ -949,6 +974,9 @@ class TestCoreIssueModel:
         issue = Issue.objects.create(number=21)
         assert issue.updated_at <= timezone.now()
 
+    def test_core_issue_objects_is_issuemanager_instance(self):
+        assert isinstance(Issue.objects, IssueManager)
+
     # # Meta
     @pytest.mark.django_db
     def test_core_issue_model_ordering(self):
@@ -973,6 +1001,13 @@ class TestCoreIssueModel:
     ):
         issue = Issue(number=506)
         assert str(issue) == "506: created"
+
+    # # get_absolute_url
+    @pytest.mark.django_db
+    def test_core_issue_model_get_absolute_url(self):
+        issue_number = 506
+        issue = Issue.objects.create(number=issue_number)
+        assert issue.get_absolute_url() == "/issue/{}".format(issue.id)
 
 
 class TestCoreContributionModel:

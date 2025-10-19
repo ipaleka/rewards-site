@@ -1,0 +1,10 @@
+{% extends "base_generic.html" %}
+
+{% block content %}
+  <h1><a class="link link-accent" href="https://github.com/asastats/rewards-site/issues/{{ issue.number }}">GitHub issue</a></h1>
+  <br>
+  <p><strong>Number:</strong> {{ issue.number }}</p>
+  <p><strong>Status:</strong> {{ issue.status }}</p>
+  <br>
+{% endblock %}
+

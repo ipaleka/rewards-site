@@ -2,9 +2,11 @@
 
 import logging
 
+from django.contrib import messages
 from django.contrib.auth.decorators import login_required, user_passes_test
 from django.contrib.auth.models import User
 from django.db.models import Sum
+from django.forms import ValidationError
 from django.http import HttpResponseRedirect
 from django.urls import reverse_lazy
 from django.utils.decorators import method_decorator
@@ -12,9 +14,16 @@ from django.views import View
 from django.views.generic import DetailView, FormView, ListView, UpdateView
 from django.views.generic.detail import SingleObjectMixin
 
-from core.forms import CreateIssueForm, ProfileFormSet, UpdateUserForm
+from core.forms import (
+    ContributionEditForm,
+    CreateIssueForm,
+    ProfileFormSet,
+    UpdateUserForm,
+)
 from core.models import Contribution, Contributor, Cycle, Issue
-from utils.issues import issue_data_for_contribution
+from utils.bot import add_reaction_to_message
+from utils.constants.core import DISCORD_NOTED_EMOJI
+from utils.issues import create_github_issue, issue_data_for_contribution
 
 logger = logging.getLogger(__name__)
 
@@ -51,6 +60,21 @@ class IndexView(ListView):
 
 class ContributionDetailView(DetailView):
     model = Contribution
+
+
+@method_decorator(user_passes_test(lambda user: user.is_superuser), name="dispatch")
+class ContributionUpdateView(UpdateView):
+    model = Contribution
+    form_class = ContributionEditForm
+    template_name = "core/contribution_edit.html"
+
+    def get_success_url(self):
+        messages.success(self.request, "Contribution updated successfully!")
+        return reverse_lazy("contribution-detail", kwargs={"pk": self.object.pk})
+
+    def form_valid(self, form):
+        # Add any additional logic here if needed
+        return super().form_valid(form)
 
 
 class ContributorListView(ListView):
@@ -203,6 +227,10 @@ class ProfileEditView(View):
         return view(request, *args, **kwargs)
 
 
+class IssueDetailView(DetailView):
+    model = Issue
+
+
 @method_decorator(user_passes_test(lambda user: user.is_superuser), name="dispatch")
 class CreateIssueView(FormView):
     """TODO: docstring and tests"""
@@ -251,28 +279,26 @@ class CreateIssueView(FormView):
         return context
 
     def form_valid(self, form):
-        # Your existing form validation logic
         cleaned_data = form.cleaned_data
-        calculated_value = self.your_calculation_function(
-            cleaned_data, self.contribution_id
+
+        labels = cleaned_data.get("labels", [])
+        priority = cleaned_data.get("priority", "")
+        issue_body = cleaned_data.get("issue_body", "")
+        issue_title = cleaned_data.get("issue_title", "")
+        data = create_github_issue(
+            self.request.user, issue_title, issue_body, labels=labels + [priority]
         )
+        if not data.get("success"):
+            form.add_error(
+                None, ValidationError(data.get("error"))
+            )  # None adds to non-field errors
+            return self.form_invalid(form)
+
+        contribution = Contribution.objects.get(id=self.contribution_id)
+        Issue.objects.confirm_contribution_with_issue(
+            data.get("issue_number"), contribution
+        )
+
+        add_reaction_to_message(contribution.url, DISCORD_NOTED_EMOJI)
+
         return super().form_valid(form)
-
-    def your_calculation_function(self, form_data, contribution_id):
-        # Your existing calculation logic
-        labels = form_data.get("labels", [])
-        priority = form_data.get("priority", "")
-        issue_body = form_data.get("issue_body", "")
-        issue_title = form_data.get("issue_title", "")
-
-        result = {
-            "contribution_id": contribution_id,
-            "priority": priority,
-            "total_labels": len(labels),
-            "text_length": len(issue_body),
-            "processed_input": issue_title.upper(),
-            "categories": labels,
-            "combined_result": f"ID-{contribution_id}-{priority}-{issue_title}-{len(labels)}cats",
-        }
-
-        return result

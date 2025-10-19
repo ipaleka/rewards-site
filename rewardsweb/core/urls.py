@@ -19,10 +19,20 @@ urlpatterns = [
         views.ContributionDetailView.as_view(),
         name="contribution-detail",
     ),
+    path(
+        "contribution/<int:pk>/edit/",
+        views.ContributionUpdateView.as_view(),
+        name="contribution-edit",
+    ),
     path("profile/", views.ProfileEditView.as_view(), name="profile"),
     path(
         "create-issue/<int:contribution_id>",
         views.CreateIssueView.as_view(),
         name="create-issue",
+    ),
+    path(
+        "issue/<int:pk>",
+        views.IssueDetailView.as_view(),
+        name="issue-detail",
     ),
 ]

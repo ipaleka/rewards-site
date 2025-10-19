@@ -17,17 +17,17 @@ def _github_client(user):
 
     :param user: Django user instance
     :type user: class:`django.contrib.auth.models.User`
-    :var github_access_token: GitHub user's access token
-    :type github_access_token: str
+    :var github_token: GitHub user's access token
+    :type github_token: str
     :var auth: GitHub authentication token instance
     :type auth: :class:`github.Github`
     :return: :class:`github.Github
     """
-    github_access_token = user.profile.github_access_token
-    if not github_access_token:
+    github_token = user.profile.github_token
+    if not github_token:
         return False
 
-    auth = Auth.Token(github_access_token)
+    auth = Auth.Token(github_token)
 
     return Github(auth=auth)
 
@@ -188,7 +188,16 @@ def create_github_issue(user, title, body, labels=None):
 
 # # PREPARE ISSUE
 def _prepare_issue_body_from_contribution(contribution):
-    """TODO: implement, docstring, and tests"""
+    """Prepare the body content for a GitHub issue from provided `contribution`.
+
+    :param contribution: contribution instance to extract data from
+    :type contribution: :class:`contributions.models.Contribution`
+    :var issue_body: default issue body template
+    :type issue_body: str
+    :var message: parsed message data from contribution URL
+    :type message: dict
+    :return: str
+    """
     issue_body = "** Please provide the necessary information **"
     if not contribution.url:
         return issue_body
@@ -207,7 +216,14 @@ def _prepare_issue_body_from_contribution(contribution):
 
 
 def _prepare_issue_labels_from_contribution(contribution):
-    """TODO: implement, docstring, and tests"""
+    """Prepare labels for a GitHub issue based on contribution reward type.
+
+    :param contribution: contribution instance to extract data from
+    :type contribution: :class:`contributions.models.Contribution`
+    :var labels: collection of labels to apply to the issue
+    :type labels: list
+    :return: list
+    """
     labels = []
     if "Bug" in contribution.reward.type.name:
         labels.append("bug")
@@ -228,7 +244,12 @@ def _prepare_issue_labels_from_contribution(contribution):
 
 
 def _prepare_issue_priority_from_contribution(contribution):
-    """TODO: implement, docstring, and tests"""
+    """Prepare priority level for a GitHub issue based on contribution reward type.
+
+    :param contribution: contribution instance to extract data from
+    :type contribution: :class:`contributions.models.Contribution`
+    :return: str
+    """
     if "Bug" in contribution.reward.type.name:
         return "high priority"
 
@@ -236,7 +257,14 @@ def _prepare_issue_priority_from_contribution(contribution):
 
 
 def _prepare_issue_title_from_contribution(contribution):
-    """TODO: implement, docstring, and tests"""
+    """Prepare title for a GitHub issue from contribution data.
+
+    :param contribution: contribution instance to extract data from
+    :type contribution: :class:`contributions.models.Contribution`
+    :var issue_title: formatted issue title with reward type and level
+    :type issue_title: str
+    :return: str
+    """
     issue_title = f"[{contribution.reward.type.label}{contribution.reward.level}] "
     if contribution.comment:
         issue_title += contribution.comment
@@ -245,8 +273,12 @@ def _prepare_issue_title_from_contribution(contribution):
 
 
 def issue_data_for_contribution(contribution):
-    """TODO: implement, docstring, and tests"""
+    """Prepare complete issue data dictionary from a contribution.
 
+    :param contribution: contribution instance to extract data from
+    :type contribution: :class:`contributions.models.Contribution`
+    :return: dict
+    """
     return {
         "issue_title": _prepare_issue_title_from_contribution(contribution),
         "issue_body": _prepare_issue_body_from_contribution(contribution),

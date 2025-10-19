@@ -347,6 +347,167 @@ class TestCoreContributorModel:
             contributor.id
         )
 
+    # # info
+    @pytest.mark.django_db
+    def test_core_contributor_model_info_single_handle(self):
+        contributor = Contributor.objects.create(
+            name="test_contributor", address="test_address"
+        )
+        platform = SocialPlatform.objects.create(name="GitHub", prefix="g@")
+
+        # Create a single handle
+        Handle.objects.create(
+            contributor=contributor, platform=platform, handle="githubuser"
+        )
+
+        result = contributor.info()
+
+        assert result == "test_contributor"
+
+    @pytest.mark.django_db
+    def test_core_contributor_model_info_multiple_handles(self):
+        contributor = Contributor.objects.create(
+            name="test_contributor", address="test_address"
+        )
+        github_platform = SocialPlatform.objects.create(name="GitHub", prefix="g@")
+        discord_platform = SocialPlatform.objects.create(name="Discord", prefix="")
+        twitter_platform = SocialPlatform.objects.create(name="Twitter", prefix="@")
+
+        # Create multiple handles
+        Handle.objects.create(
+            contributor=contributor, platform=github_platform, handle="githubuser"
+        )
+        Handle.objects.create(
+            contributor=contributor, platform=discord_platform, handle="discorduser"
+        )
+        Handle.objects.create(
+            contributor=contributor, platform=twitter_platform, handle="twitteruser"
+        )
+
+        result = contributor.info()
+
+        returned = "test_contributor (discorduser, githubuser, twitteruser)"
+        assert result == returned
+
+    @pytest.mark.django_db
+    def test_core_contributor_model_info_no_handles(self):
+        contributor = Contributor.objects.create(
+            name="test_contributor", address="test_address"
+        )
+
+        result = contributor.info()
+
+        # Should return just the name when no handles exist
+        assert result == "test_contributor"
+
+    @pytest.mark.django_db
+    def test_core_contributor_model_info_handles_order(self):
+        contributor = Contributor.objects.create(
+            name="test_contributor", address="test_address"
+        )
+        platform1 = SocialPlatform.objects.create(name="GitHub", prefix="g@")
+        platform2 = SocialPlatform.objects.create(name="Discord", prefix="")
+        platform3 = SocialPlatform.objects.create(name="Twitter", prefix="@")
+
+        # Create handles in specific order
+        Handle.objects.create(
+            contributor=contributor, platform=platform1, handle="z_last"
+        )
+        Handle.objects.create(
+            contributor=contributor, platform=platform2, handle="a_first"
+        )
+        Handle.objects.create(
+            contributor=contributor, platform=platform3, handle="m_middle"
+        )
+
+        result = contributor.info()
+
+        # Handles should appear in the order they were created (database order)
+        # The exact order depends on the database, but we can verify all handles are present
+        assert "test_contributor (" in result
+        assert "z_last" in result
+        assert "a_first" in result
+        assert "m_middle" in result
+        assert result.endswith(")")
+
+    @pytest.mark.django_db
+    def test_core_contributor_model_info_special_characters_in_handles(self):
+        contributor = Contributor.objects.create(
+            name="test_contributor", address="test_address"
+        )
+        platform1 = SocialPlatform.objects.create(name="GitHub", prefix="g@")
+        platform2 = SocialPlatform.objects.create(name="Discord", prefix="")
+
+        # Create handles with special characters
+        Handle.objects.create(
+            contributor=contributor, platform=platform1, handle="user-with-dashes"
+        )
+        Handle.objects.create(
+            contributor=contributor, platform=platform2, handle="user_with_underscores"
+        )
+
+        result = contributor.info()
+
+        returned = "test_contributor (user-with-dashes, user_with_underscores)"
+        assert result == returned
+
+    @pytest.mark.django_db
+    def test_core_contributor_model_info_empty_handle_strings(self):
+        contributor = Contributor.objects.create(
+            name="test_contributor", address="test_address"
+        )
+        platform = SocialPlatform.objects.create(name="GitHub", prefix="g@")
+
+        # Create handle with empty string
+        Handle.objects.create(contributor=contributor, platform=platform, handle="")
+
+        result = contributor.info()
+
+        # Should include empty handles in the list
+        assert result == "test_contributor"
+
+    @pytest.mark.django_db
+    def test_core_contributor_model_info_unicode_handles(self):
+        contributor = Contributor.objects.create(
+            name="test_contributor", address="test_address"
+        )
+        platform = SocialPlatform.objects.create(name="GitHub", prefix="g@")
+
+        # Create handles with unicode characters
+        Handle.objects.create(
+            contributor=contributor, platform=platform, handle="user_🎉"
+        )
+        Handle.objects.create(
+            contributor=contributor, platform=platform, handle="user_😊"
+        )
+
+        result = contributor.info()
+
+        returned = "test_contributor (user_🎉, user_😊)"
+        assert result == returned
+
+    @pytest.mark.django_db
+    def test_core_contributor_model_info_duplicate_handles(self):
+        contributor = Contributor.objects.create(
+            name="test_contributor", address="test_address"
+        )
+        platform1 = SocialPlatform.objects.create(name="GitHub", prefix="g@")
+        platform2 = SocialPlatform.objects.create(name="Discord", prefix="")
+
+        # Create handles with same value but different platforms
+        Handle.objects.create(
+            contributor=contributor, platform=platform1, handle="sameuser"
+        )
+        Handle.objects.create(
+            contributor=contributor, platform=platform2, handle="sameuser"
+        )
+
+        result = contributor.info()
+
+        # Should include duplicate handle values
+        returned = "test_contributor (sameuser, sameuser)"
+        assert result == returned
+
     # # total_rewards
     @pytest.mark.django_db
     def test_core_contributor_model_total_rewards(self):
@@ -761,8 +922,8 @@ class TestCycleModel:
 
         result = cycle.contributor_rewards
 
-        expected = {"test_contributor": (1000000, True)}
-        assert result == expected
+        returned = {"test_contributor": (1000000, True)}
+        assert result == returned
 
     @pytest.mark.django_db
     def test_cycle_contributor_rewards_single_contributor_multiple_contributions(self):
@@ -803,8 +964,8 @@ class TestCycleModel:
         result = cycle.contributor_rewards
 
         # Total should be 1000000 (full first reward) + 1000000 (50% of second reward) = 2000000
-        expected = {"test_contributor": (2000000, True)}
-        assert result == expected
+        returned = {"test_contributor": (2000000, True)}
+        assert result == returned
 
     @pytest.mark.django_db
     def test_cycle_contributor_rewards_multiple_contributors(self):
@@ -838,11 +999,11 @@ class TestCycleModel:
 
         result = cycle.contributor_rewards
 
-        expected = {
+        returned = {
             "contributor1": (1000000, True),  # 100% of 1000000 = 1000000, confirmed
             "contributor2": (750000, False),  # 75% of 1000000 = 750000, not confirmed
         }
-        assert result == expected
+        assert result == returned
 
     @pytest.mark.django_db
     def test_cycle_contributor_rewards_mixed_confirmation_status(self):
@@ -879,8 +1040,8 @@ class TestCycleModel:
 
         # When mixing confirmed and unconfirmed, the result should show as unconfirmed (False)
         # Total amount is still calculated: 1000000 + 500000 = 1500000
-        expected = {"test_contributor": (1500000, False)}
-        assert result == expected
+        returned = {"test_contributor": (1500000, False)}
+        assert result == returned
 
     @pytest.mark.django_db
     def test_cycle_contributor_rewards_different_cycles(self):
@@ -917,13 +1078,13 @@ class TestCycleModel:
 
         # Test cycle1 only contains its own contributions
         result1 = cycle1.contributor_rewards
-        expected1 = {"test_contributor": (1000000, True)}
-        assert result1 == expected1
+        returned1 = {"test_contributor": (1000000, True)}
+        assert result1 == returned1
 
         # Test cycle2 only contains its own contributions
         result2 = cycle2.contributor_rewards
-        expected2 = {"test_contributor": (500000, True)}
-        assert result2 == expected2
+        returned2 = {"test_contributor": (500000, True)}
+        assert result2 == returned2
 
     @pytest.mark.django_db
     def test_cycle_contributor_rewards_order_by_name(self):
@@ -953,11 +1114,11 @@ class TestCycleModel:
         result = cycle.contributor_rewards
 
         # The result should be ordered by contributor name alphabetically
-        expected_keys = ["Alpha", "Mike", "Zebra"]
-        assert list(result.keys()) == expected_keys
+        returned_keys = ["Alpha", "Mike", "Zebra"]
+        assert list(result.keys()) == returned_keys
 
         # Verify all have correct amounts
-        for name in expected_keys:
+        for name in returned_keys:
             assert result[name] == (1000000, True)
 
     @pytest.mark.django_db
@@ -984,8 +1145,8 @@ class TestCycleModel:
 
         result = cycle.contributor_rewards
 
-        expected = {"test_contributor": (0, True)}  # 0% of 1000000 = 0
-        assert result == expected
+        returned = {"test_contributor": (0, True)}  # 0% of 1000000 = 0
+        assert result == returned
 
     @pytest.mark.django_db
     def test_cycle_contributor_rewards_null_percentage(self):
@@ -1012,8 +1173,8 @@ class TestCycleModel:
 
         # The database Sum should handle null percentage as 0 in calculation
         # So amount should be 0
-        expected = {"test_contributor": (0, True)}
-        assert result == expected
+        returned = {"test_contributor": (0, True)}
+        assert result == returned
 
     # # total_rewards
     @pytest.mark.django_db

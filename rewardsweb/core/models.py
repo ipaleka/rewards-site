@@ -157,6 +157,19 @@ class Contributor(models.Model):
         """Returns the URL to access a detail record for this contributor."""
         return reverse("contributor-detail", args=[str(self.id)])
 
+    def info(self):
+        """Return contributor's extended name(s) info.
+
+        :var handles: collection of contributor's handle instances
+        :type handles: :class:`django.db.models.query.QuerySet`
+        :return: str
+        """
+        handles = self.handle_set.select_related("contributor").all()
+        if len(handles) < 2:
+            return self.name
+
+        return self.name + " (" + ", ".join([handle.handle for handle in handles]) + ")"
+
     @cached_property
     def total_rewards(self):
         """Return sum of all reward amounts for this contributor (cached).

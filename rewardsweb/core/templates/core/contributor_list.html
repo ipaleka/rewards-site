@@ -10,7 +10,7 @@
       <div class="space-y-3">
         {% for contributor in contributor_list %}
         <div class="flex items-center">
-          <a class="link link-accent text-lg" href="{{ contributor.get_absolute_url }}">{{ contributor }}</a>
+          <a class="link link-accent text-lg" href="{{ contributor.get_absolute_url }}">{{ contributor.info }}</a>
         </div>
         {% endfor %}
       </div>

@@ -9,6 +9,7 @@ to the rewards backend API with proper session management and error handling.
 
 import aiohttp
 import logging
+from aiohttp import ClientSession
 
 from rewardsbot.config import BASE_URL
 
@@ -90,9 +91,6 @@ class ApiService:
                     )
                     return data
 
-        except aiohttp.ClientError as error:
-            logger.error(f"❌ API Request error for {endpoint}: {error}")
-            raise
         except Exception as error:
             logger.error(f"❌ Unexpected API error for {endpoint}: {error}")
             raise

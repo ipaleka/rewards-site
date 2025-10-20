@@ -220,8 +220,7 @@ def _parse_label_and_name_from_reward_type_legacy(typ):
         if "ecosystem research" in typ:
             return "ER", "Ecosystem Research"
 
-        if "suggestion" in typ:
-            return "S", "Suggestion"
+        return "S", "Suggestion"
 
     return label, name
 
@@ -370,8 +369,6 @@ def import_from_csv(contributions_path, legacy_contributions_path):
     )
     print("Contributors imported: ", len(Contributor.objects.all()))
     for address, handles in addresses:
-        if address == "SIMAHQAOASVV4ORQOOXL3RAQ7KJUGXFDMWMUOAZ5VIAZD2XVMGCZWI45KM":
-            pass
         for full_handle in handles:
             handle = Handle.objects.from_address_and_full_handle(address, full_handle)
             handle.save()

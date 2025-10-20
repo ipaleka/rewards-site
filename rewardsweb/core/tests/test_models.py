@@ -75,6 +75,13 @@ class TestCoreProfileModel:
         profile = Profile(user=user)
         assert str(profile) == profile.name
 
+    # # get_absolute_url
+    @pytest.mark.django_db
+    def test_profile_model_get_absolute_url(self):
+        user = user_model.objects.create(username="usernameurl1")
+        profile = Profile(user=user)
+        assert profile.get_absolute_url() == "/profile/"
+
     # # profile
     @pytest.mark.django_db
     def test_profile_model_profile_returns_self(self):

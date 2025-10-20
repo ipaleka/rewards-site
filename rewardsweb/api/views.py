@@ -157,8 +157,12 @@ class ContributionsView(APIView):
 
         :param request: HTTP request object with optional 'name' query parameter
         :type request: :class:`rest_framework.request.Request`
-        :var name: query parameter to filter by contributor username
-        :type name: str
+        :var username: contributor's username
+        :type username: str
+        :var contributor: contributor's model instance
+        :type contributor: :class:`core.models.Contributor`
+        :var queryset: QuerySet of Contribution objects
+        :type queryset: :class:`django.db.models.QuerySet`
         :return: contributions data response
         :rtype: :class:`rest_framework.response.Response`
         """

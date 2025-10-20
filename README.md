@@ -1,5 +1,7 @@
 # ASA Stats Rewards Site
 
+[![build-status](https://github.com/asastats/rewards-site/actions/workflows/test.yml/badge.svg)](https://github.com/asastats/rewards-site/actions/workflows/test.yml) [![docs](https://app.readthedocs.org/projects/rewards-site/badge/?version=latest)](https://rewards-site.readthedocs.io/en/latest/?badge=latest)
+
 A website dedicated to ASA Stats contributions. Previously written in Laravel, now powered by Django.
 
 ## Usage

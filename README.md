@@ -19,6 +19,8 @@ DATABASE_NAME="rewards_db"
 DATABASE_USER="rewards_user"
 DATABASE_PASSWORD="mypassword"
 PGPASSFILE="/home/{username}/.pgpass"
+INITIAL_SUPERUSERS="username1,username2"
+DEFAULT_USER_PASSWORD="password1,password2"
 ```
 
 ## Goals
@@ -35,9 +37,9 @@ PGPASSFILE="/home/{username}/.pgpass"
 - [x] Create data models and migrations
 - [x] Adjustment of script for contributions spreadsheet parsing
 - [x] Create script for seeding the database with parsed data
-- [ ] Add API authentication
-- [ ] Create API routes
-- [ ] Create methods for managing http requests and bind them to API routes
+- [x] Create API routes
+- [x] Create methods for managing http requests and bind them to API routes
+- [x] Automated documentation building and publishing on Read The Docs platform
 - [ ] Create methods for CRUD operations
 - [ ] Create deploy workflow
 - [ ] Setup a server and deploy the application

@@ -1,4 +1,4 @@
-name: Run Tests
+name: Tests and Coverage
 
 on:
   push:
@@ -62,7 +62,7 @@ jobs:
             sleep 2
           done
 
-      - name: Run Pytest
+      - name: Run tests with coverage
         env:
           DJANGO_SETTINGS_MODULE: rewardsweb.settings.development
           DATABASE_URL: postgresql://postgres:postgres@localhost:5432/rewards_db
@@ -70,3 +70,4 @@ jobs:
         run: |
           cd rewardsweb
           python -m pytest . --ds=rewardsweb.settings.development -v
+

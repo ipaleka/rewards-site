@@ -1,11 +1,6 @@
 # ASA Stats Rewards Site
 
-[![build-status](https://github.com/asastats/rewards-site/actions/workflows/test.yml/badge.svg)](https://github.com/asastats/rewards-site/actions/workflows/test.yml) [![docs](https://app.readthedocs.org/projects/rewards-site/badge/?version=latest)](https://rewards-site.readthedocs.io/en/latest/?badge=latest)
-
-<!-- .. |coverage| image:: https://codecov.io/gh/asastats/rewards-site.org/branch/main/graph/badge.svg
-    :alt: Test coverage
-    :scale: 100%
-    :target: https://codecov.io/gh/asastats/rewards-site.org -->
+[![build-status](https://github.com/asastats/rewards-site/actions/workflows/test.yml/badge.svg)](https://github.com/asastats/rewards-site/actions/workflows/test.yml) [![docs](https://app.readthedocs.org/projects/rewards-site/badge/?version=latest)](https://rewards-site.readthedocs.io/en/latest/?badge=latest) [![codecov](https://codecov.io/gh/asastats/rewards-site/graph/badge.svg?token=DQC4SRY8J9)](https://codecov.io/gh/asastats/rewards-site)  
 
 A website dedicated to ASA Stats contributions. Previously written in Laravel, now powered by Django.
 

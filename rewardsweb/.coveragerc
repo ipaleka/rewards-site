@@ -1,0 +1,25 @@
+[run]
+branch = True
+source =
+    api
+    core
+    rewardsbot
+    rewardsweb
+    utils
+omit =
+    */tests/*
+    */migrations/*
+    */asgi.py
+    */wsgi.py
+    */manage.py
+    */settings/production.py
+
+[report]
+show_missing = True
+skip_covered = False
+fail_under = 92
+exclude_lines =
+    pragma: no cover
+
+[html]
+directory = htmlcov

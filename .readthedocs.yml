@@ -33,7 +33,3 @@ sphinx:
 python:
   install:
     - requirements: rewardsweb/requirements/development.txt
-
-# Set environment variables
-environment:
-  DJANGO_SETTINGS_MODULE: "rewardsweb.settings.development"

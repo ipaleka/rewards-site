@@ -11,7 +11,7 @@ from utils.bot import message_from_url
 logger = logging.getLogger(__name__)
 
 
-# # GITHUB
+# # CRUD
 def _github_client(user):
     """Instantiate and return GitHub client instance on behalf `user`.
 
@@ -180,6 +180,60 @@ def create_github_issue(user, title, body, labels=None):
             "issue_number": issue.number,
             "issue_url": issue.html_url,
             "data": issue.raw_data,
+        }
+
+    except Exception as e:
+        return {"success": False, "error": str(e)}
+
+
+def issue_by_number(user, issue_number):
+    """Retrieve the issue defined by `issue_number` on behalf `user`.
+
+    :param user: Django user instance
+    :type user: class:`django.contrib.auth.models.User`
+    :param issue_number: unique issue's number
+    :type issue_number: int
+    :var client: GitHub client instance
+    :type client: :class:`github.Github`
+    :var repo: GitHub repository instance
+    :type repo: :class:`github.Repository.Repository`
+    :var issue: GitHub issue instance
+    :type issue: :class:`github.Issue.Issue`
+    :return: dict
+    """
+    try:
+        client = _github_client(user)
+        if not client:
+            return {
+                "success": False,
+                "error": "Please provide a GitHub access token in your profile page!",
+            }
+
+        repo = _github_repository(client)
+        issue = repo.get_issue(issue_number)
+
+        # Convert issue to dict with relevant information
+        issue_data = {
+            "number": issue.number,
+            "title": issue.title,
+            "body": issue.body,
+            "state": issue.state,
+            "created_at": issue.created_at,  # Keep as datetime object
+            "updated_at": issue.updated_at,  # Keep as datetime object
+            "closed_at": issue.closed_at,  # Keep as datetime object
+            "labels": [label.name for label in issue.labels],
+            "assignees": [assignee.login for assignee in issue.assignees],
+            "user": issue.user.login if issue.user else None,
+            "html_url": issue.html_url,
+            "comments": issue.comments,
+        }
+
+        client.close()
+
+        return {
+            "success": True,
+            "message": f"Retrieved issue #{issue_number}",
+            "issue": issue_data,
         }
 
     except Exception as e:

@@ -24,9 +24,9 @@ Then build the pdf with:
   make latexpdf
 
 
-Run bot
--------
+Run Dicord bot
+--------------
 
 .. code-block:: bash
 
-  PYTHONPATH=rewardsweb python -m rewardsbot.bo
+  PYTHONPATH=rewardsweb python -m rewardsbot.bot

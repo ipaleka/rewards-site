@@ -52,7 +52,7 @@
         {% elif contribution.issue %}
         <p><strong>Issue:</strong> <a class="link link-accent" href="{{ contribution.issue.get_absolute_url }}">{{ contribution.issue }}</a></p>
         {% endif %}
-        
+        <br>
         <div class="text-sm text-base-content/70 space-y-1">
           <p><strong>Created at:</strong> {{ contribution.created_at }}</p>
           <p><strong>Updated at:</strong> {{ contribution.updated_at }}</p>

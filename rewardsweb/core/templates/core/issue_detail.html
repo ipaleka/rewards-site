@@ -3,11 +3,11 @@
 {% block content %}
 <div class="max-w-4xl mx-auto">
   <h1 class="text-3xl font-bold mb-6">
-    <a class="link link-accent" href="https://github.com/asastats/rewards-site/issues/{{ issue.number }}">
       GitHub Issue #{{ issue.number }}
-    </a>
   </h1>
+  <a href="{{ issue_html_url }}" target="_blank" class="btn btn-outline btn-sm">View on GitHub</a>
 
+  <!-- Local Issue Information -->
   <div class="card bg-base-100 shadow-md">
     <div class="card-body">
       <div class="space-y-3">
@@ -17,8 +17,78 @@
             {{ issue.status }}
           </span>
         </p>
+        <!-- Add any other local issue fields you have -->
+        <p><strong>Created at:</strong> {{ issue.created_at }}</p>
+        <p><strong>Updated at:</strong> {{ issue.updated_at }}</p>
       </div>
     </div>
   </div>
+
+  <!-- GitHub Issue Section - Only shown if github_issue or github_error exists -->
+  {% if github_issue or github_error %}
+  <div class="card bg-base-100 shadow-md mb-6">
+    <div class="card-body">
+      {% if github_error %}
+        <div class="alert alert-error">
+          <svg xmlns="http://www.w3.org/2000/svg" class="stroke-current shrink-0 h-6 w-6" fill="none" viewBox="0 0 24 24">
+            <path stroke-linecap="round" stroke-linejoin="round" stroke-width="2" d="M10 14l2-2m0 0l2-2m-2 2l-2-2m2 2l2 2m7-2a9 9 0 11-18 0 9 9 0 0118 0z" />
+          </svg>
+          <span>Error fetching GitHub issue: {{ github_error }}</span>
+        </div>
+      {% elif github_issue %}
+        <!-- Issue Header -->
+        <div class="flex justify-between items-start mb-4">
+          <div>
+            <h2 class="text-2xl font-bold flex items-center gap-2">
+              {{ issue_title }}
+              <span class="badge badge-{% if issue_state == 'open' %}success{% else %}error{% endif %} badge-sm">
+                {{ issue_state|title }}
+              </span>
+            </h2>
+            <p class="text-sm text-base-content/70 mt-1">
+              #{{ issue.number }} opened on {{ issue_created_at|date:"M j, Y" }}
+              {% if issue_updated_at and issue_updated_at != issue_created_at %}
+                • updated on {{ issue_updated_at|date:"M j, Y" }}
+              {% endif %}
+            </p>
+          </div>
+        </div>
+
+        <!-- Labels -->
+        {% if issue_labels %}
+        <div class="mb-4">
+          <div class="flex flex-wrap gap-1">
+            {% for label in issue_labels %}
+            <span class="badge badge-outline badge-sm">{{ label }}</span>
+            {% endfor %}
+          </div>
+        </div>
+        {% endif %}
+
+        <!-- Assignees -->
+        {% if issue_assignees %}
+        <div class="mb-4">
+          <p class="text-sm font-medium mb-1">Assignees:</p>
+          <div class="flex flex-wrap gap-2">
+            {% for assignee in issue_assignees %}
+            <span class="badge badge-primary badge-sm">{{ assignee }}</span>
+            {% endfor %}
+          </div>
+        </div>
+        {% endif %}
+
+        <!-- Issue Body -->
+        <div class="mt-6 pt-6">
+          <h3 class="text-lg font-semibold mb-3">Description</h3>
+          <div class="prose prose-sm max-w-none bg-base-200 rounded-lg p-4">
+            {{ issue_body|linebreaks|urlize }}
+          </div>
+        </div>
+      {% endif %}
+    </div>
+  </div>
+  {% endif %}
+
+
 </div>
 {% endblock %}

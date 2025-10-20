@@ -2,6 +2,7 @@
 
 import logging
 
+from django.conf import settings
 from django.contrib import messages
 from django.contrib.auth.decorators import login_required, user_passes_test
 from django.contrib.auth.models import User
@@ -23,7 +24,11 @@ from core.forms import (
 from core.models import Contribution, Contributor, Cycle, Issue
 from utils.bot import add_reaction_to_message
 from utils.constants.core import DISCORD_NOTED_EMOJI
-from utils.issues import create_github_issue, issue_data_for_contribution
+from utils.issues import (
+    create_github_issue,
+    issue_by_number,
+    issue_data_for_contribution,
+)
 
 logger = logging.getLogger(__name__)
 
@@ -210,6 +215,41 @@ class IssueDetailView(DetailView):
     """
 
     model = Issue
+
+    def get_context_data(self, **kwargs):
+        """Add GitHub issue data to template context for superusers.
+
+        :param kwargs: Additional keyword arguments
+        :return: dict
+        """
+        context = super().get_context_data(**kwargs)
+
+        issue = self.get_object()
+        context["issue_html_url"] = (
+            f"https://github.com/{settings.GITHUB_REPO_OWNER}/"
+            f"{settings.GITHUB_REPO_NAME}/issues/{issue.number}"
+        )
+
+        # Only fetch GitHub data for superusers
+        if self.request.user.is_superuser:
+
+            # Retrieve GitHub issue data if issue number exists
+            issue_data = issue_by_number(self.request.user, issue.number)
+
+            if issue_data["success"]:
+                context["github_issue"] = issue_data["issue"]
+                context["issue_title"] = issue_data["issue"]["title"]
+                context["issue_body"] = issue_data["issue"]["body"]
+                context["issue_state"] = issue_data["issue"]["state"]
+                context["issue_labels"] = issue_data["issue"]["labels"]
+                context["issue_assignees"] = issue_data["issue"]["assignees"]
+                context["issue_html_url"] = issue_data["issue"]["html_url"]
+                context["issue_created_at"] = issue_data["issue"]["created_at"]
+                context["issue_updated_at"] = issue_data["issue"]["updated_at"]
+            else:
+                context["github_error"] = issue_data["error"]
+
+        return context
 
 
 @method_decorator(user_passes_test(lambda user: user.is_superuser), name="dispatch")

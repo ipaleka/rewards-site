@@ -29,17 +29,6 @@ DATABASES = {
     }
 }
 
-# DATABASES = {
-#     'default': {
-#         'ENGINE': 'django.db.backends.sqlite3',
-#         'NAME': BASE_DIR.parent / "fixtures" / 'db.sqlite3',
-#     }
-# }
-
-STATICFILES_DIRS = [
-    BASE_DIR.parent / "static",
-]
-
 CACHES = {
     "default": {
         "BACKEND": "django.core.cache.backends.dummy.DummyCache",

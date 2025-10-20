@@ -12,12 +12,13 @@ from utils.issues import (
     add_labels_to_issue,
     close_issue_with_labels,
     create_github_issue,
+    issue_by_number,
     issue_data_for_contribution,
 )
 
 
-class TestUtilsIssuesGithubFunctions:
-    """Testing class for :py:mod:`utils.issues` functions."""
+class TestUtilsIssuesCrudFunctions:
+    """Testing class for :py:mod:`utils.issues` CRUD functions."""
 
     # # _github_client
     def test_utils_issues_github_client_for_no_token(self, mocker):
@@ -268,6 +269,149 @@ class TestUtilsIssuesGithubFunctions:
         mocked_client.assert_called_once_with(user)
         mocked_repo.assert_called_once_with(client)
         repo.create_issue.assert_called_once_with(title=title, body=body, labels=labels)
+        client.close.assert_called_once_with()
+
+    # # issue_by_number
+    def test_utils_issues_issue_by_number_for_no_client(self, mocker):
+        user = mocker.MagicMock()
+        mocked_client = mocker.patch("utils.issues._github_client", return_value=False)
+        mocked_repo = mocker.patch("utils.issues._github_repository")
+        returned = issue_by_number(user, mocker.MagicMock())
+        assert returned == {
+            "success": False,
+            "error": "Please provide a GitHub access token in your profile page!",
+        }
+        mocked_client.assert_called_once_with(user)
+        mocked_repo.assert_not_called()
+
+    def test_utils_issues_issue_by_number_for_error_on_issue_fetching(self, mocker):
+        user = mocker.MagicMock()
+        issue_number = 505
+        client, repo = mocker.MagicMock(), mocker.MagicMock()
+        mocked_client = mocker.patch("utils.issues._github_client", return_value=client)
+        mocked_repo = mocker.patch("utils.issues._github_repository", return_value=repo)
+        repo.get_issue.side_effect = Exception("Issue error")
+        returned = issue_by_number(user, issue_number)
+        assert returned == {"success": False, "error": "Issue error"}
+        mocked_client.assert_called_once_with(user)
+        mocked_repo.assert_called_once_with(client)
+        repo.get_issue.assert_called_once_with(issue_number)
+        client.close.assert_not_called()
+
+    def test_utils_issues_issue_by_number_functionality(self, mocker):
+        user = mocker.MagicMock()
+        issue_number = 505
+        client, repo = mocker.MagicMock(), mocker.MagicMock()
+        mocked_client = mocker.patch("utils.issues._github_client", return_value=client)
+        mocked_repo = mocker.patch("utils.issues._github_repository", return_value=repo)
+
+        # Mock issue and its properties
+        issue = mocker.MagicMock()
+        issue.number = issue_number
+        issue.title = "Test Issue Title"
+        issue.body = "Test Issue Body"
+        issue.state = "open"
+        issue.created_at = mocker.MagicMock()
+        issue.updated_at = mocker.MagicMock()
+        issue.closed_at = None
+        issue.html_url = "https://github.com/owner/repo/issues/505"
+        issue.comments = 3
+
+        # Mock labels
+        label1, label2 = mocker.MagicMock(), mocker.MagicMock()
+        label1.name = "bug"
+        label2.name = "enhancement"
+        issue.labels = [label1, label2]
+
+        # Mock assignees
+        assignee1, assignee2 = mocker.MagicMock(), mocker.MagicMock()
+        assignee1.login = "user1"
+        assignee2.login = "user2"
+        issue.assignees = [assignee1, assignee2]
+
+        # Mock user
+        issue_user = mocker.MagicMock()
+        issue_user.login = "issue_creator"
+        issue.user = issue_user
+
+        repo.get_issue.return_value = issue
+
+        returned = issue_by_number(user, issue_number)
+
+        expected_issue_data = {
+            "number": issue_number,
+            "title": "Test Issue Title",
+            "body": "Test Issue Body",
+            "state": "open",
+            "created_at": issue.created_at,
+            "updated_at": issue.updated_at,
+            "closed_at": None,
+            "labels": ["bug", "enhancement"],
+            "assignees": ["user1", "user2"],
+            "user": "issue_creator",
+            "html_url": "https://github.com/owner/repo/issues/505",
+            "comments": 3,
+        }
+
+        assert returned == {
+            "success": True,
+            "message": f"Retrieved issue #{issue_number}",
+            "issue": expected_issue_data,
+        }
+        mocked_client.assert_called_once_with(user)
+        mocked_repo.assert_called_once_with(client)
+        repo.get_issue.assert_called_once_with(issue_number)
+        client.close.assert_called_once_with()
+
+    def test_utils_issues_issue_by_number_with_none_dates(self, mocker):
+        user = mocker.MagicMock()
+        issue_number = 505
+        client, repo = mocker.MagicMock(), mocker.MagicMock()
+        mocked_client = mocker.patch("utils.issues._github_client", return_value=client)
+        mocked_repo = mocker.patch("utils.issues._github_repository", return_value=repo)
+
+        # Mock issue with None dates
+        issue = mocker.MagicMock()
+        issue.number = issue_number
+        issue.title = "Test Issue"
+        issue.body = "Test Body"
+        issue.state = "open"
+        issue.created_at = None
+        issue.updated_at = None
+        issue.closed_at = None
+        issue.html_url = "https://github.com/owner/repo/issues/505"
+        issue.comments = 0
+        issue.labels = []
+        issue.assignees = []
+        issue.user = None
+
+        repo.get_issue.return_value = issue
+
+        returned = issue_by_number(user, issue_number)
+
+        expected_issue_data = {
+            "number": issue_number,
+            "title": "Test Issue",
+            "body": "Test Body",
+            "state": "open",
+            "created_at": None,
+            "updated_at": None,
+            "closed_at": None,
+            "labels": [],
+            "assignees": [],
+            "user": None,
+            "html_url": "https://github.com/owner/repo/issues/505",
+            "comments": 0,
+        }
+
+        assert returned == {
+            "success": True,
+            "message": f"Retrieved issue #{issue_number}",
+            "issue": expected_issue_data,
+        }
+        mocked_client.assert_called_once_with(user)
+        mocked_repo.assert_called_once_with(client)
+        repo.get_issue.assert_called_once_with(issue_number)
         client.close.assert_called_once_with()
 
 

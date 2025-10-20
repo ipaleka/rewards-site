@@ -1,6 +1,7 @@
 """Testing module for :py:mod:`core.views` module."""
 
 import time
+from datetime import datetime, timezone
 
 import pytest
 from allauth.account.forms import LoginForm
@@ -712,7 +713,7 @@ class TestDbCycleDetailView:
 
 
 class TestIssueDetailView:
-    """Testing class for :class:`core.views.IssueDetailView`."""
+    """Test case for IssueDetailView."""
 
     def test_issuedetailview_is_subclass_of_detailview(self):
         assert issubclass(IssueDetailView, DetailView)
@@ -737,6 +738,187 @@ class TestDbIssueDetailView:
         assert obj == issue
         # Use the correct field name from your Issue model
         assert obj.number == issue.number  # Changed from issue_number to number
+
+    def test_issuedetailview_accessible_to_regular_user(
+        self, client, regular_user, issue
+    ):
+        """Test that regular users can access the view."""
+        client.force_login(regular_user)
+        url = reverse("issue-detail", kwargs={"pk": issue.pk})
+        response = client.get(url)
+        assert response.status_code == 200
+
+    def test_issuedetailview_accessible_to_superuser(self, client, superuser, issue):
+        """Test that superusers can access the view."""
+        client.force_login(superuser)
+        url = reverse("issue-detail", kwargs={"pk": issue.pk})
+        response = client.get(url)
+        assert response.status_code == 200
+
+    def test_issuedetailview_github_data_added_for_superuser(
+        self, client, superuser, issue, mocker
+    ):
+        """Test that GitHub data is added to context for superusers."""
+        # Mock the issue_by_number function
+        mock_get_issue = mocker.patch("core.views.issue_by_number")
+
+        # Create datetime objects for testing
+        created_at = datetime(2023, 1, 1, 0, 0, 0)
+        updated_at = datetime(2023, 1, 2, 0, 0, 0)
+
+        mock_github_data = {
+            "success": True,
+            "issue": {
+                "number": 123,
+                "title": "Test Issue",
+                "body": "Test body",
+                "state": "open",
+                "labels": ["bug"],
+                "assignees": ["user1"],
+                "html_url": "https://github.com/owner/repo/issues/123",
+                "created_at": created_at,  # Use datetime object
+                "updated_at": updated_at,  # Use datetime object
+            },
+        }
+        mock_get_issue.return_value = mock_github_data
+
+        client.force_login(superuser)
+        url = reverse("issue-detail", kwargs={"pk": issue.pk})
+        response = client.get(url)
+
+        assert response.status_code == 200
+        assert "github_issue" in response.context
+        assert response.context["issue_title"] == "Test Issue"
+        assert response.context["issue_created_at"] == created_at
+        assert response.context["issue_updated_at"] == updated_at
+        mock_get_issue.assert_called_once_with(superuser, issue.number)
+
+    def test_issuedetailview_no_github_data_for_regular_user(
+        self, client, regular_user, issue, mocker
+    ):
+        """Test that GitHub data is NOT added to context for regular users."""
+        # Mock the issue_by_number function
+        mock_get_issue = mocker.patch("core.views.issue_by_number")
+
+        client.force_login(regular_user)
+        url = reverse("issue-detail", kwargs={"pk": issue.pk})
+        response = client.get(url)
+
+        assert response.status_code == 200
+        # Regular users should not have GitHub context data
+        assert "issue_html_url" in response.context
+        assert "github_issue" not in response.context
+        assert "issue_title" not in response.context
+        # GitHub API should not be called for regular users
+        mock_get_issue.assert_not_called()
+
+    def test_issuedetailview_github_error_for_superuser(
+        self, client, superuser, issue, mocker
+    ):
+        """Test that GitHub errors are handled for superusers."""
+        # Mock the issue_by_number function
+        mock_get_issue = mocker.patch("core.views.issue_by_number")
+        mock_github_data = {"success": False, "error": "Authentication failed"}
+        mock_get_issue.return_value = mock_github_data
+
+        client.force_login(superuser)
+        url = reverse("issue-detail", kwargs={"pk": issue.pk})
+        response = client.get(url)
+
+        assert response.status_code == 200
+        assert response.context["github_error"] == "Authentication failed"
+        assert "github_issue" not in response.context
+
+    def test_issuedetailview_same_template_used_for_all_users(
+        self, client, regular_user, superuser, issue
+    ):
+        """Test that the same template is used for both user types."""
+        client.force_login(regular_user)
+        url = reverse("issue-detail", kwargs={"pk": issue.pk})
+        response_regular = client.get(url)
+
+        client.force_login(superuser)
+        response_super = client.get(url)
+
+        # Both should use the same template
+        regular_templates = [t.name for t in response_regular.templates]
+        super_templates = [t.name for t in response_super.templates]
+
+        assert "core/issue_detail.html" in regular_templates
+        assert "core/issue_detail.html" in super_templates
+
+    def test_issuedetailview_github_api_called_with_correct_arguments(
+        self, client, superuser, issue, mocker
+    ):
+        """Test that GitHub API is called with correct user and issue number."""
+        # Mock the issue_by_number function
+        mock_get_issue = mocker.patch("core.views.issue_by_number")
+        mock_github_data = {
+            "success": True,
+            "issue": {
+                "number": 123,
+                "title": "Test Issue",
+                "body": "Test body",
+                "state": "open",
+                "labels": [],
+                "assignees": [],
+                "html_url": "",
+                "created_at": "",
+                "updated_at": "",
+            },
+        }
+        mock_get_issue.return_value = mock_github_data
+
+        client.force_login(superuser)
+        url = reverse("issue-detail", kwargs={"pk": issue.pk})
+        response = client.get(url)
+
+        assert response.status_code == 200
+        # Verify the function was called with correct arguments
+        mock_get_issue.assert_called_once_with(superuser, issue.number)
+
+    def test_issuedetailview_context_data_includes_all_github_fields(
+        self, client, superuser, issue, mocker
+    ):
+        """Test that all GitHub fields are included in context when successful."""
+        # Mock the issue_by_number function
+        mock_get_issue = mocker.patch("core.views.issue_by_number")
+        mock_github_data = {
+            "success": True,
+            "issue": {
+                "number": 123,
+                "title": "Complete Test Issue",
+                "body": "Complete test body with **markdown**",
+                "state": "closed",
+                "labels": ["bug", "feature", "urgent"],
+                "assignees": ["user1", "user2", "user3"],
+                "html_url": "https://github.com/asastats/rewards-site/issues/123",
+                "created_at": "2023-01-01T10:00:00",
+                "updated_at": "2023-01-15T15:30:00",
+            },
+        }
+        mock_get_issue.return_value = mock_github_data
+
+        client.force_login(superuser)
+        url = reverse("issue-detail", kwargs={"pk": issue.pk})
+        response = client.get(url)
+
+        assert response.status_code == 200
+        context = response.context
+
+        # Check all GitHub-related context variables
+        assert context["github_issue"] == mock_github_data["issue"]
+        assert context["issue_title"] == "Complete Test Issue"
+        assert context["issue_body"] == "Complete test body with **markdown**"
+        assert context["issue_state"] == "closed"
+        assert context["issue_labels"] == ["bug", "feature", "urgent"]
+        assert context["issue_assignees"] == ["user1", "user2", "user3"]
+        assert (
+            context["issue_html_url"]
+            == "https://github.com/asastats/rewards-site/issues/123"
+        )
+        assert context["issue_created_at"] == "2023-01-01T10:00:00"
+        assert context["issue_updated_at"] == "2023-01-15T15:30:00"
 
 
 @pytest.mark.django_db

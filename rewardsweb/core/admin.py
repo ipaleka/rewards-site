@@ -7,15 +7,19 @@ from core.models import (
     Contributor,
     Cycle,
     Handle,
+    Issue,
+    Profile,
     Reward,
     RewardType,
     SocialPlatform,
 )
 
+admin.site.register(Profile)
 admin.site.register(Contributor)
 admin.site.register(SocialPlatform)
 admin.site.register(Handle)
 admin.site.register(Cycle)
 admin.site.register(RewardType)
 admin.site.register(Reward)
+admin.site.register(Issue)
 admin.site.register(Contribution)

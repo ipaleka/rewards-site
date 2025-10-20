@@ -9,6 +9,8 @@ from core.models import (
     Contributor,
     Cycle,
     Handle,
+    Issue,
+    Profile,
     Reward,
     RewardType,
     SocialPlatform,
@@ -23,13 +25,15 @@ class TestCoreAdmin:
         with mock.patch("core.admin.admin.site.register") as mocked_register:
             importlib.reload(admin)
             calls = [
-                mock.call(Contribution),
+                mock.call(Profile),
                 mock.call(Contributor),
-                mock.call(Cycle),
-                mock.call(Handle),
-                mock.call(Reward),
-                mock.call(RewardType),
                 mock.call(SocialPlatform),
+                mock.call(Handle),
+                mock.call(Cycle),
+                mock.call(RewardType),
+                mock.call(Reward),
+                mock.call(Issue),
+                mock.call(Contribution),
             ]
             mocked_register.assert_has_calls(calls, any_order=True)
-            assert mocked_register.call_count == 7
+            assert mocked_register.call_count == 9

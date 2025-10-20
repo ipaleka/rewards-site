@@ -22,7 +22,7 @@ DATABASES = {
         "ENGINE": "django.db.backends.postgresql",
         "OPTIONS": {
             "service": "rewards_service",
-            "passfile": get_env_variable("PGPASSFILE"),
+            "passfile": get_env_variable("PGPASSFILE", "test"),
         },
     }
 }

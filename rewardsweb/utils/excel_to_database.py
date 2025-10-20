@@ -90,8 +90,8 @@ def _create_active_rewards():
 
 def _create_superusers():
     """Create initial superusers from environment variables."""
-    superusers = get_env_variable("INITIAL_SUPERUSERS").split(",")
-    passwords = get_env_variable("DEFAULT_USER_PASSWORD").split(",")
+    superusers = get_env_variable("INITIAL_SUPERUSERS", "").split(",")
+    passwords = get_env_variable("DEFAULT_USER_PASSWORD", "").split(",")
     assert len(superusers) == len(passwords)
     for index, superuser in enumerate(superusers):
         User.objects.create_superuser(superuser, password=passwords[index])

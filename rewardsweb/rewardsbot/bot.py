@@ -475,7 +475,8 @@ async def main():
         logger.info("👋 Bot session ended")
 
 
-if __name__ == "__main__":
+def run_bot():
+    """Main entry point for running the bot."""
     try:
         exit_code = asyncio.run(main())
         sys.exit(exit_code)
@@ -485,3 +486,7 @@ if __name__ == "__main__":
     except Exception as e:
         logger.error(f"❌ Fatal error in main: {e}", exc_info=True)
         sys.exit(1)
+
+
+if __name__ == "__main__":  # pragma: no cover
+    run_bot()

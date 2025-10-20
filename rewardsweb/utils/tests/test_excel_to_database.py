@@ -525,6 +525,617 @@ class TestUtilsExcelToDatabasePublicFunctions:
 
         assert result is False
 
+    @pytest.mark.django_db
+    def test_utils_excel_to_database_import_from_csv_saves_handles(self, mocker):
+        # Mock empty database check - return empty queryset
+        mock_social_platforms = mocker.MagicMock()
+        mock_social_platforms.__len__ = mocker.MagicMock(return_value=0)
+        mocker.patch(
+            "utils.excel_to_database.SocialPlatform.objects.all",
+            return_value=mock_social_platforms,
+        )
+
+        # Mock all dependencies with proper return values
+        mocker.patch(
+            "utils.excel_to_database._social_platforms",
+            return_value=[("Discord", ""), ("GitHub", "g@")],
+        )
+        mocker.patch("utils.excel_to_database.SocialPlatform.objects.bulk_create")
+
+        # Mock addresses parsing
+        mocker.patch(
+            "utils.excel_to_database._parse_addresses",
+            return_value=[
+                ("ADDRESS1", ["handle1", "handle1b"]),
+                ("ADDRESS2", ["handle2"]),
+            ],
+        )
+
+        # Mock Contributor creation
+        mocker.patch("utils.excel_to_database.Contributor.objects.bulk_create")
+
+        # Mock Handle creation completely to avoid database issues
+        handle1, handle2, handle3 = (
+            mocker.MagicMock(),
+            mocker.MagicMock(),
+            mocker.MagicMock(),
+        )
+        mocked_handle = mocker.patch(
+            "utils.excel_to_database.Handle.objects.from_address_and_full_handle",
+            side_effect=[handle1, handle2, handle3],
+        )
+
+        # Mock DataFrame creation with real DataFrames
+        mock_data = pd.DataFrame(
+            {
+                "contributor": ["user1"],
+                "cycle_start": ["2023-01-01"],
+                "cycle_end": ["2023-01-31"],
+                "platform": ["GitHub"],
+                "url": ["https://example.com"],
+                "type": ["[F] Feature"],
+                "level": [1],
+                "percentage": [100.0],
+                "reward": [1000],
+                "comment": ["Test comment"],
+            }
+        )
+        mock_legacy_data = pd.DataFrame(
+            {
+                "contributor": ["user2"],
+                "cycle_start": ["2022-12-01"],
+                "cycle_end": ["2022-12-31"],
+                "platform": ["Discord"],
+                "url": [None],
+                "type": ["[B] Bug"],
+                "level": [2],
+                "percentage": [50.0],
+                "reward": [500],
+                "comment": [None],
+            }
+        )
+        mocker.patch(
+            "utils.excel_to_database._dataframe_from_csv",
+            side_effect=[mock_data, mock_legacy_data],
+        )
+
+        mocker.patch("utils.excel_to_database.Cycle.objects.bulk_create")
+
+        mock_latest_cycle = mocker.MagicMock()
+        mock_latest_cycle.end = datetime.now().date() + timedelta(days=1)
+        mocker.patch(
+            "utils.excel_to_database.Cycle.objects.latest",
+            return_value=mock_latest_cycle,
+        )
+
+        mocker.patch("utils.excel_to_database._check_current_cycle")
+        mocker.patch("utils.excel_to_database._import_rewards")
+        mocker.patch("utils.excel_to_database._create_active_rewards")
+        mocker.patch("utils.excel_to_database._import_contributions")
+        mocker.patch("utils.excel_to_database._create_superusers")
+
+        result = import_from_csv("contributions.csv", "legacy.csv")
+
+        calls = [
+            mocker.call("ADDRESS1", "handle1"),
+            mocker.call("ADDRESS1", "handle1b"),
+            mocker.call("ADDRESS2", "handle2"),
+        ]
+        mocked_handle.assert_has_calls(calls, any_order=True)
+        assert mocked_handle.call_count == 3
+        handle1.save.assert_called_once_with()
+        handle2.save.assert_called_once_with()
+        handle3.save.assert_called_once_with()
+
+        assert result is False
+
+
+# utils/tests/test_excel_to_database.py
+
+
+class TestUtilsExcelToDatabasePublicFunctions:
+    """Testing class for :py:mod:`utils.excel_to_database` main functions."""
+
+    @pytest.mark.django_db
+    def test_utils_excel_to_database_import_from_csv_database_not_empty(self, mocker):
+        # Mock non-empty database check - return non-empty queryset
+        mock_social_platforms = mocker.MagicMock()
+        mock_social_platforms.__len__ = mocker.MagicMock(return_value=5)  # Non-empty
+        mocker.patch(
+            "utils.excel_to_database.SocialPlatform.objects.all",
+            return_value=mock_social_platforms,
+        )
+
+        result = import_from_csv("contributions.csv", "legacy.csv")
+
+        assert result == "ERROR: Database is not empty!"
+
+    @pytest.mark.django_db
+    def test_utils_excel_to_database_import_from_csv_creates_social_platforms(
+        self, mocker
+    ):
+        # Mock empty database check
+        mock_social_platforms = mocker.MagicMock()
+        mock_social_platforms.__len__ = mocker.MagicMock(return_value=0)
+        mocker.patch(
+            "utils.excel_to_database.SocialPlatform.objects.all",
+            return_value=mock_social_platforms,
+        )
+
+        # Mock social platforms data
+        mock_platforms_data = [("Discord", ""), ("GitHub", "g@"), ("Twitter", "t@")]
+        mocker.patch(
+            "utils.excel_to_database._social_platforms",
+            return_value=mock_platforms_data,
+        )
+
+        # Mock bulk_create to capture what's being created
+        mock_bulk_create = mocker.patch(
+            "utils.excel_to_database.SocialPlatform.objects.bulk_create"
+        )
+
+        # Create proper mock DataFrames with all required columns
+        mock_data = pd.DataFrame(
+            {
+                "cycle_start": ["2023-01-01"],
+                "cycle_end": ["2023-01-31"],
+                "type": ["[F] Feature"],
+                "level": [1],
+                "reward": [1000],
+            }
+        )
+        mock_legacy_data = pd.DataFrame(
+            {
+                "cycle_start": ["2022-12-01"],
+                "cycle_end": ["2022-12-31"],
+                "type": ["[B] Bug"],
+                "level": [2],
+                "reward": [500],
+            }
+        )
+
+        # Mock other dependencies minimally
+        mocker.patch("utils.excel_to_database._parse_addresses", return_value=[])
+        mocker.patch("utils.excel_to_database.Contributor.objects.bulk_create")
+        mocker.patch(
+            "utils.excel_to_database.Handle.objects.from_address_and_full_handle"
+        )
+        mocker.patch(
+            "utils.excel_to_database._dataframe_from_csv",
+            side_effect=[mock_data, mock_legacy_data],
+        )
+        mocker.patch("utils.excel_to_database.Cycle.objects.bulk_create")
+        mocker.patch("utils.excel_to_database.Cycle.objects.latest")
+        mocker.patch("utils.excel_to_database._check_current_cycle")
+        mocker.patch("utils.excel_to_database._import_rewards")
+        mocker.patch("utils.excel_to_database._create_active_rewards")
+        mocker.patch("utils.excel_to_database._import_contributions")
+        mocker.patch("utils.excel_to_database._create_superusers")
+
+        result = import_from_csv("contributions.csv", "legacy.csv")
+
+        # Verify SocialPlatform.objects.bulk_create was called with the correct generator
+        mock_bulk_create.assert_called_once()
+        call_args = mock_bulk_create.call_args[0][
+            0
+        ]  # Get the generator passed to bulk_create
+        created_platforms = list(call_args)  # Convert generator to list to inspect
+
+        assert len(created_platforms) == len(mock_platforms_data)
+        for i, (name, prefix) in enumerate(mock_platforms_data):
+            assert created_platforms[i].name == name
+            assert created_platforms[i].prefix == prefix
+
+        assert result is False
+
+    @pytest.mark.django_db
+    def test_utils_excel_to_database_import_from_csv_creates_contributors(self, mocker):
+        # Mock empty database check
+        mock_social_platforms = mocker.MagicMock()
+        mock_social_platforms.__len__ = mocker.MagicMock(return_value=0)
+        mocker.patch(
+            "utils.excel_to_database.SocialPlatform.objects.all",
+            return_value=mock_social_platforms,
+        )
+
+        # Mock platforms
+        mocker.patch(
+            "utils.excel_to_database._social_platforms",
+            return_value=[("Discord", ""), ("GitHub", "g@")],
+        )
+        mocker.patch("utils.excel_to_database.SocialPlatform.objects.bulk_create")
+
+        # Mock addresses parsing with multiple contributors
+        mock_addresses = [
+            ("0x1234567890abcdef", ["alice", "alice_gh"]),
+            ("0xfedcba0987654321", ["bob"]),
+            ("0xabcdef1234567890", ["charlie", "charlie_discord", "charlie_twitter"]),
+        ]
+        mocker.patch(
+            "utils.excel_to_database._parse_addresses",
+            return_value=mock_addresses,
+        )
+
+        # Mock Contributor bulk_create to capture what's being created
+        mock_contributor_bulk_create = mocker.patch(
+            "utils.excel_to_database.Contributor.objects.bulk_create"
+        )
+
+        # Mock Handle creation
+        mocker.patch(
+            "utils.excel_to_database.Handle.objects.from_address_and_full_handle"
+        )
+
+        # Create proper mock DataFrames with all required columns
+        mock_data = pd.DataFrame(
+            {
+                "cycle_start": ["2023-01-01"],
+                "cycle_end": ["2023-01-31"],
+                "type": ["[F] Feature"],
+                "level": [1],
+                "reward": [1000],
+            }
+        )
+        mock_legacy_data = pd.DataFrame(
+            {
+                "cycle_start": ["2022-12-01"],
+                "cycle_end": ["2022-12-31"],
+                "type": ["[B] Bug"],
+                "level": [2],
+                "reward": [500],
+            }
+        )
+        mocker.patch(
+            "utils.excel_to_database._dataframe_from_csv",
+            side_effect=[mock_data, mock_legacy_data],
+        )
+
+        mocker.patch("utils.excel_to_database.Cycle.objects.bulk_create")
+        mocker.patch("utils.excel_to_database.Cycle.objects.latest")
+        mocker.patch("utils.excel_to_database._check_current_cycle")
+        mocker.patch("utils.excel_to_database._import_rewards")
+        mocker.patch("utils.excel_to_database._create_active_rewards")
+        mocker.patch("utils.excel_to_database._import_contributions")
+        mocker.patch("utils.excel_to_database._create_superusers")
+
+        result = import_from_csv("contributions.csv", "legacy.csv")
+
+        # Verify Contributor.objects.bulk_create was called with the correct generator
+        mock_contributor_bulk_create.assert_called_once()
+        call_args = mock_contributor_bulk_create.call_args[0][0]
+        created_contributors = list(call_args)
+
+        assert len(created_contributors) == len(mock_addresses)
+        for i, (address, handles) in enumerate(mock_addresses):
+            assert created_contributors[i].address == address
+            assert (
+                created_contributors[i].name == handles[0]
+            )  # First handle is used as name
+
+        assert result is False
+
+    @pytest.mark.django_db
+    def test_utils_excel_to_database_import_from_csv_creates_cycles(self, mocker):
+        # Mock empty database check
+        mock_social_platforms = mocker.MagicMock()
+        mock_social_platforms.__len__ = mocker.MagicMock(return_value=0)
+        mocker.patch(
+            "utils.excel_to_database.SocialPlatform.objects.all",
+            return_value=mock_social_platforms,
+        )
+
+        # Mock basic dependencies
+        mocker.patch("utils.excel_to_database._social_platforms")
+        mocker.patch("utils.excel_to_database.SocialPlatform.objects.bulk_create")
+        mocker.patch("utils.excel_to_database._parse_addresses", return_value=[])
+        mocker.patch("utils.excel_to_database.Contributor.objects.bulk_create")
+        mocker.patch(
+            "utils.excel_to_database.Handle.objects.from_address_and_full_handle"
+        )
+
+        # Mock DataFrame creation with cycle data - include all required columns
+        mock_data = pd.DataFrame(
+            {
+                "cycle_start": ["2023-01-01", "2023-02-01"],
+                "cycle_end": ["2023-01-31", "2023-02-28"],
+                "type": ["[F] Feature", "[B] Bug"],
+                "level": [1, 2],
+                "reward": [1000, 500],
+            }
+        )
+        mock_legacy_data = pd.DataFrame(
+            {
+                "cycle_start": ["2022-12-01"],
+                "cycle_end": ["2022-12-31"],
+                "type": ["[F] Feature"],
+                "level": [1],
+                "reward": [800],
+            }
+        )
+        mocker.patch(
+            "utils.excel_to_database._dataframe_from_csv",
+            side_effect=[mock_data, mock_legacy_data],
+        )
+
+        # Mock Cycle bulk_create to capture what's being created
+        mock_cycle_bulk_create = mocker.patch(
+            "utils.excel_to_database.Cycle.objects.bulk_create"
+        )
+
+        # Mock latest cycle check
+        mock_latest_cycle = mocker.MagicMock()
+        mock_latest_cycle.end = datetime.now().date() + timedelta(days=1)
+        mocker.patch(
+            "utils.excel_to_database.Cycle.objects.latest",
+            return_value=mock_latest_cycle,
+        )
+        mock_check_current_cycle = mocker.patch(
+            "utils.excel_to_database._check_current_cycle"
+        )
+
+        # Mock remaining dependencies
+        mocker.patch("utils.excel_to_database._import_rewards")
+        mocker.patch("utils.excel_to_database._create_active_rewards")
+        mocker.patch("utils.excel_to_database._import_contributions")
+        mocker.patch("utils.excel_to_database._create_superusers")
+
+        result = import_from_csv("contributions.csv", "legacy.csv")
+
+        # Verify Cycle.objects.bulk_create was called with the correct cycles
+        mock_cycle_bulk_create.assert_called_once()
+        call_args = mock_cycle_bulk_create.call_args[0][0]
+        created_cycles = list(call_args)
+
+        # Should have 3 unique cycles (2 from mock_data, 1 from mock_legacy_data)
+        expected_cycles = [
+            ("2022-12-01", "2022-12-31"),
+            ("2023-01-01", "2023-01-31"),
+            ("2023-02-01", "2023-02-28"),
+        ]
+
+        assert len(created_cycles) == len(expected_cycles)
+        for i, (start, end) in enumerate(expected_cycles):
+            assert str(created_cycles[i].start) == start
+            assert str(created_cycles[i].end) == end
+
+        # Verify _check_current_cycle was called with the latest cycle
+        mock_check_current_cycle.assert_called_once_with(mock_latest_cycle)
+
+        assert result is False
+
+    @pytest.mark.django_db
+    def test_utils_excel_to_database_import_from_csv_calls_reward_functions(
+        self, mocker
+    ):
+        # Mock empty database check
+        mock_social_platforms = mocker.MagicMock()
+        mock_social_platforms.__len__ = mocker.MagicMock(return_value=0)
+        mocker.patch(
+            "utils.excel_to_database.SocialPlatform.objects.all",
+            return_value=mock_social_platforms,
+        )
+
+        # Mock basic dependencies
+        mocker.patch("utils.excel_to_database._social_platforms")
+        mocker.patch("utils.excel_to_database.SocialPlatform.objects.bulk_create")
+        mocker.patch("utils.excel_to_database._parse_addresses", return_value=[])
+        mocker.patch("utils.excel_to_database.Contributor.objects.bulk_create")
+        mocker.patch(
+            "utils.excel_to_database.Handle.objects.from_address_and_full_handle"
+        )
+
+        # Mock DataFrame creation with all required columns
+        mock_data = pd.DataFrame(
+            {
+                "type": ["[F] Feature"],
+                "level": [1],
+                "reward": [1000],
+                "cycle_start": ["2023-01-01"],
+                "cycle_end": ["2023-01-31"],
+            }
+        )
+        mock_legacy_data = pd.DataFrame(
+            {
+                "type": ["[B] Bug"],
+                "level": [2],
+                "reward": [500],
+                "cycle_start": ["2022-12-01"],
+                "cycle_end": ["2022-12-31"],
+            }
+        )
+        mocker.patch(
+            "utils.excel_to_database._dataframe_from_csv",
+            side_effect=[mock_data, mock_legacy_data],
+        )
+
+        mocker.patch("utils.excel_to_database.Cycle.objects.bulk_create")
+        mocker.patch("utils.excel_to_database.Cycle.objects.latest")
+        mocker.patch("utils.excel_to_database._check_current_cycle")
+
+        # Mock reward functions to verify they're called correctly
+        mock_import_rewards = mocker.patch("utils.excel_to_database._import_rewards")
+        mock_create_active_rewards = mocker.patch(
+            "utils.excel_to_database._create_active_rewards"
+        )
+        mocker.patch("utils.excel_to_database._import_contributions")
+        mocker.patch("utils.excel_to_database._create_superusers")
+
+        result = import_from_csv("contributions.csv", "legacy.csv")
+
+        # Verify _import_rewards was called twice with correct parameters
+        assert mock_import_rewards.call_count == 2
+
+        # First call for current data
+        first_call_args = mock_import_rewards.call_args_list[0]
+        pd.testing.assert_frame_equal(
+            first_call_args[0][0], mock_data[["type", "level", "reward"]]
+        )
+        assert first_call_args[0][1] == _parse_label_and_name_from_reward_type
+        assert first_call_args[0][2] == _reward_amount
+
+        # Second call for legacy data
+        second_call_args = mock_import_rewards.call_args_list[1]
+        pd.testing.assert_frame_equal(
+            second_call_args[0][0], mock_legacy_data[["type", "level", "reward"]]
+        )
+        assert second_call_args[0][1] == _parse_label_and_name_from_reward_type_legacy
+        assert second_call_args[0][2] == _reward_amount_legacy
+
+        # Verify _create_active_rewards was called
+        mock_create_active_rewards.assert_called_once_with()
+
+        assert result is False
+
+    @pytest.mark.django_db
+    def test_utils_excel_to_database_import_from_csv_calls_contribution_functions(
+        self, mocker
+    ):
+        # Mock empty database check
+        mock_social_platforms = mocker.MagicMock()
+        mock_social_platforms.__len__ = mocker.MagicMock(return_value=0)
+        mocker.patch(
+            "utils.excel_to_database.SocialPlatform.objects.all",
+            return_value=mock_social_platforms,
+        )
+
+        # Mock basic dependencies
+        mocker.patch("utils.excel_to_database._social_platforms")
+        mocker.patch("utils.excel_to_database.SocialPlatform.objects.bulk_create")
+        mocker.patch("utils.excel_to_database._parse_addresses", return_value=[])
+        mocker.patch("utils.excel_to_database.Contributor.objects.bulk_create")
+        mocker.patch(
+            "utils.excel_to_database.Handle.objects.from_address_and_full_handle"
+        )
+
+        # Mock DataFrame creation with all required columns
+        mock_data = pd.DataFrame(
+            {
+                "contributor": ["user1"],
+                "cycle_start": ["2023-01-01"],
+                "cycle_end": ["2023-01-31"],
+                "platform": ["GitHub"],
+                "url": ["https://example.com"],
+                "type": ["[F] Feature"],
+                "level": [1],
+                "percentage": [100.0],
+                "reward": [1000],
+                "comment": ["Test comment"],
+            }
+        )
+        mock_legacy_data = pd.DataFrame(
+            {
+                "contributor": ["user2"],
+                "cycle_start": ["2022-12-01"],
+                "cycle_end": ["2022-12-31"],
+                "platform": ["Discord"],
+                "url": [None],
+                "type": ["[B] Bug"],
+                "level": [2],
+                "percentage": [50.0],
+                "reward": [500],
+                "comment": [None],
+            }
+        )
+        mocker.patch(
+            "utils.excel_to_database._dataframe_from_csv",
+            side_effect=[mock_data, mock_legacy_data],
+        )
+
+        mocker.patch("utils.excel_to_database.Cycle.objects.bulk_create")
+        mocker.patch("utils.excel_to_database.Cycle.objects.latest")
+        mocker.patch("utils.excel_to_database._check_current_cycle")
+        mocker.patch("utils.excel_to_database._import_rewards")
+        mocker.patch("utils.excel_to_database._create_active_rewards")
+
+        # Mock contribution functions to verify they're called correctly
+        mock_import_contributions = mocker.patch(
+            "utils.excel_to_database._import_contributions"
+        )
+        mocker.patch("utils.excel_to_database._create_superusers")
+
+        result = import_from_csv("contributions.csv", "legacy.csv")
+
+        # Verify _import_contributions was called twice with correct parameters
+        assert mock_import_contributions.call_count == 2
+
+        # First call for legacy data (called first in the function)
+        first_call_args = mock_import_contributions.call_args_list[0]
+        pd.testing.assert_frame_equal(first_call_args[0][0], mock_legacy_data)
+        assert first_call_args[0][1] == _parse_label_and_name_from_reward_type_legacy
+        assert first_call_args[0][2] == _reward_amount_legacy
+
+        # Second call for current data
+        second_call_args = mock_import_contributions.call_args_list[1]
+        pd.testing.assert_frame_equal(second_call_args[0][0], mock_data)
+        assert second_call_args[0][1] == _parse_label_and_name_from_reward_type
+        assert second_call_args[0][2] == _reward_amount
+
+        assert result is False
+
+    @pytest.mark.django_db
+    def test_utils_excel_to_database_import_from_csv_calls_create_superusers(
+        self, mocker
+    ):
+        # Mock empty database check
+        mock_social_platforms = mocker.MagicMock()
+        mock_social_platforms.__len__ = mocker.MagicMock(return_value=0)
+        mocker.patch(
+            "utils.excel_to_database.SocialPlatform.objects.all",
+            return_value=mock_social_platforms,
+        )
+
+        # Mock all dependencies minimally
+        mocker.patch("utils.excel_to_database._social_platforms")
+        mocker.patch("utils.excel_to_database.SocialPlatform.objects.bulk_create")
+        mocker.patch("utils.excel_to_database._parse_addresses", return_value=[])
+        mocker.patch("utils.excel_to_database.Contributor.objects.bulk_create")
+        mocker.patch(
+            "utils.excel_to_database.Handle.objects.from_address_and_full_handle"
+        )
+
+        # Create proper mock DataFrames with all required columns
+        mock_data = pd.DataFrame(
+            {
+                "cycle_start": ["2023-01-01"],
+                "cycle_end": ["2023-01-31"],
+                "type": ["[F] Feature"],
+                "level": [1],
+                "reward": [1000],
+            }
+        )
+        mock_legacy_data = pd.DataFrame(
+            {
+                "cycle_start": ["2022-12-01"],
+                "cycle_end": ["2022-12-31"],
+                "type": ["[B] Bug"],
+                "level": [2],
+                "reward": [500],
+            }
+        )
+        mocker.patch(
+            "utils.excel_to_database._dataframe_from_csv",
+            side_effect=[mock_data, mock_legacy_data],
+        )
+
+        mocker.patch("utils.excel_to_database.Cycle.objects.bulk_create")
+        mocker.patch("utils.excel_to_database.Cycle.objects.latest")
+        mocker.patch("utils.excel_to_database._check_current_cycle")
+        mocker.patch("utils.excel_to_database._import_rewards")
+        mocker.patch("utils.excel_to_database._create_active_rewards")
+        mocker.patch("utils.excel_to_database._import_contributions")
+
+        # Mock _create_superusers to verify it's called
+        mock_create_superusers = mocker.patch(
+            "utils.excel_to_database._create_superusers"
+        )
+
+        result = import_from_csv("contributions.csv", "legacy.csv")
+
+        # Verify _create_superusers was called
+        mock_create_superusers.assert_called_once_with()
+
+        assert result is False
+
     # # convert_and_clean_excel
     def test_utils_excel_to_database_convert_and_clean_excel(self, mocker):
         # Mock the entire pandas read operation chain

@@ -33,7 +33,7 @@ def _parse_discord_url(url):
         return False, False
 
     guild_id, channel_id, message_id = match.groups()
-    if guild_id not in get_env_variable("DISCORD_GUILD_IDS").split(","):
+    if guild_id not in get_env_variable("DISCORD_GUILD_IDS", "").split(","):
         return False, False
 
     return channel_id, message_id
@@ -62,7 +62,7 @@ def add_reaction_to_message(url, emoji):
     if not channel_id:
         return False
 
-    bot_token = get_env_variable("DISCORD_BOT_TOKEN")
+    bot_token = get_env_variable("DISCORD_BOT_TOKEN", "")
     headers = {"Authorization": f"Bot {bot_token}"}
     url = (
         f"https://discord.com/api/v10/channels/{channel_id}/"
@@ -103,7 +103,7 @@ def message_from_url(url):
     if not channel_id:
         return {"success": False, "error": "Invalid URL"}
 
-    bot_token = get_env_variable("DISCORD_BOT_TOKEN")
+    bot_token = get_env_variable("DISCORD_BOT_TOKEN", "")
     headers = {"Authorization": f"Bot {bot_token}"}
     api_url = f"https://discord.com/api/v10/channels/{channel_id}/messages/{message_id}"
 

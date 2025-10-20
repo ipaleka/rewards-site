@@ -21,9 +21,9 @@ MIDDLEWARE.insert(2, "debug_toolbar.middleware.DebugToolbarMiddleware")
 DATABASES = {
     "default": {
         "ENGINE": "django.db.backends.postgresql",
-        "NAME": get_env_variable("DATABASE_NAME"),
-        "USER": get_env_variable("DATABASE_USER"),
-        "PASSWORD": get_env_variable("DATABASE_PASSWORD"),
+        "NAME": get_env_variable("DATABASE_NAME", "test"),
+        "USER": get_env_variable("DATABASE_USER", "test"),
+        "PASSWORD": get_env_variable("DATABASE_PASSWORD", "test"),
         "HOST": get_env_variable("DATABASE_HOST", default="127.0.0.1"),
         "PORT": get_env_variable("DATABASE_PORT", default="5432"),
     }

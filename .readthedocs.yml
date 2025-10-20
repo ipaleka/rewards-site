@@ -9,6 +9,9 @@ build:
   os: ubuntu-24.04
   tools:
     python: "3.12"
+  commands:
+   - cp rewardsweb/.env.example rewardsweb/.env
+   - cp rewardsweb/rewardsbot/.env.example rewardsweb/rewardsbot/.env
     # You can also specify other tool versions:
     # nodejs: "20"
     # rust: "1.70"

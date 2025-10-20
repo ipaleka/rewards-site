@@ -1,4 +1,4 @@
-name: Run Tests
+name: Tests and Coverage
 
 on:
   push:
@@ -62,11 +62,16 @@ jobs:
             sleep 2
           done
 
-      - name: Run Pytest
+      - name: Run tests with coverage
         env:
           DJANGO_SETTINGS_MODULE: rewardsweb.settings.development
           DATABASE_URL: postgresql://postgres:postgres@localhost:5432/rewards_db
           PYTHONPATH: ${{ github.workspace }}
         run: |
           cd rewardsweb
-          python -m pytest . --ds=rewardsweb.settings.development -v
+          python -m pytest . --ds=rewardsweb.settings.development -v --cov --cov-branch --cov-report=xml
+
+      - name: Upload coverage reports to Codecov
+        uses: codecov/codecov-action@v5
+        with:
+          token: ${{ secrets.CODECOV_TOKEN }}

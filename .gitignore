@@ -7,6 +7,8 @@ __pycache__
 docs/_build
 db.sqlite3
 *.log
+.coverage
+coverage.xml
 rewardsweb/.env
 rewardsweb/*.log
 rewardsweb/fixtures/*.csv

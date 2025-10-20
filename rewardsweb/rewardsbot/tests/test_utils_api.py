@@ -4,12 +4,12 @@ This module contains tests for the ApiService class and its
 HTTP request functionality.
 """
 
-import pytest
 from unittest import mock
-import aiohttp
 
-from rewardsbot.utils.api import ApiService
-from rewardsbot.config import BASE_URL
+import aiohttp
+import pytest
+
+from rewardsbot.utils.api import BASE_URL, ApiService
 
 
 class TestUtilsApi:
@@ -77,6 +77,118 @@ class TestUtilsApi:
 
         with pytest.raises(AttributeError):
             await api_service.make_request("test/endpoint")
+
+    @pytest.mark.asyncio
+    async def test_utils_api_make_request_error_handling(self, mocker):
+        """Test make_request error handling through endpoint methods."""
+        api_service = ApiService()
+        api_service.make_request = mocker.AsyncMock()
+
+        # Test that errors from make_request are propagated
+        test_error = aiohttp.ClientConnectionError("Connection failed")
+        api_service.make_request.side_effect = test_error
+
+        with mock.patch("rewardsbot.utils.api.logger") as mock_logger:
+            with pytest.raises(aiohttp.ClientConnectionError):
+                await api_service.fetch_current_cycle()
+
+            api_service.make_request.assert_called_once_with("cycles/current")
+            mock_logger.info.assert_called_once_with("🔗 fetch_current_cycle called")
+
+    @pytest.mark.asyncio
+    async def test_utils_api_make_request_for_get(self, mocker):
+        mock_aiohttp = mocker.patch("rewardsbot.utils.api.aiohttp")
+        mock_session = mock.Mock()
+        mock_session_get_cm = mock.AsyncMock()
+        mock_aiohttp.ClientSession.return_value = mock_session
+        mock_session.get.return_value = mock_session_get_cm
+        data = "this is the data"
+        mocked_response = mock_session_get_cm.__aenter__.return_value
+        status = "status1"
+        mocked_response.status = status
+        mocked_response.json.return_value = data
+        api_service = ApiService()
+        await api_service.initialize()
+        mocked_logger = mocker.patch("rewardsbot.utils.api.logger")
+        cycle_number = 505
+        endpoint = f"cycles/{cycle_number}"
+        params = {"param": 1}
+        url = f"{BASE_URL}/{endpoint}"
+        returned = await api_service.make_request(endpoint, params=params)
+        assert returned == data
+        calls = [
+            mocker.call(f"🌐 API Request: GET {url} with params: {params}"),
+            mocker.call(f"📡 API Response Status: {status} for {url}"),
+            mocker.call(
+                f"✅ API Response received for {endpoint}: {len(str(data))} bytes"
+            ),
+        ]
+        mocked_logger.info.assert_has_calls(calls, any_order=True)
+        assert mocked_logger.info.call_count == 3
+        mocked_response.raise_for_status.assert_called_once_with()
+        mocked_response.json.assert_called_once_with()
+
+    @pytest.mark.asyncio
+    async def test_utils_api_make_request_for_post(self, mocker):
+        mock_aiohttp = mocker.patch("rewardsbot.utils.api.aiohttp")
+        mock_session = mock.Mock()
+        mock_session_get_cm = mock.AsyncMock()
+        mock_aiohttp.ClientSession.return_value = mock_session
+        mock_session.post.return_value = mock_session_get_cm
+        data = "this is the data"
+        mocked_response = mock_session_get_cm.__aenter__.return_value
+        status = "status1"
+        mocked_response.status = status
+        mocked_response.json.return_value = data
+        api_service = ApiService()
+        await api_service.initialize()
+        mocked_logger = mocker.patch("rewardsbot.utils.api.logger")
+        cycle_number = 505
+        endpoint = f"cycles/{cycle_number}"
+        params = {"param": 1}
+        url = f"{BASE_URL}/{endpoint}"
+        returned = await api_service.make_request(
+            endpoint, params=params, method="POST"
+        )
+        assert returned == data
+        calls = [
+            mocker.call(f"🌐 API Request: POST {url} with params: {params}"),
+            mocker.call(f"📡 API Response Status: {status} for {url}"),
+            mocker.call(
+                f"✅ API Response received for {endpoint}: {len(str(data))} bytes"
+            ),
+        ]
+        mocked_logger.info.assert_has_calls(calls, any_order=True)
+        assert mocked_logger.info.call_count == 3
+        mocked_response.raise_for_status.assert_called_once_with()
+        mocked_response.json.assert_called_once_with()
+
+    @pytest.mark.asyncio
+    async def test_utils_api_make_request_for_clienterror(self, mocker):
+        mock_aiohttp = mocker.patch("rewardsbot.utils.api.aiohttp")
+        mock_session = mock.Mock()
+        mock_session_get_cm = mock.AsyncMock()
+        mock_aiohttp.ClientSession.return_value = mock_session
+        mock_session.post.side_effect = aiohttp.ClientError("error 1")
+        mocked_response = mock_session_get_cm.__aenter__.return_value
+        status = "status1"
+        mocked_response.status = status
+        mocked_response.json.side_effect = aiohttp.ClientError("error 1")
+        api_service = ApiService()
+        await api_service.initialize()
+        mocked_logger = mocker.patch("rewardsbot.utils.api.logger")
+        cycle_number = 505
+        endpoint = f"cycles/{cycle_number}"
+        params = {"param": 1}
+        url = f"{BASE_URL}/{endpoint}"
+        with pytest.raises(Exception):
+            await api_service.make_request(endpoint, params=params, method="POST")
+        mocked_logger.info.assert_called_once_with(
+            f"🌐 API Request: POST {url} with params: {params}"
+        )
+        mocked_logger.error.assert_called_once_with(
+            f"❌ Unexpected API error for {endpoint}: error 1"
+        )
 
     # # ApiService specific endpoint methods - test these instead of make_request directly
     @pytest.mark.asyncio
@@ -327,23 +439,6 @@ class TestUtilsApi:
 
             # Reset mock for next iteration
             api_service.make_request.reset_mock()
-
-    @pytest.mark.asyncio
-    async def test_utils_api_make_request_error_handling(self, mocker):
-        """Test make_request error handling through endpoint methods."""
-        api_service = ApiService()
-        api_service.make_request = mocker.AsyncMock()
-
-        # Test that errors from make_request are propagated
-        test_error = aiohttp.ClientConnectionError("Connection failed")
-        api_service.make_request.side_effect = test_error
-
-        with mock.patch("rewardsbot.utils.api.logger") as mock_logger:
-            with pytest.raises(aiohttp.ClientConnectionError):
-                await api_service.fetch_current_cycle()
-
-            api_service.make_request.assert_called_once_with("cycles/current")
-            mock_logger.info.assert_called_once_with("🔗 fetch_current_cycle called")
 
     @pytest.mark.asyncio
     async def test_utils_api_endpoint_methods_propagate_errors(self, mocker):

@@ -4,9 +4,11 @@ from datetime import datetime, timedelta
 
 import pandas as pd
 import pytest
+from django.core.exceptions import ObjectDoesNotExist
+from django.db.utils import IntegrityError
 from django.http import Http404
 
-from core.models import RewardType, SocialPlatform
+from core.models import RewardType
 from utils.excel_to_database import (
     REWARDS_COLLECTION,
     _check_current_cycle,
@@ -65,8 +67,16 @@ class TestUtilsExcelToDatabaseHelperFunctions:
         mocked_get_object_or_404 = mocker.patch(
             "utils.excel_to_database.get_object_or_404"
         )
-        mocked_reward_get = mocker.patch("utils.excel_to_database.Reward.objects.get")
 
+        rewards = [mocker.MagicMock() for _ in range(len(REWARDS_COLLECTION) * 3)]
+        rewards[1] = ObjectDoesNotExist("rwd1")
+        rewards[7] = ObjectDoesNotExist("rwd5")
+        mocked_reward_get = mocker.patch(
+            "utils.excel_to_database.Reward.objects.get", side_effect=rewards
+        )
+        mocked_reward_create = mocker.patch(
+            "utils.excel_to_database.Reward.objects.create"
+        )
         reward_type = mocker.MagicMock()
         mocked_get_object_or_404.return_value = reward_type
 
@@ -74,6 +84,12 @@ class TestUtilsExcelToDatabaseHelperFunctions:
 
         assert mocked_get_object_or_404.call_count == len(REWARDS_COLLECTION) * 3
         assert mocked_reward_get.call_count == len(REWARDS_COLLECTION) * 3
+        calls = [
+            mocker.call(type=reward_type, level=2, amount=60000, active=True),
+            mocker.call(type=reward_type, level=2, amount=70000, active=True),
+        ]
+        mocked_reward_create.assert_has_calls(calls, any_order=True)
+        assert mocked_reward_create.call_count == 2
 
     # # _create_superusers
     def test_utils_excel_to_database_create_superusers(self, mocker):
@@ -184,7 +200,7 @@ class TestUtilsExcelToDatabaseHelperFunctions:
         assert result == ("CST", "Custom")
 
     # # _parse_label_and_name_from_reward_type_legacy
-    def test_utils_excel_to_database_parse_label_and_name_from_reward_type_legacy_feature(
+    def test_utils_excel_to_database_parse_label_and_name_from_reward_type_legacy_f(
         self,
     ):
         result = _parse_label_and_name_from_reward_type_legacy("feature request custom")
@@ -198,7 +214,7 @@ class TestUtilsExcelToDatabaseHelperFunctions:
 
         assert result == ("B", "Bug Report")
 
-    def test_utils_excel_to_database_parse_label_and_name_from_reward_type_legacy_research(
+    def test_utils_excel_to_database_parse_label_and_name_from_reward_type_legacy_r(
         self,
     ):
         result = _parse_label_and_name_from_reward_type_legacy(
@@ -207,12 +223,19 @@ class TestUtilsExcelToDatabaseHelperFunctions:
 
         assert result == ("ER", "Ecosystem Research")
 
-    def test_utils_excel_to_database_parse_label_and_name_from_reward_type_legacy_suggestion(
+    def test_utils_excel_to_database_parse_label_and_name_from_reward_type_legacy_s(
         self,
     ):
-        result = _parse_label_and_name_from_reward_type_legacy("suggestion custom")
+        result = _parse_label_and_name_from_reward_type_legacy("something custom")
 
         assert result == ("S", "Suggestion")
+
+    def test_utils_excel_to_database_parse_label_and_name_from_reward_type_legacy(
+        self,
+    ):
+        result = _parse_label_and_name_from_reward_type_legacy("[F] Feature Request")
+
+        assert result == ("F", "Feature Request")
 
     # # _reward_amount
     def test_utils_excel_to_database_reward_amount_normal(self):
@@ -305,6 +328,28 @@ class TestUtilsExcelToDatabaseImportFunctions:
             RewardType, label="F", name="Feature"
         )
         mocked_reward_create.assert_called_once()
+
+    def test_utils_excel_to_database_import_rewards_for_integrity_error(self, mocker):
+        # Create real DataFrame
+        mock_data = pd.DataFrame(
+            {"type": ["[F] Feature"], "level": [1], "reward": [1000]}
+        )
+
+        mocked_parse_callback = mocker.MagicMock(return_value=("F", "Feature"))
+        mocked_amount_callback = mocker.MagicMock(return_value=1000000)
+        mocked_reward_type = mocker.MagicMock()
+
+        mocked_get_object_or_404 = mocker.patch(
+            "utils.excel_to_database.get_object_or_404"
+        )
+        mocked_get_object_or_404.return_value = mocked_reward_type
+
+        mocker.patch(
+            "utils.excel_to_database.Reward.objects.create",
+            side_effect=IntegrityError("error"),
+        )
+
+        _import_rewards(mock_data, mocked_parse_callback, mocked_amount_callback)
 
     # # _import_contributions
     def test_utils_excel_to_database_import_contributions(self, mocker):
@@ -414,7 +459,10 @@ class TestUtilsExcelToDatabasePublicFunctions:
         mocker.patch("utils.excel_to_database.SocialPlatform.objects.bulk_create")
 
         # Mock addresses parsing
-        mocker.patch("utils.excel_to_database._parse_addresses", return_value=[])
+        mocker.patch(
+            "utils.excel_to_database._parse_addresses",
+            return_value=[("ADDRESS1", "handle1"), ("ADDRESS2", "handle2")],
+        )
 
         # Mock Contributor creation
         mocker.patch("utils.excel_to_database.Contributor.objects.bulk_create")

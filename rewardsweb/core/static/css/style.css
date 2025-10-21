@@ -1141,6 +1141,9 @@
   .mb-8 {
     margin-bottom: calc(var(--spacing) * 8);
   }
+  .ml-auto {
+    margin-left: auto;
+  }
   .status {
     display: inline-block;
     aspect-ratio: 1 / 1;
@@ -1649,8 +1652,8 @@
   .text-error {
     color: var(--color-error);
   }
-  .text-primary {
-    color: var(--color-primary);
+  .text-success {
+    color: var(--color-success);
   }
   .shadow {
     --tw-shadow: 0 1px 3px 0 var(--tw-shadow-color, rgb(0 0 0 / 0.1)), 0 1px 2px -1px var(--tw-shadow-color, rgb(0 0 0 / 0.1));

@@ -22,6 +22,7 @@ from django.forms import (
 
 from core.forms import (
     ContributionEditForm,
+    ContributionInvalidateForm,
     CreateIssueForm,
     IssueLabelsForm,
     ProfileFormSet,
@@ -75,6 +76,31 @@ class TestContributionEditForm:
     def test_contributioneditform_meta_fields(self):
         form = ContributionEditForm()
         assert form._meta.fields == ["reward", "percentage", "comment"]
+
+
+class TestContributionInvalidateForm:
+    """Testing class for :class:`ContributionInvalidateForm`."""
+
+    # # ContributionInvalidateForm
+    def test_contributioninvalidateform_issubclass_of_modelform(self):
+        assert issubclass(ContributionInvalidateForm, ModelForm)
+
+    def test_contributioninvalidateform_comment_field(self):
+        form = ContributionInvalidateForm()
+        assert "comment" in form.base_fields
+        assert isinstance(form.base_fields["comment"], CharField)
+        assert not form.base_fields["comment"].required
+        assert isinstance(form.base_fields["comment"].widget, Textarea)
+        assert "class" in form.base_fields["comment"].widget.attrs
+
+    # # Meta
+    def test_contributioninvalidateform_meta_model_is_contribution(self):
+        form = ContributionInvalidateForm()
+        assert form._meta.model == Contribution
+
+    def test_contributioninvalidateform_meta_fields(self):
+        form = ContributionInvalidateForm()
+        assert form._meta.fields == ["comment"]
 
 
 class TestCreateIssueForm:

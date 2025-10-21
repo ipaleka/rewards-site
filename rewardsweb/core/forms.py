@@ -60,6 +60,30 @@ class ContributionEditForm(ModelForm):
         fields = ["reward", "percentage", "comment"]
 
 
+class ContributionInvalidateForm(ModelForm):
+    """Model form class for setting contribution as already existing.
+
+    :var ContributionInvalidateForm.comment: optional comment to add as a reply
+    :type ContributionInvalidateForm.comment: :class:`django.forms.CharField`
+    """
+
+    comment = CharField(
+        widget=Textarea(
+            attrs={
+                "class": "textarea textarea-bordered w-full h-32",
+                "placeholder": "Enter comment text here...",
+            }
+        ),
+        label="Reply",
+        max_length=500,
+        required=False,
+    )
+
+    class Meta:
+        model = Contribution
+        fields = ["comment"]
+
+
 class CreateIssueForm(Form):
     """Form class for creating GitHub issues.
 

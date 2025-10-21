@@ -1,6 +1,7 @@
 """Module containing website's views."""
 
 import logging
+from datetime import datetime
 
 from django.conf import settings
 from django.contrib import messages
@@ -18,15 +19,16 @@ from django.views.generic.detail import SingleObjectMixin
 
 from core.forms import (
     ContributionEditForm,
+    ContributionInvalidateForm,
     CreateIssueForm,
     IssueLabelsForm,
     ProfileFormSet,
     UpdateUserForm,
 )
 from core.models import Contribution, Contributor, Cycle, Issue, IssueStatus
-from utils.bot import add_reaction_to_message
+from utils.bot import add_reaction_to_message, add_reply_to_message, message_from_url
 from utils.constants.core import (
-    DISCORD_NOTED_EMOJI,
+    DISCORD_EMOJIS,
     ISSUE_CREATION_LABEL_CHOICES,
     ISSUE_PRIORITY_CHOICES,
 )
@@ -103,7 +105,7 @@ class ContributionDetailView(DetailView):
 
 
 @method_decorator(user_passes_test(lambda user: user.is_superuser), name="dispatch")
-class ContributionUpdateView(UpdateView):
+class ContributionEditView(UpdateView):
     """View for updating contribution information (superusers only).
 
     Allows superusers to edit contribution details including reward,
@@ -128,6 +130,119 @@ class ContributionUpdateView(UpdateView):
         :rtype: str
         """
         messages.success(self.request, "Contribution updated successfully!")
+        return reverse_lazy("contribution-detail", kwargs={"pk": self.object.pk})
+
+
+@method_decorator(user_passes_test(lambda user: user.is_superuser), name="dispatch")
+class ContributionInvalidateView(UpdateView):
+    """View for setting contribution as duplicate or wontfix."""
+
+    model = Contribution
+    form_class = ContributionInvalidateForm
+    template_name = "core/contribution_invalidate.html"
+
+    def get_context_data(self, *args, **kwargs):
+        """Add original Discord message text to template context."""
+        context = super().get_context_data(*args, **kwargs)
+
+        context["type"] = self.kwargs.get("reaction")
+
+        contribution = self.object  # Use self.object instead of querying again
+        message = message_from_url(contribution.url)
+        if message.get("success"):
+            author = message.get("author")
+            timestamp = datetime.strptime(
+                message.get("timestamp"), "%Y-%m-%dT%H:%M:%S.%f%z"
+            ).strftime("%d %b %H:%M")
+            original_comment = f"    {author} - {timestamp}\n\n"
+            for line in message.get("content").split("\n"):
+                original_comment += f"{line}\n"
+
+            context["original_comment"] = original_comment
+        else:
+            context["original_comment"] = ""  # Set empty string when no message
+
+        return context
+
+    def form_valid(self, form):
+        """Set contribution as confirmed with reaction and optional reply."""
+        reaction = self.kwargs.get("reaction")
+        comment = form.cleaned_data.get("comment")
+
+        # Track operations that need to be performed
+        operations = []
+        if comment:
+            operations.append("reply")
+        operations.append("reaction")
+
+        # Perform operations and track failures
+        failed_operations = []
+
+        # Add reply if comment exists
+        reply_success = True
+        if comment:
+            try:
+                reply_success = add_reply_to_message(self.object.url, comment)
+                if not reply_success:
+                    failed_operations.append("reply")
+            except Exception as e:
+                logger = logging.getLogger(__name__)
+                logger.error(f"Failed to add reply: {str(e)}")
+                failed_operations.append("reply")
+
+        # Add reaction
+        reaction_success = True
+        try:
+
+            reaction_success = add_reaction_to_message(
+                self.object.url, DISCORD_EMOJIS.get(reaction)
+            )
+            if not reaction_success:
+                failed_operations.append("reaction")
+
+        except Exception as e:
+            logger = logging.getLogger(__name__)
+            logger.error(f"Failed to add reaction: {str(e)}")
+            failed_operations.append("reaction")
+
+        # If any operation failed, don't confirm and show error
+        if failed_operations:
+            error_msg = self._get_error_message(failed_operations, operations, reaction)
+            form.add_error(None, error_msg)
+            return self.form_invalid(form)
+
+        # All operations successful - confirm the contribution
+        self.object.confirmed = True
+        self.object.save()
+
+        # Success message
+        success_msg = self._get_success_message(comment, reaction)
+        messages.success(self.request, success_msg)
+
+        return super().form_valid(form)
+
+    def _get_error_message(self, failed_operations, attempted_operations, reaction):
+        """Generate appropriate error message based on failed operations."""
+        if len(failed_operations) == len(attempted_operations):
+            return f"Failed to set contribution as {reaction}. All operations failed."
+
+        failed_ops_str = " and ".join(failed_operations)
+        return (
+            f"Failed to add {failed_ops_str}. Contribution was not set as {reaction}."
+        )
+
+    def _get_success_message(self, comment, reaction):
+        """Generate appropriate success message."""
+        actions = [f"set as {reaction}"]
+        if comment:
+            actions.append("reply sent")
+        actions.append("reaction added")
+
+        actions_str = " and ".join(actions)
+        return f"Contribution {actions_str} successfully!"
+
+    def get_success_url(self):
+        """Return URL to redirect after successful update."""
         return reverse_lazy("contribution-detail", kwargs={"pk": self.object.pk})
 
 
@@ -162,14 +277,14 @@ class ContributorListView(ListView):
 
         return queryset
 
-    def get_context_data(self, **kwargs):
+    def get_context_data(self, *args, **kwargs):
         """Add search query to template context.
 
         :param kwargs: Additional keyword arguments
         :return: Context dictionary with search data
         :rtype: dict
         """
-        context = super().get_context_data(**kwargs)
+        context = super().get_context_data(*args, **kwargs)
         context["search_query"] = self.request.GET.get("q", "")
         return context
 
@@ -215,15 +330,35 @@ class CycleDetailView(DetailView):
     model = Cycle
 
 
-# core/views.py
+class IssueListView(ListView):
+    """View for displaying a paginated list of all open issues in reverse order.
+
+    :ivar model: Model class for cycles
+    :type model: :class:`core.models.Cycle`
+    :ivar paginate_by: Number of items per page
+    :type paginate_by: int
+    """
+
+    model = Issue
+    paginate_by = 20
+
+    def get_queryset(self):
+        """Return queryset of all open issues in reverse order.
+
+        :return: QuerySet of open issues in reverse order
+        :rtype: :class:`django.db.models.QuerySet`
+        """
+        return Issue.objects.filter(status=IssueStatus.CREATED).reverse()
+
+
 class IssueDetailView(DetailView):
     """View for displaying detailed information about a single issue."""
 
     model = Issue
 
-    def get_context_data(self, **kwargs):
+    def get_context_data(self, *args, **kwargs):
         """Add GitHub issue data and form to template context."""
-        context = super().get_context_data(**kwargs)
+        context = super().get_context_data(*args, **kwargs)
 
         issue = self.get_object()
         context["issue_html_url"] = (
@@ -487,13 +622,13 @@ class CreateIssueView(FormView):
         initial.update(data)
         return initial
 
-    def get_context_data(self, **kwargs):
+    def get_context_data(self, *args, **kwargs):
         """Add contribution context data to template.
 
         :param kwargs: Additional keyword arguments
         :return: dict
         """
-        context = super().get_context_data(**kwargs)
+        context = super().get_context_data(*args, **kwargs)
 
         info = Contribution.objects.get(id=self.contribution_id).info()
         context["contribution_id"] = self.contribution_id
@@ -529,7 +664,7 @@ class CreateIssueView(FormView):
             data.get("issue_number"), contribution
         )
 
-        add_reaction_to_message(contribution.url, DISCORD_NOTED_EMOJI)
+        add_reaction_to_message(contribution.url, DISCORD_EMOJIS.get("noted"))
 
         return super().form_valid(form)
 

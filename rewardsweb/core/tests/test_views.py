@@ -24,10 +24,17 @@ from core.models import (
     IssueStatus,
     SocialPlatform,
 )
-from core.forms import IssueLabelsForm, ProfileFormSet, UpdateUserForm
+from core.forms import (
+    ContributionEditForm,
+    ContributionInvalidateForm,
+    IssueLabelsForm,
+    ProfileFormSet,
+    UpdateUserForm,
+)
 from core.views import (
     ContributionDetailView,
-    ContributionUpdateView,
+    ContributionEditView,
+    ContributionInvalidateView,
     ContributorListView,
     ContributorDetailView,
     CreateIssueView,
@@ -35,10 +42,12 @@ from core.views import (
     CycleDetailView,
     IndexView,
     IssueDetailView,
+    IssueListView,
     ProfileDisplay,
     ProfileEditView,
     ProfileUpdate,
 )
+from utils.constants.core import DISCORD_EMOJIS
 
 user_model = get_user_model()
 
@@ -199,32 +208,30 @@ class TestDbContributionDetailView:
         assert obj.id == contribution.id
 
 
-class TestContributionUpdateView:
-    """Testing class for :class:`core.views.ContributionUpdateView`."""
+class TestContributionEditView:
+    """Testing class for :class:`core.views.ContributionEditView`."""
 
-    def test_contributionupdateview_is_subclass_of_updateview(self):
-        assert issubclass(ContributionUpdateView, UpdateView)
+    def test_contributioneditview_is_subclass_of_updateview(self):
+        assert issubclass(ContributionEditView, UpdateView)
 
-    def test_contributionupdateview_model(self):
-        view = ContributionUpdateView()
+    def test_contributioneditview_model(self):
+        view = ContributionEditView()
         assert view.model == Contribution
 
-    def test_contributionupdateview_form_class(self):
-        view = ContributionUpdateView()
-        from core.forms import ContributionEditForm
-
+    def test_contributioneditview_form_class(self):
+        view = ContributionEditView()
         assert view.form_class == ContributionEditForm
 
-    def test_contributionupdateview_template_name(self):
-        view = ContributionUpdateView()
+    def test_contributioneditview_template_name(self):
+        view = ContributionEditView()
         assert view.template_name == "core/contribution_edit.html"
 
 
 @pytest.mark.django_db
-class TestDbContributionUpdateView:
-    """Testing class for :class:`core.views.ContributionUpdateView` with database."""
+class TestDbContributionEditView:
+    """Testing class for :class:`core.views.ContributionEditView` with database."""
 
-    def test_contributionupdateview_get_success_url(self, rf, superuser, contribution):
+    def test_contributioneditview_get_success_url(self, rf, superuser, contribution):
         request = rf.get(f"/contributions/{contribution.id}/edit/")
         request.user = superuser
 
@@ -233,7 +240,7 @@ class TestDbContributionUpdateView:
         messages = FallbackStorage(request)
         setattr(request, "_messages", messages)
 
-        view = ContributionUpdateView()
+        view = ContributionEditView()
         view.setup(request, pk=contribution.id)
         view.object = contribution
         view.request = request
@@ -243,27 +250,360 @@ class TestDbContributionUpdateView:
         expected_url = reverse("contribution-detail", kwargs={"pk": contribution.pk})
         assert success_url == expected_url
 
-    def test_contributionupdateview_requires_superuser(
+    def test_contributioneditview_requires_superuser(
         self, rf, regular_user, contribution
     ):
-        request = rf.get(f"/contributions/{contribution.id}/edit/")
+        request = rf.get(f"/contribution/{contribution.id}/edit/")
         request.user = regular_user
 
-        response = ContributionUpdateView.as_view()(request, pk=contribution.id)
+        response = ContributionEditView.as_view()(request, pk=contribution.id)
 
         # Should redirect to login (302) for non-superusers
         assert response.status_code == 302
 
-    def test_contributionupdateview_superuser_access_granted(
+    def test_contributioneditview_superuser_access_granted(
         self, rf, superuser, contribution
     ):
-        request = rf.get(f"/contributions/{contribution.id}/edit/")
+        request = rf.get(f"/contribution/{contribution.id}/edit/")
         request.user = superuser
 
-        response = ContributionUpdateView.as_view()(request, pk=contribution.id)
+        response = ContributionEditView.as_view()(request, pk=contribution.id)
 
         # Should return 200 for superuser
         assert response.status_code == 200
+
+
+class TestContributionInvalidateView:
+    """Testing class for :class:`core.views.ContributionInvalidateView`."""
+
+    def test_contributioninvalidateview_is_subclass_of_updateview(self):
+        assert issubclass(ContributionInvalidateView, UpdateView)
+
+    def test_contributioninvalidateview_model(self):
+        view = ContributionInvalidateView()
+        assert view.model == Contribution
+
+    def test_contributioninvalidateview_form_class(self):
+        view = ContributionInvalidateView()
+        assert view.form_class == ContributionInvalidateForm
+
+    def test_contributioninvalidateview_template_name(self):
+        view = ContributionInvalidateView()
+        assert view.template_name == "core/contribution_invalidate.html"
+
+
+@pytest.mark.django_db
+class TestContributionInvalidateViewDb:
+    """Test suite for ContributionInvalidateView."""
+
+    def test_contributioninvalidateview_superuser_required(
+        self, client, regular_user, invalidate_url
+    ):
+        """Test that only superusers can access the view."""
+        client.force_login(regular_user)
+        response = client.get(invalidate_url)
+        # The view uses @user_passes_test which redirects to login for non-superusers
+        assert response.status_code == 302
+        assert "/accounts/login/" in response.url
+
+    def test_contributioninvalidateview_superuser_can_access(
+        self, client, superuser, invalidate_url, mock_message_from_url
+    ):
+        """Test that superuser can access the view."""
+        client.force_login(superuser)
+        response = client.get(invalidate_url)
+        assert response.status_code == 200
+
+    def test_contributioninvalidateview_get_context_data(
+        self, client, superuser, invalidate_url, mock_message_from_url
+    ):
+        """Test that context contains required data."""
+        client.force_login(superuser)
+        response = client.get(invalidate_url)
+
+        assert response.status_code == 200
+        assert "type" in response.context
+        assert "original_comment" in response.context
+        assert response.context["type"] == "duplicate"
+
+    @pytest.mark.parametrize(
+        "comment,expected_comment",
+        [
+            ("This is a test reply", "This is a test reply"),
+            ("", ""),
+        ],
+    )
+    def test_contributioninvalidateview_form_valid_all_operations_successful(
+        self,
+        client,
+        superuser,
+        contribution,
+        invalidate_url,
+        comment,
+        expected_comment,
+        mocker,
+    ):
+        """Test successful form submission with and without comment."""
+        client.force_login(superuser)
+
+        mock_add_reply = mocker.patch(
+            "core.views.add_reply_to_message", return_value=True
+        )
+        mock_add_reaction = mocker.patch(
+            "core.views.add_reaction_to_message", return_value=True
+        )
+
+        response = client.post(invalidate_url, {"comment": comment})
+
+        # Check that operations were called appropriately
+        if comment:
+            mock_add_reply.assert_called_once_with(contribution.url, expected_comment)
+        else:
+            mock_add_reply.assert_not_called()
+
+        mock_add_reaction.assert_called_once_with(
+            contribution.url, DISCORD_EMOJIS.get("duplicate")
+        )
+
+        # Check that contribution was confirmed
+        contribution.refresh_from_db()
+        assert contribution.confirmed is True
+
+        # Check success message
+        messages = list(get_messages(response.wsgi_request))
+        assert len(messages) == 1
+        assert "successfully" in messages[0].message
+
+        # Check redirect
+        expected_url = reverse("contribution-detail", kwargs={"pk": contribution.pk})
+        assert response.url == expected_url
+
+    def test_contributioninvalidateview_form_valid_reply_fails(
+        self, client, superuser, contribution, invalidate_url, mocker
+    ):
+        """Test form submission when reply operation fails."""
+        client.force_login(superuser)
+
+        mock_add_reply = mocker.patch(
+            "core.views.add_reply_to_message", return_value=False
+        )
+        mock_add_reaction = mocker.patch(
+            "core.views.add_reaction_to_message", return_value=True
+        )
+
+        response = client.post(invalidate_url, {"comment": "This is a test reply"})
+
+        # Check that contribution was NOT confirmed
+        contribution.refresh_from_db()
+        assert contribution.confirmed is False
+
+        # Check that form has error and was re-rendered
+        assert response.status_code == 200
+        content = response.content.decode()
+        assert "Failed to add reply" in content or "All operations failed" in content
+
+    def test_contributioninvalidateview_form_valid_reaction_fails(
+        self, client, superuser, contribution, invalidate_url, mocker
+    ):
+        """Test form submission when reaction operation fails."""
+        client.force_login(superuser)
+
+        mock_add_reaction = mocker.patch(
+            "core.views.add_reaction_to_message", return_value=False
+        )
+
+        response = client.post(invalidate_url, {"comment": ""})
+
+        # Check that contribution was NOT confirmed
+        contribution.refresh_from_db()
+        assert contribution.confirmed is False
+
+        # Check that form has error
+        assert response.status_code == 200
+        content = response.content.decode()
+        # Check for either specific error or general error message
+        assert any(
+            msg in content
+            for msg in ["Failed to add reaction", "All operations failed"]
+        )
+
+    def test_contributioninvalidateview_form_valid_both_operations_fail(
+        self, client, superuser, contribution, invalidate_url, mocker
+    ):
+        """Test form submission when both operations fail."""
+        client.force_login(superuser)
+
+        mock_add_reply = mocker.patch(
+            "core.views.add_reply_to_message", return_value=False
+        )
+        mock_add_reaction = mocker.patch(
+            "core.views.add_reaction_to_message", return_value=False
+        )
+
+        response = client.post(invalidate_url, {"comment": "This is a test reply"})
+
+        # Check that contribution was NOT confirmed
+        contribution.refresh_from_db()
+        assert contribution.confirmed is False
+
+        # Check that form has error
+        assert response.status_code == 200
+        assert "All operations failed" in response.content.decode()
+
+    def test_contributioninvalidateview_form_valid_reply_exception(
+        self, client, superuser, contribution, invalidate_url, mocker
+    ):
+        """Test form submission when reply operation raises exception."""
+        client.force_login(superuser)
+
+        mock_add_reply = mocker.patch(
+            "core.views.add_reply_to_message", side_effect=Exception("Reply failed")
+        )
+        mock_add_reaction = mocker.patch(
+            "core.views.add_reaction_to_message", return_value=True
+        )
+
+        response = client.post(invalidate_url, {"comment": "This is a test reply"})
+
+        # Check that contribution was NOT confirmed
+        contribution.refresh_from_db()
+        assert contribution.confirmed is False
+
+        # Check that form has error
+        assert response.status_code == 200
+        content = response.content.decode()
+        assert any(
+            msg in content for msg in ["Failed to add reply", "All operations failed"]
+        )
+
+    def test_contributioninvalidateview_form_valid_reaction_exception(
+        self, client, superuser, contribution, invalidate_url, mocker
+    ):
+        """Test form submission when reaction operation raises exception."""
+        client.force_login(superuser)
+
+        mock_add_reaction = mocker.patch(
+            "core.views.add_reaction_to_message",
+            side_effect=Exception("Reaction failed"),
+        )
+
+        response = client.post(invalidate_url, {"comment": ""})
+
+        # Check that contribution was NOT confirmed
+        contribution.refresh_from_db()
+        assert contribution.confirmed is False
+
+        # Check that form has error
+        assert response.status_code == 200
+        content = response.content.decode()
+        assert any(
+            msg in content
+            for msg in ["Failed to add reaction", "All operations failed"]
+        )
+
+    @pytest.mark.parametrize("reaction", ["duplicate", "wontfix"])
+    def test_contributioninvalidateview_different_types(
+        self, client, superuser, contribution, reaction, mocker
+    ):
+        """Test view works with different type parameters."""
+        url = reverse(
+            "contribution-invalidate",
+            kwargs={"pk": contribution.pk, "reaction": reaction},
+        )
+
+        client.force_login(superuser)
+
+        mock_add_reaction = mocker.patch(
+            "core.views.add_reaction_to_message", return_value=True
+        )
+
+        response = client.post(url, {"comment": ""})
+
+        # Check that reaction was called with correct type
+        mock_add_reaction.assert_called_once_with(
+            contribution.url, DISCORD_EMOJIS.get(reaction)
+        )
+
+        # Check success
+        contribution.refresh_from_db()
+        assert contribution.confirmed is True
+
+    def test_contributioninvalidateview_form_fields_present(
+        self, client, superuser, invalidate_url, mock_message_from_url
+    ):
+        """Test that form contains expected fields."""
+        client.force_login(superuser)
+        response = client.get(invalidate_url)
+
+        content = response.content.decode()
+        assert 'name="comment"' in content
+        assert "textarea" in content
+        assert "Set as duplicate" in content
+
+    def test_contributioninvalidateview_original_comment_in_context_message_success(
+        self, client, superuser, invalidate_url, mock_message_from_url
+    ):
+        """Test that original comment is included when message_from_url returns success."""
+        client.force_login(superuser)
+        response = client.get(invalidate_url)
+
+        assert "original_comment" in response.context
+        assert "test_user" in response.context["original_comment"]
+        assert "Test message content" in response.context["original_comment"]
+
+    def test_contributioninvalidateview_original_comment_empty_when_message_fails(
+        self, client, superuser, contribution, mocker
+    ):
+        """Test that original comment is empty when message_from_url fails."""
+        url = reverse(
+            "contribution-invalidate",
+            kwargs={"pk": contribution.pk, "reaction": "duplicate"},
+        )
+
+        # Mock message_from_url to return failure
+        mocker.patch("core.views.message_from_url", return_value={"success": False})
+
+        client.force_login(superuser)
+        response = client.get(url)
+
+        # The view should still have original_comment in context, but empty
+        assert "original_comment" in response.context
+        assert response.context["original_comment"] == ""
+
+    def test_contributioninvalidateview_success_message_content_with_comment(
+        self, client, superuser, invalidate_url, mocker
+    ):
+        """Test success message includes reply information when comment is provided."""
+        client.force_login(superuser)
+
+        mocker.patch("core.views.add_reply_to_message", return_value=True)
+        mocker.patch("core.views.add_reaction_to_message", return_value=True)
+
+        response = client.post(invalidate_url, {"comment": "Test reply"})
+
+        messages = list(get_messages(response.wsgi_request))
+        message_text = messages[0].message.lower()
+
+        assert "reply" in message_text
+        assert "reaction" in message_text
+        assert "duplicate" in message_text
+
+    def test_contributioninvalidateview_success_message_content_without_comment(
+        self, client, superuser, invalidate_url, mocker
+    ):
+        """Test success message excludes reply information when no comment is provided."""
+        client.force_login(superuser)
+
+        mocker.patch("core.views.add_reaction_to_message", return_value=True)
+
+        response = client.post(invalidate_url, {"comment": ""})
+
+        messages = list(get_messages(response.wsgi_request))
+        message_text = messages[0].message.lower()
+
+        assert "reply" not in message_text
+        assert "reaction" in message_text
+        assert "duplicate" in message_text
 
 
 class TestContributorListView:
@@ -702,6 +1042,46 @@ class TestCycleDetailView:
     def test_cycledetailview_model(self):
         view = CycleDetailView()
         assert view.model == Cycle
+
+
+class TestIssueListView:
+    """Testing class for :class:`core.views.IssueListView`."""
+
+    def test_issuelistview_is_subclass_of_listview(self):
+        assert issubclass(IssueListView, ListView)
+
+    def test_issuelistview_model(self):
+        view = IssueListView()
+        assert view.model == Issue
+
+    def test_issuelistview_paginate_by(self):
+        view = IssueListView()
+        assert view.paginate_by == 20
+
+
+@pytest.mark.django_db
+class TestDbIssueListView:
+    """Testing class for :class:`core.views.IssueListView` with database."""
+
+    def test_issuelistview_get_queryset(self, rf):
+        request = rf.get("/issues/")
+
+        # Create test issues
+        issue1 = Issue.objects.create(number=5055)
+        issue2 = Issue.objects.create(number=5050)
+        Issue.objects.create(number=5051)
+        Issue.objects.create(number=5052, status=IssueStatus.WONTFIX)
+        Issue.objects.create(number=5053, status=IssueStatus.ADDRESSED)
+        Issue.objects.create(number=5054, status=IssueStatus.ARCHIVED)
+
+        view = IssueListView()
+        view.setup(request)
+
+        queryset = view.get_queryset()
+
+        assert queryset.count() == 3
+        assert queryset.first() == issue2
+        assert queryset.last() == issue1
 
 
 @pytest.mark.django_db

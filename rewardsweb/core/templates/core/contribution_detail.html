@@ -4,16 +4,6 @@
 <div class="max-w-4xl mx-auto">
   <div class="flex justify-between items-center mb-6">
     <h1 class="text-3xl font-bold">Contribution Details</h1>
-    {% if user.is_superuser %}
-    <div class="flex gap-2">
-      <a href="{% url 'contribution-edit' contribution.pk %}" class="btn btn-primary btn-sm">
-        Edit Contribution
-      </a>
-      {% if not contribution.confirmed %}
-      <a class="btn btn-outline btn-sm" href="{% url 'create-issue' contribution.id %}">Create issue</a>
-      {% endif %}
-    </div>
-    {% endif %}
   </div>
 
   <div class="card bg-base-100 shadow-md">
@@ -42,6 +32,27 @@
           {% endif %}
         </div>
       </div>
+
+      {% if user.is_superuser %}
+      <br>
+      <div class="flex gap-2">
+        <!-- Left group -->
+        <div class="flex gap-2">
+          {% if not contribution.confirmed %}
+          <a class="btn btn-success btn-sm" href="{% url 'create-issue' contribution.id %}">Create issue</a>
+          {% endif %}
+          <a href="{% url 'contribution-edit' contribution.id %}" class="btn btn-primary btn-sm">Edit Contribution</a>
+        </div>
+        
+        <!-- Right group - pushes to the right -->
+        {% if not contribution.confirmed %}
+        <div class="flex gap-2 ml-auto">
+          <a class="btn btn-warning btn-sm" href="{% url 'contribution-invalidate' contribution.id 'wontfix' %}">Wontfix</a>
+          <a class="btn btn-warning btn-sm" href="{% url 'contribution-invalidate' contribution.id 'duplicate' %}">Duplicate</a>
+        </div>
+        {% endif %}
+      </div>
+      {% endif %}
 
       <!-- Status Information -->
       <div class="mt-6 pt-6 border-t">

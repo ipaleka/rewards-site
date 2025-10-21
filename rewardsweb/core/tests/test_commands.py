@@ -41,6 +41,7 @@ class TestExcel2DbCommand:
         mocked_import.assert_called_with(
             fixtures_dir / "contributions.csv",
             fixtures_dir / "legacy_contributions.csv",
+            github_token="",
         )
 
     def test_excel2db_command_output_for_default_values_on_response(self, mocker):
@@ -73,6 +74,7 @@ class TestExcel2DbCommand:
         mocked_import.assert_called_with(
             fixtures_dir / "contributions.csv",
             fixtures_dir / "legacy_contributions.csv",
+            github_token="",
         )
 
     def test_excel2db_command_output_for_provided_arguments(self, mocker):
@@ -82,16 +84,21 @@ class TestExcel2DbCommand:
         mocked_import = mocker.patch(
             "core.management.commands.excel2db.import_from_csv", return_value=False
         )
-        input_file, output_file, legacy_file = (
+        input_file, output_file, legacy_file, token = (
             "input_file",
             "output_file",
             "legacy_file",
+            "token",
         )
         with mock.patch(
             "django.core.management.base.OutputWrapper.write"
         ) as output_log:
             call_command(
-                "excel2db", input=input_file, output=output_file, legacy=legacy_file
+                "excel2db",
+                input=input_file,
+                output=output_file,
+                legacy=legacy_file,
+                token=token,
             )
             calls = [
                 mocker.call(f"CSV successfully exported into {output_file} file!"),
@@ -104,4 +111,6 @@ class TestExcel2DbCommand:
             Path(input_file), Path(output_file), Path(legacy_file)
         )
         mocked_import.assert_called_once()
-        mocked_import.assert_called_with(Path(output_file), Path(legacy_file))
+        mocked_import.assert_called_with(
+            Path(output_file), Path(legacy_file), github_token=token
+        )

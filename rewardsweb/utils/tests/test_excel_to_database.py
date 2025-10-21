@@ -613,6 +613,7 @@ class TestUtilsExcelToDatabasePublicFunctions:
         mocker.patch("utils.excel_to_database._create_active_rewards")
         mocker.patch("utils.excel_to_database._import_contributions")
         mocker.patch("utils.excel_to_database._create_superusers")
+        mocker.patch("utils.excel_to_database._fetch_and_assign_issues")
 
         result = import_from_csv("contributions.csv", "legacy.csv")
 
@@ -628,27 +629,6 @@ class TestUtilsExcelToDatabasePublicFunctions:
         handle3.save.assert_called_once_with()
 
         assert result is False
-
-
-# utils/tests/test_excel_to_database.py
-
-
-class TestUtilsExcelToDatabasePublicFunctions:
-    """Testing class for :py:mod:`utils.excel_to_database` main functions."""
-
-    @pytest.mark.django_db
-    def test_utils_excel_to_database_import_from_csv_database_not_empty(self, mocker):
-        # Mock non-empty database check - return non-empty queryset
-        mock_social_platforms = mocker.MagicMock()
-        mock_social_platforms.__len__ = mocker.MagicMock(return_value=5)  # Non-empty
-        mocker.patch(
-            "utils.excel_to_database.SocialPlatform.objects.all",
-            return_value=mock_social_platforms,
-        )
-
-        result = import_from_csv("contributions.csv", "legacy.csv")
-
-        assert result == "ERROR: Database is not empty!"
 
     @pytest.mark.django_db
     def test_utils_excel_to_database_import_from_csv_creates_social_platforms(
@@ -711,6 +691,7 @@ class TestUtilsExcelToDatabasePublicFunctions:
         mocker.patch("utils.excel_to_database._create_active_rewards")
         mocker.patch("utils.excel_to_database._import_contributions")
         mocker.patch("utils.excel_to_database._create_superusers")
+        mocker.patch("utils.excel_to_database._fetch_and_assign_issues")
 
         result = import_from_csv("contributions.csv", "legacy.csv")
 
@@ -797,6 +778,7 @@ class TestUtilsExcelToDatabasePublicFunctions:
         mocker.patch("utils.excel_to_database._create_active_rewards")
         mocker.patch("utils.excel_to_database._import_contributions")
         mocker.patch("utils.excel_to_database._create_superusers")
+        mocker.patch("utils.excel_to_database._fetch_and_assign_issues")
 
         result = import_from_csv("contributions.csv", "legacy.csv")
 
@@ -878,6 +860,7 @@ class TestUtilsExcelToDatabasePublicFunctions:
         mocker.patch("utils.excel_to_database._create_active_rewards")
         mocker.patch("utils.excel_to_database._import_contributions")
         mocker.patch("utils.excel_to_database._create_superusers")
+        mocker.patch("utils.excel_to_database._fetch_and_assign_issues")
 
         result = import_from_csv("contributions.csv", "legacy.csv")
 
@@ -959,6 +942,7 @@ class TestUtilsExcelToDatabasePublicFunctions:
         )
         mocker.patch("utils.excel_to_database._import_contributions")
         mocker.patch("utils.excel_to_database._create_superusers")
+        mocker.patch("utils.excel_to_database._fetch_and_assign_issues")
 
         result = import_from_csv("contributions.csv", "legacy.csv")
 
@@ -1052,6 +1036,7 @@ class TestUtilsExcelToDatabasePublicFunctions:
             "utils.excel_to_database._import_contributions"
         )
         mocker.patch("utils.excel_to_database._create_superusers")
+        mocker.patch("utils.excel_to_database._fetch_and_assign_issues")
 
         result = import_from_csv("contributions.csv", "legacy.csv")
 
@@ -1069,6 +1054,71 @@ class TestUtilsExcelToDatabasePublicFunctions:
         pd.testing.assert_frame_equal(second_call_args[0][0], mock_data)
         assert second_call_args[0][1] == _parse_label_and_name_from_reward_type
         assert second_call_args[0][2] == _reward_amount
+
+        assert result is False
+
+    @pytest.mark.django_db
+    def test_utils_excel_to_database_import_from_csv_calls__fetch_and_assign_issues(
+        self, mocker
+    ):
+        # Mock empty database check
+        mock_social_platforms = mocker.MagicMock()
+        mock_social_platforms.__len__ = mocker.MagicMock(return_value=0)
+        mocker.patch(
+            "utils.excel_to_database.SocialPlatform.objects.all",
+            return_value=mock_social_platforms,
+        )
+
+        # Mock all dependencies minimally
+        mocker.patch("utils.excel_to_database._social_platforms")
+        mocker.patch("utils.excel_to_database.SocialPlatform.objects.bulk_create")
+        mocker.patch("utils.excel_to_database._parse_addresses", return_value=[])
+        mocker.patch("utils.excel_to_database.Contributor.objects.bulk_create")
+        mocker.patch(
+            "utils.excel_to_database.Handle.objects.from_address_and_full_handle"
+        )
+
+        # Create proper mock DataFrames with all required columns
+        mock_data = pd.DataFrame(
+            {
+                "cycle_start": ["2023-01-01"],
+                "cycle_end": ["2023-01-31"],
+                "type": ["[F] Feature"],
+                "level": [1],
+                "reward": [1000],
+            }
+        )
+        mock_legacy_data = pd.DataFrame(
+            {
+                "cycle_start": ["2022-12-01"],
+                "cycle_end": ["2022-12-31"],
+                "type": ["[B] Bug"],
+                "level": [2],
+                "reward": [500],
+            }
+        )
+        mocker.patch(
+            "utils.excel_to_database._dataframe_from_csv",
+            side_effect=[mock_data, mock_legacy_data],
+        )
+
+        mocker.patch("utils.excel_to_database.Cycle.objects.bulk_create")
+        mocker.patch("utils.excel_to_database.Cycle.objects.latest")
+        mocker.patch("utils.excel_to_database._check_current_cycle")
+        mocker.patch("utils.excel_to_database._import_rewards")
+        mocker.patch("utils.excel_to_database._create_active_rewards")
+        mocker.patch("utils.excel_to_database._import_contributions")
+        mocker.patch("utils.excel_to_database._create_superusers")
+        mock_fetch_issues = mocker.patch(
+            "utils.excel_to_database._fetch_and_assign_issues"
+        )
+
+        result = import_from_csv(
+            "contributions.csv", "legacy.csv", github_token="github_token"
+        )
+
+        # Verify _create_superusers was called
+        mock_fetch_issues.assert_called_once_with("github_token")
 
         assert result is False
 

@@ -16,11 +16,14 @@ from core.models import (
     Contribution,
     Cycle,
     Handle,
+    Issue,
+    IssueStatus,
     Reward,
     RewardType,
     SocialPlatform,
 )
 from utils.helpers import get_env_variable
+from utils.issues import all_issues
 
 
 ADDRESSES_CSV_COLUMNS = ["handle", "address"]
@@ -115,6 +118,29 @@ def _dataframe_from_csv(filename, columns=CONTRIBUTION_CSV_COLUMNS):
     return data
 
 
+def _fetch_and_assign_issues(github_token):
+    """TODO: doicstring and tests"""
+    if not github_token:
+        return False
+
+    contributions = Contribution.objects.filter()
+    urls = [contrib.url for contrib in contributions]
+    ids = [contrib.id for contrib in contributions]
+
+    for github_issue in all_issues(github_token):
+        if github_issue.body:
+            index = next((url in github_issue.body for url in urls), None)
+            if index is not None:
+                issue = Issue.objects.create(
+                    number=github_issue.number, status=IssueStatus.ARCHIVED
+                )
+                contribution = next(
+                    contrib for contrib in contributions if contrib.id == ids[index]
+                )
+                contribution.issue = issue
+                contribution.save()
+
+
 def _import_contributions(data, parse_callback, amount_callback):
     """Import contributions from DataFrame to database.
 
@@ -147,6 +173,7 @@ def _import_contributions(data, parse_callback, amount_callback):
             percentage=percentage,
             url=url,
             comment=comment,
+            confirmed=True,
         )
 
 
@@ -342,13 +369,15 @@ def convert_and_clean_excel(input_file, output_file, legacy_contributions):
     legacy_df.to_csv(legacy_contributions, index=False, header=None, na_rep="NULL")
 
 
-def import_from_csv(contributions_path, legacy_contributions_path):
+def import_from_csv(contributions_path, legacy_contributions_path, github_token=""):
     """Import contributions from CSV files to database.
 
     :param contributions_path: Path to current contributions CSV file
     :type contributions_path: str
     :param legacy_contributions_path: Path to legacy contributions CSV file
     :type legacy_contributions_path: str
+    :param github_token: GitHub API token
+    :type github_token: str
     :return: Error message string or False if successful
     :rtype: str or bool
     """
@@ -413,6 +442,9 @@ def import_from_csv(contributions_path, legacy_contributions_path):
         _reward_amount,
     )
     print("Contributions imported: ", len(Contribution.objects.all()))
+
+    _fetch_and_assign_issues(github_token)
+    print("Issues created: ", len(Issue.objects.all()))
 
     _create_superusers()
 

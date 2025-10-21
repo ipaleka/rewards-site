@@ -43,6 +43,17 @@ def _github_repository(client):
     return client.get_repo(f"{settings.GITHUB_REPO_OWNER}/{settings.GITHUB_REPO_NAME}")
 
 
+def all_issues(github_token):
+    """TODO: doicstring and tests"""
+    auth = Auth.Token(github_token)
+    client = Github(auth=auth)
+    if not client:
+        return {"success": False, "error": MISSING_TOKEN_TEXT}
+
+    repo = _github_repository(client)
+    return repo.get_issues(state="all")
+
+
 def close_issue_with_labels(user, issue_number, labels_to_set=None, comment=None):
     """Close GitHub issue defined by `issue_number` on behalf `user`.
 

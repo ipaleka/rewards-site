@@ -20,6 +20,7 @@ from django.forms.models import ModelForm, inlineformset_factory
 
 from core.models import Contribution, Profile, Reward
 from utils.constants.core import ISSUE_CREATION_LABEL_CHOICES, ISSUE_PRIORITY_CHOICES
+from utils.constants.ui import TEXTINPUT_CLASS
 
 
 class ContributionEditForm(ModelForm):
@@ -43,7 +44,7 @@ class ContributionEditForm(ModelForm):
         decimal_places=2,
         widget=NumberInput(
             attrs={
-                "class": "input input-bordered w-full",
+                "class": TEXTINPUT_CLASS,
                 "step": "0.01",
                 "min": "0",
                 "max": "100",
@@ -51,7 +52,7 @@ class ContributionEditForm(ModelForm):
         ),
     )
     comment = CharField(
-        required=False, widget=TextInput(attrs={"class": "input input-bordered w-full"})
+        required=False, widget=TextInput(attrs={"class": TEXTINPUT_CLASS})
     )
 
     class Meta:
@@ -90,7 +91,7 @@ class CreateIssueForm(Form):
         label="Title",
         widget=TextInput(
             attrs={
-                "class": "input input-bordered w-full",
+                "class": TEXTINPUT_CLASS,
                 "placeholder": "Enter issue title...",
             }
         ),
@@ -138,7 +139,7 @@ class UpdateUserForm(ModelForm):
         required=False,
         widget=TextInput(
             attrs={
-                "class": "input input-bordered w-full",
+                "class": TEXTINPUT_CLASS,
                 "placeholder": "Enter your first name",
             }
         ),
@@ -147,7 +148,7 @@ class UpdateUserForm(ModelForm):
         required=False,
         widget=TextInput(
             attrs={
-                "class": "input input-bordered w-full",
+                "class": TEXTINPUT_CLASS,
                 "placeholder": "Enter your last name",
             }
         ),
@@ -169,11 +170,11 @@ class ProfileForm(ModelForm):
         required=False,
         widget=TextInput(
             attrs={
-                "class": "input input-bordered w-full",
+                "class": TEXTINPUT_CLASS,
                 "placeholder": "Enter your GitHub token (optional)",
             }
         ),
-        help_text="Optional: GitHub personal access token for enhanced API limits",
+        help_text="Optional: GitHub personal access token for accessing issues",
     )
 
     class Meta:

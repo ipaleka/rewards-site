@@ -141,7 +141,7 @@ After a token `token`_ is created. start scanning by running the scanner from th
 
 .. code-block:: bash
 
-  $ sonar-scanner -Dsonar.projectKey=rewards.asastats.com -Dsonar.host.url=http://localhost:9000 -Dsonar.token=squ_5d45cb850753a0a512d4bc639771601a31a6a4c8
+  $ sonar-scanner -Dsonar.projectKey=rewards.asastats.com -Dsonar.host.url=http://localhost:9000 -Dsonar.token=squ_08af89592eb73c1fad89a1ef6feaa528fc3b8888
 
 
 For additional information read the scanner `documentation`_.

@@ -15,6 +15,7 @@ from utils.issues import (
     issue_by_number,
     issue_data_for_contribution,
 )
+from utils.constants.ui import MISSING_TOKEN_TEXT
 
 
 class TestUtilsIssuesCrudFunctions:
@@ -56,10 +57,7 @@ class TestUtilsIssuesCrudFunctions:
         mocked_client = mocker.patch("utils.issues._github_client", return_value=False)
         mocked_repo = mocker.patch("utils.issues._github_repository")
         returned = add_labels_to_issue(user, mocker.MagicMock(), mocker.MagicMock())
-        assert returned == {
-            "success": False,
-            "error": "Please provide a GitHub access token in your profile page!",
-        }
+        assert returned == {"success": False, "error": MISSING_TOKEN_TEXT}
         mocked_client.assert_called_once_with(user)
         mocked_repo.assert_not_called()
 
@@ -112,10 +110,7 @@ class TestUtilsIssuesCrudFunctions:
         mocked_client = mocker.patch("utils.issues._github_client", return_value=False)
         mocked_repo = mocker.patch("utils.issues._github_repository")
         returned = close_issue_with_labels(user, mocker.MagicMock(), mocker.MagicMock())
-        assert returned == {
-            "success": False,
-            "error": "Please provide a GitHub access token in your profile page!",
-        }
+        assert returned == {"success": False, "error": MISSING_TOKEN_TEXT}
         mocked_client.assert_called_once_with(user)
         mocked_repo.assert_not_called()
 
@@ -210,10 +205,7 @@ class TestUtilsIssuesCrudFunctions:
         mocked_client = mocker.patch("utils.issues._github_client", return_value=False)
         mocked_repo = mocker.patch("utils.issues._github_repository")
         returned = create_github_issue(user, mocker.MagicMock(), mocker.MagicMock())
-        assert returned == {
-            "success": False,
-            "error": "Please provide a GitHub access token in your profile page!",
-        }
+        assert returned == {"success": False, "error": MISSING_TOKEN_TEXT}
         mocked_client.assert_called_once_with(user)
         mocked_repo.assert_not_called()
 
@@ -277,10 +269,7 @@ class TestUtilsIssuesCrudFunctions:
         mocked_client = mocker.patch("utils.issues._github_client", return_value=False)
         mocked_repo = mocker.patch("utils.issues._github_repository")
         returned = issue_by_number(user, mocker.MagicMock())
-        assert returned == {
-            "success": False,
-            "error": "Please provide a GitHub access token in your profile page!",
-        }
+        assert returned == {"success": False, "error": MISSING_TOKEN_TEXT}
         mocked_client.assert_called_once_with(user)
         mocked_repo.assert_not_called()
 

@@ -132,22 +132,6 @@ class RewardsBot(commands.Bot):
 
         logger.info("------ Bot is fully operational! ------")
 
-    # async def on_guild_join(self, guild):
-    #     """Called when bot joins a new guild"""
-    #     logger.info(f"➕ Joined new guild: {guild.name} (ID: {guild.id})")
-
-    #     # Sync commands to the new guild
-    #     try:
-    #         self.tree.copy_global_to(guild=guild)
-    #         await self.tree.sync(guild=guild)
-    #         logger.info(f"✅ Synced commands to new guild: {guild.name}")
-    #     except Exception as e:
-    #         logger.error(f"❌ Failed to sync commands to new guild: {e}")
-
-    # async def on_guild_remove(self, guild):
-    #     """Called when bot is removed from a guild"""
-    #     logger.info(f"➖ Removed from guild: {guild.name} (ID: {guild.id})")
-
     async def on_disconnect(self):
         """Called when bot disconnects from Discord"""
         if not self._shutting_down:

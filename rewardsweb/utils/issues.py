@@ -7,6 +7,7 @@ from django.conf import settings
 from github import Auth, Github
 
 from utils.bot import message_from_url
+from utils.constants.ui import MISSING_TOKEN_TEXT
 
 logger = logging.getLogger(__name__)
 
@@ -62,10 +63,7 @@ def add_labels_to_issue(user, issue_number, labels_to_add):
     try:
         client = _github_client(user)
         if not client:
-            return {
-                "success": False,
-                "error": "Please provide a GitHub access token in your profile page!",
-            }
+            return {"success": False, "error": MISSING_TOKEN_TEXT}
 
         repo = _github_repository(client)
         issue = repo.get_issue(issue_number)
@@ -109,10 +107,7 @@ def close_issue_with_labels(user, issue_number, labels_to_add=None, comment=None
     try:
         client = _github_client(user)
         if not client:
-            return {
-                "success": False,
-                "error": "Please provide a GitHub access token in your profile page!",
-            }
+            return {"success": False, "error": MISSING_TOKEN_TEXT}
 
         repo = _github_repository(client)
         issue = repo.get_issue(issue_number)
@@ -163,10 +158,7 @@ def create_github_issue(user, title, body, labels=None):
     try:
         client = _github_client(user)
         if not client:
-            return {
-                "success": False,
-                "error": "Please provide a GitHub access token in your profile page!",
-            }
+            return {"success": False, "error": MISSING_TOKEN_TEXT}
 
         repo = _github_repository(client)
 
@@ -204,10 +196,7 @@ def issue_by_number(user, issue_number):
     try:
         client = _github_client(user)
         if not client:
-            return {
-                "success": False,
-                "error": "Please provide a GitHub access token in your profile page!",
-            }
+            return {"success": False, "error": MISSING_TOKEN_TEXT}
 
         repo = _github_repository(client)
         issue = repo.get_issue(issue_number)

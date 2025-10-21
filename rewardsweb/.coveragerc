@@ -1,11 +1,5 @@
 [run]
 branch = True
-source =
-    api
-    core
-    rewardsbot
-    rewardsweb
-    utils
 omit =
     */tests/*
     */migrations/*

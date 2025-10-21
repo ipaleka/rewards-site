@@ -7,7 +7,8 @@ from django.conf import settings
 from django.contrib import messages
 from django.contrib.auth.decorators import login_required, user_passes_test
 from django.contrib.auth.models import User
-from django.db.models import Q, Sum
+from django.db.models import Prefetch, Q, Sum
+from django.db.models.functions import Lower
 from django.forms import ValidationError
 from django.http import HttpResponseRedirect
 from django.shortcuts import redirect
@@ -25,7 +26,7 @@ from core.forms import (
     ProfileFormSet,
     UpdateUserForm,
 )
-from core.models import Contribution, Contributor, Cycle, Issue, IssueStatus
+from core.models import Contribution, Contributor, Cycle, Handle, Issue, IssueStatus
 from utils.bot import add_reaction_to_message, add_reply_to_message, message_from_url
 from utils.constants.core import (
     DISCORD_EMOJIS,
@@ -270,12 +271,18 @@ class ContributorListView(ListView):
         search_query = self.request.GET.get("q")
         if search_query:
             # Search in contributor names and handle handles
-            queryset = queryset.filter(
+            return queryset.filter(
                 Q(name__icontains=search_query)
                 | Q(handle__handle__icontains=search_query)
             ).distinct()
 
-        return queryset
+        return queryset.prefetch_related(
+            Prefetch(
+                "handle_set",
+                queryset=Handle.objects.order_by(Lower("handle")),
+                to_attr="prefetched_handles",
+            )
+        )
 
     def get_context_data(self, *args, **kwargs):
         """Add search query to template context.

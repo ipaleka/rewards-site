@@ -355,6 +355,162 @@ class TestCoreContributorModel:
             contributor.id
         )
 
+    # # sorted_handles
+    @pytest.mark.django_db
+    def test_core_contributor_model_sorted_handles_with_prefetched_data(self):
+        """Test sorted_handles uses prefetched handles when available."""
+        contributor = Contributor.objects.create(
+            name="test_contributor", address="test_address"
+        )
+        platform1 = SocialPlatform.objects.create(name="GitHub", prefix="g@")
+        platform2 = SocialPlatform.objects.create(name="Discord", prefix="")
+        platform3 = SocialPlatform.objects.create(name="Twitter", prefix="@")
+
+        # Create handles in non-alphabetical order
+        handle3 = Handle.objects.create(
+            contributor=contributor, platform=platform3, handle="z_twitter"
+        )
+        handle1 = Handle.objects.create(
+            contributor=contributor, platform=platform1, handle="a_github"
+        )
+        handle2 = Handle.objects.create(
+            contributor=contributor, platform=platform2, handle="m_discord"
+        )
+
+        # Simulate prefetched handles (as would happen in ContributorListView)
+        contributor.prefetched_handles = [handle3, handle1, handle2]
+
+        sorted_handles = contributor.sorted_handles
+
+        # Should be sorted case-insensitively using prefetched data
+        assert sorted_handles == [handle1, handle2, handle3]
+        assert [h.handle for h in sorted_handles] == [
+            "a_github",
+            "m_discord",
+            "z_twitter",
+        ]
+
+    @pytest.mark.django_db
+    def test_core_contributor_model_sorted_handles_without_prefetched_data(self):
+        """Test sorted_handles falls back to database query when no prefetched data."""
+        contributor = Contributor.objects.create(
+            name="test_contributor", address="test_address"
+        )
+        platform1 = SocialPlatform.objects.create(name="GitHub", prefix="g@")
+        platform2 = SocialPlatform.objects.create(name="Discord", prefix="")
+        platform3 = SocialPlatform.objects.create(name="Twitter", prefix="@")
+
+        # Create handles in non-alphabetical order
+        Handle.objects.create(
+            contributor=contributor, platform=platform3, handle="Z_twitter"
+        )
+        Handle.objects.create(
+            contributor=contributor, platform=platform1, handle="a_github"
+        )
+        Handle.objects.create(
+            contributor=contributor, platform=platform2, handle="M_discord"
+        )
+
+        # No prefetched_handles attribute
+        assert not hasattr(contributor, "prefetched_handles")
+
+        sorted_handles = contributor.sorted_handles
+
+        # Should fall back to database query and return sorted handles
+        assert len(sorted_handles) == 3
+        # Should be sorted case-insensitively: a_github, M_discord, Z_twitter
+        assert [h.handle for h in sorted_handles] == [
+            "a_github",
+            "M_discord",
+            "Z_twitter",
+        ]
+
+    @pytest.mark.django_db
+    def test_core_contributor_model_sorted_handles_empty_with_prefetched(self):
+        """Test sorted_handles with empty prefetched handles."""
+        contributor = Contributor.objects.create(
+            name="test_contributor", address="test_address"
+        )
+
+        # Simulate empty prefetched handles
+        contributor.prefetched_handles = []
+
+        sorted_handles = contributor.sorted_handles
+
+        # Should return empty list
+        assert sorted_handles == []
+
+    @pytest.mark.django_db
+    def test_core_contributor_model_sorted_handles_empty_without_prefetched(self):
+        """Test sorted_handles with no handles and no prefetched data."""
+        contributor = Contributor.objects.create(
+            name="test_contributor", address="test_address"
+        )
+
+        # No handles created, no prefetched data
+        sorted_handles = contributor.sorted_handles
+
+        # Should return empty list
+        assert sorted_handles == []
+
+    @pytest.mark.django_db
+    def test_core_contributor_model_sorted_handles_case_insensitive_sorting(self):
+        """Test sorted_handles handles case-insensitive sorting correctly."""
+        contributor = Contributor.objects.create(
+            name="test_contributor", address="test_address"
+        )
+        platform = SocialPlatform.objects.create(name="TestPlatform", prefix="")
+
+        # Create handles with mixed case
+        Handle.objects.create(
+            contributor=contributor, platform=platform, handle="Charlie"
+        )
+        Handle.objects.create(
+            contributor=contributor, platform=platform, handle="alpha"
+        )
+        Handle.objects.create(
+            contributor=contributor, platform=platform, handle="Bravo"
+        )
+        Handle.objects.create(
+            contributor=contributor, platform=platform, handle="ALPHA"
+        )
+
+        sorted_handles = contributor.sorted_handles
+
+        # Should be sorted case-insensitively: alpha, ALPHA, Bravo, Charlie
+        assert [h.handle for h in sorted_handles] == [
+            "alpha",
+            "ALPHA",
+            "Bravo",
+            "Charlie",
+        ]
+
+    @pytest.mark.django_db
+    def test_core_contributor_model_sorted_handles_preserves_prefetched_objects(self):
+        """Test that sorted_handles preserves the original Handle objects from prefetched data."""
+        contributor = Contributor.objects.create(
+            name="test_contributor", address="test_address"
+        )
+        platform = SocialPlatform.objects.create(name="GitHub", prefix="g@")
+
+        # Create handles
+        handle1 = Handle.objects.create(
+            contributor=contributor, platform=platform, handle="user_b"
+        )
+        handle2 = Handle.objects.create(
+            contributor=contributor, platform=platform, handle="user_a"
+        )
+
+        # Simulate prefetched handles
+        contributor.prefetched_handles = [handle1, handle2]
+
+        sorted_handles = contributor.sorted_handles
+
+        # Should return the same Handle objects, just sorted
+        assert sorted_handles == [handle2, handle1]
+        assert sorted_handles[0] is handle2  # Same object
+        assert sorted_handles[1] is handle1  # Same object
+
     # # info
     @pytest.mark.django_db
     def test_core_contributor_model_info_single_handle(self):
@@ -368,7 +524,7 @@ class TestCoreContributorModel:
             contributor=contributor, platform=platform, handle="githubuser"
         )
 
-        result = contributor.info()
+        result = contributor.info  # Changed from info() to info
 
         assert result == "test_contributor"
 
@@ -392,7 +548,7 @@ class TestCoreContributorModel:
             contributor=contributor, platform=twitter_platform, handle="twitteruser"
         )
 
-        result = contributor.info()
+        result = contributor.info  # Changed from info() to info
 
         returned = "test_contributor (discorduser, githubuser, twitteruser)"
         assert result == returned
@@ -403,7 +559,7 @@ class TestCoreContributorModel:
             name="test_contributor", address="test_address"
         )
 
-        result = contributor.info()
+        result = contributor.info  # Changed from info() to info
 
         # Should return just the name when no handles exist
         assert result == "test_contributor"
@@ -428,7 +584,7 @@ class TestCoreContributorModel:
             contributor=contributor, platform=platform3, handle="m_middle"
         )
 
-        result = contributor.info()
+        result = contributor.info  # Changed from info() to info
 
         # Handles should appear in the order they were created (database order)
         # The exact order depends on the database, but we can verify all handles are present
@@ -454,7 +610,7 @@ class TestCoreContributorModel:
             contributor=contributor, platform=platform2, handle="user_with_underscores"
         )
 
-        result = contributor.info()
+        result = contributor.info  # Changed from info() to info
 
         returned = "test_contributor (user-with-dashes, user_with_underscores)"
         assert result == returned
@@ -469,7 +625,7 @@ class TestCoreContributorModel:
         # Create handle with empty string
         Handle.objects.create(contributor=contributor, platform=platform, handle="")
 
-        result = contributor.info()
+        result = contributor.info  # Changed from info() to info
 
         # Should include empty handles in the list
         assert result == "test_contributor"
@@ -489,7 +645,7 @@ class TestCoreContributorModel:
             contributor=contributor, platform=platform, handle="user_😊"
         )
 
-        result = contributor.info()
+        result = contributor.info  # Changed from info() to info
 
         returned = "test_contributor (user_🎉, user_😊)"
         assert result == returned
@@ -510,7 +666,7 @@ class TestCoreContributorModel:
             contributor=contributor, platform=platform2, handle="sameuser"
         )
 
-        result = contributor.info()
+        result = contributor.info  # Changed from info() to info
 
         # Should include duplicate handle values
         returned = "test_contributor (sameuser, sameuser)"
@@ -1464,7 +1620,8 @@ class TestContributorModelMethods:
 
         open_contribs = contributor.open_contributions
 
-        assert open_contribs.count() == 1
+        # Use len() instead of count() for lists
+        assert len(open_contribs) == 1
         assert contributions["created"] in open_contribs
         assert contributions["wontfix"] not in open_contribs
         assert contributions["addressed"] not in open_contribs
@@ -1478,7 +1635,8 @@ class TestContributorModelMethods:
 
         invalidated_contribs = contributor.invalidated_contributions
 
-        assert invalidated_contribs.count() == 1
+        # Use len() instead of count() for lists
+        assert len(invalidated_contribs) == 1
         assert contributions["wontfix"] in invalidated_contribs
         assert contributions["created"] not in invalidated_contribs
         assert contributions["addressed"] not in invalidated_contribs
@@ -1492,7 +1650,8 @@ class TestContributorModelMethods:
 
         addressed_contribs = contributor.addressed_contributions
 
-        assert addressed_contribs.count() == 1
+        # Use len() instead of count() for lists
+        assert len(addressed_contribs) == 1
         assert contributions["addressed"] in addressed_contribs
         assert contributions["created"] not in addressed_contribs
         assert contributions["wontfix"] not in addressed_contribs
@@ -1506,7 +1665,8 @@ class TestContributorModelMethods:
 
         archived_contribs = contributor.archived_contributions
 
-        assert archived_contribs.count() == 1
+        # Use len() instead of count() for lists
+        assert len(archived_contribs) == 1
         assert contributions["archived"] in archived_contribs
         assert contributions["created"] not in archived_contribs
         assert contributions["wontfix"] not in archived_contribs
@@ -1520,7 +1680,8 @@ class TestContributorModelMethods:
 
         uncategorized_contribs = contributor.uncategorized_contributions
 
-        assert uncategorized_contribs.count() == 1
+        # Use len() instead of count() for lists
+        assert len(uncategorized_contribs) == 1
         assert contributions["uncategorized"] in uncategorized_contribs
         assert contributions["created"] not in uncategorized_contribs
         assert contributions["wontfix"] not in uncategorized_contribs
@@ -1547,22 +1708,23 @@ class TestContributorModelMethods:
         groups = contributor.contribution_groups
         assert len(groups) == 5
         assert all(isinstance(group, dict) for group in groups)
-        assert all(isinstance(group["query"], QuerySet) for group in groups)
+        # Changed from QuerySet to list check
+        assert all(isinstance(group["query"], list) for group in groups)
         assert all(isinstance(group["total"], int) for group in groups)
         assert groups[0]["name"] == "Open"
-        assert groups[0]["query"].count() == 1
+        assert len(groups[0]["query"]) == 1
         assert groups[0]["total"] == 100
         assert groups[1]["name"] == "Addressed"
-        assert groups[1]["query"].count() == 2
+        assert len(groups[1]["query"]) == 2
         assert groups[1]["total"] == 1100
         assert groups[2]["name"] == "Archived"
-        assert groups[2]["query"].count() == 1
+        assert len(groups[2]["query"]) == 1
         assert groups[2]["total"] == 400
         assert groups[3]["name"] == "Uncategorized"
-        assert groups[3]["query"].count() == 1
+        assert len(groups[3]["query"]) == 1
         assert groups[3]["total"] == 500
         assert groups[4]["name"] == "Invalidated"
-        assert groups[4]["query"].count() == 2
+        assert len(groups[4]["query"]) == 2
         assert groups[4]["total"] == 0
 
     def test_contributor_total_rewards_excludes_wontfix(self, setup_data):
@@ -1680,11 +1842,11 @@ class TestContributorModelMethods:
 
         total_contributions = contributor.contribution_set.count()
         categorized_contributions = (
-            contributor.open_contributions.count()
-            + contributor.invalidated_contributions.count()
-            + contributor.addressed_contributions.count()
-            + contributor.archived_contributions.count()
-            + contributor.uncategorized_contributions.count()
+            len(contributor.open_contributions)  # Use len() for lists
+            + len(contributor.invalidated_contributions)
+            + len(contributor.addressed_contributions)
+            + len(contributor.archived_contributions)
+            + len(contributor.uncategorized_contributions)
         )
 
         assert total_contributions == categorized_contributions
@@ -1726,7 +1888,8 @@ class TestContributorEdgeCases:
         )
 
         open_contribs = contributor.open_contributions
-        assert open_contribs.count() == 2
+        # Use len() instead of count() for lists
+        assert len(open_contribs) == 2
         assert contrib1 in open_contribs
         assert contrib2 in open_contribs
 
@@ -1736,11 +1899,12 @@ class TestContributorEdgeCases:
             name="empty_contrib", address="addr_empty"
         )
 
-        assert contributor.open_contributions.count() == 0
-        assert contributor.invalidated_contributions.count() == 0
-        assert contributor.addressed_contributions.count() == 0
-        assert contributor.archived_contributions.count() == 0
-        assert contributor.uncategorized_contributions.count() == 0
+        # Use len() instead of count() for lists
+        assert len(contributor.open_contributions) == 0
+        assert len(contributor.invalidated_contributions) == 0
+        assert len(contributor.addressed_contributions) == 0
+        assert len(contributor.archived_contributions) == 0
+        assert len(contributor.uncategorized_contributions) == 0
         assert contributor.total_rewards == 0  # Should be 0, not None
 
 

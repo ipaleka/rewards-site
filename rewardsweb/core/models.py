@@ -157,126 +157,170 @@ class Contributor(models.Model):
         """Returns the URL to access a detail record for this contributor."""
         return reverse("contributor-detail", args=[str(self.id)])
 
-    def info(self):
-        """Return contributor's extended name(s) info.
+    @cached_property
+    def sorted_handles(self):
+        """Return handles sorted case-insensitively, using prefetched data if available.
 
-        :var handles: collection of contributor's handle instances
-        :type handles: :class:`django.db.models.query.QuerySet`
-        :return: str
+        :return: sorted list of handles
+        :rtype: list
         """
-        handles = self.handle_set.select_related("contributor").all()
-        if len(handles) < 2:
-            return self.name
+        # Check if we have prefetched handles
+        if hasattr(self, "prefetched_handles"):
+            return sorted(self.prefetched_handles, key=lambda h: h.handle.lower())
 
-        return self.name + " (" + ", ".join([handle.handle for handle in handles]) + ")"
+        # Fallback to database query if not prefetched
+        return list(self.handle_set.order_by(Lower("handle")))
+
+    @property
+    def info(self):
+        """Return contributor information including handles.
+
+        :return: contributor information string
+        :rtype: str
+        """
+        # Use sorted_handles which will use prefetched data when available
+        handles = self.sorted_handles
+        if len(handles) > 1:
+            return f"{self.name} ({', '.join(h.handle for h in handles)})"
+        return self.name
+
+    @cached_property
+    def optimized_contribution_data(self):
+        """Fetch all contribution data in one query and organize it.
+
+        This method performs a single database query to fetch all contributions
+        with their related objects (cycle, reward, reward type, and issue),
+        then categorizes them in memory to avoid multiple database hits.
+
+        :return: dict containing organized contribution data
+        :rtype: dict
+        """
+        # Single query to get everything with related data
+        all_contributions = list(
+            self.contribution_set.select_related(
+                "cycle", "reward", "reward__type", "issue"
+            ).order_by("cycle__start", "created_at")
+        )
+
+        # Categorize contributions in memory
+        open_contribs = []
+        addressed_contribs = []
+        archived_contribs = []
+        uncategorized_contribs = []
+        invalidated_contribs = []
+
+        for contrib in all_contributions:
+            if contrib.issue is None:
+                uncategorized_contribs.append(contrib)
+            elif contrib.issue.status == IssueStatus.ADDRESSED:
+                addressed_contribs.append(contrib)
+            elif contrib.issue.status == IssueStatus.ARCHIVED:
+                archived_contribs.append(contrib)
+            elif contrib.issue.status == IssueStatus.WONTFIX:
+                invalidated_contribs.append(contrib)
+            else:
+                open_contribs.append(contrib)
+
+        # Calculate totals for each category
+        open_total = sum(c.reward.amount for c in open_contribs)
+        addressed_total = sum(c.reward.amount for c in addressed_contribs)
+        archived_total = sum(c.reward.amount for c in archived_contribs)
+        uncategorized_total = sum(c.reward.amount for c in uncategorized_contribs)
+        total_rewards = (
+            open_total + addressed_total + archived_total + uncategorized_total
+        )
+
+        return {
+            "open_contributions": open_contribs,
+            "addressed_contributions": addressed_contribs,
+            "archived_contributions": archived_contribs,
+            "uncategorized_contributions": uncategorized_contribs,
+            "invalidated_contributions": invalidated_contribs,
+            "contribution_groups": [
+                {"name": "Open", "query": open_contribs, "total": open_total},
+                {
+                    "name": "Addressed",
+                    "query": addressed_contribs,
+                    "total": addressed_total,
+                },
+                {
+                    "name": "Archived",
+                    "query": archived_contribs,
+                    "total": archived_total,
+                },
+                {
+                    "name": "Uncategorized",
+                    "query": uncategorized_contribs,
+                    "total": uncategorized_total,
+                },
+                {"name": "Invalidated", "query": invalidated_contribs, "total": 0},
+            ],
+            "total_rewards": total_rewards,
+        }
 
     @cached_property
     def open_contributions(self):
         """Return all contributions with issue status CREATED.
 
-        :return: QuerySet of Contribution objects
+        :return: list of Contribution objects
+        :rtype: list
         """
-        return self.contribution_set.filter(
-            issue__isnull=False, issue__status=IssueStatus.CREATED
-        )
+        return self.optimized_contribution_data["open_contributions"]
 
     @cached_property
     def addressed_contributions(self):
         """Return all contributions with issue status ADDRESSED.
 
-        :return: QuerySet of Contribution objects
+        :return: list of Contribution objects
+        :rtype: list
         """
-        return self.contribution_set.filter(
-            issue__isnull=False, issue__status=IssueStatus.ADDRESSED
-        )
+        return self.optimized_contribution_data["addressed_contributions"]
 
     @cached_property
     def archived_contributions(self):
         """Return all contributions with issue status ARCHIVED.
 
-        :return: QuerySet of Contribution objects
+        :return: list of Contribution objects
+        :rtype: list
         """
-        return self.contribution_set.filter(
-            issue__isnull=False, issue__status=IssueStatus.ARCHIVED
-        )
+        return self.optimized_contribution_data["archived_contributions"]
 
     @cached_property
     def uncategorized_contributions(self):
         """Return all contributions without any issue.
 
-        :return: QuerySet of Contribution objects
+        :return: list of Contribution objects
+        :rtype: list
         """
-        return self.contribution_set.filter(issue__isnull=True)
+        return self.optimized_contribution_data["uncategorized_contributions"]
 
     @cached_property
     def invalidated_contributions(self):
         """Return all contributions with issue status WONTFIX.
 
-        :return: QuerySet of Contribution objects
+        :return: list of Contribution objects
+        :rtype: list
         """
-        return self.contribution_set.filter(
-            issue__isnull=False, issue__status=IssueStatus.WONTFIX
-        )
+        return self.optimized_contribution_data["invalidated_contributions"]
 
     @cached_property
     def contribution_groups(self):
         """Return collection of all contribution groups with totals for this instance.
 
-        :return: list
+        :return: list of contribution group dictionaries
+        :rtype: list
         """
-        return [
-            {
-                "name": "Open",
-                "query": self.open_contributions,
-                "total": self.open_contributions.aggregate(total=Sum("reward__amount"))[
-                    "total"
-                ]
-                or 0,
-            },
-            {
-                "name": "Addressed",
-                "query": self.addressed_contributions,
-                "total": self.addressed_contributions.aggregate(
-                    total=Sum("reward__amount")
-                )["total"]
-                or 0,
-            },
-            {
-                "name": "Archived",
-                "query": self.archived_contributions,
-                "total": self.archived_contributions.aggregate(
-                    total=Sum("reward__amount")
-                )["total"]
-                or 0,
-            },
-            {
-                "name": "Uncategorized",
-                "query": self.uncategorized_contributions,
-                "total": self.uncategorized_contributions.aggregate(
-                    total=Sum("reward__amount")
-                )["total"]
-                or 0,
-            },
-            {
-                "name": "Invalidated",
-                "query": self.invalidated_contributions,
-                "total": 0,
-            },
-        ]
+        return self.optimized_contribution_data["contribution_groups"]
 
     @cached_property
     def total_rewards(self):
         """Return sum of all reward amounts for this contributor (cached).
         Excludes contributions with WONTFIX issue status.
 
-        :return: int
+        :return: total reward amount
+        :rtype: int
         """
-        result = (
-            self.contribution_set.exclude(issue__status=IssueStatus.WONTFIX)
-            .aggregate(total_rewards=Sum("reward__amount"))
-            .get("total_rewards")
-        )
-        return result or 0
+        return self.optimized_contribution_data["total_rewards"]
 
 
 class SocialPlatform(models.Model):

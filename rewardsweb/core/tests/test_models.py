@@ -5,6 +5,7 @@ from datetime import datetime
 import pytest
 from django.contrib.auth import get_user_model
 from django.core.exceptions import ValidationError
+from django.db.models import Sum
 from django.db import DataError, models
 from django.http import Http404
 from django.db.utils import IntegrityError
@@ -879,20 +880,6 @@ class TestCoreCycleModel:
         assert cycle.info() == "Started on Monday, August 25, 2025"
 
 
-# core/tests/test_models.py
-
-import pytest
-from django.db.models import Sum
-from core.models import (
-    Cycle,
-    Contributor,
-    Contribution,
-    SocialPlatform,
-    Reward,
-    RewardType,
-)
-
-
 class TestCycleModel:
     """Testing class for :class:`core.models.Cycle` model."""
 
@@ -1183,32 +1170,418 @@ class TestCycleModel:
         returned = {"test_contributor": (0, True)}
         assert result == returned
 
-    # # total_rewards
-    @pytest.mark.django_db
-    def test_core_cycle_model_total_rewards(self):
-        amount1, amount2, amount3 = 250000, 15000, 10000
-        contributor = Contributor.objects.create(name="MyNamecytr")
-        contributor2 = Contributor.objects.create(name="OtherNametcyr")
-        cycle = Cycle.objects.create(start=datetime(2025, 3, 3))
-        cycle2 = Cycle.objects.create(start=datetime(2024, 3, 3))
-        platform = SocialPlatform.objects.create(name="platformcy", prefix="tc")
-        reward_type = RewardType.objects.create(label="c2", name="c2")
-        reward1 = Reward.objects.create(type=reward_type, amount=amount1)
-        Contribution.objects.create(
-            contributor=contributor, cycle=cycle, platform=platform, reward=reward1
+
+@pytest.mark.django_db
+class TestContributorModelMethods:
+    """Test case for Contributor model methods using pytest."""
+
+    @pytest.fixture
+    def setup_data(self):
+        """Set up test data as a fixture."""
+        # Create contributor
+        contributor = Contributor.objects.create(
+            name="test_contributor", address="test_address_123"
         )
-        reward2 = Reward.objects.create(type=reward_type, amount=amount2)
-        Contribution.objects.create(
-            contributor=contributor, cycle=cycle, platform=platform, reward=reward2
+
+        # Create platforms, cycles, and rewards
+        platform = SocialPlatform.objects.create(name="Twitter")
+        cycle = Cycle.objects.create(start="2023-09-09")
+        rewardtype = RewardType.objects.create(name="rwdtyp49", label="49")
+        reward1 = Reward.objects.create(type=rewardtype, amount=100)
+        reward2 = Reward.objects.create(type=rewardtype, amount=200)
+        reward3 = Reward.objects.create(type=rewardtype, amount=300)
+        reward4 = Reward.objects.create(type=rewardtype, amount=400)
+        reward5 = Reward.objects.create(type=rewardtype, amount=500)
+
+        # Create issues with different statuses
+        issue_created = Issue.objects.create(number=1, status=IssueStatus.CREATED)
+        issue_wontfix = Issue.objects.create(number=2, status=IssueStatus.WONTFIX)
+        issue_addressed = Issue.objects.create(number=3, status=IssueStatus.ADDRESSED)
+        issue_archived = Issue.objects.create(number=4, status=IssueStatus.ARCHIVED)
+
+        # Create contributions with different issue statuses
+        contribution_created = Contribution.objects.create(
+            contributor=contributor,
+            cycle=cycle,
+            platform=platform,
+            reward=reward1,
+            issue=issue_created,
+            url="https://example.com/1",
+            comment="Test contribution 1",
         )
-        reward3 = Reward.objects.create(type=reward_type, amount=amount3)
+
+        contribution_wontfix = Contribution.objects.create(
+            contributor=contributor,
+            cycle=cycle,
+            platform=platform,
+            reward=reward2,
+            issue=issue_wontfix,
+            url="https://example.com/2",
+            comment="Test contribution 2",
+        )
+
+        contribution_addressed = Contribution.objects.create(
+            contributor=contributor,
+            cycle=cycle,
+            platform=platform,
+            reward=reward3,
+            issue=issue_addressed,
+            url="https://example.com/3",
+            comment="Test contribution 3",
+        )
+
+        contribution_archived = Contribution.objects.create(
+            contributor=contributor,
+            cycle=cycle,
+            platform=platform,
+            reward=reward4,
+            issue=issue_archived,
+            url="https://example.com/4",
+            comment="Test contribution 4",
+        )
+
+        contribution_uncategorized = Contribution.objects.create(
+            contributor=contributor,
+            cycle=cycle,
+            platform=platform,
+            reward=reward5,
+            issue=None,
+            url="https://example.com/5",
+            comment="Test contribution 5",
+        )
+
+        return {
+            "contributor": contributor,
+            "platform": platform,
+            "cycle": cycle,
+            "rewards": [reward1, reward2, reward3, reward4, reward5],
+            "issues": {
+                "created": issue_created,
+                "wontfix": issue_wontfix,
+                "addressed": issue_addressed,
+                "archived": issue_archived,
+            },
+            "contributions": {
+                "created": contribution_created,
+                "wontfix": contribution_wontfix,
+                "addressed": contribution_addressed,
+                "archived": contribution_archived,
+                "uncategorized": contribution_uncategorized,
+            },
+        }
+
+    def test_contributor_open_contributions(self, setup_data):
+        """Test open_contributions returns contributions with CREATED status."""
+        contributor = setup_data["contributor"]
+        contributions = setup_data["contributions"]
+
+        open_contribs = contributor.open_contributions
+
+        assert open_contribs.count() == 1
+        assert contributions["created"] in open_contribs
+        assert contributions["wontfix"] not in open_contribs
+        assert contributions["addressed"] not in open_contribs
+        assert contributions["archived"] not in open_contribs
+        assert contributions["uncategorized"] not in open_contribs
+
+    def test_contributor_invalidated_contributions(self, setup_data):
+        """Test invalidated_contributions returns contributions with WONTFIX status."""
+        contributor = setup_data["contributor"]
+        contributions = setup_data["contributions"]
+
+        invalidated_contribs = contributor.invalidated_contributions
+
+        assert invalidated_contribs.count() == 1
+        assert contributions["wontfix"] in invalidated_contribs
+        assert contributions["created"] not in invalidated_contribs
+        assert contributions["addressed"] not in invalidated_contribs
+        assert contributions["archived"] not in invalidated_contribs
+        assert contributions["uncategorized"] not in invalidated_contribs
+
+    def test_contributor_addressed_contributions(self, setup_data):
+        """Test addressed_contributions returns contributions with ADDRESSED status."""
+        contributor = setup_data["contributor"]
+        contributions = setup_data["contributions"]
+
+        addressed_contribs = contributor.addressed_contributions
+
+        assert addressed_contribs.count() == 1
+        assert contributions["addressed"] in addressed_contribs
+        assert contributions["created"] not in addressed_contribs
+        assert contributions["wontfix"] not in addressed_contribs
+        assert contributions["archived"] not in addressed_contribs
+        assert contributions["uncategorized"] not in addressed_contribs
+
+    def test_contributor_archived_contributions(self, setup_data):
+        """Test archived_contributions returns contributions with ARCHIVED status."""
+        contributor = setup_data["contributor"]
+        contributions = setup_data["contributions"]
+
+        archived_contribs = contributor.archived_contributions
+
+        assert archived_contribs.count() == 1
+        assert contributions["archived"] in archived_contribs
+        assert contributions["created"] not in archived_contribs
+        assert contributions["wontfix"] not in archived_contribs
+        assert contributions["addressed"] not in archived_contribs
+        assert contributions["uncategorized"] not in archived_contribs
+
+    def test_contributor_uncategorized_contributions(self, setup_data):
+        """Test uncategorized_contributions returns contributions without issues."""
+        contributor = setup_data["contributor"]
+        contributions = setup_data["contributions"]
+
+        uncategorized_contribs = contributor.uncategorized_contributions
+
+        assert uncategorized_contribs.count() == 1
+        assert contributions["uncategorized"] in uncategorized_contribs
+        assert contributions["created"] not in uncategorized_contribs
+        assert contributions["wontfix"] not in uncategorized_contribs
+        assert contributions["addressed"] not in uncategorized_contribs
+        assert contributions["archived"] not in uncategorized_contribs
+
+    def test_contributor_total_rewards_excludes_wontfix(self, setup_data):
+        """Test total_rewards excludes contributions with WONTFIX status."""
+        contributor = setup_data["contributor"]
+
+        total_rewards = contributor.total_rewards
+
+        # Expected total: 100 (created) + 300 (addressed) + 400 (archived) + 500 (uncategorized) = 1300
+        # Excluded: 200 (wontfix)
+        expected_total = 100 + 300 + 400 + 500
+        assert total_rewards == expected_total
+
+    def test_contributor_total_rewards_with_only_wontfix(self, setup_data):
+        """Test total_rewards when contributor has only WONTFIX contributions."""
+        platform = setup_data["platform"]
+        cycle = setup_data["cycle"]
+        rewards = setup_data["rewards"]
+
+        contributor2 = Contributor.objects.create(
+            name="contributor2", address="address2"
+        )
+
+        # Create only WONTFIX contributions
         Contribution.objects.create(
-            contributor=contributor, cycle=cycle2, platform=platform, reward=reward3
+            contributor=contributor2,
+            cycle=cycle,
+            platform=platform,
+            reward=rewards[0],  # 100
+            issue=setup_data["issues"]["wontfix"],
         )
         Contribution.objects.create(
-            contributor=contributor2, cycle=cycle2, platform=platform, reward=reward3
+            contributor=contributor2,
+            cycle=cycle,
+            platform=platform,
+            reward=rewards[1],  # 200
+            issue=setup_data["issues"]["wontfix"],
         )
-        assert cycle.total_rewards == amount1 + amount2
+
+        # All contributions are WONTFIX, so they should be excluded from total_rewards
+        assert contributor2.total_rewards == 0
+
+    def test_contributor_total_rewards_with_mixed_contributions(self, setup_data):
+        """Test total_rewards with mixed contribution statuses."""
+        platform = setup_data["platform"]
+        cycle = setup_data["cycle"]
+        rewards = setup_data["rewards"]
+        issues = setup_data["issues"]
+
+        contributor3 = Contributor.objects.create(
+            name="contributor3", address="address3"
+        )
+
+        # Create mixed contributions
+        Contribution.objects.create(
+            contributor=contributor3,
+            cycle=cycle,
+            platform=platform,
+            reward=rewards[0],  # 100 - created
+            issue=issues["created"],
+        )
+        Contribution.objects.create(
+            contributor=contributor3,
+            cycle=cycle,
+            platform=platform,
+            reward=rewards[1],  # 200 - wontfix (excluded)
+            issue=issues["wontfix"],
+        )
+        Contribution.objects.create(
+            contributor=contributor3,
+            cycle=cycle,
+            platform=platform,
+            reward=rewards[2],  # 300 - addressed
+            issue=issues["addressed"],
+        )
+        Contribution.objects.create(
+            contributor=contributor3,
+            cycle=cycle,
+            platform=platform,
+            reward=rewards[3],  # 400 - uncategorized
+            issue=None,
+        )
+
+        total_rewards = contributor3.total_rewards
+        expected_total = 100 + 300 + 400  # 800
+        assert total_rewards == expected_total
+
+    def test_contributor_total_rewards_empty(self):
+        """Test total_rewards returns 0 when contributor has no contributions."""
+        new_contributor = Contributor.objects.create(
+            name="new_contributor", address="new_address"
+        )
+
+        # No contributions at all, should return 0
+        assert new_contributor.total_rewards == 0
+
+    def test_contributor_methods_are_cached_properties(self, setup_data):
+        """Test that all methods are properly cached as properties."""
+        contributor = setup_data["contributor"]
+
+        # Access each property multiple times
+        open1 = contributor.open_contributions
+        open2 = contributor.open_contributions
+
+        invalidated1 = contributor.invalidated_contributions
+        invalidated2 = contributor.invalidated_contributions
+
+        # They should be the same object (cached)
+        assert open1 is open2
+        assert invalidated1 is invalidated2
+
+    def test_contributor_contribution_counts(self, setup_data):
+        """Test that all contributions are properly categorized."""
+        contributor = setup_data["contributor"]
+
+        total_contributions = contributor.contribution_set.count()
+        categorized_contributions = (
+            contributor.open_contributions.count()
+            + contributor.invalidated_contributions.count()
+            + contributor.addressed_contributions.count()
+            + contributor.archived_contributions.count()
+            + contributor.uncategorized_contributions.count()
+        )
+
+        assert total_contributions == categorized_contributions
+        assert total_contributions == 5
+
+
+@pytest.mark.django_db
+class TestContributorEdgeCases:
+    """Test edge cases for Contributor model methods."""
+
+    def test_contributor_with_multiple_same_status_contributions(self):
+        """Test methods with multiple contributions of the same status."""
+        contributor = Contributor.objects.create(
+            name="multi_contrib", address="addr_multi"
+        )
+        platform = SocialPlatform.objects.create(name="Discord")
+        cycle = Cycle.objects.create(start="2020-11-11")
+        reward_type = RewardType.objects.create(name="rwdtyp44", label="44")
+        reward1 = Reward.objects.create(type=reward_type, amount=50)
+        reward2 = Reward.objects.create(type=reward_type, amount=75)
+
+        issue_created1 = Issue.objects.create(number=10, status=IssueStatus.CREATED)
+        issue_created2 = Issue.objects.create(number=11, status=IssueStatus.CREATED)
+
+        # Create multiple contributions with CREATED status
+        contrib1 = Contribution.objects.create(
+            contributor=contributor,
+            cycle=cycle,
+            platform=platform,
+            reward=reward1,
+            issue=issue_created1,
+        )
+        contrib2 = Contribution.objects.create(
+            contributor=contributor,
+            cycle=cycle,
+            platform=platform,
+            reward=reward2,
+            issue=issue_created2,
+        )
+
+        open_contribs = contributor.open_contributions
+        assert open_contribs.count() == 2
+        assert contrib1 in open_contribs
+        assert contrib2 in open_contribs
+
+    def test_contributor_with_no_contributions(self):
+        """Test methods when contributor has no contributions."""
+        contributor = Contributor.objects.create(
+            name="empty_contrib", address="addr_empty"
+        )
+
+        assert contributor.open_contributions.count() == 0
+        assert contributor.invalidated_contributions.count() == 0
+        assert contributor.addressed_contributions.count() == 0
+        assert contributor.archived_contributions.count() == 0
+        assert contributor.uncategorized_contributions.count() == 0
+        assert contributor.total_rewards == 0  # Should be 0, not None
+
+
+@pytest.mark.django_db
+class TestContributorWithMocks:
+    """Test Contributor methods using pytest-mock."""
+
+    def test_total_rewards_queryset_exclusion(self, mocker):
+        """Test that total_rewards uses correct queryset exclusion with mocks."""
+        # Create minimal test data
+        contributor = Contributor.objects.create(
+            name="mock_contrib", address="mock_addr"
+        )
+
+        # Mock the specific methods in the chain instead of the entire manager
+        mock_exclude = mocker.MagicMock()
+        mock_aggregate = mocker.MagicMock()
+        mock_get = mocker.MagicMock(return_value=1000)
+
+        # Create a mock queryset that returns our mocked aggregate
+        mock_queryset = mocker.MagicMock()
+        mock_queryset.aggregate.return_value = mock_aggregate
+        mock_aggregate.get = mock_get
+
+        # Set up the exclude to return our mock queryset
+        mock_exclude.return_value = mock_queryset
+
+        # Patch the exclude method on the actual contribution_set
+        mocker.patch.object(contributor.contribution_set, "exclude", mock_exclude)
+
+        result = contributor.total_rewards
+
+        # Verify the method chain was called correctly
+        mock_exclude.assert_called_once_with(issue__status=IssueStatus.WONTFIX)
+        mock_queryset.aggregate.assert_called_once_with(
+            total_rewards=Sum("reward__amount")
+        )
+        mock_get.assert_called_once_with("total_rewards")
+        assert result == 1000
+
+    def test_total_rewards_returns_zero_when_none(self, mocker):
+        """Test total_rewards returns 0 when aggregate returns None."""
+        contributor = Contributor.objects.create(
+            name="mock_contrib2", address="mock_addr2"
+        )
+
+        # Mock the specific methods
+        mock_exclude = mocker.MagicMock()
+        mock_aggregate = mocker.MagicMock()
+        mock_get = mocker.MagicMock(return_value=None)  # Simulate no results
+
+        # Create a mock queryset
+        mock_queryset = mocker.MagicMock()
+        mock_queryset.aggregate.return_value = mock_aggregate
+        mock_aggregate.get = mock_get
+
+        # Set up the exclude to return our mock queryset
+        mock_exclude.return_value = mock_queryset
+
+        # Patch the exclude method on the actual contribution_set
+        mocker.patch.object(contributor.contribution_set, "exclude", mock_exclude)
+
+        result = contributor.total_rewards
+
+        # Should return 0 when aggregate returns None
+        assert result == 0
 
 
 class TestCoreRewardTypeModel:

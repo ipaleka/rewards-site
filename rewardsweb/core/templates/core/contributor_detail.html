@@ -1,4 +1,20 @@
-{% extends "base_generic.html" %}
+{% extends "base_generic.html" %}{% load partials %}
+
+{% partialdef contributions %}
+    <div class="card-body">
+      <h2 class="text-xl font-semibold mb-4">{{ group.name }}{% if group.total %}: {{ group.total|floatformat:"g" }}{% endif %}</h2>
+      <div class="space-y-3">
+        {% for contribution in group.query reversed %}
+        <div class="flex items-center gap-2">
+          <span class="font-medium">Cycle:</span>
+          <a class="link link-accent" href="{{ contribution.cycle.get_absolute_url }}">{{ contribution.cycle }}</a>
+          <span class="font-medium">Reward:</span>
+          <a class="link link-accent" href="{{ contribution.get_absolute_url }}">{{ contribution.reward }}</a>
+        </div>
+        {% endfor %}
+      </div>
+    </div>
+{% endpartialdef contributions %}
 
 {% block content %}
 <div class="max-w-4xl mx-auto">
@@ -18,19 +34,11 @@
   </div>
 
   <div class="card bg-base-100 shadow-md">
-    <div class="card-body">
-      <h2 class="text-xl font-semibold mb-4">Contributions</h2>
-      <div class="space-y-3">
-        {% for contribution in contributor.contribution_set.all reversed %}
-        <div class="flex items-center gap-2">
-          <span class="font-medium">Cycle:</span>
-          <a class="link link-accent" href="{{ contribution.cycle.get_absolute_url }}">{{ contribution.cycle }}</a>
-          <span class="font-medium">Reward:</span>
-          <a class="link link-accent" href="{{ contribution.get_absolute_url }}">{{ contribution.reward }}</a>
-        </div>
-        {% endfor %}
-      </div>
-    </div>
+    {% for group in contributor.contribution_groups %}
+      {% if group.query %}
+      {% partial contributions %}
+      {% endif %}
+    {% endfor %}
   </div>
 
 </div>

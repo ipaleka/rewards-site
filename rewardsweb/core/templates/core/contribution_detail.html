@@ -4,33 +4,24 @@
 <div class="max-w-4xl mx-auto">
   <div class="flex justify-between items-center mb-6">
     <h1 class="text-3xl font-bold">Contribution Details</h1>
-    {% if user.is_superuser %}
-    <div class="flex gap-2">
-      <a href="{% url 'contribution-edit' contribution.pk %}" class="btn btn-primary btn-sm">
-        Edit Contribution
-      </a>
-      {% if not contribution.confirmed %}
-      <a class="btn btn-outline btn-sm" href="{% url 'create-issue' contribution.id %}">Create issue</a>
-      {% endif %}
-    </div>
-    {% endif %}
   </div>
 
   <div class="card bg-base-100 shadow-md">
     <div class="card-body">
+
       <div class="grid grid-cols-1 md:grid-cols-2 gap-6">
         <!-- Left Column -->
         <div class="space-y-3">
-          <h2 class="text-xl font-semibold">Contributor Information</h2>
           <p><strong>Contributor:</strong> <a class="link link-accent" href="{{ contribution.contributor.get_absolute_url }}">{{ contribution.contributor }}</a></p>
           <p><strong>Cycle:</strong> {{ contribution.cycle }}</p>
           <p><strong>Platform:</strong> {{ contribution.platform }}</p>
           <p><strong>URL:</strong> <a href="{{ contribution.url }}" class="link link-accent" target="_blank">{{ contribution.url|urlizetrunc:50 }}</a></p>
+          <p><strong>Created at:</strong> {{ contribution.created_at }}</p>
+          <p><strong>Updated at:</strong> {{ contribution.updated_at }}</p>
         </div>
 
         <!-- Right Column -->
         <div class="space-y-3">
-          <h2 class="text-xl font-semibold">Reward Information</h2>
           <p><strong>Type:</strong> {{ contribution.reward.type }}</p>
           <p><strong>Reward Level:</strong> {{ contribution.reward.level }}</p>
           <p><strong>Reward Amount:</strong> {{ contribution.reward.amount|floatformat:"g" }}</p>
@@ -43,8 +34,29 @@
         </div>
       </div>
 
+      {% if user.is_superuser %}
+      <br>
+      <div class="flex gap-2">
+        <!-- Left group -->
+        <div class="flex gap-2">
+          {% if not contribution.confirmed %}
+          <a class="btn btn-success btn-sm" href="{% url 'create-issue' contribution.id %}">Create issue</a>
+          {% endif %}
+          <a href="{% url 'contribution-edit' contribution.id %}" class="btn btn-primary btn-sm">Edit Contribution</a>
+        </div>
+        
+        <!-- Right group - pushes to the right -->
+        {% if not contribution.confirmed %}
+        <div class="flex gap-2 ml-auto">
+          <a class="btn btn-warning btn-sm" href="{% url 'contribution-invalidate' contribution.id 'wontfix' %}">Wontfix</a>
+          <a class="btn btn-warning btn-sm" href="{% url 'contribution-invalidate' contribution.id 'duplicate' %}">Duplicate</a>
+        </div>
+        {% endif %}
+      </div>
+      {% endif %}
+
       <!-- Status Information -->
-      <div class="mt-6 pt-6 border-t">
+      <div class="mt-6 pt-6">
         {% if not contribution.confirmed %}
         <div class="alert alert-warning">
           <p><strong>Status:</strong> Not Confirmed</p>
@@ -52,11 +64,6 @@
         {% elif contribution.issue %}
         <p><strong>Issue:</strong> <a class="link link-accent" href="{{ contribution.issue.get_absolute_url }}">{{ contribution.issue }}</a></p>
         {% endif %}
-        <br>
-        <div class="text-sm text-base-content/70 space-y-1">
-          <p><strong>Created at:</strong> {{ contribution.created_at }}</p>
-          <p><strong>Updated at:</strong> {{ contribution.updated_at }}</p>
-        </div>
       </div>
     </div>
   </div>

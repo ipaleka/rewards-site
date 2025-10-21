@@ -1,11 +1,12 @@
 """Module containing website's URL configuration."""
 
-from django.urls import path, re_path
+from django.urls import path
 
 from core import views
 
 urlpatterns = [
     path("", views.IndexView.as_view(), name="index"),
+    path("profile/", views.ProfileEditView.as_view(), name="profile"),
     path("cycles/", views.CycleListView.as_view(), name="cycles"),
     path("cycle/<int:pk>", views.CycleDetailView.as_view(), name="cycle-detail"),
     path("contributors/", views.ContributorListView.as_view(), name="contributors"),
@@ -21,10 +22,15 @@ urlpatterns = [
     ),
     path(
         "contribution/<int:pk>/edit/",
-        views.ContributionUpdateView.as_view(),
+        views.ContributionEditView.as_view(),
         name="contribution-edit",
     ),
-    path("profile/", views.ProfileEditView.as_view(), name="profile"),
+    path(
+        "contribution/<int:pk>/invalidate/<str:reaction>",
+        views.ContributionInvalidateView.as_view(),
+        name="contribution-invalidate",
+    ),
+    path("issues/", views.IssueListView.as_view(), name="issues"),
     path(
         "create-issue/<int:contribution_id>",
         views.CreateIssueView.as_view(),

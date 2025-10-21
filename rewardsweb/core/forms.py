@@ -20,6 +20,7 @@ from django.forms.models import ModelForm, inlineformset_factory
 
 from core.models import Contribution, Profile, Reward
 from utils.constants.core import ISSUE_CREATION_LABEL_CHOICES, ISSUE_PRIORITY_CHOICES
+from utils.constants.ui import MISSING_OPTION_TEXT, TEXTINPUT_CLASS
 
 
 class ContributionEditForm(ModelForm):
@@ -43,7 +44,7 @@ class ContributionEditForm(ModelForm):
         decimal_places=2,
         widget=NumberInput(
             attrs={
-                "class": "input input-bordered w-full",
+                "class": TEXTINPUT_CLASS,
                 "step": "0.01",
                 "min": "0",
                 "max": "100",
@@ -51,12 +52,36 @@ class ContributionEditForm(ModelForm):
         ),
     )
     comment = CharField(
-        required=False, widget=TextInput(attrs={"class": "input input-bordered w-full"})
+        required=False, widget=TextInput(attrs={"class": TEXTINPUT_CLASS})
     )
 
     class Meta:
         model = Contribution
         fields = ["reward", "percentage", "comment"]
+
+
+class ContributionInvalidateForm(ModelForm):
+    """Model form class for setting contribution as already existing.
+
+    :var ContributionInvalidateForm.comment: optional comment to add as a reply
+    :type ContributionInvalidateForm.comment: :class:`django.forms.CharField`
+    """
+
+    comment = CharField(
+        widget=Textarea(
+            attrs={
+                "class": "textarea textarea-bordered w-full h-32",
+                "placeholder": "Enter comment text here...",
+            }
+        ),
+        label="Reply",
+        max_length=500,
+        required=False,
+    )
+
+    class Meta:
+        model = Contribution
+        fields = ["comment"]
 
 
 class CreateIssueForm(Form):
@@ -90,7 +115,7 @@ class CreateIssueForm(Form):
         label="Title",
         widget=TextInput(
             attrs={
-                "class": "input input-bordered w-full",
+                "class": TEXTINPUT_CLASS,
                 "placeholder": "Enter issue title...",
             }
         ),
@@ -119,7 +144,44 @@ class CreateIssueForm(Form):
         """
         data = self.cleaned_data["labels"]
         if len(data) < 1:
-            raise ValidationError("Please select at least one option.")
+            raise ValidationError(MISSING_OPTION_TEXT)
+
+        return data
+
+
+class IssueLabelsForm(Form):
+    """Form for adding labels and priority to GitHub issues.
+
+    :var IssueLabelsForm.labels: issue labels selection
+    :type IssueLabelsForm.labels: :class:`django.forms.MultipleChoiceField`
+    :var IssueLabelsForm.priority: issue priority level
+    :type IssueLabelsForm.priority: :class:`django.forms.ChoiceField`
+    """
+
+    labels = MultipleChoiceField(
+        choices=ISSUE_CREATION_LABEL_CHOICES,
+        widget=CheckboxSelectMultiple(),
+        required=True,
+    )
+    priority = ChoiceField(
+        choices=ISSUE_PRIORITY_CHOICES,
+        widget=RadioSelect(),
+        required=True,
+        initial="medium priority",
+    )
+
+    def clean_labels(self):
+        """Ensure at least one label is selected.
+
+        Raise ValidationError if no labels are selected.
+
+        :var data: collection of form data
+        :type data: dict
+        :return: dict
+        """
+        data = self.cleaned_data["labels"]
+        if len(data) < 1:
+            raise ValidationError(MISSING_OPTION_TEXT)
 
         return data
 
@@ -138,7 +200,7 @@ class UpdateUserForm(ModelForm):
         required=False,
         widget=TextInput(
             attrs={
-                "class": "input input-bordered w-full",
+                "class": TEXTINPUT_CLASS,
                 "placeholder": "Enter your first name",
             }
         ),
@@ -147,7 +209,7 @@ class UpdateUserForm(ModelForm):
         required=False,
         widget=TextInput(
             attrs={
-                "class": "input input-bordered w-full",
+                "class": TEXTINPUT_CLASS,
                 "placeholder": "Enter your last name",
             }
         ),
@@ -169,11 +231,11 @@ class ProfileForm(ModelForm):
         required=False,
         widget=TextInput(
             attrs={
-                "class": "input input-bordered w-full",
+                "class": TEXTINPUT_CLASS,
                 "placeholder": "Enter your GitHub token (optional)",
             }
         ),
-        help_text="Optional: GitHub personal access token for enhanced API limits",
+        help_text="Optional: GitHub personal access token for accessing issues",
     )
 
     class Meta:

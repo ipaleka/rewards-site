@@ -171,14 +171,112 @@ class Contributor(models.Model):
         return self.name + " (" + ", ".join([handle.handle for handle in handles]) + ")"
 
     @cached_property
+    def open_contributions(self):
+        """Return all contributions with issue status CREATED.
+
+        :return: QuerySet of Contribution objects
+        """
+        return self.contribution_set.filter(
+            issue__isnull=False, issue__status=IssueStatus.CREATED
+        )
+
+    @cached_property
+    def addressed_contributions(self):
+        """Return all contributions with issue status ADDRESSED.
+
+        :return: QuerySet of Contribution objects
+        """
+        return self.contribution_set.filter(
+            issue__isnull=False, issue__status=IssueStatus.ADDRESSED
+        )
+
+    @cached_property
+    def archived_contributions(self):
+        """Return all contributions with issue status ARCHIVED.
+
+        :return: QuerySet of Contribution objects
+        """
+        return self.contribution_set.filter(
+            issue__isnull=False, issue__status=IssueStatus.ARCHIVED
+        )
+
+    @cached_property
+    def uncategorized_contributions(self):
+        """Return all contributions without any issue.
+
+        :return: QuerySet of Contribution objects
+        """
+        return self.contribution_set.filter(issue__isnull=True)
+
+    @cached_property
+    def invalidated_contributions(self):
+        """Return all contributions with issue status WONTFIX.
+
+        :return: QuerySet of Contribution objects
+        """
+        return self.contribution_set.filter(
+            issue__isnull=False, issue__status=IssueStatus.WONTFIX
+        )
+
+    @cached_property
+    def contribution_groups(self):
+        """Return collection of all contribution groups with totals for this instance.
+
+        :return: list
+        """
+        return [
+            {
+                "name": "Open",
+                "query": self.open_contributions,
+                "total": self.open_contributions.aggregate(total=Sum("reward__amount"))[
+                    "total"
+                ]
+                or 0,
+            },
+            {
+                "name": "Addressed",
+                "query": self.addressed_contributions,
+                "total": self.addressed_contributions.aggregate(
+                    total=Sum("reward__amount")
+                )["total"]
+                or 0,
+            },
+            {
+                "name": "Archived",
+                "query": self.archived_contributions,
+                "total": self.archived_contributions.aggregate(
+                    total=Sum("reward__amount")
+                )["total"]
+                or 0,
+            },
+            {
+                "name": "Uncategorized",
+                "query": self.uncategorized_contributions,
+                "total": self.uncategorized_contributions.aggregate(
+                    total=Sum("reward__amount")
+                )["total"]
+                or 0,
+            },
+            {
+                "name": "Invalidated",
+                "query": self.invalidated_contributions,
+                "total": 0,
+            },
+        ]
+
+    @cached_property
     def total_rewards(self):
         """Return sum of all reward amounts for this contributor (cached).
+        Excludes contributions with WONTFIX issue status.
 
         :return: int
         """
-        return self.contribution_set.aggregate(total_rewards=Sum("reward__amount")).get(
-            "total_rewards", 0
+        result = (
+            self.contribution_set.exclude(issue__status=IssueStatus.WONTFIX)
+            .aggregate(total_rewards=Sum("reward__amount"))
+            .get("total_rewards")
         )
+        return result or 0
 
 
 class SocialPlatform(models.Model):
@@ -350,13 +448,17 @@ class Cycle(models.Model):
 
     @property
     def total_rewards(self):
-        """Return sum of all reward amounts for this cycle (cached).
+        """Return sum of all reward amounts for this contributor (cached).
+        Excludes contributions with WONTFIX issue status.
 
         :return: int
         """
-        return self.contribution_set.aggregate(total_rewards=Sum("reward__amount")).get(
-            "total_rewards", 0
+        result = (
+            self.contribution_set.exclude(issue__status=IssueStatus.WONTFIX)
+            .aggregate(total_rewards=Sum("reward__amount"))
+            .get("total_rewards")
         )
+        return result or 0
 
 
 class RewardType(models.Model):

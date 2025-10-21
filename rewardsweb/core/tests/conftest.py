@@ -1,7 +1,10 @@
 """Module with database fixtures for core package unit tests."""
 
+from unittest import mock
+
 import pytest
 from django.contrib.auth.models import User
+from django.urls import reverse
 
 from core.models import (
     Contribution,
@@ -78,3 +81,25 @@ def contribution(cycle, contributor, social_platform, reward):
 def issue():
     """Create an issue for testing."""
     return Issue.objects.create(number=123)
+
+
+@pytest.fixture
+def invalidate_url(contribution):
+    """URL for invalidate view."""
+    return reverse(
+        "contribution-invalidate",
+        kwargs={"pk": contribution.pk, "reaction": "duplicate"},
+    )
+
+
+@pytest.fixture
+def mock_message_from_url():
+    """Mock the message_from_url function."""
+    with mock.patch("core.views.message_from_url") as mock_message:
+        mock_message.return_value = {
+            "success": True,
+            "author": "test_user",
+            "timestamp": "2024-01-01T12:00:00.000000+00:00",
+            "content": "Test message content",
+        }
+        yield mock_message

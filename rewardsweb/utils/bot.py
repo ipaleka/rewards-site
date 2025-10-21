@@ -80,6 +80,49 @@ def add_reaction_to_message(url, emoji):
         return False
 
 
+# utils/bot.py
+def add_reply_to_message(url, comment):
+    """Add a reply to an existing Discord message
+
+    :param url: Discord message URL
+    :type url: str
+    :param comment: reply message content
+    :type comment: str
+    :var bot_token: Discord bot API access token
+    :type bot_token: str
+    :var headers: headers instance carrying bot token and content type
+    :type headers: dict
+    :var api_url: fully formatted API URL to create message in channel
+    :type api_url: str
+    :var payload: request payload containing reply message data
+    :type payload: dict
+    :var response: HTTP response instance
+    :type response: :class:`requests.Response`
+    :return: Boolean indicating success
+    :rtype: bool
+    """
+    channel_id, message_id = _parse_discord_url(url)
+    if not channel_id:
+        return False
+
+    bot_token = get_env_variable("DISCORD_BOT_TOKEN", "")
+    headers = {"Authorization": f"Bot {bot_token}", "Content-Type": "application/json"}
+    api_url = f"https://discord.com/api/v10/channels/{channel_id}/messages"
+
+    payload = {
+        "content": comment,
+        "message_reference": {"channel_id": channel_id, "message_id": message_id},
+    }
+
+    response = requests.post(api_url, headers=headers, json=payload)
+    if response.status_code == 200:
+        logger.info(f"Reply added successfully to message {message_id}!")
+        return True
+    else:
+        logger.error(f"Failed to add reply: {response.status_code} - {response.text}")
+        return False
+
+
 def message_from_url(url):
     """Retrieve message content from provided Discord `url`.
 

@@ -1,12 +1,13 @@
 """Testing module for :py:mod:`core.views` module."""
 
 import time
-from datetime import datetime, timezone
+from datetime import datetime
 
 import pytest
 from allauth.account.forms import LoginForm
 from django.contrib.auth import get_user_model
 from django.contrib.auth.models import User
+from django.contrib.messages import get_messages
 from django.contrib.messages.storage.fallback import FallbackStorage
 from django.test import RequestFactory, TestCase
 from django.urls import reverse, reverse_lazy
@@ -14,11 +15,26 @@ from django.views import View
 from django.views.generic import DetailView, ListView, UpdateView
 from django.views.generic.detail import SingleObjectMixin
 
-from core.models import Contribution, Contributor, Cycle, Handle, Issue, SocialPlatform
-from core.forms import ProfileFormSet, UpdateUserForm
+from core.models import (
+    Contribution,
+    Contributor,
+    Cycle,
+    Handle,
+    Issue,
+    IssueStatus,
+    SocialPlatform,
+)
+from core.forms import (
+    ContributionEditForm,
+    ContributionInvalidateForm,
+    IssueLabelsForm,
+    ProfileFormSet,
+    UpdateUserForm,
+)
 from core.views import (
     ContributionDetailView,
-    ContributionUpdateView,
+    ContributionEditView,
+    ContributionInvalidateView,
     ContributorListView,
     ContributorDetailView,
     CreateIssueView,
@@ -26,10 +42,12 @@ from core.views import (
     CycleDetailView,
     IndexView,
     IssueDetailView,
+    IssueListView,
     ProfileDisplay,
     ProfileEditView,
     ProfileUpdate,
 )
+from utils.constants.core import DISCORD_EMOJIS
 
 user_model = get_user_model()
 
@@ -190,32 +208,30 @@ class TestDbContributionDetailView:
         assert obj.id == contribution.id
 
 
-class TestContributionUpdateView:
-    """Testing class for :class:`core.views.ContributionUpdateView`."""
+class TestContributionEditView:
+    """Testing class for :class:`core.views.ContributionEditView`."""
 
-    def test_contributionupdateview_is_subclass_of_updateview(self):
-        assert issubclass(ContributionUpdateView, UpdateView)
+    def test_contributioneditview_is_subclass_of_updateview(self):
+        assert issubclass(ContributionEditView, UpdateView)
 
-    def test_contributionupdateview_model(self):
-        view = ContributionUpdateView()
+    def test_contributioneditview_model(self):
+        view = ContributionEditView()
         assert view.model == Contribution
 
-    def test_contributionupdateview_form_class(self):
-        view = ContributionUpdateView()
-        from core.forms import ContributionEditForm
-
+    def test_contributioneditview_form_class(self):
+        view = ContributionEditView()
         assert view.form_class == ContributionEditForm
 
-    def test_contributionupdateview_template_name(self):
-        view = ContributionUpdateView()
+    def test_contributioneditview_template_name(self):
+        view = ContributionEditView()
         assert view.template_name == "core/contribution_edit.html"
 
 
 @pytest.mark.django_db
-class TestDbContributionUpdateView:
-    """Testing class for :class:`core.views.ContributionUpdateView` with database."""
+class TestDbContributionEditView:
+    """Testing class for :class:`core.views.ContributionEditView` with database."""
 
-    def test_contributionupdateview_get_success_url(self, rf, superuser, contribution):
+    def test_contributioneditview_get_success_url(self, rf, superuser, contribution):
         request = rf.get(f"/contributions/{contribution.id}/edit/")
         request.user = superuser
 
@@ -224,7 +240,7 @@ class TestDbContributionUpdateView:
         messages = FallbackStorage(request)
         setattr(request, "_messages", messages)
 
-        view = ContributionUpdateView()
+        view = ContributionEditView()
         view.setup(request, pk=contribution.id)
         view.object = contribution
         view.request = request
@@ -234,27 +250,360 @@ class TestDbContributionUpdateView:
         expected_url = reverse("contribution-detail", kwargs={"pk": contribution.pk})
         assert success_url == expected_url
 
-    def test_contributionupdateview_requires_superuser(
+    def test_contributioneditview_requires_superuser(
         self, rf, regular_user, contribution
     ):
-        request = rf.get(f"/contributions/{contribution.id}/edit/")
+        request = rf.get(f"/contribution/{contribution.id}/edit/")
         request.user = regular_user
 
-        response = ContributionUpdateView.as_view()(request, pk=contribution.id)
+        response = ContributionEditView.as_view()(request, pk=contribution.id)
 
         # Should redirect to login (302) for non-superusers
         assert response.status_code == 302
 
-    def test_contributionupdateview_superuser_access_granted(
+    def test_contributioneditview_superuser_access_granted(
         self, rf, superuser, contribution
     ):
-        request = rf.get(f"/contributions/{contribution.id}/edit/")
+        request = rf.get(f"/contribution/{contribution.id}/edit/")
         request.user = superuser
 
-        response = ContributionUpdateView.as_view()(request, pk=contribution.id)
+        response = ContributionEditView.as_view()(request, pk=contribution.id)
 
         # Should return 200 for superuser
         assert response.status_code == 200
+
+
+class TestContributionInvalidateView:
+    """Testing class for :class:`core.views.ContributionInvalidateView`."""
+
+    def test_contributioninvalidateview_is_subclass_of_updateview(self):
+        assert issubclass(ContributionInvalidateView, UpdateView)
+
+    def test_contributioninvalidateview_model(self):
+        view = ContributionInvalidateView()
+        assert view.model == Contribution
+
+    def test_contributioninvalidateview_form_class(self):
+        view = ContributionInvalidateView()
+        assert view.form_class == ContributionInvalidateForm
+
+    def test_contributioninvalidateview_template_name(self):
+        view = ContributionInvalidateView()
+        assert view.template_name == "core/contribution_invalidate.html"
+
+
+@pytest.mark.django_db
+class TestContributionInvalidateViewDb:
+    """Test suite for ContributionInvalidateView."""
+
+    def test_contributioninvalidateview_superuser_required(
+        self, client, regular_user, invalidate_url
+    ):
+        """Test that only superusers can access the view."""
+        client.force_login(regular_user)
+        response = client.get(invalidate_url)
+        # The view uses @user_passes_test which redirects to login for non-superusers
+        assert response.status_code == 302
+        assert "/accounts/login/" in response.url
+
+    def test_contributioninvalidateview_superuser_can_access(
+        self, client, superuser, invalidate_url, mock_message_from_url
+    ):
+        """Test that superuser can access the view."""
+        client.force_login(superuser)
+        response = client.get(invalidate_url)
+        assert response.status_code == 200
+
+    def test_contributioninvalidateview_get_context_data(
+        self, client, superuser, invalidate_url, mock_message_from_url
+    ):
+        """Test that context contains required data."""
+        client.force_login(superuser)
+        response = client.get(invalidate_url)
+
+        assert response.status_code == 200
+        assert "type" in response.context
+        assert "original_comment" in response.context
+        assert response.context["type"] == "duplicate"
+
+    @pytest.mark.parametrize(
+        "comment,expected_comment",
+        [
+            ("This is a test reply", "This is a test reply"),
+            ("", ""),
+        ],
+    )
+    def test_contributioninvalidateview_form_valid_all_operations_successful(
+        self,
+        client,
+        superuser,
+        contribution,
+        invalidate_url,
+        comment,
+        expected_comment,
+        mocker,
+    ):
+        """Test successful form submission with and without comment."""
+        client.force_login(superuser)
+
+        mock_add_reply = mocker.patch(
+            "core.views.add_reply_to_message", return_value=True
+        )
+        mock_add_reaction = mocker.patch(
+            "core.views.add_reaction_to_message", return_value=True
+        )
+
+        response = client.post(invalidate_url, {"comment": comment})
+
+        # Check that operations were called appropriately
+        if comment:
+            mock_add_reply.assert_called_once_with(contribution.url, expected_comment)
+        else:
+            mock_add_reply.assert_not_called()
+
+        mock_add_reaction.assert_called_once_with(
+            contribution.url, DISCORD_EMOJIS.get("duplicate")
+        )
+
+        # Check that contribution was confirmed
+        contribution.refresh_from_db()
+        assert contribution.confirmed is True
+
+        # Check success message
+        messages = list(get_messages(response.wsgi_request))
+        assert len(messages) == 1
+        assert "successfully" in messages[0].message
+
+        # Check redirect
+        expected_url = reverse("contribution-detail", kwargs={"pk": contribution.pk})
+        assert response.url == expected_url
+
+    def test_contributioninvalidateview_form_valid_reply_fails(
+        self, client, superuser, contribution, invalidate_url, mocker
+    ):
+        """Test form submission when reply operation fails."""
+        client.force_login(superuser)
+
+        mock_add_reply = mocker.patch(
+            "core.views.add_reply_to_message", return_value=False
+        )
+        mock_add_reaction = mocker.patch(
+            "core.views.add_reaction_to_message", return_value=True
+        )
+
+        response = client.post(invalidate_url, {"comment": "This is a test reply"})
+
+        # Check that contribution was NOT confirmed
+        contribution.refresh_from_db()
+        assert contribution.confirmed is False
+
+        # Check that form has error and was re-rendered
+        assert response.status_code == 200
+        content = response.content.decode()
+        assert "Failed to add reply" in content or "All operations failed" in content
+
+    def test_contributioninvalidateview_form_valid_reaction_fails(
+        self, client, superuser, contribution, invalidate_url, mocker
+    ):
+        """Test form submission when reaction operation fails."""
+        client.force_login(superuser)
+
+        mock_add_reaction = mocker.patch(
+            "core.views.add_reaction_to_message", return_value=False
+        )
+
+        response = client.post(invalidate_url, {"comment": ""})
+
+        # Check that contribution was NOT confirmed
+        contribution.refresh_from_db()
+        assert contribution.confirmed is False
+
+        # Check that form has error
+        assert response.status_code == 200
+        content = response.content.decode()
+        # Check for either specific error or general error message
+        assert any(
+            msg in content
+            for msg in ["Failed to add reaction", "All operations failed"]
+        )
+
+    def test_contributioninvalidateview_form_valid_both_operations_fail(
+        self, client, superuser, contribution, invalidate_url, mocker
+    ):
+        """Test form submission when both operations fail."""
+        client.force_login(superuser)
+
+        mock_add_reply = mocker.patch(
+            "core.views.add_reply_to_message", return_value=False
+        )
+        mock_add_reaction = mocker.patch(
+            "core.views.add_reaction_to_message", return_value=False
+        )
+
+        response = client.post(invalidate_url, {"comment": "This is a test reply"})
+
+        # Check that contribution was NOT confirmed
+        contribution.refresh_from_db()
+        assert contribution.confirmed is False
+
+        # Check that form has error
+        assert response.status_code == 200
+        assert "All operations failed" in response.content.decode()
+
+    def test_contributioninvalidateview_form_valid_reply_exception(
+        self, client, superuser, contribution, invalidate_url, mocker
+    ):
+        """Test form submission when reply operation raises exception."""
+        client.force_login(superuser)
+
+        mock_add_reply = mocker.patch(
+            "core.views.add_reply_to_message", side_effect=Exception("Reply failed")
+        )
+        mock_add_reaction = mocker.patch(
+            "core.views.add_reaction_to_message", return_value=True
+        )
+
+        response = client.post(invalidate_url, {"comment": "This is a test reply"})
+
+        # Check that contribution was NOT confirmed
+        contribution.refresh_from_db()
+        assert contribution.confirmed is False
+
+        # Check that form has error
+        assert response.status_code == 200
+        content = response.content.decode()
+        assert any(
+            msg in content for msg in ["Failed to add reply", "All operations failed"]
+        )
+
+    def test_contributioninvalidateview_form_valid_reaction_exception(
+        self, client, superuser, contribution, invalidate_url, mocker
+    ):
+        """Test form submission when reaction operation raises exception."""
+        client.force_login(superuser)
+
+        mock_add_reaction = mocker.patch(
+            "core.views.add_reaction_to_message",
+            side_effect=Exception("Reaction failed"),
+        )
+
+        response = client.post(invalidate_url, {"comment": ""})
+
+        # Check that contribution was NOT confirmed
+        contribution.refresh_from_db()
+        assert contribution.confirmed is False
+
+        # Check that form has error
+        assert response.status_code == 200
+        content = response.content.decode()
+        assert any(
+            msg in content
+            for msg in ["Failed to add reaction", "All operations failed"]
+        )
+
+    @pytest.mark.parametrize("reaction", ["duplicate", "wontfix"])
+    def test_contributioninvalidateview_different_types(
+        self, client, superuser, contribution, reaction, mocker
+    ):
+        """Test view works with different type parameters."""
+        url = reverse(
+            "contribution-invalidate",
+            kwargs={"pk": contribution.pk, "reaction": reaction},
+        )
+
+        client.force_login(superuser)
+
+        mock_add_reaction = mocker.patch(
+            "core.views.add_reaction_to_message", return_value=True
+        )
+
+        response = client.post(url, {"comment": ""})
+
+        # Check that reaction was called with correct type
+        mock_add_reaction.assert_called_once_with(
+            contribution.url, DISCORD_EMOJIS.get(reaction)
+        )
+
+        # Check success
+        contribution.refresh_from_db()
+        assert contribution.confirmed is True
+
+    def test_contributioninvalidateview_form_fields_present(
+        self, client, superuser, invalidate_url, mock_message_from_url
+    ):
+        """Test that form contains expected fields."""
+        client.force_login(superuser)
+        response = client.get(invalidate_url)
+
+        content = response.content.decode()
+        assert 'name="comment"' in content
+        assert "textarea" in content
+        assert "Set as duplicate" in content
+
+    def test_contributioninvalidateview_original_comment_in_context_message_success(
+        self, client, superuser, invalidate_url, mock_message_from_url
+    ):
+        """Test that original comment is included when message_from_url returns success."""
+        client.force_login(superuser)
+        response = client.get(invalidate_url)
+
+        assert "original_comment" in response.context
+        assert "test_user" in response.context["original_comment"]
+        assert "Test message content" in response.context["original_comment"]
+
+    def test_contributioninvalidateview_original_comment_empty_when_message_fails(
+        self, client, superuser, contribution, mocker
+    ):
+        """Test that original comment is empty when message_from_url fails."""
+        url = reverse(
+            "contribution-invalidate",
+            kwargs={"pk": contribution.pk, "reaction": "duplicate"},
+        )
+
+        # Mock message_from_url to return failure
+        mocker.patch("core.views.message_from_url", return_value={"success": False})
+
+        client.force_login(superuser)
+        response = client.get(url)
+
+        # The view should still have original_comment in context, but empty
+        assert "original_comment" in response.context
+        assert response.context["original_comment"] == ""
+
+    def test_contributioninvalidateview_success_message_content_with_comment(
+        self, client, superuser, invalidate_url, mocker
+    ):
+        """Test success message includes reply information when comment is provided."""
+        client.force_login(superuser)
+
+        mocker.patch("core.views.add_reply_to_message", return_value=True)
+        mocker.patch("core.views.add_reaction_to_message", return_value=True)
+
+        response = client.post(invalidate_url, {"comment": "Test reply"})
+
+        messages = list(get_messages(response.wsgi_request))
+        message_text = messages[0].message.lower()
+
+        assert "reply" in message_text
+        assert "reaction" in message_text
+        assert "duplicate" in message_text
+
+    def test_contributioninvalidateview_success_message_content_without_comment(
+        self, client, superuser, invalidate_url, mocker
+    ):
+        """Test success message excludes reply information when no comment is provided."""
+        client.force_login(superuser)
+
+        mocker.patch("core.views.add_reaction_to_message", return_value=True)
+
+        response = client.post(invalidate_url, {"comment": ""})
+
+        messages = list(get_messages(response.wsgi_request))
+        message_text = messages[0].message.lower()
+
+        assert "reply" not in message_text
+        assert "reaction" in message_text
+        assert "duplicate" in message_text
 
 
 class TestContributorListView:
@@ -695,6 +1044,46 @@ class TestCycleDetailView:
         assert view.model == Cycle
 
 
+class TestIssueListView:
+    """Testing class for :class:`core.views.IssueListView`."""
+
+    def test_issuelistview_is_subclass_of_listview(self):
+        assert issubclass(IssueListView, ListView)
+
+    def test_issuelistview_model(self):
+        view = IssueListView()
+        assert view.model == Issue
+
+    def test_issuelistview_paginate_by(self):
+        view = IssueListView()
+        assert view.paginate_by == 20
+
+
+@pytest.mark.django_db
+class TestDbIssueListView:
+    """Testing class for :class:`core.views.IssueListView` with database."""
+
+    def test_issuelistview_get_queryset(self, rf):
+        request = rf.get("/issues/")
+
+        # Create test issues
+        issue1 = Issue.objects.create(number=5055)
+        issue2 = Issue.objects.create(number=5050)
+        Issue.objects.create(number=5051)
+        Issue.objects.create(number=5052, status=IssueStatus.WONTFIX)
+        Issue.objects.create(number=5053, status=IssueStatus.ADDRESSED)
+        Issue.objects.create(number=5054, status=IssueStatus.ARCHIVED)
+
+        view = IssueListView()
+        view.setup(request)
+
+        queryset = view.get_queryset()
+
+        assert queryset.count() == 3
+        assert queryset.first() == issue2
+        assert queryset.last() == issue1
+
+
 @pytest.mark.django_db
 class TestDbCycleDetailView:
     """Testing class for :class:`core.views.CycleDetailView` with database."""
@@ -919,6 +1308,1397 @@ class TestDbIssueDetailView:
         )
         assert context["issue_created_at"] == "2023-01-01T10:00:00"
         assert context["issue_updated_at"] == "2023-01-15T15:30:00"
+
+
+@pytest.mark.django_db
+class TestIssueDetailViewWithForm:
+    """Test the IssueDetailView with the new form functionality."""
+
+    def test_issuedetailview_labels_form_in_context_for_superuser_and_open_issue(
+        self, client, superuser, issue, mocker
+    ):
+        """Test that labels form is in context for superusers when GitHub issue is open."""
+        # Mock GitHub issue as open
+        mock_get_issue = mocker.patch("core.views.issue_by_number")
+        mock_github_data = {
+            "success": True,
+            "issue": {
+                "number": 123,
+                "title": "Test Issue",
+                "body": "Test body",
+                "state": "open",  # Issue is open
+                "labels": ["bug"],
+                "assignees": [],
+                "html_url": "https://github.com/owner/repo/issues/123",
+                "created_at": "2023-01-01T10:00:00",
+                "updated_at": "2023-01-15T15:30:00",
+            },
+        }
+        mock_get_issue.return_value = mock_github_data
+
+        client.force_login(superuser)
+        url = reverse("issue-detail", kwargs={"pk": issue.pk})
+        response = client.get(url)
+
+        assert response.status_code == 200
+        assert "labels_form" in response.context
+        assert isinstance(response.context["labels_form"], IssueLabelsForm)
+
+    def test_issuedetailview_labels_form_not_in_context_for_superuser_and_closed_issue(
+        self, client, superuser, issue, mocker
+    ):
+        """Test that labels form is NOT in context for superusers when GitHub issue is closed."""
+        # Mock GitHub issue as closed
+        mock_get_issue = mocker.patch("core.views.issue_by_number")
+        mock_github_data = {
+            "success": True,
+            "issue": {
+                "number": 123,
+                "title": "Test Issue",
+                "body": "Test body",
+                "state": "closed",  # Issue is closed
+                "labels": ["bug"],
+                "assignees": [],
+                "html_url": "https://github.com/owner/repo/issues/123",
+                "created_at": "2023-01-01T10:00:00",
+                "updated_at": "2023-01-15T15:30:00",
+            },
+        }
+        mock_get_issue.return_value = mock_github_data
+
+        client.force_login(superuser)
+        url = reverse("issue-detail", kwargs={"pk": issue.pk})
+        response = client.get(url)
+
+        assert response.status_code == 200
+        assert "labels_form" not in response.context
+
+    def test_issuedetailview_labels_form_not_in_context_for_regular_user(
+        self, client, regular_user, issue, mocker
+    ):
+        """Test that labels form is NOT in context for regular users even if issue is open."""
+        # Mock GitHub issue as open
+        mock_get_issue = mocker.patch("core.views.issue_by_number")
+        mock_github_data = {
+            "success": True,
+            "issue": {
+                "number": 123,
+                "title": "Test Issue",
+                "body": "Test body",
+                "state": "open",  # Issue is open
+                "labels": ["bug"],
+                "assignees": [],
+                "html_url": "https://github.com/owner/repo/issues/123",
+                "created_at": "2023-01-01T10:00:00",
+                "updated_at": "2023-01-15T15:30:00",
+            },
+        }
+        mock_get_issue.return_value = mock_github_data
+
+        client.force_login(regular_user)
+        url = reverse("issue-detail", kwargs={"pk": issue.pk})
+        response = client.get(url)
+
+        assert response.status_code == 200
+        assert "labels_form" not in response.context
+
+    def test_issuedetailview_labels_form_not_in_context_when_github_fails(
+        self, client, superuser, issue, mocker
+    ):
+        """Test that labels form is NOT in context when GitHub data fetch fails."""
+        # Mock GitHub issue fetch failure
+        mock_get_issue = mocker.patch("core.views.issue_by_number")
+        mock_github_data = {"success": False, "error": "GitHub API error"}
+        mock_get_issue.return_value = mock_github_data
+
+        client.force_login(superuser)
+        url = reverse("issue-detail", kwargs={"pk": issue.pk})
+        response = client.get(url)
+
+        assert response.status_code == 200
+        assert "labels_form" not in response.context
+        assert "github_error" in response.context
+
+    def test_issuedetailview_form_prepopulated_with_existing_labels(
+        self, client, superuser, issue, mocker
+    ):
+        """Test that form is prepopulated with existing GitHub labels."""
+        # Mock the issue_by_number function
+        mock_get_issue = mocker.patch("core.views.issue_by_number")
+
+        # Mock GitHub issue with existing labels including priority
+        # Use only labels that exist in ISSUE_CREATION_LABEL_CHOICES
+        mock_github_data = {
+            "success": True,
+            "issue": {
+                "number": 123,
+                "title": "Test Issue",
+                "body": "Test body",
+                "state": "open",
+                "labels": [
+                    "bug",
+                    "feature",
+                    "high priority",
+                    "question",
+                ],  # Only valid choices
+                "assignees": ["user1"],
+                "html_url": "https://github.com/owner/repo/issues/123",
+                "created_at": "2023-01-01T10:00:00",
+                "updated_at": "2023-01-15T15:30:00",
+            },
+        }
+        mock_get_issue.return_value = mock_github_data
+
+        client.force_login(superuser)
+        url = reverse("issue-detail", kwargs={"pk": issue.pk})
+        response = client.get(url)
+
+        assert response.status_code == 200
+        form = response.context["labels_form"]
+
+        # Check that form is prepopulated with correct values
+        # Only labels that exist in ISSUE_CREATION_LABEL_CHOICES should be included
+        assert set(form.initial["labels"]) == {"bug", "feature"}
+        assert form.initial["priority"] == "high priority"
+
+    def test_issuedetailview_form_prepopulated_with_default_priority_when_no_priority(
+        self, client, superuser, issue, mocker
+    ):
+        """Test that form uses default priority when no priority label exists."""
+        # Mock the issue_by_number function
+        mock_get_issue = mocker.patch("core.views.issue_by_number")
+
+        # Mock GitHub issue with labels but no priority
+        mock_github_data = {
+            "success": True,
+            "issue": {
+                "number": 123,
+                "title": "Test Issue",
+                "body": "Test body",
+                "state": "open",
+                "labels": ["bug", "feature"],  # No priority label, only valid choices
+                "assignees": ["user1"],
+                "html_url": "https://github.com/owner/repo/issues/123",
+                "created_at": "2023-01-01T10:00:00",
+                "updated_at": "2023-01-15T15:30:00",
+            },
+        }
+        mock_get_issue.return_value = mock_github_data
+
+        client.force_login(superuser)
+        url = reverse("issue-detail", kwargs={"pk": issue.pk})
+        response = client.get(url)
+
+        assert response.status_code == 200
+        form = response.context["labels_form"]
+
+        # Check that form uses default priority
+        assert set(form.initial["labels"]) == {"bug", "feature"}
+        assert form.initial["priority"] == "medium priority"  # Default
+
+    def test_issuedetailview_form_prepopulated_with_unknown_labels_filtered_out(
+        self, client, superuser, issue, mocker
+    ):
+        """Test that unknown labels are filtered out during prepopulation."""
+        # Mock the issue_by_number function
+        mock_get_issue = mocker.patch("core.views.issue_by_number")
+
+        # Mock GitHub issue with some unknown labels
+        mock_github_data = {
+            "success": True,
+            "issue": {
+                "number": 123,
+                "title": "Test Issue",
+                "body": "Test body",
+                "state": "open",
+                "labels": ["bug", "unknown_label", "high priority", "another_unknown"],
+                "assignees": ["user1"],
+                "html_url": "https://github.com/owner/repo/issues/123",
+                "created_at": "2023-01-01T10:00:00",
+                "updated_at": "2023-01-15T15:30:00",
+            },
+        }
+        mock_get_issue.return_value = mock_github_data
+
+        client.force_login(superuser)
+        url = reverse("issue-detail", kwargs={"pk": issue.pk})
+        response = client.get(url)
+
+        assert response.status_code == 200
+        form = response.context["labels_form"]
+
+        # Check that only known labels are included
+        assert form.initial["labels"] == ["bug"]  # Only known label
+        assert form.initial["priority"] == "high priority"
+
+    def test_issuedetailview_priority_detection_with_various_formats(
+        self, client, superuser, issue, mocker
+    ):
+        """Test that priority detection works with various label formats."""
+        # Mock the issue_by_number function
+        mock_get_issue = mocker.patch("core.views.issue_by_number")
+
+        # Mock GitHub issue with different priority label formats
+        mock_github_data = {
+            "success": True,
+            "issue": {
+                "number": 123,
+                "title": "Test Issue",
+                "body": "Test body",
+                "state": "open",
+                "labels": [
+                    "bug",
+                    "low priority",  # Use lowercase to match actual priority choices
+                ],  # Only one priority to avoid ambiguity
+                "assignees": ["user1"],
+                "html_url": "https://github.com/owner/repo/issues/123",
+                "created_at": "2023-01-01T10:00:00",
+                "updated_at": "2023-01-15T15:30:00",
+            },
+        }
+        mock_get_issue.return_value = mock_github_data
+
+        client.force_login(superuser)
+        url = reverse("issue-detail", kwargs={"pk": issue.pk})
+        response = client.get(url)
+
+        assert response.status_code == 200
+        form = response.context["labels_form"]
+
+        # Should detect the priority label correctly
+        assert form.initial["labels"] == ["bug"]
+        assert form.initial["priority"] == "low priority"
+
+    def test_issuedetailview_post_request_sets_labels_successfully(
+        self, client, superuser, issue, mocker
+    ):
+        """Test that POST request successfully sets labels on GitHub issue."""
+        # Mock the set_labels_to_issue function
+        mock_add_labels = mocker.patch("core.views.set_labels_to_issue")
+        mock_add_labels.return_value = {
+            "success": True,
+            "message": (
+                "Added labels ['bug', 'feature', 'high priority'] "
+                f"to issue #{issue.number}"
+            ),
+            "current_labels": ["bug", "feature", "high priority"],
+        }
+
+        client.force_login(superuser)
+        url = reverse("issue-detail", kwargs={"pk": issue.pk})
+
+        # Submit form with selected labels and priority
+        response = client.post(
+            url, {"labels": ["bug", "feature"], "priority": "high priority"}
+        )
+
+        assert response.status_code == 302  # Redirect after POST
+        # Fix the URL assertion to match your actual URL pattern
+        expected_url = reverse("issue-detail", kwargs={"pk": issue.pk})
+        assert response.url == expected_url
+
+    def test_issuedetailview_post_request_handles_github_error(
+        self, client, superuser, issue, mocker
+    ):
+        """Test that GitHub errors are handled when setting labels."""
+        # Mock the set_labels_to_issue function to return error
+        mock_add_labels = mocker.patch("core.views.set_labels_to_issue")
+        mock_add_labels.return_value = {
+            "success": False,
+            "error": "GitHub API rate limit exceeded",
+        }
+
+        client.force_login(superuser)
+        url = reverse("issue-detail", kwargs={"pk": issue.pk})
+
+        response = client.post(url, {"labels": ["bug"], "priority": "medium priority"})
+
+        assert response.status_code == 302
+
+    def test_issuedetailview_post_request_invalid_form(self, client, superuser, issue):
+        """Test that invalid form submission shows error."""
+        client.force_login(superuser)
+        url = reverse("issue-detail", kwargs={"pk": issue.pk})
+
+        # Submit empty form (invalid)
+        response = client.post(url, {})
+
+        assert response.status_code == 302
+
+    def test_issuedetailview_post_request_denied_for_regular_user(
+        self, client, regular_user, issue
+    ):
+        """Test that regular users cannot submit the form."""
+        client.force_login(regular_user)
+        url = reverse("issue-detail", kwargs={"pk": issue.pk})
+
+        response = client.post(url, {"labels": ["bug"], "priority": "medium priority"})
+
+        # Should redirect with error message
+        assert response.status_code == 302
+
+    def test_issuedetailview_context_variables_for_priority_and_labels(
+        self, client, superuser, issue, mocker
+    ):
+        """Test that context variables for current priority and labels are set."""
+        # Mock the issue_by_number function
+        mock_get_issue = mocker.patch("core.views.issue_by_number")
+
+        mock_github_data = {
+            "success": True,
+            "issue": {
+                "number": 123,
+                "title": "Test Issue",
+                "body": "Test body",
+                "state": "open",
+                "labels": ["bug", "feature", "high priority"],  # Use valid choices
+                "assignees": ["user1"],
+                "html_url": "https://github.com/owner/repo/issues/123",
+                "created_at": "2023-01-01T10:00:00",
+                "updated_at": "2023-01-15T15:30:00",
+            },
+        }
+        mock_get_issue.return_value = mock_github_data
+
+        client.force_login(superuser)
+        url = reverse("issue-detail", kwargs={"pk": issue.pk})
+        response = client.get(url)
+
+        assert response.status_code == 200
+        context = response.context
+
+        # Check that context variables are set
+        assert context["current_priority"] == "high priority"
+        assert set(context["current_custom_labels"]) == {"bug", "feature"}
+
+    def test_issuedetailview_form_in_template_for_superuser(
+        self, client, superuser, issue, mocker
+    ):
+        """Test that form appears in template for superusers."""
+        # Mock GitHub data
+        mock_get_issue = mocker.patch("core.views.issue_by_number")
+        mock_github_data = {
+            "success": True,
+            "issue": {
+                "number": 123,
+                "title": "Test Issue",
+                "body": "Test body",
+                "state": "open",
+                "labels": ["bug", "high priority"],
+                "assignees": ["user1"],
+                "html_url": "https://github.com/owner/repo/issues/123",
+                "created_at": "2023-01-01T10:00:00",
+                "updated_at": "2023-01-15T15:30:00",
+            },
+        }
+        mock_get_issue.return_value = mock_github_data
+
+        client.force_login(superuser)
+        url = reverse("issue-detail", kwargs={"pk": issue.pk})
+        response = client.get(url)
+
+        assert response.status_code == 200
+        # Check that form elements are in the response
+        content = response.content.decode()
+        assert "Set labels" in content  # Button text
+        assert "bug" in content  # Label option
+        assert "high priority" in content  # Priority option
+
+
+@pytest.mark.django_db
+class TestIssueDetailViewSubmissionHandlers:
+    """Test the submission handler methods in IssueDetailView."""
+
+    # Tests for _handle_labels_submission
+    def test_issuedetailview_handle_labels_submission_success(
+        self, client, superuser, issue, mocker
+    ):
+        """Test successful labels form submission."""
+        # Mock the set_labels_to_issue function from utils.issues
+        mock_add_labels = mocker.patch("core.views.set_labels_to_issue")
+        mock_add_labels.return_value = {
+            "success": True,
+            "message": f"Added labels ['bug', 'feature', 'high priority'] to issue #{issue.number}",
+            "current_labels": ["bug", "feature", "high priority"],
+        }
+
+        client.force_login(superuser)
+        url = reverse("issue-detail", kwargs={"pk": issue.pk})
+
+        response = client.post(
+            url,
+            {
+                "labels": ["bug", "feature"],
+                "priority": "high priority",
+                "submit_labels": "Set labels",
+            },
+        )
+
+        assert response.status_code == 302
+        assert response.url == reverse("issue-detail", kwargs={"pk": issue.pk})
+
+        # Verify the function was called with correct arguments
+        mock_add_labels.assert_called_once_with(
+            superuser, issue.number, ["bug", "feature", "high priority"]
+        )
+
+        # Check success message
+        messages = list(get_messages(response.wsgi_request))
+        assert any(
+            f"Successfully set labels for issue #{issue.number}" in str(message)
+            for message in messages
+        )
+
+    def test_issuedetailview_handle_labels_submission_github_failure(
+        self, client, superuser, issue, mocker
+    ):
+        """Test labels form submission when GitHub operation fails."""
+        # Mock the set_labels_to_issue function to return failure
+        mock_add_labels = mocker.patch("core.views.set_labels_to_issue")
+        mock_add_labels.return_value = {
+            "success": False,
+            "error": "GitHub API rate limit exceeded",
+        }
+
+        client.force_login(superuser)
+        url = reverse("issue-detail", kwargs={"pk": issue.pk})
+
+        response = client.post(
+            url,
+            {
+                "labels": ["bug"],
+                "priority": "medium priority",
+                "submit_labels": "Set labels",
+            },
+        )
+
+        assert response.status_code == 302
+        assert response.url == reverse("issue-detail", kwargs={"pk": issue.pk})
+
+        # Check error message
+        messages = list(get_messages(response.wsgi_request))
+        assert any("Failed to set labels" in str(message) for message in messages)
+        assert any(
+            "GitHub API rate limit exceeded" in str(message) for message in messages
+        )
+
+    def test_issuedetailview_handle_labels_submission_invalid_form(
+        self, client, superuser, issue
+    ):
+        """Test labels form submission with invalid form data."""
+        client.force_login(superuser)
+        url = reverse("issue-detail", kwargs={"pk": issue.pk})
+
+        # Submit empty form (invalid - required fields missing)
+        response = client.post(
+            url,
+            {
+                "submit_labels": "Set labels"
+                # Missing 'labels' and 'priority' fields
+            },
+        )
+
+        assert response.status_code == 302
+        assert response.url == reverse("issue-detail", kwargs={"pk": issue.pk})
+
+        # Check error message
+        messages = list(get_messages(response.wsgi_request))
+        assert any(
+            "Please correct the errors in the form" in str(message)
+            for message in messages
+        )
+
+    def test_issuedetailview_handle_labels_submission_empty_labels(
+        self, client, superuser, issue
+    ):
+        """Test labels form submission with empty labels list."""
+        client.force_login(superuser)
+        url = reverse("issue-detail", kwargs={"pk": issue.pk})
+
+        # Submit form with empty labels (invalid)
+        response = client.post(
+            url,
+            {
+                "labels": [],  # Empty labels
+                "priority": "medium priority",
+                "submit_labels": "Set labels",
+            },
+        )
+
+        assert response.status_code == 302
+        assert response.url == reverse("issue-detail", kwargs={"pk": issue.pk})
+
+        # Check error message
+        messages = list(get_messages(response.wsgi_request))
+        assert any(
+            "Please correct the errors in the form" in str(message)
+            for message in messages
+        )
+
+    # Tests for _handle_close_submission - Resolved action
+    def test_issuedetailview_handle_close_submission_resolved_success(
+        self, client, superuser, issue, mocker
+    ):
+        """Test successful close as resolved submission."""
+        # Mock GitHub functions
+        mock_get_issue = mocker.patch("core.views.issue_by_number")
+        mock_close_issue = mocker.patch("core.views.close_issue_with_labels")
+
+        mock_github_data = {
+            "success": True,
+            "issue": {
+                "number": 123,
+                "title": "Test Issue",
+                "body": "Test body",
+                "state": "open",
+                "labels": ["bug", "work in progress", "feature"],
+                "assignees": [],
+                "html_url": "https://github.com/owner/repo/issues/123",
+                "created_at": "2023-01-01T10:00:00",
+                "updated_at": "2023-01-15T15:30:00",
+            },
+        }
+        mock_get_issue.return_value = mock_github_data
+        mock_close_issue.return_value = {"success": True}
+
+        client.force_login(superuser)
+        url = reverse("issue-detail", kwargs={"pk": issue.pk})
+
+        response = client.post(
+            url,
+            {
+                "close_action": "resolved",
+                "close_comment": "This issue has been resolved successfully.",
+                "submit_close": "Confirm Close",
+            },
+        )
+
+        assert response.status_code == 302
+        assert response.url == reverse("issue-detail", kwargs={"pk": issue.pk})
+
+        # Check that issue status was updated
+        issue.refresh_from_db()
+        assert issue.status == IssueStatus.ADDRESSED
+
+        # Check that close_issue_with_labels was called with correct arguments
+        mock_close_issue.assert_called_once()
+        call_args = mock_close_issue.call_args[1]
+        assert call_args["user"] == superuser
+        assert call_args["issue_number"] == issue.number
+        assert call_args["comment"] == "This issue has been resolved successfully."
+        assert "addressed" in call_args["labels_to_set"]
+        assert "work in progress" not in call_args["labels_to_set"]
+        assert "bug" in call_args["labels_to_set"]
+        assert "feature" in call_args["labels_to_set"]
+
+        # Check success message
+        messages = list(get_messages(response.wsgi_request))
+        assert any(
+            f"Issue #{issue.number} closed as resolved successfully" in str(message)
+            for message in messages
+        )
+
+    def test_issuedetailview_handle_close_submission_resolved_success_no_comment(
+        self, client, superuser, issue, mocker
+    ):
+        """Test successful close as resolved submission without comment."""
+        # Mock GitHub functions
+        mock_get_issue = mocker.patch("core.views.issue_by_number")
+        mock_close_issue = mocker.patch("core.views.close_issue_with_labels")
+
+        mock_github_data = {
+            "success": True,
+            "issue": {
+                "number": 123,
+                "title": "Test Issue",
+                "body": "Test body",
+                "state": "open",
+                "labels": ["bug"],
+                "assignees": [],
+                "html_url": "https://github.com/owner/repo/issues/123",
+                "created_at": "2023-01-01T10:00:00",
+                "updated_at": "2023-01-15T15:30:00",
+            },
+        }
+        mock_get_issue.return_value = mock_github_data
+        mock_close_issue.return_value = {"success": True}
+
+        client.force_login(superuser)
+        url = reverse("issue-detail", kwargs={"pk": issue.pk})
+
+        response = client.post(
+            url,
+            {
+                "close_action": "resolved",
+                "close_comment": "",  # Empty comment
+                "submit_close": "Confirm Close",
+            },
+        )
+
+        assert response.status_code == 302
+
+        # Check that close_issue_with_labels was called with empty comment
+        mock_close_issue.assert_called_once()
+        call_args = mock_close_issue.call_args[1]
+        assert call_args["comment"] == ""
+
+    def test_issuedetailview_handle_close_submission_wontfix_success(
+        self, client, superuser, issue, mocker
+    ):
+        """Test successful close as wontfix submission."""
+        # Mock GitHub functions
+        mock_get_issue = mocker.patch("core.views.issue_by_number")
+        mock_close_issue = mocker.patch("core.views.close_issue_with_labels")
+
+        mock_github_data = {
+            "success": True,
+            "issue": {
+                "number": 123,
+                "title": "Test Issue",
+                "body": "Test body",
+                "state": "open",
+                "labels": ["bug", "work in progress"],
+                "assignees": [],
+                "html_url": "https://github.com/owner/repo/issues/123",
+                "created_at": "2023-01-01T10:00:00",
+                "updated_at": "2023-01-15T15:30:00",
+            },
+        }
+        mock_get_issue.return_value = mock_github_data
+        mock_close_issue.return_value = {"success": True}
+
+        client.force_login(superuser)
+        url = reverse("issue-detail", kwargs={"pk": issue.pk})
+
+        response = client.post(
+            url,
+            {
+                "close_action": "wontfix",
+                "close_comment": "This issue will not be fixed.",
+                "submit_close": "Confirm Close",
+            },
+        )
+
+        assert response.status_code == 302
+        assert response.url == reverse("issue-detail", kwargs={"pk": issue.pk})
+
+        # Check that issue status was updated
+        issue.refresh_from_db()
+        assert issue.status == IssueStatus.WONTFIX
+
+        # Check that close_issue_with_labels was called with correct arguments
+        mock_close_issue.assert_called_once()
+        call_args = mock_close_issue.call_args[1]
+        assert call_args["user"] == superuser
+        assert call_args["issue_number"] == issue.number
+        assert call_args["comment"] == "This issue will not be fixed."
+        assert "wontfix" in call_args["labels_to_set"]
+        assert "work in progress" not in call_args["labels_to_set"]
+
+        # Check success message
+        messages = list(get_messages(response.wsgi_request))
+        assert any(
+            f"Issue #{issue.number} closed as wontfix successfully" in str(message)
+            for message in messages
+        )
+
+    def test_issuedetailview_handle_close_submission_invalid_action(
+        self, client, superuser, issue
+    ):
+        """Test close submission with invalid action."""
+        client.force_login(superuser)
+        url = reverse("issue-detail", kwargs={"pk": issue.pk})
+
+        response = client.post(
+            url,
+            {
+                "close_action": "invalid_action",  # Invalid action
+                "close_comment": "",
+                "submit_close": "Confirm Close",
+            },
+        )
+
+        assert response.status_code == 302
+        assert response.url == reverse("issue-detail", kwargs={"pk": issue.pk})
+
+        # Check error message
+        messages = list(get_messages(response.wsgi_request))
+        assert any("Invalid close action" in str(message) for message in messages)
+
+    def test_issuedetailview_handle_close_submission_github_fetch_failure(
+        self, client, superuser, issue, mocker
+    ):
+        """Test close submission when GitHub issue fetch fails."""
+        # Mock GitHub issue fetch failure
+        mock_get_issue = mocker.patch("core.views.issue_by_number")
+        mock_github_data = {"success": False, "error": "Authentication failed"}
+        mock_get_issue.return_value = mock_github_data
+
+        client.force_login(superuser)
+        url = reverse("issue-detail", kwargs={"pk": issue.pk})
+
+        response = client.post(
+            url,
+            {
+                "close_action": "resolved",
+                "close_comment": "",
+                "submit_close": "Confirm Close",
+            },
+        )
+
+        assert response.status_code == 302
+        assert response.url == reverse("issue-detail", kwargs={"pk": issue.pk})
+
+        # Check error message
+        messages = list(get_messages(response.wsgi_request))
+        assert any(
+            "Failed to fetch GitHub issue" in str(message) for message in messages
+        )
+        assert any("Authentication failed" in str(message) for message in messages)
+
+    def test_issuedetailview_handle_close_submission_already_closed_issue(
+        self, client, superuser, issue, mocker
+    ):
+        """Test close submission when GitHub issue is already closed."""
+        # Mock GitHub issue as closed
+        mock_get_issue = mocker.patch("core.views.issue_by_number")
+        mock_github_data = {
+            "success": True,
+            "issue": {
+                "number": 123,
+                "title": "Test Issue",
+                "body": "Test body",
+                "state": "closed",  # Already closed
+                "labels": ["bug"],
+                "assignees": [],
+                "html_url": "https://github.com/owner/repo/issues/123",
+                "created_at": "2023-01-01T10:00:00",
+                "updated_at": "2023-01-15T15:30:00",
+            },
+        }
+        mock_get_issue.return_value = mock_github_data
+
+        client.force_login(superuser)
+        url = reverse("issue-detail", kwargs={"pk": issue.pk})
+
+        response = client.post(
+            url,
+            {
+                "close_action": "resolved",
+                "close_comment": "",
+                "submit_close": "Confirm Close",
+            },
+        )
+
+        assert response.status_code == 302
+        assert response.url == reverse("issue-detail", kwargs={"pk": issue.pk})
+
+        # Check error message
+        messages = list(get_messages(response.wsgi_request))
+        assert any("already closed on GitHub" in str(message) for message in messages)
+
+    def test_issuedetailview_handle_close_submission_github_close_failure(
+        self, client, superuser, issue, mocker
+    ):
+        """Test close submission when GitHub close operation fails."""
+        # Mock GitHub functions
+        mock_get_issue = mocker.patch("core.views.issue_by_number")
+        mock_close_issue = mocker.patch("core.views.close_issue_with_labels")
+
+        mock_github_data = {
+            "success": True,
+            "issue": {
+                "number": 123,
+                "title": "Test Issue",
+                "body": "Test body",
+                "state": "open",
+                "labels": ["bug"],
+                "assignees": [],
+                "html_url": "https://github.com/owner/repo/issues/123",
+                "created_at": "2023-01-01T10:00:00",
+                "updated_at": "2023-01-15T15:30:00",
+            },
+        }
+        mock_get_issue.return_value = mock_github_data
+        mock_close_issue.return_value = {
+            "success": False,
+            "error": "Failed to close issue on GitHub",
+        }
+
+        client.force_login(superuser)
+        url = reverse("issue-detail", kwargs={"pk": issue.pk})
+
+        response = client.post(
+            url,
+            {
+                "close_action": "resolved",
+                "close_comment": "",
+                "submit_close": "Confirm Close",
+            },
+        )
+
+        assert response.status_code == 302
+        assert response.url == reverse("issue-detail", kwargs={"pk": issue.pk})
+
+        # Check that local status was reverted
+        issue.refresh_from_db()
+        assert issue.status == IssueStatus.CREATED  # Reverted to original
+
+        # Check error message - the actual error message from the view
+        messages = list(get_messages(response.wsgi_request))
+        assert any(
+            "Failed to close issue on GitHub" in str(message) for message in messages
+        )
+
+    def test_issuedetailview_handle_close_submission_exception_handling(
+        self, client, superuser, issue, mocker
+    ):
+        """Test close submission when an unexpected exception occurs."""
+        # Mock GitHub function to raise an exception
+        mock_get_issue = mocker.patch("core.views.issue_by_number")
+        mock_get_issue.side_effect = Exception("Unexpected error")
+
+        client.force_login(superuser)
+        url = reverse("issue-detail", kwargs={"pk": issue.pk})
+
+        response = client.post(
+            url,
+            {
+                "close_action": "resolved",
+                "close_comment": "",
+                "submit_close": "Confirm Close",
+            },
+        )
+
+        assert response.status_code == 302
+        assert response.url == reverse("issue-detail", kwargs={"pk": issue.pk})
+
+        # Check error message
+        messages = list(get_messages(response.wsgi_request))
+        assert any("Error closing issue" in str(message) for message in messages)
+        assert any("Unexpected error" in str(message) for message in messages)
+
+    def test_issuedetailview_handle_close_submission_labels_processing(
+        self, client, superuser, issue, mocker
+    ):
+        """Test that labels are properly processed (remove work in progress, add correct label)."""
+        # Mock GitHub functions
+        mock_get_issue = mocker.patch("core.views.issue_by_number")
+        mock_close_issue = mocker.patch("core.views.close_issue_with_labels")
+
+        mock_github_data = {
+            "success": True,
+            "issue": {
+                "number": 123,
+                "title": "Test Issue",
+                "body": "Test body",
+                "state": "open",
+                "labels": [
+                    "work in progress",
+                    "bug",
+                    "enhancement",
+                    "WORK IN PROGRESS",
+                ],  # Multiple cases
+                "assignees": [],
+                "html_url": "https://github.com/owner/repo/issues/123",
+                "created_at": "2023-01-01T10:00:00",
+                "updated_at": "2023-01-15T15:30:00",
+            },
+        }
+        mock_get_issue.return_value = mock_github_data
+        mock_close_issue.return_value = {"success": True}
+
+        client.force_login(superuser)
+        url = reverse("issue-detail", kwargs={"pk": issue.pk})
+
+        response = client.post(
+            url,
+            {
+                "close_action": "resolved",
+                "close_comment": "",
+                "submit_close": "Confirm Close",
+            },
+        )
+
+        assert response.status_code == 302
+
+        # Check that close_issue_with_labels was called with correct labels
+        mock_close_issue.assert_called_once()
+        call_args = mock_close_issue.call_args[1]
+        labels_to_set = call_args["labels_to_set"]
+
+        # Should contain addressed label and other labels except work in progress variants
+        assert "addressed" in labels_to_set
+        assert "bug" in labels_to_set
+        assert "enhancement" in labels_to_set
+        assert "work in progress" not in labels_to_set
+        assert "WORK IN PROGRESS" not in labels_to_set
+
+    def test_issuedetailview_handle_close_submission_existing_label_not_duplicated(
+        self, client, superuser, issue, mocker
+    ):
+        """Test that existing addressed/wontfix label is not duplicated."""
+        # Mock GitHub functions
+        mock_get_issue = mocker.patch("core.views.issue_by_number")
+        mock_close_issue = mocker.patch("core.views.close_issue_with_labels")
+
+        mock_github_data = {
+            "success": True,
+            "issue": {
+                "number": 123,
+                "title": "Test Issue",
+                "body": "Test body",
+                "state": "open",
+                "labels": ["bug", "addressed"],  # Already has addressed label
+                "assignees": [],
+                "html_url": "https://github.com/owner/repo/issues/123",
+                "created_at": "2023-01-01T10:00:00",
+                "updated_at": "2023-01-15T15:30:00",
+            },
+        }
+        mock_get_issue.return_value = mock_github_data
+        mock_close_issue.return_value = {"success": True}
+
+        client.force_login(superuser)
+        url = reverse("issue-detail", kwargs={"pk": issue.pk})
+
+        response = client.post(
+            url,
+            {
+                "close_action": "resolved",
+                "close_comment": "",
+                "submit_close": "Confirm Close",
+            },
+        )
+
+        assert response.status_code == 302
+
+        # Check that close_issue_with_labels was called with labels
+        mock_close_issue.assert_called_once()
+        call_args = mock_close_issue.call_args[1]
+        labels_to_set = call_args["labels_to_set"]
+
+        # Should contain only one 'addressed' label (not duplicated)
+        assert labels_to_set.count("addressed") == 1
+
+
+@pytest.mark.django_db
+class TestIssueDetailViewCloseFunctionality:
+    """Test the close issue functionality in IssueDetailView."""
+
+    def test_issuedetailview_close_buttons_not_shown_for_regular_user(
+        self, client, regular_user, issue, mocker
+    ):
+        """Test that close buttons are not shown for regular users."""
+        # Mock GitHub issue as open
+        mock_get_issue = mocker.patch("core.views.issue_by_number")
+        mock_github_data = {
+            "success": True,
+            "issue": {
+                "number": 123,
+                "title": "Test Issue",
+                "body": "Test body",
+                "state": "open",
+                "labels": ["bug"],
+                "assignees": [],
+                "html_url": "https://github.com/owner/repo/issues/123",
+                "created_at": "2023-01-01T10:00:00",
+                "updated_at": "2023-01-15T15:30:00",
+            },
+        }
+        mock_get_issue.return_value = mock_github_data
+
+        client.force_login(regular_user)
+        url = reverse("issue-detail", kwargs={"pk": issue.pk})
+        response = client.get(url)
+
+        assert response.status_code == 200
+        content = response.content.decode()
+        assert "Close as resolved" not in content
+        assert "Close as wontfix" not in content
+
+    def test_issuedetailview_close_buttons_not_shown_for_closed_issue(
+        self, client, superuser, issue, mocker
+    ):
+        """Test that close buttons are not shown for closed GitHub issues."""
+        # Mock GitHub issue as closed
+        mock_get_issue = mocker.patch("core.views.issue_by_number")
+        mock_github_data = {
+            "success": True,
+            "issue": {
+                "number": 123,
+                "title": "Test Issue",
+                "body": "Test body",
+                "state": "closed",
+                "labels": ["bug"],
+                "assignees": [],
+                "html_url": "https://github.com/owner/repo/issues/123",
+                "created_at": "2023-01-01T10:00:00",
+                "updated_at": "2023-01-15T15:30:00",
+            },
+        }
+        mock_get_issue.return_value = mock_github_data
+
+        client.force_login(superuser)
+        url = reverse("issue-detail", kwargs={"pk": issue.pk})
+        response = client.get(url)
+
+        assert response.status_code == 200
+        content = response.content.decode()
+        assert "Close as resolved" not in content
+        assert "Close as wontfix" not in content
+
+    def test_issuedetailview_close_buttons_shown_for_open_issue_and_superuser(
+        self, client, superuser, issue, mocker
+    ):
+        """Test that close buttons are shown for open issues and superusers."""
+        # Mock GitHub issue as open
+        mock_get_issue = mocker.patch("core.views.issue_by_number")
+        mock_github_data = {
+            "success": True,
+            "issue": {
+                "number": 123,
+                "title": "Test Issue",
+                "body": "Test body",
+                "state": "open",
+                "labels": ["bug"],
+                "assignees": [],
+                "html_url": "https://github.com/owner/repo/issues/123",
+                "created_at": "2023-01-01T10:00:00",
+                "updated_at": "2023-01-15T15:30:00",
+            },
+        }
+        mock_get_issue.return_value = mock_github_data
+
+        client.force_login(superuser)
+        url = reverse("issue-detail", kwargs={"pk": issue.pk})
+        response = client.get(url)
+
+        assert response.status_code == 200
+        content = response.content.decode()
+        assert "Close as resolved" in content
+        assert "Close as wontfix" in content
+
+    def test_issuedetailview_close_as_resolved_success(
+        self, client, superuser, issue, mocker
+    ):
+        """Test successful close as resolved action."""
+        # Mock GitHub functions
+        mock_get_issue = mocker.patch("core.views.issue_by_number")
+        mock_close_issue = mocker.patch("core.views.close_issue_with_labels")
+
+        mock_github_data = {
+            "success": True,
+            "issue": {
+                "number": 123,
+                "title": "Test Issue",
+                "body": "Test body",
+                "state": "open",
+                "labels": ["bug", "work in progress"],
+                "assignees": [],
+                "html_url": "https://github.com/owner/repo/issues/123",
+                "created_at": "2023-01-01T10:00:00",
+                "updated_at": "2023-01-15T15:30:00",
+            },
+        }
+        mock_get_issue.return_value = mock_github_data
+        mock_close_issue.return_value = {"success": True}
+
+        client.force_login(superuser)
+        url = reverse("issue-detail", kwargs={"pk": issue.pk})
+
+        response = client.post(
+            url,
+            {
+                "close_action": "resolved",
+                "close_comment": "Fixed the issue",
+                "submit_close": "Confirm Close",
+            },
+        )
+
+        assert response.status_code == 302
+        assert response.url == reverse("issue-detail", kwargs={"pk": issue.pk})
+
+        # Check that issue status was updated
+        issue.refresh_from_db()
+        assert issue.status == IssueStatus.ADDRESSED
+
+        # Check that close_issue_with_labels was called with correct arguments
+        mock_close_issue.assert_called_once()
+        call_args = mock_close_issue.call_args[1]
+        assert call_args["user"] == superuser
+        assert call_args["issue_number"] == issue.number
+        assert call_args["comment"] == "Fixed the issue"
+        assert "addressed" in call_args["labels_to_set"]
+        assert "work in progress" not in call_args["labels_to_set"]
+
+    def test_issuedetailview_close_as_wontfix_success(
+        self, client, superuser, issue, mocker
+    ):
+        """Test successful close as wontfix action."""
+        # Mock GitHub functions
+        mock_get_issue = mocker.patch("core.views.issue_by_number")
+        mock_close_issue = mocker.patch("core.views.close_issue_with_labels")
+
+        mock_github_data = {
+            "success": True,
+            "issue": {
+                "number": 123,
+                "title": "Test Issue",
+                "body": "Test body",
+                "state": "open",
+                "labels": ["bug", "work in progress"],
+                "assignees": [],
+                "html_url": "https://github.com/owner/repo/issues/123",
+                "created_at": "2023-01-01T10:00:00",
+                "updated_at": "2023-01-15T15:30:00",
+            },
+        }
+        mock_get_issue.return_value = mock_github_data
+        mock_close_issue.return_value = {"success": True}
+
+        client.force_login(superuser)
+        url = reverse("issue-detail", kwargs={"pk": issue.pk})
+
+        response = client.post(
+            url,
+            {
+                "close_action": "wontfix",
+                "close_comment": "Will not fix",
+                "submit_close": "Confirm Close",
+            },
+        )
+
+        assert response.status_code == 302
+        assert response.url == reverse("issue-detail", kwargs={"pk": issue.pk})
+
+        # Check that issue status was updated
+        issue.refresh_from_db()
+        assert issue.status == IssueStatus.WONTFIX
+
+        # Check that close_issue_with_labels was called with correct arguments
+        mock_close_issue.assert_called_once()
+        call_args = mock_close_issue.call_args[1]
+        assert call_args["user"] == superuser
+        assert call_args["issue_number"] == issue.number
+        assert call_args["comment"] == "Will not fix"
+        assert "wontfix" in call_args["labels_to_set"]
+        assert "work in progress" not in call_args["labels_to_set"]
+
+    def test_issuedetailview_close_as_wontfix_success_existing_label(
+        self, client, superuser, issue, mocker
+    ):
+        """Test successful close as wontfix action."""
+        # Mock GitHub functions
+        mock_get_issue = mocker.patch("core.views.issue_by_number")
+        mock_close_issue = mocker.patch("core.views.close_issue_with_labels")
+
+        mock_github_data = {
+            "success": True,
+            "issue": {
+                "number": 123,
+                "title": "Test Issue",
+                "body": "Test body",
+                "state": "open",
+                "labels": ["bug", "work in progress", "wontfix"],
+                "assignees": [],
+                "html_url": "https://github.com/owner/repo/issues/123",
+                "created_at": "2023-01-01T10:00:00",
+                "updated_at": "2023-01-15T15:30:00",
+            },
+        }
+        mock_get_issue.return_value = mock_github_data
+        mock_close_issue.return_value = {"success": True}
+
+        client.force_login(superuser)
+        url = reverse("issue-detail", kwargs={"pk": issue.pk})
+
+        response = client.post(
+            url,
+            {
+                "close_action": "wontfix",
+                "close_comment": "Will not fix",
+                "submit_close": "Confirm Close",
+            },
+        )
+
+        assert response.status_code == 302
+        assert response.url == reverse("issue-detail", kwargs={"pk": issue.pk})
+
+        # Check that issue status was updated
+        issue.refresh_from_db()
+        assert issue.status == IssueStatus.WONTFIX
+
+        # Check that close_issue_with_labels was called with correct arguments
+        mock_close_issue.assert_called_once()
+        call_args = mock_close_issue.call_args[1]
+        assert call_args["user"] == superuser
+        assert call_args["issue_number"] == issue.number
+        assert call_args["comment"] == "Will not fix"
+        assert "wontfix" in call_args["labels_to_set"]
+        assert "work in progress" not in call_args["labels_to_set"]
+
+    def test_issuedetailview_close_issue_github_failure(
+        self, client, superuser, issue, mocker
+    ):
+        """Test that local status is reverted when GitHub operation fails."""
+        # Mock GitHub functions
+        mock_get_issue = mocker.patch("core.views.issue_by_number")
+        mock_close_issue = mocker.patch("core.views.close_issue_with_labels")
+
+        mock_github_data = {
+            "success": True,
+            "issue": {
+                "number": 123,
+                "title": "Test Issue",
+                "body": "Test body",
+                "state": "open",
+                "labels": ["bug"],
+                "assignees": [],
+                "html_url": "https://github.com/owner/repo/issues/123",
+                "created_at": "2023-01-01T10:00:00",
+                "updated_at": "2023-01-15T15:30:00",
+            },
+        }
+        mock_get_issue.return_value = mock_github_data
+        mock_close_issue.return_value = {"success": False, "error": "GitHub API error"}
+
+        client.force_login(superuser)
+        url = reverse("issue-detail", kwargs={"pk": issue.pk})
+
+        response = client.post(
+            url,
+            {
+                "close_action": "resolved",
+                "close_comment": "",
+                "submit_close": "Confirm Close",
+            },
+        )
+
+        assert response.status_code == 302
+
+        # Check that issue status was reverted to original
+        issue.refresh_from_db()
+        assert issue.status == IssueStatus.CREATED  # Original status
+
+    def test_issuedetailview_close_already_closed_issue(
+        self, client, superuser, issue, mocker
+    ):
+        """Test closing an issue that is already closed on GitHub."""
+        # Mock GitHub issue as closed
+        mock_get_issue = mocker.patch("core.views.issue_by_number")
+        mock_github_data = {
+            "success": True,
+            "issue": {
+                "number": 123,
+                "title": "Test Issue",
+                "body": "Test body",
+                "state": "closed",  # Already closed
+                "labels": ["bug"],
+                "assignees": [],
+                "html_url": "https://github.com/owner/repo/issues/123",
+                "created_at": "2023-01-01T10:00:00",
+                "updated_at": "2023-01-15T15:30:00",
+            },
+        }
+        mock_get_issue.return_value = mock_github_data
+
+        client.force_login(superuser)
+        url = reverse("issue-detail", kwargs={"pk": issue.pk})
+
+        response = client.post(
+            url,
+            {
+                "close_action": "resolved",
+                "close_comment": "",
+                "submit_close": "Confirm Close",
+            },
+        )
+
+        assert response.status_code == 302
+
+        # Check messages for error
+        messages = list(get_messages(response.wsgi_request))
+        assert any("already closed" in str(message) for message in messages)
+
+    def test_issuedetailview_close_issue_invalid_action(self, client, superuser, issue):
+        """Test closing with invalid action."""
+        client.force_login(superuser)
+        url = reverse("issue-detail", kwargs={"pk": issue.pk})
+
+        response = client.post(
+            url,
+            {
+                "close_action": "invalid_action",
+                "close_comment": "",
+                "submit_close": "Confirm Close",
+            },
+        )
+
+        assert response.status_code == 302
+
+        # Check messages for error
+        messages = list(get_messages(response.wsgi_request))
+        assert any("Invalid close action" in str(message) for message in messages)
+
+    def test_issuedetailview_labels_form_not_shown_for_closed_issue(
+        self, client, superuser, issue, mocker
+    ):
+        """Test that labels form is not shown for closed GitHub issues."""
+        # Mock GitHub issue as closed
+        mock_get_issue = mocker.patch("core.views.issue_by_number")
+        mock_github_data = {
+            "success": True,
+            "issue": {
+                "number": 123,
+                "title": "Test Issue",
+                "body": "Test body",
+                "state": "closed",
+                "labels": ["bug"],
+                "assignees": [],
+                "html_url": "https://github.com/owner/repo/issues/123",
+                "created_at": "2023-01-01T10:00:00",
+                "updated_at": "2023-01-15T15:30:00",
+            },
+        }
+        mock_get_issue.return_value = mock_github_data
+
+        client.force_login(superuser)
+        url = reverse("issue-detail", kwargs={"pk": issue.pk})
+        response = client.get(url)
+
+        assert response.status_code == 200
+        assert "labels_form" not in response.context
+
+    def test_issuedetailview_labels_form_shown_for_open_issue(
+        self, client, superuser, issue, mocker
+    ):
+        """Test that labels form is shown for open GitHub issues."""
+        # Mock GitHub issue as open
+        mock_get_issue = mocker.patch("core.views.issue_by_number")
+        mock_github_data = {
+            "success": True,
+            "issue": {
+                "number": 123,
+                "title": "Test Issue",
+                "body": "Test body",
+                "state": "open",
+                "labels": ["bug"],
+                "assignees": [],
+                "html_url": "https://github.com/owner/repo/issues/123",
+                "created_at": "2023-01-01T10:00:00",
+                "updated_at": "2023-01-15T15:30:00",
+            },
+        }
+        mock_get_issue.return_value = mock_github_data
+
+        client.force_login(superuser)
+        url = reverse("issue-detail", kwargs={"pk": issue.pk})
+        response = client.get(url)
+
+        assert response.status_code == 200
+        assert "labels_form" in response.context
+        assert isinstance(response.context["labels_form"], IssueLabelsForm)
 
 
 @pytest.mark.django_db

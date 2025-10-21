@@ -1629,23 +1629,13 @@ class TestRewardsBotEntryPoint:
     """Testing the main entry point function."""
 
     def test_run_bot_success(self):
-        """Test run_bot with successful execution."""
-        with patch("rewardsbot.bot.asyncio.run") as mock_run:
-            with patch("rewardsbot.bot.sys.exit") as mock_exit:
-                mock_run.return_value = 0
+        with patch("rewardsbot.bot.main", new_callable=AsyncMock) as mock_main, patch(
+            "rewardsbot.bot.sys.exit"
+        ) as mock_exit:
 
-                # Call the function
-                run_bot()
-
-                # Verify asyncio.run was called
-                mock_run.assert_called_once()
-                # Check that asyncio.run was called with a coroutine (main())
-                call_args = mock_run.call_args
-                # The first argument should be a coroutine (result of main())
-                assert asyncio.iscoroutine(call_args[0][0])
-
-                # Verify sys.exit was called with the correct exit code
-                mock_exit.assert_called_once_with(0)
+            run_bot()
+            mock_main.assert_awaited_once()
+            mock_exit.assert_called_once_with(mock_main.return_value)
 
     def test_run_bot_keyboard_interrupt(self):
         """Test run_bot with KeyboardInterrupt."""

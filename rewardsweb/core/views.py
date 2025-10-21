@@ -1,6 +1,7 @@
 """Module containing website's views."""
 
 import logging
+from datetime import datetime
 
 from django.conf import settings
 from django.contrib import messages
@@ -9,6 +10,7 @@ from django.contrib.auth.models import User
 from django.db.models import Q, Sum
 from django.forms import ValidationError
 from django.http import HttpResponseRedirect
+from django.shortcuts import redirect
 from django.urls import reverse_lazy
 from django.utils.decorators import method_decorator
 from django.views import View
@@ -17,17 +19,25 @@ from django.views.generic.detail import SingleObjectMixin
 
 from core.forms import (
     ContributionEditForm,
+    ContributionInvalidateForm,
     CreateIssueForm,
+    IssueLabelsForm,
     ProfileFormSet,
     UpdateUserForm,
 )
-from core.models import Contribution, Contributor, Cycle, Issue
-from utils.bot import add_reaction_to_message
-from utils.constants.core import DISCORD_NOTED_EMOJI
+from core.models import Contribution, Contributor, Cycle, Issue, IssueStatus
+from utils.bot import add_reaction_to_message, add_reply_to_message, message_from_url
+from utils.constants.core import (
+    DISCORD_EMOJIS,
+    ISSUE_CREATION_LABEL_CHOICES,
+    ISSUE_PRIORITY_CHOICES,
+)
 from utils.issues import (
+    close_issue_with_labels,
     create_github_issue,
     issue_by_number,
     issue_data_for_contribution,
+    set_labels_to_issue,
 )
 
 logger = logging.getLogger(__name__)
@@ -95,7 +105,7 @@ class ContributionDetailView(DetailView):
 
 
 @method_decorator(user_passes_test(lambda user: user.is_superuser), name="dispatch")
-class ContributionUpdateView(UpdateView):
+class ContributionEditView(UpdateView):
     """View for updating contribution information (superusers only).
 
     Allows superusers to edit contribution details including reward,
@@ -120,6 +130,119 @@ class ContributionUpdateView(UpdateView):
         :rtype: str
         """
         messages.success(self.request, "Contribution updated successfully!")
+        return reverse_lazy("contribution-detail", kwargs={"pk": self.object.pk})
+
+
+@method_decorator(user_passes_test(lambda user: user.is_superuser), name="dispatch")
+class ContributionInvalidateView(UpdateView):
+    """View for setting contribution as duplicate or wontfix."""
+
+    model = Contribution
+    form_class = ContributionInvalidateForm
+    template_name = "core/contribution_invalidate.html"
+
+    def get_context_data(self, *args, **kwargs):
+        """Add original Discord message text to template context."""
+        context = super().get_context_data(*args, **kwargs)
+
+        context["type"] = self.kwargs.get("reaction")
+
+        contribution = self.object  # Use self.object instead of querying again
+        message = message_from_url(contribution.url)
+        if message.get("success"):
+            author = message.get("author")
+            timestamp = datetime.strptime(
+                message.get("timestamp"), "%Y-%m-%dT%H:%M:%S.%f%z"
+            ).strftime("%d %b %H:%M")
+            original_comment = f"    {author} - {timestamp}\n\n"
+            for line in message.get("content").split("\n"):
+                original_comment += f"{line}\n"
+
+            context["original_comment"] = original_comment
+        else:
+            context["original_comment"] = ""  # Set empty string when no message
+
+        return context
+
+    def form_valid(self, form):
+        """Set contribution as confirmed with reaction and optional reply."""
+        reaction = self.kwargs.get("reaction")
+        comment = form.cleaned_data.get("comment")
+
+        # Track operations that need to be performed
+        operations = []
+        if comment:
+            operations.append("reply")
+        operations.append("reaction")
+
+        # Perform operations and track failures
+        failed_operations = []
+
+        # Add reply if comment exists
+        reply_success = True
+        if comment:
+            try:
+                reply_success = add_reply_to_message(self.object.url, comment)
+                if not reply_success:
+                    failed_operations.append("reply")
+            except Exception as e:
+                logger = logging.getLogger(__name__)
+                logger.error(f"Failed to add reply: {str(e)}")
+                failed_operations.append("reply")
+
+        # Add reaction
+        reaction_success = True
+        try:
+
+            reaction_success = add_reaction_to_message(
+                self.object.url, DISCORD_EMOJIS.get(reaction)
+            )
+            if not reaction_success:
+                failed_operations.append("reaction")
+
+        except Exception as e:
+            logger = logging.getLogger(__name__)
+            logger.error(f"Failed to add reaction: {str(e)}")
+            failed_operations.append("reaction")
+
+        # If any operation failed, don't confirm and show error
+        if failed_operations:
+            error_msg = self._get_error_message(failed_operations, operations, reaction)
+            form.add_error(None, error_msg)
+            return self.form_invalid(form)
+
+        # All operations successful - confirm the contribution
+        self.object.confirmed = True
+        self.object.save()
+
+        # Success message
+        success_msg = self._get_success_message(comment, reaction)
+        messages.success(self.request, success_msg)
+
+        return super().form_valid(form)
+
+    def _get_error_message(self, failed_operations, attempted_operations, reaction):
+        """Generate appropriate error message based on failed operations."""
+        if len(failed_operations) == len(attempted_operations):
+            return f"Failed to set contribution as {reaction}. All operations failed."
+
+        failed_ops_str = " and ".join(failed_operations)
+        return (
+            f"Failed to add {failed_ops_str}. Contribution was not set as {reaction}."
+        )
+
+    def _get_success_message(self, comment, reaction):
+        """Generate appropriate success message."""
+        actions = [f"set as {reaction}"]
+        if comment:
+            actions.append("reply sent")
+        actions.append("reaction added")
+
+        actions_str = " and ".join(actions)
+        return f"Contribution {actions_str} successfully!"
+
+    def get_success_url(self):
+        """Return URL to redirect after successful update."""
         return reverse_lazy("contribution-detail", kwargs={"pk": self.object.pk})
 
 
@@ -154,14 +277,14 @@ class ContributorListView(ListView):
 
         return queryset
 
-    def get_context_data(self, **kwargs):
+    def get_context_data(self, *args, **kwargs):
         """Add search query to template context.
 
         :param kwargs: Additional keyword arguments
         :return: Context dictionary with search data
         :rtype: dict
         """
-        context = super().get_context_data(**kwargs)
+        context = super().get_context_data(*args, **kwargs)
         context["search_query"] = self.request.GET.get("q", "")
         return context
 
@@ -207,22 +330,35 @@ class CycleDetailView(DetailView):
     model = Cycle
 
 
-class IssueDetailView(DetailView):
-    """View for displaying detailed information about a single issue.
+class IssueListView(ListView):
+    """View for displaying a paginated list of all open issues in reverse order.
 
-    :ivar model: Model class for issues
-    :type model: :class:`core.models.Issue`
+    :ivar model: Model class for cycles
+    :type model: :class:`core.models.Cycle`
+    :ivar paginate_by: Number of items per page
+    :type paginate_by: int
     """
 
     model = Issue
+    paginate_by = 20
 
-    def get_context_data(self, **kwargs):
-        """Add GitHub issue data to template context for superusers.
+    def get_queryset(self):
+        """Return queryset of all open issues in reverse order.
 
-        :param kwargs: Additional keyword arguments
-        :return: dict
+        :return: QuerySet of open issues in reverse order
+        :rtype: :class:`django.db.models.QuerySet`
         """
-        context = super().get_context_data(**kwargs)
+        return Issue.objects.filter(status=IssueStatus.CREATED).reverse()
+
+
+class IssueDetailView(DetailView):
+    """View for displaying detailed information about a single issue."""
+
+    model = Issue
+
+    def get_context_data(self, *args, **kwargs):
+        """Add GitHub issue data and form to template context."""
+        context = super().get_context_data(*args, **kwargs)
 
         issue = self.get_object()
         context["issue_html_url"] = (
@@ -230,9 +366,8 @@ class IssueDetailView(DetailView):
             f"{settings.GITHUB_REPO_NAME}/issues/{issue.number}"
         )
 
-        # Only fetch GitHub data for superusers
+        # Only fetch GitHub data and show form for superusers
         if self.request.user.is_superuser:
-
             # Retrieve GitHub issue data if issue number exists
             issue_data = issue_by_number(self.request.user, issue.number)
 
@@ -246,10 +381,172 @@ class IssueDetailView(DetailView):
                 context["issue_html_url"] = issue_data["issue"]["html_url"]
                 context["issue_created_at"] = issue_data["issue"]["created_at"]
                 context["issue_updated_at"] = issue_data["issue"]["updated_at"]
+
+                # Only show forms if GitHub issue is open
+                if issue_data["issue"]["state"] == "open":
+                    # Extract current labels and priority from GitHub issue
+                    current_labels = issue_data["issue"]["labels"]
+                    selected_labels = []
+                    selected_priority = "medium priority"  # Default
+
+                    # Get available labels and priorities for matching
+                    available_labels = [
+                        choice[0] for choice in ISSUE_CREATION_LABEL_CHOICES
+                    ]
+                    available_priorities = [
+                        choice[0] for choice in ISSUE_PRIORITY_CHOICES
+                    ]
+
+                    # Separate labels from priority
+                    for label in current_labels:
+                        # Check if this is a priority label (exact match with available priorities)
+                        if label in available_priorities:
+                            selected_priority = label
+                        # Check if this is a regular label (exact match with available labels)
+                        elif label in available_labels:
+                            selected_labels.append(label)
+
+                    # Create form with initial values
+                    initial_data = {
+                        "labels": selected_labels,
+                        "priority": selected_priority,
+                    }
+                    context["labels_form"] = IssueLabelsForm(initial=initial_data)
+
+                    # Add context variables for template
+                    context["current_priority"] = selected_priority
+                    context["current_custom_labels"] = selected_labels
+
             else:
                 context["github_error"] = issue_data["error"]
 
         return context
+
+    def post(self, request, *args, **kwargs):
+        """Handle form submission for both labels and close actions."""
+        # Only superusers can submit forms
+        if not request.user.is_superuser:
+            messages.error(request, "You don't have permission to perform this action.")
+            return redirect("issue-detail", pk=self.get_object().pk)
+
+        issue = self.get_object()
+
+        # Check which form was submitted
+        if "submit_labels" in request.POST:
+            # Handle labels form submission
+            return self._handle_labels_submission(request, issue)
+        elif "submit_close" in request.POST:
+            # Handle close issue submission
+            return self._handle_close_submission(request, issue)
+        else:
+            messages.error(request, "Invalid form submission.")
+            return redirect("issue-detail", pk=issue.pk)
+
+    def _handle_labels_submission(self, request, issue):
+        """Handle the labels form submission."""
+        form = IssueLabelsForm(request.POST)
+
+        if form.is_valid():
+            # Combine selected labels with priority
+            labels_to_add = form.cleaned_data["labels"] + [
+                form.cleaned_data["priority"]
+            ]
+
+            # Call the function to set labels to GitHub issue
+            result = set_labels_to_issue(request.user, issue.number, labels_to_add)
+
+            if result["success"]:
+                messages.success(
+                    request,
+                    f"Successfully set labels for issue #{issue.number}: {', '.join(labels_to_add)}",
+                )
+            else:
+                messages.error(
+                    request,
+                    f"Failed to set labels: {result.get('error', 'Unknown error')}",
+                )
+        else:
+            messages.error(request, "Please correct the errors in the form.")
+
+        return redirect("issue-detail", pk=issue.pk)
+
+    def _handle_close_submission(self, request, issue):
+        """Handle the close issue submission."""
+        action = request.POST.get("close_action")
+        comment = request.POST.get("close_comment", "")
+
+        if action not in ["resolved", "wontfix"]:
+            messages.error(request, "Invalid close action.")
+            return redirect("issue-detail", pk=issue.pk)
+
+        try:
+            # Get current labels from GitHub
+            issue_data = issue_by_number(request.user, issue.number)
+            if not issue_data["success"]:
+                messages.error(
+                    request, f"Failed to fetch GitHub issue: {issue_data.get('error')}"
+                )
+                return redirect("issue-detail", pk=issue.pk)
+
+            # Check if issue is still open
+            if issue_data["issue"]["state"] != "open":
+                messages.error(
+                    request, "Cannot close an issue that is already closed on GitHub."
+                )
+                return redirect("issue-detail", pk=issue.pk)
+
+            current_labels = issue_data["issue"]["labels"]
+
+            # Remove "work in progress" and prepare labels
+            labels_to_set = [
+                label for label in current_labels if label.lower() != "work in progress"
+            ]
+
+            if action == "resolved":
+                # Add "addressed" label
+                if "addressed" not in labels_to_set:
+                    labels_to_set.append("addressed")
+                # Update local issue status
+                issue.status = IssueStatus.ADDRESSED
+                success_message = (
+                    f"Issue #{issue.number} closed as resolved successfully."
+                )
+
+            else:
+                # Add "wontfix" label
+                if "wontfix" not in labels_to_set:
+                    labels_to_set.append("wontfix")
+                # Update local issue status
+                issue.status = IssueStatus.WONTFIX
+                success_message = (
+                    f"Issue #{issue.number} closed as wontfix successfully."
+                )
+
+            # Save local issue status
+            issue.save()
+
+            # Call the function to close issue on GitHub
+            result = close_issue_with_labels(
+                user=request.user,
+                issue_number=issue.number,
+                labels_to_set=labels_to_set,
+                comment=comment,
+            )
+
+            if result["success"]:
+                messages.success(request, success_message)
+            else:
+                # Revert local status if GitHub operation failed
+                issue.status = IssueStatus.CREATED
+                issue.save()
+                messages.error(
+                    request, result.get("error", "Failed to close issue on GitHub")
+                )
+
+        except Exception as e:
+            messages.error(request, f"Error closing issue: {str(e)}")
+
+        return redirect("issue-detail", pk=issue.pk)
 
 
 @method_decorator(user_passes_test(lambda user: user.is_superuser), name="dispatch")
@@ -325,13 +622,13 @@ class CreateIssueView(FormView):
         initial.update(data)
         return initial
 
-    def get_context_data(self, **kwargs):
+    def get_context_data(self, *args, **kwargs):
         """Add contribution context data to template.
 
         :param kwargs: Additional keyword arguments
         :return: dict
         """
-        context = super().get_context_data(**kwargs)
+        context = super().get_context_data(*args, **kwargs)
 
         info = Contribution.objects.get(id=self.contribution_id).info()
         context["contribution_id"] = self.contribution_id
@@ -367,7 +664,7 @@ class CreateIssueView(FormView):
             data.get("issue_number"), contribution
         )
 
-        add_reaction_to_message(contribution.url, DISCORD_NOTED_EMOJI)
+        add_reaction_to_message(contribution.url, DISCORD_EMOJIS.get("noted"))
 
         return super().form_valid(form)
 

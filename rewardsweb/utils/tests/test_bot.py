@@ -5,7 +5,12 @@ from unittest import mock
 
 import pytest
 
-from utils.bot import _parse_discord_url, add_reaction_to_message, message_from_url
+from utils.bot import (
+    _parse_discord_url,
+    add_reaction_to_message,
+    add_reply_to_message,
+    message_from_url,
+)
 
 
 class TestUtilsBotFunctions:
@@ -110,6 +115,98 @@ class TestUtilsBotFunctions:
             mocked_logger.info.assert_called_once_with(
                 f"Emoji {emoji} added successfully!"
             )
+
+    # # add_reply_to_message
+    def test_utils_bot_add_reply_to_message_for_wrong_url(self):
+        """Test add_reply_to_message returns False for invalid Discord URL."""
+        message_id, comment = ("1353382023309562020", "This is a test reply")
+        url = f"https://discord.com/channels/906917846754418770/{message_id}"
+        with mock.patch("utils.bot.requests.post") as mocked_post, mock.patch(
+            "utils.bot.logger"
+        ) as mocked_logger:
+            returned = add_reply_to_message(url, comment)
+            assert returned is False
+            mocked_post.assert_not_called()
+            mocked_logger.assert_not_called()
+
+    def test_utils_bot_add_reply_to_message_for_api_error(self):
+        """Test add_reply_to_message handles API errors correctly."""
+        guild_id, channel_id, message_id, comment = (
+            "906917846754418770",
+            "1028021510453084161",
+            "1353382023309562020",
+            "This is a test reply",
+        )
+        url = f"https://discord.com/channels/{guild_id}/{channel_id}/{message_id}"
+        headers = {
+            "Authorization": "Bot " + os.environ["DISCORD_BOT_TOKEN"],
+            "Content-Type": "application/json",
+        }
+        api_url = f"https://discord.com/api/v10/channels/{channel_id}/messages"
+        payload = {
+            "content": comment,
+            "message_reference": {"channel_id": channel_id, "message_id": message_id},
+        }
+        with mock.patch("utils.bot.requests.post") as mocked_post, mock.patch(
+            "utils.bot.logger"
+        ) as mocked_logger:
+            mocked_post.return_value.status_code = 403
+            mocked_post.return_value.text = "Forbidden"
+            returned = add_reply_to_message(url, comment)
+            assert returned is False
+            mocked_post.assert_called_once_with(api_url, headers=headers, json=payload)
+            mocked_logger.error.assert_called_once_with(
+                "Failed to add reply: 403 - Forbidden"
+            )
+
+    def test_utils_bot_add_reply_to_message_functionality(self):
+        """Test add_reply_to_message successfully adds reply."""
+        guild_id, channel_id, message_id, comment = (
+            "906917846754418770",
+            "1028021510453084161",
+            "1353382023309562020",
+            "This is a test reply",
+        )
+        url = f"https://discord.com/channels/{guild_id}/{channel_id}/{message_id}"
+        headers = {
+            "Authorization": "Bot " + os.environ["DISCORD_BOT_TOKEN"],
+            "Content-Type": "application/json",
+        }
+        api_url = f"https://discord.com/api/v10/channels/{channel_id}/messages"
+        payload = {
+            "content": comment,
+            "message_reference": {"channel_id": channel_id, "message_id": message_id},
+        }
+        with mock.patch("utils.bot.requests.post") as mocked_post, mock.patch(
+            "utils.bot.logger"
+        ) as mocked_logger:
+            mocked_post.return_value.status_code = 200
+            returned = add_reply_to_message(url, comment)
+            assert returned is True
+            mocked_post.assert_called_once_with(api_url, headers=headers, json=payload)
+            mocked_logger.info.assert_called_once_with(
+                f"Reply added successfully to message {message_id}!"
+            )
+
+    def test_utils_bot_add_reply_to_message_with_different_status_codes(self):
+        """Test add_reply_to_message handles various HTTP status codes."""
+        guild_id, channel_id, message_id, comment = (
+            "906917846754418770",
+            "1028021510453084161",
+            "1353382023309562020",
+            "This is a test reply",
+        )
+        url = f"https://discord.com/channels/{guild_id}/{channel_id}/{message_id}"
+
+        # Test with 201 status code (should return False as we expect 200)
+        with mock.patch("utils.bot.requests.post") as mocked_post, mock.patch(
+            "utils.bot.logger"
+        ) as mocked_logger:
+            mocked_post.return_value.status_code = 201
+            mocked_post.return_value.text = "Created"
+            returned = add_reply_to_message(url, comment)
+            assert returned is False
+            mocked_logger.error.assert_called_once()
 
     # # message_from_url
     def test_utils_bot_message_from_url_for_wrong_url(self):

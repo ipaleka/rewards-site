@@ -13,7 +13,7 @@
     <div class="max-w-5xl mx-auto">
       <div class="navbar bg-base-100 shadow-sm">
         <div class="flex-1">
-          <a href="{% url 'index' %}" class="btn btn-ghost text-xl">ASA Stats</a>
+          <a href="{% url 'index' %}" class="btn btn-ghost text-xl">Home</a>
         </div>
         <div class="flex-none">
           <ul class="menu menu-horizontal px-1">
@@ -24,8 +24,9 @@
             <li><a href="{% url 'account_login' %}">Login</a></li>
             {% endif %}
 
-            <li><a href="{% url 'cycles' %}">All cycles</a></li>
-            <li><a href="{% url 'contributors' %}">All contributors</a></li>
+            <li><a href="{% url 'issues' %}">Issues</a></li>
+            <li><a href="{% url 'cycles' %}">Cycles</a></li>
+            <li><a href="{% url 'contributors' %}">Contributors</a></li>
           </ul>
         </div>
       </div>

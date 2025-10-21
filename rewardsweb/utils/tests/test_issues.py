@@ -9,12 +9,13 @@ from utils.issues import (
     _prepare_issue_labels_from_contribution,
     _prepare_issue_priority_from_contribution,
     _prepare_issue_title_from_contribution,
-    add_labels_to_issue,
+    set_labels_to_issue,
     close_issue_with_labels,
     create_github_issue,
     issue_by_number,
     issue_data_for_contribution,
 )
+from utils.constants.ui import MISSING_TOKEN_TEXT
 
 
 class TestUtilsIssuesCrudFunctions:
@@ -50,72 +51,13 @@ class TestUtilsIssuesCrudFunctions:
             f"{settings.GITHUB_REPO_OWNER}/{settings.GITHUB_REPO_NAME}"
         )
 
-    # # add_labels_to_issue
-    def test_utils_issues_add_labels_to_issue_for_no_client(self, mocker):
-        user = mocker.MagicMock()
-        mocked_client = mocker.patch("utils.issues._github_client", return_value=False)
-        mocked_repo = mocker.patch("utils.issues._github_repository")
-        returned = add_labels_to_issue(user, mocker.MagicMock(), mocker.MagicMock())
-        assert returned == {
-            "success": False,
-            "error": "Please provide a GitHub access token in your profile page!",
-        }
-        mocked_client.assert_called_once_with(user)
-        mocked_repo.assert_not_called()
-
-    def test_utils_issues_add_labels_to_issue_for_error_on_issue_fetching(self, mocker):
-        user = mocker.MagicMock()
-        issue_number, labels = 505, ["label1"]
-        client, repo = mocker.MagicMock(), mocker.MagicMock()
-        mocked_client = mocker.patch("utils.issues._github_client", return_value=client)
-        mocked_repo = mocker.patch("utils.issues._github_repository", return_value=repo)
-        repo.get_issue.side_effect = Exception("Issue error")
-        returned = add_labels_to_issue(user, issue_number, labels)
-        assert returned == {"success": False, "error": "Issue error"}
-        mocked_client.assert_called_once_with(user)
-        mocked_repo.assert_called_once_with(client)
-        repo.get_issue.assert_called_once_with(issue_number)
-        client.close.assert_not_called()
-
-    def test_utils_issues_add_labels_to_issue_functionality(self, mocker):
-        user = mocker.MagicMock()
-        issue_number, labels = 505, ["label1", "label2"]
-        client, repo = mocker.MagicMock(), mocker.MagicMock()
-        mocked_client = mocker.patch("utils.issues._github_client", return_value=client)
-        mocked_repo = mocker.patch("utils.issues._github_repository", return_value=repo)
-        issue = mocker.MagicMock()
-        label0, label1, label2 = (
-            mocker.MagicMock(),
-            mocker.MagicMock(),
-            mocker.MagicMock(),
-        )
-        label0.name = "name0"
-        label1.name = "name1"
-        label2.name = "name2"
-        issue.labels = [label0, label1, label2]
-        repo.get_issue.return_value = issue
-        returned = add_labels_to_issue(user, issue_number, labels)
-        assert returned == {
-            "success": True,
-            "message": f"Added labels {labels} to issue #{issue_number}",
-            "current_labels": ["name0", "name1", "name2"],
-        }
-        mocked_client.assert_called_once_with(user)
-        mocked_repo.assert_called_once_with(client)
-        repo.get_issue.assert_called_once_with(issue_number)
-        issue.add_to_labels.assert_called_once_with("label1", "label2")
-        client.close.assert_called_once_with()
-
     # # close_issue_with_labels
     def test_utils_issues_close_issue_with_labels_for_no_client(self, mocker):
         user = mocker.MagicMock()
         mocked_client = mocker.patch("utils.issues._github_client", return_value=False)
         mocked_repo = mocker.patch("utils.issues._github_repository")
         returned = close_issue_with_labels(user, mocker.MagicMock(), mocker.MagicMock())
-        assert returned == {
-            "success": False,
-            "error": "Please provide a GitHub access token in your profile page!",
-        }
+        assert returned == {"success": False, "error": MISSING_TOKEN_TEXT}
         mocked_client.assert_called_once_with(user)
         mocked_repo.assert_not_called()
 
@@ -167,7 +109,7 @@ class TestUtilsIssuesCrudFunctions:
         repo.get_issue.assert_called_once_with(issue_number)
         issue.edit.assert_called_once_with(state="closed")
         client.close.assert_called_once_with()
-        issue.add_to_labels.assert_not_called()
+        issue.set_labels.assert_not_called()
         issue.create_comment.assert_not_called()
 
     def test_utils_issues_close_issue_with_labels_functionality(self, mocker):
@@ -199,7 +141,7 @@ class TestUtilsIssuesCrudFunctions:
         mocked_client.assert_called_once_with(user)
         mocked_repo.assert_called_once_with(client)
         repo.get_issue.assert_called_once_with(issue_number)
-        issue.add_to_labels.assert_called_once_with("label1", "label2")
+        issue.set_labels.assert_called_once_with("label1", "label2")
         issue.create_comment.assert_called_once_with(comment)
         issue.edit.assert_called_once_with(state="closed")
         client.close.assert_called_once_with()
@@ -210,10 +152,7 @@ class TestUtilsIssuesCrudFunctions:
         mocked_client = mocker.patch("utils.issues._github_client", return_value=False)
         mocked_repo = mocker.patch("utils.issues._github_repository")
         returned = create_github_issue(user, mocker.MagicMock(), mocker.MagicMock())
-        assert returned == {
-            "success": False,
-            "error": "Please provide a GitHub access token in your profile page!",
-        }
+        assert returned == {"success": False, "error": MISSING_TOKEN_TEXT}
         mocked_client.assert_called_once_with(user)
         mocked_repo.assert_not_called()
 
@@ -277,10 +216,7 @@ class TestUtilsIssuesCrudFunctions:
         mocked_client = mocker.patch("utils.issues._github_client", return_value=False)
         mocked_repo = mocker.patch("utils.issues._github_repository")
         returned = issue_by_number(user, mocker.MagicMock())
-        assert returned == {
-            "success": False,
-            "error": "Please provide a GitHub access token in your profile page!",
-        }
+        assert returned == {"success": False, "error": MISSING_TOKEN_TEXT}
         mocked_client.assert_called_once_with(user)
         mocked_repo.assert_not_called()
 
@@ -412,6 +348,59 @@ class TestUtilsIssuesCrudFunctions:
         mocked_client.assert_called_once_with(user)
         mocked_repo.assert_called_once_with(client)
         repo.get_issue.assert_called_once_with(issue_number)
+        client.close.assert_called_once_with()
+
+    # # set_labels_to_issue
+    def test_utils_issues_set_labels_to_issue_for_no_client(self, mocker):
+        user = mocker.MagicMock()
+        mocked_client = mocker.patch("utils.issues._github_client", return_value=False)
+        mocked_repo = mocker.patch("utils.issues._github_repository")
+        returned = set_labels_to_issue(user, mocker.MagicMock(), mocker.MagicMock())
+        assert returned == {"success": False, "error": MISSING_TOKEN_TEXT}
+        mocked_client.assert_called_once_with(user)
+        mocked_repo.assert_not_called()
+
+    def test_utils_issues_set_labels_to_issue_for_error_on_issue_fetching(self, mocker):
+        user = mocker.MagicMock()
+        issue_number, labels = 505, ["label1"]
+        client, repo = mocker.MagicMock(), mocker.MagicMock()
+        mocked_client = mocker.patch("utils.issues._github_client", return_value=client)
+        mocked_repo = mocker.patch("utils.issues._github_repository", return_value=repo)
+        repo.get_issue.side_effect = Exception("Issue error")
+        returned = set_labels_to_issue(user, issue_number, labels)
+        assert returned == {"success": False, "error": "Issue error"}
+        mocked_client.assert_called_once_with(user)
+        mocked_repo.assert_called_once_with(client)
+        repo.get_issue.assert_called_once_with(issue_number)
+        client.close.assert_not_called()
+
+    def test_utils_issues_set_labels_to_issue_functionality(self, mocker):
+        user = mocker.MagicMock()
+        issue_number, labels = 505, ["label1", "label2"]
+        client, repo = mocker.MagicMock(), mocker.MagicMock()
+        mocked_client = mocker.patch("utils.issues._github_client", return_value=client)
+        mocked_repo = mocker.patch("utils.issues._github_repository", return_value=repo)
+        issue = mocker.MagicMock()
+        label0, label1, label2 = (
+            mocker.MagicMock(),
+            mocker.MagicMock(),
+            mocker.MagicMock(),
+        )
+        label0.name = "name0"
+        label1.name = "name1"
+        label2.name = "name2"
+        issue.labels = [label0, label1, label2]
+        repo.get_issue.return_value = issue
+        returned = set_labels_to_issue(user, issue_number, labels)
+        assert returned == {
+            "success": True,
+            "message": f"Added labels {labels} to issue #{issue_number}",
+            "current_labels": ["name0", "name1", "name2"],
+        }
+        mocked_client.assert_called_once_with(user)
+        mocked_repo.assert_called_once_with(client)
+        repo.get_issue.assert_called_once_with(issue_number)
+        issue.set_labels.assert_called_once_with("label1", "label2")
         client.close.assert_called_once_with()
 
 

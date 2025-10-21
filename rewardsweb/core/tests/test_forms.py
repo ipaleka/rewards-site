@@ -22,12 +22,15 @@ from django.forms import (
 
 from core.forms import (
     ContributionEditForm,
+    ContributionInvalidateForm,
     CreateIssueForm,
+    IssueLabelsForm,
     ProfileFormSet,
     ProfileForm,
     UpdateUserForm,
 )
 from core.models import Contribution, Profile
+from utils.constants.ui import MISSING_OPTION_TEXT
 
 
 class TestContributionEditForm:
@@ -73,6 +76,31 @@ class TestContributionEditForm:
     def test_contributioneditform_meta_fields(self):
         form = ContributionEditForm()
         assert form._meta.fields == ["reward", "percentage", "comment"]
+
+
+class TestContributionInvalidateForm:
+    """Testing class for :class:`ContributionInvalidateForm`."""
+
+    # # ContributionInvalidateForm
+    def test_contributioninvalidateform_issubclass_of_modelform(self):
+        assert issubclass(ContributionInvalidateForm, ModelForm)
+
+    def test_contributioninvalidateform_comment_field(self):
+        form = ContributionInvalidateForm()
+        assert "comment" in form.base_fields
+        assert isinstance(form.base_fields["comment"], CharField)
+        assert not form.base_fields["comment"].required
+        assert isinstance(form.base_fields["comment"].widget, Textarea)
+        assert "class" in form.base_fields["comment"].widget.attrs
+
+    # # Meta
+    def test_contributioninvalidateform_meta_model_is_contribution(self):
+        form = ContributionInvalidateForm()
+        assert form._meta.model == Contribution
+
+    def test_contributioninvalidateform_meta_fields(self):
+        form = ContributionInvalidateForm()
+        assert form._meta.fields == ["comment"]
 
 
 class TestCreateIssueForm:
@@ -132,7 +160,43 @@ class TestCreateIssueForm:
         form.cleaned_data = {"labels": []}
         with pytest.raises(ValidationError) as exc_info:
             form.clean_labels()
-        assert "Please select at least one option." in str(exc_info.value)
+        assert MISSING_OPTION_TEXT in str(exc_info.value)
+
+
+class TestIssueLabelsForm:
+    """Testing class for :class:`IssueLabelsForm`."""
+
+    # # IssueLabelsForm
+    def test_issuelabelsform_issubclass_of_form(self):
+        assert issubclass(IssueLabelsForm, Form)
+
+    def test_issuelabelsform_labels_field(self):
+        form = IssueLabelsForm()
+        assert "labels" in form.base_fields
+        assert isinstance(form.base_fields["labels"], MultipleChoiceField)
+        assert isinstance(form.base_fields["labels"].widget, CheckboxSelectMultiple)
+        assert form.base_fields["labels"].required
+
+    def test_issuelabelsform_priority_field(self):
+        form = IssueLabelsForm()
+        assert "priority" in form.base_fields
+        assert isinstance(form.base_fields["priority"], ChoiceField)
+        assert isinstance(form.base_fields["priority"].widget, RadioSelect)
+        assert form.base_fields["priority"].required
+        assert form.base_fields["priority"].initial == "medium priority"
+
+    def test_issuelabelsform_clean_labels_valid_data(self):
+        form = IssueLabelsForm()
+        form.cleaned_data = {"labels": ["bug", "enhancement"]}
+        result = form.clean_labels()
+        assert result == ["bug", "enhancement"]
+
+    def test_issuelabelsform_clean_labels_empty_data(self):
+        form = IssueLabelsForm()
+        form.cleaned_data = {"labels": []}
+        with pytest.raises(ValidationError) as exc_info:
+            form.clean_labels()
+        assert MISSING_OPTION_TEXT in str(exc_info.value)
 
 
 # # PROFILE

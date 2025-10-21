@@ -37,6 +37,7 @@ ALLOWED_HOSTS = []
 
 INSTALLED_APPS = [
     "core.apps.CoreConfig",
+    "template_partials",
     "django.contrib.admin",
     "django.contrib.auth",
     "django.contrib.contenttypes",
@@ -113,7 +114,7 @@ AUTH_PASSWORD_VALIDATORS = [
 # allauth
 ACCOUNT_ADAPTER = "core.adapters.NoSignupAccountAdapter"
 ACCOUNT_LOGIN_METHODS = {"username", "email"}
-LOGIN_REDIRECT_URL = "/profile/"
+LOGIN_REDIRECT_URL = "/"
 ACCOUNT_EMAIL_VERIFICATION = "optional"
 ACCOUNT_EMAIL_SUBJECT_PREFIX = ""
 ACCOUNT_DEFAULT_HTTP_PROTOCOL = "http"

@@ -1,0 +1,24 @@
+{% extends "base_generic.html" %}
+
+{% block content %}
+<div class="max-w-4xl mx-auto">
+  <h1 class="text-3xl font-bold mb-6">Open GitHub issues</h1>
+
+  <div class="card bg-base-100 shadow-md">
+    <div class="card-body">
+      {% if issue_list %}
+      <div class="space-y-3">
+        {% for issue in issue_list %}
+        <div class="flex items-center">
+          <a class="link link-accent text-lg" href="{{ issue.get_absolute_url }}">{{ issue }}</a>
+        </div>
+        {% endfor %}
+      </div>
+      {% else %}
+      <p class="text-base-content/70">There are no issues in database.</p>
+      {% endif %}
+    </div>
+  </div>
+
+</div>
+{% endblock %}

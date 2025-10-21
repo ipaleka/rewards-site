@@ -1,4 +1,6 @@
+## base
 Django>=5.1,<6
+django-template-partials>=25.2
 ## database
 psycopg[binary]
 python-dotenv>=1.0.1

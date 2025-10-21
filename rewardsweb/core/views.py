@@ -9,6 +9,7 @@ from django.contrib.auth.models import User
 from django.db.models import Q, Sum
 from django.forms import ValidationError
 from django.http import HttpResponseRedirect
+from django.shortcuts import redirect
 from django.urls import reverse_lazy
 from django.utils.decorators import method_decorator
 from django.views import View
@@ -18,16 +19,23 @@ from django.views.generic.detail import SingleObjectMixin
 from core.forms import (
     ContributionEditForm,
     CreateIssueForm,
+    IssueLabelsForm,
     ProfileFormSet,
     UpdateUserForm,
 )
-from core.models import Contribution, Contributor, Cycle, Issue
+from core.models import Contribution, Contributor, Cycle, Issue, IssueStatus
 from utils.bot import add_reaction_to_message
-from utils.constants.core import DISCORD_NOTED_EMOJI
+from utils.constants.core import (
+    DISCORD_NOTED_EMOJI,
+    ISSUE_CREATION_LABEL_CHOICES,
+    ISSUE_PRIORITY_CHOICES,
+)
 from utils.issues import (
+    close_issue_with_labels,
     create_github_issue,
     issue_by_number,
     issue_data_for_contribution,
+    set_labels_to_issue,
 )
 
 logger = logging.getLogger(__name__)
@@ -207,21 +215,14 @@ class CycleDetailView(DetailView):
     model = Cycle
 
 
+# core/views.py
 class IssueDetailView(DetailView):
-    """View for displaying detailed information about a single issue.
-
-    :ivar model: Model class for issues
-    :type model: :class:`core.models.Issue`
-    """
+    """View for displaying detailed information about a single issue."""
 
     model = Issue
 
     def get_context_data(self, **kwargs):
-        """Add GitHub issue data to template context for superusers.
-
-        :param kwargs: Additional keyword arguments
-        :return: dict
-        """
+        """Add GitHub issue data and form to template context."""
         context = super().get_context_data(**kwargs)
 
         issue = self.get_object()
@@ -230,9 +231,8 @@ class IssueDetailView(DetailView):
             f"{settings.GITHUB_REPO_NAME}/issues/{issue.number}"
         )
 
-        # Only fetch GitHub data for superusers
+        # Only fetch GitHub data and show form for superusers
         if self.request.user.is_superuser:
-
             # Retrieve GitHub issue data if issue number exists
             issue_data = issue_by_number(self.request.user, issue.number)
 
@@ -246,10 +246,172 @@ class IssueDetailView(DetailView):
                 context["issue_html_url"] = issue_data["issue"]["html_url"]
                 context["issue_created_at"] = issue_data["issue"]["created_at"]
                 context["issue_updated_at"] = issue_data["issue"]["updated_at"]
+
+                # Only show forms if GitHub issue is open
+                if issue_data["issue"]["state"] == "open":
+                    # Extract current labels and priority from GitHub issue
+                    current_labels = issue_data["issue"]["labels"]
+                    selected_labels = []
+                    selected_priority = "medium priority"  # Default
+
+                    # Get available labels and priorities for matching
+                    available_labels = [
+                        choice[0] for choice in ISSUE_CREATION_LABEL_CHOICES
+                    ]
+                    available_priorities = [
+                        choice[0] for choice in ISSUE_PRIORITY_CHOICES
+                    ]
+
+                    # Separate labels from priority
+                    for label in current_labels:
+                        # Check if this is a priority label (exact match with available priorities)
+                        if label in available_priorities:
+                            selected_priority = label
+                        # Check if this is a regular label (exact match with available labels)
+                        elif label in available_labels:
+                            selected_labels.append(label)
+
+                    # Create form with initial values
+                    initial_data = {
+                        "labels": selected_labels,
+                        "priority": selected_priority,
+                    }
+                    context["labels_form"] = IssueLabelsForm(initial=initial_data)
+
+                    # Add context variables for template
+                    context["current_priority"] = selected_priority
+                    context["current_custom_labels"] = selected_labels
+
             else:
                 context["github_error"] = issue_data["error"]
 
         return context
+
+    def post(self, request, *args, **kwargs):
+        """Handle form submission for both labels and close actions."""
+        # Only superusers can submit forms
+        if not request.user.is_superuser:
+            messages.error(request, "You don't have permission to perform this action.")
+            return redirect("issue-detail", pk=self.get_object().pk)
+
+        issue = self.get_object()
+
+        # Check which form was submitted
+        if "submit_labels" in request.POST:
+            # Handle labels form submission
+            return self._handle_labels_submission(request, issue)
+        elif "submit_close" in request.POST:
+            # Handle close issue submission
+            return self._handle_close_submission(request, issue)
+        else:
+            messages.error(request, "Invalid form submission.")
+            return redirect("issue-detail", pk=issue.pk)
+
+    def _handle_labels_submission(self, request, issue):
+        """Handle the labels form submission."""
+        form = IssueLabelsForm(request.POST)
+
+        if form.is_valid():
+            # Combine selected labels with priority
+            labels_to_add = form.cleaned_data["labels"] + [
+                form.cleaned_data["priority"]
+            ]
+
+            # Call the function to set labels to GitHub issue
+            result = set_labels_to_issue(request.user, issue.number, labels_to_add)
+
+            if result["success"]:
+                messages.success(
+                    request,
+                    f"Successfully set labels for issue #{issue.number}: {', '.join(labels_to_add)}",
+                )
+            else:
+                messages.error(
+                    request,
+                    f"Failed to set labels: {result.get('error', 'Unknown error')}",
+                )
+        else:
+            messages.error(request, "Please correct the errors in the form.")
+
+        return redirect("issue-detail", pk=issue.pk)
+
+    def _handle_close_submission(self, request, issue):
+        """Handle the close issue submission."""
+        action = request.POST.get("close_action")
+        comment = request.POST.get("close_comment", "")
+
+        if action not in ["resolved", "wontfix"]:
+            messages.error(request, "Invalid close action.")
+            return redirect("issue-detail", pk=issue.pk)
+
+        try:
+            # Get current labels from GitHub
+            issue_data = issue_by_number(request.user, issue.number)
+            if not issue_data["success"]:
+                messages.error(
+                    request, f"Failed to fetch GitHub issue: {issue_data.get('error')}"
+                )
+                return redirect("issue-detail", pk=issue.pk)
+
+            # Check if issue is still open
+            if issue_data["issue"]["state"] != "open":
+                messages.error(
+                    request, "Cannot close an issue that is already closed on GitHub."
+                )
+                return redirect("issue-detail", pk=issue.pk)
+
+            current_labels = issue_data["issue"]["labels"]
+
+            # Remove "work in progress" and prepare labels
+            labels_to_set = [
+                label for label in current_labels if label.lower() != "work in progress"
+            ]
+
+            if action == "resolved":
+                # Add "addressed" label
+                if "addressed" not in labels_to_set:
+                    labels_to_set.append("addressed")
+                # Update local issue status
+                issue.status = IssueStatus.ADDRESSED
+                success_message = (
+                    f"Issue #{issue.number} closed as resolved successfully."
+                )
+
+            else:
+                # Add "wontfix" label
+                if "wontfix" not in labels_to_set:
+                    labels_to_set.append("wontfix")
+                # Update local issue status
+                issue.status = IssueStatus.WONTFIX
+                success_message = (
+                    f"Issue #{issue.number} closed as wontfix successfully."
+                )
+
+            # Save local issue status
+            issue.save()
+
+            # Call the function to close issue on GitHub
+            result = close_issue_with_labels(
+                user=request.user,
+                issue_number=issue.number,
+                labels_to_set=labels_to_set,
+                comment=comment,
+            )
+
+            if result["success"]:
+                messages.success(request, success_message)
+            else:
+                # Revert local status if GitHub operation failed
+                issue.status = IssueStatus.CREATED
+                issue.save()
+                messages.error(
+                    request, result.get("error", "Failed to close issue on GitHub")
+                )
+
+        except Exception as e:
+            messages.error(request, f"Error closing issue: {str(e)}")
+
+        return redirect("issue-detail", pk=issue.pk)
 
 
 @method_decorator(user_passes_test(lambda user: user.is_superuser), name="dispatch")

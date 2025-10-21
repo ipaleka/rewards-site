@@ -20,7 +20,7 @@ from django.forms.models import ModelForm, inlineformset_factory
 
 from core.models import Contribution, Profile, Reward
 from utils.constants.core import ISSUE_CREATION_LABEL_CHOICES, ISSUE_PRIORITY_CHOICES
-from utils.constants.ui import TEXTINPUT_CLASS
+from utils.constants.ui import MISSING_OPTION_TEXT, TEXTINPUT_CLASS
 
 
 class ContributionEditForm(ModelForm):
@@ -120,7 +120,44 @@ class CreateIssueForm(Form):
         """
         data = self.cleaned_data["labels"]
         if len(data) < 1:
-            raise ValidationError("Please select at least one option.")
+            raise ValidationError(MISSING_OPTION_TEXT)
+
+        return data
+
+
+class IssueLabelsForm(Form):
+    """Form for adding labels and priority to GitHub issues.
+
+    :var IssueLabelsForm.labels: issue labels selection
+    :type IssueLabelsForm.labels: :class:`django.forms.MultipleChoiceField`
+    :var IssueLabelsForm.priority: issue priority level
+    :type IssueLabelsForm.priority: :class:`django.forms.ChoiceField`
+    """
+
+    labels = MultipleChoiceField(
+        choices=ISSUE_CREATION_LABEL_CHOICES,
+        widget=CheckboxSelectMultiple(),
+        required=True,
+    )
+    priority = ChoiceField(
+        choices=ISSUE_PRIORITY_CHOICES,
+        widget=RadioSelect(),
+        required=True,
+        initial="medium priority",
+    )
+
+    def clean_labels(self):
+        """Ensure at least one label is selected.
+
+        Raise ValidationError if no labels are selected.
+
+        :var data: collection of form data
+        :type data: dict
+        :return: dict
+        """
+        data = self.cleaned_data["labels"]
+        if len(data) < 1:
+            raise ValidationError(MISSING_OPTION_TEXT)
 
         return data
 

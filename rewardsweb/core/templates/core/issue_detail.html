@@ -12,9 +12,9 @@
 
     <!-- Close Issue Buttons - Only for superusers and if GitHub issue is open -->
     {% if user.is_superuser and github_issue and issue_state == 'open' %}
-      <!-- Close as Resolved Button - Triggers modal -->
-      <button class="btn btn-soft btn-success btn-sm" onclick="document.getElementById('close-resolved-modal').showModal()">
-        Close as resolved
+      <!-- Close as addressed Button - Triggers modal -->
+      <button class="btn btn-soft btn-success btn-sm" onclick="document.getElementById('close-addressed-modal').showModal()">
+        Close as addressed
       </button>
       
       <!-- Close as Wontfix Button - Triggers modal -->
@@ -46,16 +46,16 @@
     </div>
   </div>
 
-  <!-- Close as Resolved Modal - Only render if issue is open -->
+  <!-- Close as Addressed Modal - Only render if issue is open -->
   {% if user.is_superuser and github_issue and issue_state == 'open' %}
-  <dialog id="close-resolved-modal" class="modal">
+  <dialog id="close-addressed-modal" class="modal">
     <div class="modal-box">
-      <h3 class="font-bold text-lg">Close Issue as Resolved</h3>
-      <p class="py-4">Are you sure you want to close this issue as resolved? This will add the "addressed" label and update the issue status.</p>
+      <h3 class="font-bold text-lg">Close Issue as Addressed</h3>
+      <p class="py-4">Are you sure you want to close this issue as addressed? This will add the "addressed" label and update the issue status.</p>
       
       <form method="post" action="{% url 'issue-detail' issue.pk %}">
         {% csrf_token %}
-        <input type="hidden" name="close_action" value="resolved">
+        <input type="hidden" name="close_action" value="addressed">
         
         <!-- Comment Input -->
         <div class="form-control w-full mb-4">
@@ -66,7 +66,7 @@
         </div>
         
         <div class="modal-action">
-          <button type="button" class="btn" onclick="document.getElementById('close-resolved-modal').close()">Cancel</button>
+          <button type="button" class="btn" onclick="document.getElementById('close-addressed-modal').close()">Cancel</button>
           <button type="submit" class="btn btn-success" name="submit_close">Confirm Close</button>
         </div>
       </form>

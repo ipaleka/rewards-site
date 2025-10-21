@@ -637,9 +637,11 @@ class Contribution(models.Model):
     platform = models.ForeignKey(SocialPlatform, default=None, on_delete=models.CASCADE)
     reward = models.ForeignKey(Reward, default=None, on_delete=models.CASCADE)
     issue = models.ForeignKey(Issue, null=True, blank=True, on_delete=models.CASCADE)
-    percentage = models.DecimalField(max_digits=5, decimal_places=2, null=True)
-    url = models.CharField(max_length=255, null=True)
-    comment = models.CharField(max_length=255, null=True)
+    percentage = models.DecimalField(
+        max_digits=5, decimal_places=2, default=1, null=True
+    )
+    url = models.CharField(max_length=255, blank=True)
+    comment = models.CharField(max_length=255, blank=True)
     confirmed = models.BooleanField(default=True)
     created_at = models.DateTimeField(auto_now_add=True)
     updated_at = models.DateTimeField(auto_now=True)

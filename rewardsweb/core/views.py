@@ -482,7 +482,7 @@ class IssueDetailView(DetailView):
         action = request.POST.get("close_action")
         comment = request.POST.get("close_comment", "")
 
-        if action not in ["resolved", "wontfix"]:
+        if action not in ["addressed", "wontfix"]:
             messages.error(request, "Invalid close action.")
             return redirect("issue-detail", pk=issue.pk)
 
@@ -509,28 +509,10 @@ class IssueDetailView(DetailView):
                 label for label in current_labels if label.lower() != "work in progress"
             ]
 
-            if action == "resolved":
-                # Add "addressed" label
-                if "addressed" not in labels_to_set:
-                    labels_to_set.append("addressed")
-                # Update local issue status
-                issue.status = IssueStatus.ADDRESSED
-                success_message = (
-                    f"Issue #{issue.number} closed as resolved successfully."
-                )
+            if action not in labels_to_set:
+                labels_to_set.append(action)
 
-            else:
-                # Add "wontfix" label
-                if "wontfix" not in labels_to_set:
-                    labels_to_set.append("wontfix")
-                # Update local issue status
-                issue.status = IssueStatus.WONTFIX
-                success_message = (
-                    f"Issue #{issue.number} closed as wontfix successfully."
-                )
-
-            # Save local issue status
-            issue.save()
+            success_message = f"Issue #{issue.number} closed as {action} successfully."
 
             # Call the function to close issue on GitHub
             result = close_issue_with_labels(
@@ -542,10 +524,19 @@ class IssueDetailView(DetailView):
 
             if result["success"]:
                 messages.success(request, success_message)
-            else:
-                # Revert local status if GitHub operation failed
-                issue.status = IssueStatus.CREATED
+                for contribution in self.get_object().contribution_set.all():
+                    add_reaction_to_message(
+                        contribution.url, DISCORD_EMOJIS.get(action)
+                    )
+
+                issue.status = (
+                    IssueStatus.ADDRESSED
+                    if action == "addressed"
+                    else IssueStatus.WONTFIX
+                )
                 issue.save()
+
+            else:
                 messages.error(
                     request, result.get("error", "Failed to close issue on GitHub")
                 )

@@ -1835,11 +1835,11 @@ class TestIssueDetailViewSubmissionHandlers:
             for message in messages
         )
 
-    # Tests for _handle_close_submission - Resolved action
-    def test_issuedetailview_handle_close_submission_resolved_success(
+    # Tests for _handle_close_submission - addressed action
+    def test_issuedetailview_handle_close_submission_addressed_success(
         self, client, superuser, issue, mocker
     ):
-        """Test successful close as resolved submission."""
+        """Test successful close as addressed submission."""
         # Mock GitHub functions
         mock_get_issue = mocker.patch("core.views.issue_by_number")
         mock_close_issue = mocker.patch("core.views.close_issue_with_labels")
@@ -1867,8 +1867,8 @@ class TestIssueDetailViewSubmissionHandlers:
         response = client.post(
             url,
             {
-                "close_action": "resolved",
-                "close_comment": "This issue has been resolved successfully.",
+                "close_action": "addressed",
+                "close_comment": "This issue has been addressed successfully.",
                 "submit_close": "Confirm Close",
             },
         )
@@ -1885,7 +1885,7 @@ class TestIssueDetailViewSubmissionHandlers:
         call_args = mock_close_issue.call_args[1]
         assert call_args["user"] == superuser
         assert call_args["issue_number"] == issue.number
-        assert call_args["comment"] == "This issue has been resolved successfully."
+        assert call_args["comment"] == "This issue has been addressed successfully."
         assert "addressed" in call_args["labels_to_set"]
         assert "work in progress" not in call_args["labels_to_set"]
         assert "bug" in call_args["labels_to_set"]
@@ -1894,18 +1894,18 @@ class TestIssueDetailViewSubmissionHandlers:
         # Check success message
         messages = list(get_messages(response.wsgi_request))
         assert any(
-            f"Issue #{issue.number} closed as resolved successfully" in str(message)
+            f"Issue #{issue.number} closed as addressed successfully" in str(message)
             for message in messages
         )
 
-    def test_issuedetailview_handle_close_submission_resolved_success_no_comment(
-        self, client, superuser, issue, mocker
+    def test_issuedetailview_handle_close_submission_addressed_success_no_comment(
+        self, client, superuser, issue, contribution, mocker
     ):
-        """Test successful close as resolved submission without comment."""
+        """Test successful close as addressed submission without comment."""
         # Mock GitHub functions
         mock_get_issue = mocker.patch("core.views.issue_by_number")
         mock_close_issue = mocker.patch("core.views.close_issue_with_labels")
-
+        mock_add_reaction = mocker.patch("core.views.add_reaction_to_message")
         mock_github_data = {
             "success": True,
             "issue": {
@@ -1924,12 +1924,14 @@ class TestIssueDetailViewSubmissionHandlers:
         mock_close_issue.return_value = {"success": True}
 
         client.force_login(superuser)
+        contribution.issue = issue
+        contribution.save()
         url = reverse("issue-detail", kwargs={"pk": issue.pk})
 
         response = client.post(
             url,
             {
-                "close_action": "resolved",
+                "close_action": "addressed",
                 "close_comment": "",  # Empty comment
                 "submit_close": "Confirm Close",
             },
@@ -1939,6 +1941,10 @@ class TestIssueDetailViewSubmissionHandlers:
 
         # Check that close_issue_with_labels was called with empty comment
         mock_close_issue.assert_called_once()
+        mock_add_reaction.assert_called_once_with(
+            contribution.url, DISCORD_EMOJIS.get("addressed")
+        )
+
         call_args = mock_close_issue.call_args[1]
         assert call_args["comment"] == ""
 
@@ -2040,7 +2046,7 @@ class TestIssueDetailViewSubmissionHandlers:
         response = client.post(
             url,
             {
-                "close_action": "resolved",
+                "close_action": "addressed",
                 "close_comment": "",
                 "submit_close": "Confirm Close",
             },
@@ -2084,7 +2090,7 @@ class TestIssueDetailViewSubmissionHandlers:
         response = client.post(
             url,
             {
-                "close_action": "resolved",
+                "close_action": "addressed",
                 "close_comment": "",
                 "submit_close": "Confirm Close",
             },
@@ -2131,7 +2137,7 @@ class TestIssueDetailViewSubmissionHandlers:
         response = client.post(
             url,
             {
-                "close_action": "resolved",
+                "close_action": "addressed",
                 "close_comment": "",
                 "submit_close": "Confirm Close",
             },
@@ -2164,7 +2170,7 @@ class TestIssueDetailViewSubmissionHandlers:
         response = client.post(
             url,
             {
-                "close_action": "resolved",
+                "close_action": "addressed",
                 "close_comment": "",
                 "submit_close": "Confirm Close",
             },
@@ -2214,7 +2220,7 @@ class TestIssueDetailViewSubmissionHandlers:
         response = client.post(
             url,
             {
-                "close_action": "resolved",
+                "close_action": "addressed",
                 "close_comment": "",
                 "submit_close": "Confirm Close",
             },
@@ -2265,7 +2271,7 @@ class TestIssueDetailViewSubmissionHandlers:
         response = client.post(
             url,
             {
-                "close_action": "resolved",
+                "close_action": "addressed",
                 "close_comment": "",
                 "submit_close": "Confirm Close",
             },
@@ -2314,7 +2320,7 @@ class TestIssueDetailViewCloseFunctionality:
 
         assert response.status_code == 200
         content = response.content.decode()
-        assert "Close as resolved" not in content
+        assert "Close as addressed" not in content
         assert "Close as wontfix" not in content
 
     def test_issuedetailview_close_buttons_not_shown_for_closed_issue(
@@ -2345,7 +2351,7 @@ class TestIssueDetailViewCloseFunctionality:
 
         assert response.status_code == 200
         content = response.content.decode()
-        assert "Close as resolved" not in content
+        assert "Close as addressed" not in content
         assert "Close as wontfix" not in content
 
     def test_issuedetailview_close_buttons_shown_for_open_issue_and_superuser(
@@ -2376,13 +2382,13 @@ class TestIssueDetailViewCloseFunctionality:
 
         assert response.status_code == 200
         content = response.content.decode()
-        assert "Close as resolved" in content
+        assert "Close as addressed" in content
         assert "Close as wontfix" in content
 
-    def test_issuedetailview_close_as_resolved_success(
+    def test_issuedetailview_close_as_addressed_success(
         self, client, superuser, issue, mocker
     ):
-        """Test successful close as resolved action."""
+        """Test successful close as addressed action."""
         # Mock GitHub functions
         mock_get_issue = mocker.patch("core.views.issue_by_number")
         mock_close_issue = mocker.patch("core.views.close_issue_with_labels")
@@ -2410,7 +2416,7 @@ class TestIssueDetailViewCloseFunctionality:
         response = client.post(
             url,
             {
-                "close_action": "resolved",
+                "close_action": "addressed",
                 "close_comment": "Fixed the issue",
                 "submit_close": "Confirm Close",
             },
@@ -2569,7 +2575,7 @@ class TestIssueDetailViewCloseFunctionality:
         response = client.post(
             url,
             {
-                "close_action": "resolved",
+                "close_action": "addressed",
                 "close_comment": "",
                 "submit_close": "Confirm Close",
             },
@@ -2609,7 +2615,7 @@ class TestIssueDetailViewCloseFunctionality:
         response = client.post(
             url,
             {
-                "close_action": "resolved",
+                "close_action": "addressed",
                 "close_comment": "",
                 "submit_close": "Confirm Close",
             },

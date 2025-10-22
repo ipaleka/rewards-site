@@ -7,6 +7,7 @@ from django.forms import (
     ChoiceField,
     DecimalField,
     Form,
+    IntegerField,
     ModelChoiceField,
     MultipleChoiceField,
     NumberInput,
@@ -32,6 +33,8 @@ class ContributionEditForm(ModelForm):
     :type ContributionEditForm.percentage: :class:`django.forms.DecimalField`
     :var ContributionEditForm.comment: optional comment for the contribution
     :type ContributionEditForm.comment: :class:`django.forms.CharField`
+    :var ContributionEditForm.issue_number: GitHub issue number
+    :type ContributionEditForm.issue_number: :class:`django.forms.IntegerField`
     """
 
     reward = ModelChoiceField(
@@ -54,10 +57,26 @@ class ContributionEditForm(ModelForm):
     comment = CharField(
         required=False, widget=TextInput(attrs={"class": TEXTINPUT_CLASS})
     )
+    issue_number = IntegerField(
+        required=False,
+        min_value=1,
+        widget=NumberInput(
+            attrs={
+                "class": TEXTINPUT_CLASS,
+                "placeholder": "GitHub issue number (optional)",
+            }
+        ),
+    )
 
     class Meta:
         model = Contribution
         fields = ["reward", "percentage", "comment"]
+
+    def __init__(self, *args, **kwargs):
+        super().__init__(*args, **kwargs)
+        # Set initial value for issue_number from existing issue
+        if self.instance and self.instance.issue:
+            self.fields["issue_number"].initial = self.instance.issue.number
 
 
 class ContributionInvalidateForm(ModelForm):

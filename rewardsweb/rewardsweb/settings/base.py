@@ -195,6 +195,11 @@ USE_TZ = True
 # https://docs.djangoproject.com/en/4.2/howto/static-files/
 
 STATIC_URL = "static/"
+STATICFILES_DIRS = [
+    BASE_DIR.parent / "static",
+]
+
+STATIC_ROOT = BASE_DIR.parent.parent.parent / "rewards-site-static"
 
 # Default primary key field type
 # https://docs.djangoproject.com/en/4.2/ref/settings/#default-auto-field
@@ -211,4 +216,4 @@ REST_FRAMEWORK = {
 }
 
 GITHUB_REPO_OWNER = "asastats"
-GITHUB_REPO_NAME =  "channel"  # "rewards-site"
+GITHUB_REPO_NAME = "channel"  # "rewards-site"

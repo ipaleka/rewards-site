@@ -18,6 +18,9 @@
           <p><strong>URL:</strong> <a href="{{ contribution.url }}" class="link link-accent" target="_blank">{{ contribution.url|urlizetrunc:50 }}</a></p>
           <p><strong>Created at:</strong> {{ contribution.created_at }}</p>
           <p><strong>Updated at:</strong> {{ contribution.updated_at }}</p>
+          {% if contribution.issue %}
+          <p><strong>Issue:</strong> <a class="link link-accent" href="{{ contribution.issue.get_absolute_url }}">{{ contribution.issue }}</a></p>
+          {% endif %}
         </div>
 
         <!-- Right Column -->
@@ -31,6 +34,7 @@
           {% if contribution.comment %}
           <p><strong>Comment:</strong> {{ contribution.comment }}</p>
           {% endif %}
+
         </div>
       </div>
 
@@ -61,8 +65,6 @@
         <div class="alert alert-warning">
           <p><strong>Status:</strong> Not Confirmed</p>
         </div>
-        {% elif contribution.issue %}
-        <p><strong>Issue:</strong> <a class="link link-accent" href="{{ contribution.issue.get_absolute_url }}">{{ contribution.issue }}</a></p>
         {% endif %}
       </div>
     </div>

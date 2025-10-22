@@ -231,14 +231,17 @@ class TestContributionEditView:
 class TestDbContributionEditView:
     """Testing class for :class:`core.views.ContributionEditView` with database."""
 
-    def test_contributioneditview_get_success_url(self, rf, superuser, contribution):
-        request = rf.get(f"/contributions/{contribution.id}/edit/")
-        request.user = superuser
-
-        # Setup messages framework
+    def _setup_messages(self, request):
+        """Helper method to setup messages framework for request."""
         setattr(request, "session", "session")
         messages = FallbackStorage(request)
         setattr(request, "_messages", messages)
+        return request
+
+    def test_contributioneditview_get_success_url(self, rf, superuser, contribution):
+        request = rf.get(f"/contributions/{contribution.id}/edit/")
+        request.user = superuser
+        request = self._setup_messages(request)
 
         view = ContributionEditView()
         view.setup(request, pk=contribution.id)
@@ -271,6 +274,296 @@ class TestDbContributionEditView:
 
         # Should return 200 for superuser
         assert response.status_code == 200
+
+    def test_contributioneditview_form_valid_with_existing_issue(
+        self, rf, superuser, contribution, issue
+    ):
+        request = rf.post(
+            f"/contribution/{contribution.id}/edit/",
+            {
+                "reward": contribution.reward.id,
+                "percentage": "50.00",
+                "comment": "Test comment",
+                "issue_number": issue.number,
+            },
+        )
+        request.user = superuser
+        request = self._setup_messages(request)
+
+        response = ContributionEditView.as_view()(request, pk=contribution.id)
+
+        # Refresh contribution from database
+        contribution.refresh_from_db()
+
+        # Should redirect to success URL
+        assert response.status_code == 302
+        assert contribution.issue == issue
+
+    def test_contributioneditview_form_valid_with_new_issue(
+        self, rf, superuser, contribution, mocker
+    ):
+        # Mock the GitHub check to return successful issue data
+        mock_issue_by_number = mocker.patch(
+            "core.views.issue_by_number",
+            return_value={"success": True, "data": {"number": 123}},
+        )
+
+        request = rf.post(
+            f"/contribution/{contribution.id}/edit/",
+            {
+                "reward": contribution.reward.id,
+                "percentage": "50.00",
+                "comment": "Test comment",
+                "issue_number": "123",
+            },
+        )
+        request.user = superuser
+        request = self._setup_messages(request)
+
+        response = ContributionEditView.as_view()(request, pk=contribution.id)
+
+        # Refresh contribution from database
+        contribution.refresh_from_db()
+
+        # Should redirect to success URL
+        assert response.status_code == 302
+        assert contribution.issue is not None
+        assert contribution.issue.number == 123
+        mock_issue_by_number.assert_called_once_with(superuser, 123)
+
+    def test_contributioneditview_form_invalid_with_nonexistent_github_issue(
+        self, rf, superuser, contribution, mocker
+    ):
+        """Test when GitHub issue doesn't exist (success=False, error=MISSING_TOKEN_TEXT)."""
+        from core.views import MISSING_TOKEN_TEXT
+
+        # Mock the GitHub check to return failure with "issue doesn't exist" error
+        mock_issue_by_number = mocker.patch(
+            "core.views.issue_by_number",
+            return_value={"success": False, "error": MISSING_TOKEN_TEXT},
+        )
+
+        request = rf.post(
+            f"/contribution/{contribution.id}/edit/",
+            {
+                "reward": contribution.reward.id,
+                "percentage": "50.00",
+                "comment": "Test comment",
+                "issue_number": "999",
+            },
+        )
+        request.user = superuser
+        request = self._setup_messages(request)
+
+        response = ContributionEditView.as_view()(request, pk=contribution.id)
+
+        # Should return form with error (200 status)
+        assert response.status_code == 200
+
+        # Check that the form in the context has the expected error
+        assert "form" in response.context_data
+        form = response.context_data["form"]
+        assert "issue_number" in form.errors
+        assert "That GitHub issue doesn't exist!" in form.errors["issue_number"]
+
+        mock_issue_by_number.assert_called_once_with(superuser, 999)
+
+    def test_contributioneditview_form_invalid_with_github_api_error(
+        self, rf, superuser, contribution, mocker
+    ):
+        """Test when GitHub API returns a different error (not MISSING_TOKEN_TEXT)."""
+        from core.views import MISSING_TOKEN_TEXT
+
+        # Mock the GitHub check to return failure with a different error
+        mock_issue_by_number = mocker.patch(
+            "core.views.issue_by_number",
+            return_value={"success": False, "error": "API rate limit exceeded"},
+        )
+
+        request = rf.post(
+            f"/contribution/{contribution.id}/edit/",
+            {
+                "reward": contribution.reward.id,
+                "percentage": "50.00",
+                "comment": "Test comment",
+                "issue_number": "999",
+            },
+        )
+        request.user = superuser
+        request = self._setup_messages(request)
+
+        response = ContributionEditView.as_view()(request, pk=contribution.id)
+
+        # Should return form with error (200 status)
+        assert response.status_code == 200
+
+        # Check that the form in the context has the expected error
+        assert "form" in response.context_data
+        form = response.context_data["form"]
+        assert "issue_number" in form.errors
+        assert MISSING_TOKEN_TEXT in form.errors["issue_number"]
+
+        mock_issue_by_number.assert_called_once_with(superuser, 999)
+
+    def test_contributioneditview_form_invalid_with_github_api_missing_token_error(
+        self, rf, superuser, contribution, mocker
+    ):
+        """Test when GitHub API returns MISSING_TOKEN_TEXT error specifically."""
+        from core.views import MISSING_TOKEN_TEXT
+
+        # Mock the GitHub check to return failure with MISSING_TOKEN_TEXT
+        mock_issue_by_number = mocker.patch(
+            "core.views.issue_by_number",
+            return_value={"success": False, "error": MISSING_TOKEN_TEXT},
+        )
+
+        request = rf.post(
+            f"/contribution/{contribution.id}/edit/",
+            {
+                "reward": contribution.reward.id,
+                "percentage": "50.00",
+                "comment": "Test comment",
+                "issue_number": "999",
+            },
+        )
+        request.user = superuser
+        request = self._setup_messages(request)
+
+        response = ContributionEditView.as_view()(request, pk=contribution.id)
+
+        # Should return form with error (200 status)
+        assert response.status_code == 200
+
+        # Check that the form in the context has the expected error
+        assert "form" in response.context_data
+        form = response.context_data["form"]
+        assert "issue_number" in form.errors
+        assert "That GitHub issue doesn't exist!" in form.errors["issue_number"]
+
+        mock_issue_by_number.assert_called_once_with(superuser, 999)
+
+    def test_contributioneditview_form_valid_without_issue_number(
+        self, rf, superuser, contribution_with_issue
+    ):
+        """Test that empty issue_number removes existing issue association."""
+        request = rf.post(
+            f"/contribution/{contribution_with_issue.id}/edit/",
+            {
+                "reward": contribution_with_issue.reward.id,
+                "percentage": "75.00",
+                "comment": "Updated comment",
+                "issue_number": "",  # Empty to remove issue
+            },
+        )
+        request.user = superuser
+        request = self._setup_messages(request)
+
+        response = ContributionEditView.as_view()(
+            request, pk=contribution_with_issue.id
+        )
+
+        # Refresh contribution from database
+        contribution_with_issue.refresh_from_db()
+
+        # Should redirect to success URL and remove issue
+        assert response.status_code == 302
+        assert contribution_with_issue.issue is None
+
+    def test_contributioneditview_form_valid_with_none_issue_number(
+        self, rf, superuser, contribution_with_issue
+    ):
+        """Test that missing issue_number removes existing issue association."""
+        request = rf.post(
+            f"/contribution/{contribution_with_issue.id}/edit/",
+            {
+                "reward": contribution_with_issue.reward.id,
+                "percentage": "100.00",
+                "comment": "Remove issue test",
+                # issue_number not provided (defaults to None)
+            },
+        )
+        request.user = superuser
+        request = self._setup_messages(request)
+
+        response = ContributionEditView.as_view()(
+            request, pk=contribution_with_issue.id
+        )
+
+        # Refresh from database
+        contribution_with_issue.refresh_from_db()
+
+        # Should redirect and remove issue
+        assert response.status_code == 302
+        assert contribution_with_issue.issue is None
+
+    def test_contributioneditview_form_valid_creates_new_issue_when_success_true(
+        self, rf, superuser, contribution, mocker
+    ):
+        """Test that new issue is created when GitHub API returns success=True."""
+        # Mock the GitHub check to return successful issue data
+        mock_issue_by_number = mocker.patch(
+            "core.views.issue_by_number",
+            return_value={"success": True, "data": {"number": 456}},
+        )
+
+        request = rf.post(
+            f"/contribution/{contribution.id}/edit/",
+            {
+                "reward": contribution.reward.id,
+                "percentage": "80.00",
+                "comment": "Test with new issue",
+                "issue_number": "456",
+            },
+        )
+        request.user = superuser
+        request = self._setup_messages(request)
+
+        response = ContributionEditView.as_view()(request, pk=contribution.id)
+
+        # Refresh contribution from database
+        contribution.refresh_from_db()
+
+        # Should redirect to success URL
+        assert response.status_code == 302
+
+        # Should create and attach a new issue
+        assert contribution.issue is not None
+        assert contribution.issue.number == 456
+        assert contribution.issue.status == IssueStatus.CREATED
+
+        # Verify the GitHub API was called
+        mock_issue_by_number.assert_called_once_with(superuser, 456)
+
+    def test_contributioneditview_form_valid_with_existing_issue_different_number(
+        self, rf, superuser, contribution_with_issue
+    ):
+        """Test updating with a different existing issue number."""
+        # Create a different issue
+        different_issue = Issue.objects.create(number=789, status=IssueStatus.CREATED)
+
+        request = rf.post(
+            f"/contribution/{contribution_with_issue.id}/edit/",
+            {
+                "reward": contribution_with_issue.reward.id,
+                "percentage": "90.00",
+                "comment": "Updated with different issue",
+                "issue_number": "789",  # Different existing issue
+            },
+        )
+        request.user = superuser
+        request = self._setup_messages(request)
+
+        response = ContributionEditView.as_view()(
+            request, pk=contribution_with_issue.id
+        )
+
+        # Refresh contribution from database
+        contribution_with_issue.refresh_from_db()
+
+        # Should redirect to success URL and update to different issue
+        assert response.status_code == 302
+        assert contribution_with_issue.issue == different_issue
+        assert contribution_with_issue.issue.number == 789
 
 
 class TestContributionInvalidateView:

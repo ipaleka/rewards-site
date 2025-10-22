@@ -9,6 +9,7 @@ from django.forms import (
     ChoiceField,
     DecimalField,
     Form,
+    IntegerField,
     ModelChoiceField,
     ModelForm,
     MultipleChoiceField,
@@ -68,6 +69,16 @@ class TestContributionEditForm:
         assert isinstance(form.base_fields["comment"].widget, TextInput)
         assert "class" in form.base_fields["comment"].widget.attrs
 
+    def test_contributioneditform_issue_number_field(self):
+        form = ContributionEditForm()
+        assert "issue_number" in form.base_fields
+        assert isinstance(form.base_fields["issue_number"], IntegerField)
+        assert not form.base_fields["issue_number"].required
+        assert form.base_fields["issue_number"].min_value == 1
+        assert isinstance(form.base_fields["issue_number"].widget, NumberInput)
+        assert "class" in form.base_fields["issue_number"].widget.attrs
+        assert "placeholder" in form.base_fields["issue_number"].widget.attrs
+
     # # Meta
     def test_contributioneditform_meta_model_is_contribution(self):
         form = ContributionEditForm()
@@ -76,6 +87,22 @@ class TestContributionEditForm:
     def test_contributioneditform_meta_fields(self):
         form = ContributionEditForm()
         assert form._meta.fields == ["reward", "percentage", "comment"]
+
+    @pytest.mark.django_db
+    def test_contributioneditform_initial_issue_number_with_existing_issue(
+        self, contribution_with_issue
+    ):
+        form = ContributionEditForm(instance=contribution_with_issue)
+        assert (
+            form.fields["issue_number"].initial == contribution_with_issue.issue.number
+        )
+
+    @pytest.mark.django_db
+    def test_contributioneditform_initial_issue_number_without_issue(
+        self, contribution
+    ):
+        form = ContributionEditForm(instance=contribution)
+        assert form.fields["issue_number"].initial is None
 
 
 class TestContributionInvalidateForm:

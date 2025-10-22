@@ -10,10 +10,11 @@ from core.models import (
     Contribution,
     Contributor,
     Cycle,
-    SocialPlatform,
+    Issue,
+    IssueStatus,
     Reward,
     RewardType,
-    Issue,
+    SocialPlatform,
 )
 
 
@@ -80,7 +81,14 @@ def contribution(cycle, contributor, social_platform, reward):
 @pytest.fixture
 def issue():
     """Create an issue for testing."""
-    return Issue.objects.create(number=123)
+    return Issue.objects.create(number=123, status=IssueStatus.CREATED)
+
+
+@pytest.fixture
+def contribution_with_issue(contribution, issue):
+    contribution.issue = issue
+    contribution.save()
+    return contribution
 
 
 @pytest.fixture

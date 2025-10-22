@@ -33,6 +33,7 @@ from utils.constants.core import (
     ISSUE_CREATION_LABEL_CHOICES,
     ISSUE_PRIORITY_CHOICES,
 )
+from utils.constants.ui import MISSING_TOKEN_TEXT
 from utils.issues import (
     close_issue_with_labels,
     create_github_issue,
@@ -110,7 +111,7 @@ class ContributionEditView(UpdateView):
     """View for updating contribution information (superusers only).
 
     Allows superusers to edit contribution details including reward,
-    percentage, and comments.
+    percentage, comments, and GitHub issue number.
 
     :ivar model: Model class for contributions
     :type model: :class:`core.models.Contribution`
@@ -123,6 +124,41 @@ class ContributionEditView(UpdateView):
     model = Contribution
     form_class = ContributionEditForm
     template_name = "core/contribution_edit.html"
+
+    def form_valid(self, form):
+        """Handle form validation with GitHub issue processing."""
+        issue_number = form.cleaned_data.get("issue_number")
+
+        if issue_number:
+            # Check if issue with this number already exists
+            try:
+                issue = Issue.objects.get(number=issue_number)
+                form.instance.issue = issue
+
+            except Issue.DoesNotExist:
+                # Check if GitHub issue exists
+                issue_data = issue_by_number(self.request.user, issue_number)
+                if not issue_data.get("success"):
+                    if issue_data.get("error") == MISSING_TOKEN_TEXT:
+                        form.add_error(
+                            "issue_number", "That GitHub issue doesn't exist!"
+                        )
+
+                    else:
+                        form.add_error("issue_number", MISSING_TOKEN_TEXT)
+
+                    return self.form_invalid(form)
+
+                # Create new issue
+                issue = Issue.objects.create(
+                    number=issue_number, status=IssueStatus.CREATED
+                )
+                form.instance.issue = issue
+        else:
+            # If issue_number is empty or None, remove the issue association
+            form.instance.issue = None
+
+        return super().form_valid(form)
 
     def get_success_url(self):
         """Return URL to redirect after successful update.

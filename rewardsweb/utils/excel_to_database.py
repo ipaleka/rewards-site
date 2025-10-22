@@ -5,6 +5,7 @@ from datetime import datetime, timedelta
 from pathlib import Path
 
 import pandas as pd
+from django.conf import settings
 from django.contrib.auth.models import User
 from django.core.exceptions import ObjectDoesNotExist
 from django.db.utils import IntegrityError
@@ -16,11 +17,14 @@ from core.models import (
     Contribution,
     Cycle,
     Handle,
+    Issue,
+    IssueStatus,
     Reward,
     RewardType,
     SocialPlatform,
 )
 from utils.helpers import get_env_variable
+from utils.issues import all_issues
 
 
 ADDRESSES_CSV_COLUMNS = ["handle", "address"]
@@ -115,6 +119,63 @@ def _dataframe_from_csv(filename, columns=CONTRIBUTION_CSV_COLUMNS):
     return data
 
 
+def _fetch_and_assign_issues(github_token):
+    """Fetch GitHub issues and assign them to contributions based on URL matching.
+
+    This function retrieves all GitHub issues and attempts to match them with
+    existing contributions by searching for contribution URLs in the issue bodies.
+    When a match is found, creates an Issue record and assigns it to the contribution.
+
+    :param github_token: GitHub authentication token
+    :type github_token: str
+    :var contributions: all the existing contribution instances
+    :type contributions: list of :class:`core.models.Contribution`
+    :var url_to_contribution: mapping from URL to contribution instance
+    :type url_to_contribution: dict
+    :var valid_urls: set of valid contribution URLs for matching
+    :type valid_urls: set
+    :var github_issue: GitHub issue instance being processed
+    :type github_issue: :class:`github.Issue.Issue`
+    :var contribution: contribution instance matched with issue
+    :type contribution: :class:`core.models.Contribution`
+    :var issue: created issue instance
+    :type issue: :class:`core.models.Issue`
+    :return: True if operation completed successfully, False if no token provided
+    :rtype: bool
+    """
+    if not github_token:
+        return False
+
+    contributions = list(Contribution.objects.all())
+    if not contributions:
+        return True
+
+    # Create lookup structures
+    url_to_contribution = {}
+    valid_urls = set()
+
+    for contrib in contributions:
+        if contrib.url:
+            url_to_contribution[contrib.url] = contrib
+            valid_urls.add(contrib.url)
+
+    # Process issues
+    for github_issue in all_issues(github_token):
+        for url in valid_urls:
+            if _is_url_github_issue(url) or (
+                github_issue.body and url in github_issue.body
+            ):
+                contribution = url_to_contribution[url]
+                issue = Issue.objects.create(
+                    number=github_issue.number, status=IssueStatus.ARCHIVED
+                )
+                contribution.issue = issue
+                contribution.save()
+                break  # Assume one URL match per issue
+
+    return True
+
+
 def _import_contributions(data, parse_callback, amount_callback):
     """Import contributions from DataFrame to database.
 
@@ -147,6 +208,7 @@ def _import_contributions(data, parse_callback, amount_callback):
             percentage=percentage,
             url=url,
             comment=comment,
+            confirmed=True,
         )
 
 
@@ -177,6 +239,29 @@ def _import_rewards(data, parse_callback, amount_callback):
             )
         except IntegrityError:
             pass
+
+
+def _is_url_github_issue(url):
+    """Check if a URL matches the pattern of a GitHub issue in the configured repository.
+
+    :param url: URL to check
+    :type url: str
+    :return: GitHub issue number if URL matches pattern, False otherwise
+    :rtype: int or bool
+    :var pattern: regex pattern for GitHub issue URL matching
+    :type pattern: str
+    :var match: regex match object
+    :type match: :class:`re.Match` or None
+    """
+    pattern = (
+        rf"^.*github\.com/{settings.GITHUB_REPO_OWNER}/"
+        rf"{settings.GITHUB_REPO_NAME}/issues/(\d+).*"
+    )
+    match = re.match(pattern, url)
+    if not match:
+        return False
+
+    return int(match.groups()[0])
 
 
 def _parse_addresses():
@@ -342,13 +427,15 @@ def convert_and_clean_excel(input_file, output_file, legacy_contributions):
     legacy_df.to_csv(legacy_contributions, index=False, header=None, na_rep="NULL")
 
 
-def import_from_csv(contributions_path, legacy_contributions_path):
+def import_from_csv(contributions_path, legacy_contributions_path, github_token=""):
     """Import contributions from CSV files to database.
 
     :param contributions_path: Path to current contributions CSV file
     :type contributions_path: str
     :param legacy_contributions_path: Path to legacy contributions CSV file
     :type legacy_contributions_path: str
+    :param github_token: GitHub API token
+    :type github_token: str
     :return: Error message string or False if successful
     :rtype: str or bool
     """
@@ -413,6 +500,9 @@ def import_from_csv(contributions_path, legacy_contributions_path):
         _reward_amount,
     )
     print("Contributions imported: ", len(Contribution.objects.all()))
+
+    _fetch_and_assign_issues(github_token)
+    print("Issues created: ", len(Issue.objects.all()))
 
     _create_superusers()
 

@@ -14,7 +14,8 @@ class Command(BaseCommand):
     help = "Calls script which converts Excel file to CSV."
 
     def add_arguments(self, parser):
-        """Add optional input_file and output files arguments to command."""
+        """Add optional input_file, output files and token arguments to command."""
+        parser.add_argument("token", type=str, nargs="?", default="")
         parser.add_argument("input", type=str, nargs="?", default="")
         parser.add_argument("output", type=str, nargs="?", default="")
         parser.add_argument("legacy", type=str, nargs="?", default="")
@@ -24,6 +25,7 @@ class Command(BaseCommand):
 
         fixtures_dir = settings.BASE_DIR.parent / "fixtures"
 
+        github_token = options.get("token")
         input_file = (
             Path(options.get("input"))
             if options.get("input")
@@ -46,7 +48,7 @@ class Command(BaseCommand):
             "CSV successfully exported into %s file!" % (output_file.name)
         )
 
-        response = import_from_csv(output_file, legacy_file)
+        response = import_from_csv(output_file, legacy_file, github_token=github_token)
         if not response:
             self.stdout.write("Database successfully recreated!")
 

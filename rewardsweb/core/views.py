@@ -111,7 +111,7 @@ class ContributionEditView(UpdateView):
     """View for updating contribution information (superusers only).
 
     Allows superusers to edit contribution details including reward,
-    percentage, comments, and GitHub issue number.
+    percentage, comments, GitHub issue number, and issue status.
 
     :ivar model: Model class for contributions
     :type model: :class:`core.models.Contribution`
@@ -128,11 +128,16 @@ class ContributionEditView(UpdateView):
     def form_valid(self, form):
         """Handle form validation with GitHub issue processing."""
         issue_number = form.cleaned_data.get("issue_number")
+        issue_status = form.cleaned_data.get("issue_status", IssueStatus.CREATED)
 
         if issue_number:
             # Check if issue with this number already exists
             try:
                 issue = Issue.objects.get(number=issue_number)
+                # Update existing issue status if provided
+                if issue_status and issue.status != issue_status:
+                    issue.status = issue_status
+                    issue.save()
                 form.instance.issue = issue
 
             except Issue.DoesNotExist:
@@ -143,15 +148,13 @@ class ContributionEditView(UpdateView):
                         form.add_error(
                             "issue_number", "That GitHub issue doesn't exist!"
                         )
-
                     else:
                         form.add_error("issue_number", MISSING_TOKEN_TEXT)
-
                     return self.form_invalid(form)
 
-                # Create new issue
+                # Create new issue with selected status
                 issue = Issue.objects.create(
-                    number=issue_number, status=IssueStatus.CREATED
+                    number=issue_number, status=issue_status or IssueStatus.CREATED
                 )
                 form.instance.issue = issue
         else:

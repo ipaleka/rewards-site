@@ -565,6 +565,80 @@ class TestDbContributionEditView:
         assert contribution_with_issue.issue == different_issue
         assert contribution_with_issue.issue.number == 789
 
+    def test_contributioneditview_form_valid_with_new_issue_and_custom_status(
+        self, rf, superuser, contribution, mocker
+    ):
+        """Test that new issue is created with custom status."""
+        # Mock the GitHub check to return successful issue data
+        mock_issue_by_number = mocker.patch(
+            "core.views.issue_by_number",
+            return_value={"success": True, "data": {"number": 456}},
+        )
+
+        request = rf.post(
+            f"/contribution/{contribution.id}/edit/",
+            {
+                "reward": contribution.reward.id,
+                "percentage": "80.00",
+                "comment": "Test with new issue and custom status",
+                "issue_number": "456",
+                "issue_status": IssueStatus.ADDRESSED,  # Custom status
+            },
+        )
+        request.user = superuser
+        request = self._setup_messages(request)
+
+        response = ContributionEditView.as_view()(request, pk=contribution.id)
+
+        # Refresh contribution from database
+        contribution.refresh_from_db()
+
+        # Should redirect to success URL
+        assert response.status_code == 302
+
+        # Should create and attach a new issue with custom status
+        assert contribution.issue is not None
+        assert contribution.issue.number == 456
+        assert contribution.issue.status == IssueStatus.ADDRESSED  # Custom status
+
+        # Verify the GitHub API was called
+        mock_issue_by_number.assert_called_once_with(superuser, 456)
+
+    def test_contributioneditview_form_valid_updates_existing_issue_status(
+        self, rf, superuser, contribution_with_issue
+    ):
+        """Test updating existing issue status."""
+        original_status = contribution_with_issue.issue.status
+        new_status = IssueStatus.ADDRESSED
+
+        request = rf.post(
+            f"/contribution/{contribution_with_issue.id}/edit/",
+            {
+                "reward": contribution_with_issue.reward.id,
+                "percentage": "90.00",
+                "comment": "Update issue status",
+                "issue_number": str(contribution_with_issue.issue.number),  # Same issue
+                "issue_status": new_status,  # New status
+            },
+        )
+        request.user = superuser
+        request = self._setup_messages(request)
+
+        response = ContributionEditView.as_view()(
+            request, pk=contribution_with_issue.id
+        )
+
+        # Refresh contribution and issue from database
+        contribution_with_issue.refresh_from_db()
+        contribution_with_issue.issue.refresh_from_db()
+
+        # Should redirect to success URL
+        assert response.status_code == 302
+
+        # Issue status should be updated
+        assert contribution_with_issue.issue.status == new_status
+        assert contribution_with_issue.issue.status != original_status
+
 
 class TestContributionInvalidateView:
     """Testing class for :class:`core.views.ContributionInvalidateView`."""

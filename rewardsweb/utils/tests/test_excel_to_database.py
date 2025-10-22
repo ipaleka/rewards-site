@@ -17,7 +17,7 @@ from utils.excel_to_database import (
     _create_issues_bulk,
     _create_superusers,
     _dataframe_from_csv,
-    _fetch_and_assign_issues,
+    _fetch_and_assign_closed_issues,
     _import_contributions,
     _import_rewards,
     _is_url_github_issue,
@@ -675,7 +675,7 @@ class TestUtilsExcelToDatabasePublicFunctions:
         mocker.patch("utils.excel_to_database._create_active_rewards")
         mocker.patch("utils.excel_to_database._import_contributions")
         mocker.patch("utils.excel_to_database._create_superusers")
-        mocker.patch("utils.excel_to_database._fetch_and_assign_issues")
+        mocker.patch("utils.excel_to_database._fetch_and_assign_closed_issues")
 
         result = import_from_csv("contributions.csv", "legacy.csv")
 
@@ -753,7 +753,7 @@ class TestUtilsExcelToDatabasePublicFunctions:
         mocker.patch("utils.excel_to_database._create_active_rewards")
         mocker.patch("utils.excel_to_database._import_contributions")
         mocker.patch("utils.excel_to_database._create_superusers")
-        mocker.patch("utils.excel_to_database._fetch_and_assign_issues")
+        mocker.patch("utils.excel_to_database._fetch_and_assign_closed_issues")
 
         result = import_from_csv("contributions.csv", "legacy.csv")
 
@@ -840,7 +840,7 @@ class TestUtilsExcelToDatabasePublicFunctions:
         mocker.patch("utils.excel_to_database._create_active_rewards")
         mocker.patch("utils.excel_to_database._import_contributions")
         mocker.patch("utils.excel_to_database._create_superusers")
-        mocker.patch("utils.excel_to_database._fetch_and_assign_issues")
+        mocker.patch("utils.excel_to_database._fetch_and_assign_closed_issues")
 
         result = import_from_csv("contributions.csv", "legacy.csv")
 
@@ -922,7 +922,7 @@ class TestUtilsExcelToDatabasePublicFunctions:
         mocker.patch("utils.excel_to_database._create_active_rewards")
         mocker.patch("utils.excel_to_database._import_contributions")
         mocker.patch("utils.excel_to_database._create_superusers")
-        mocker.patch("utils.excel_to_database._fetch_and_assign_issues")
+        mocker.patch("utils.excel_to_database._fetch_and_assign_closed_issues")
 
         result = import_from_csv("contributions.csv", "legacy.csv")
 
@@ -1004,7 +1004,7 @@ class TestUtilsExcelToDatabasePublicFunctions:
         )
         mocker.patch("utils.excel_to_database._import_contributions")
         mocker.patch("utils.excel_to_database._create_superusers")
-        mocker.patch("utils.excel_to_database._fetch_and_assign_issues")
+        mocker.patch("utils.excel_to_database._fetch_and_assign_closed_issues")
 
         result = import_from_csv("contributions.csv", "legacy.csv")
 
@@ -1098,7 +1098,7 @@ class TestUtilsExcelToDatabasePublicFunctions:
             "utils.excel_to_database._import_contributions"
         )
         mocker.patch("utils.excel_to_database._create_superusers")
-        mocker.patch("utils.excel_to_database._fetch_and_assign_issues")
+        mocker.patch("utils.excel_to_database._fetch_and_assign_closed_issues")
 
         result = import_from_csv("contributions.csv", "legacy.csv")
 
@@ -1120,7 +1120,7 @@ class TestUtilsExcelToDatabasePublicFunctions:
         assert result is False
 
     @pytest.mark.django_db
-    def test_utils_excel_to_database_import_from_csv_calls__fetch_and_assign_issues(
+    def test_utils_excel_to_database_import_from_csv_calls__fetch_and_assign_closed_issues(
         self, mocker
     ):
         # Mock empty database check
@@ -1172,7 +1172,7 @@ class TestUtilsExcelToDatabasePublicFunctions:
         mocker.patch("utils.excel_to_database._import_contributions")
         mocker.patch("utils.excel_to_database._create_superusers")
         mock_fetch_issues = mocker.patch(
-            "utils.excel_to_database._fetch_and_assign_issues"
+            "utils.excel_to_database._fetch_and_assign_closed_issues"
         )
 
         result = import_from_csv(
@@ -1689,18 +1689,18 @@ class TestUtilsExcelToDatabaseCreateIssuesBulk:
 
 
 class TestUtilsExcelToDatabaseFetchAndAssignIssuesBulk:
-    """Testing class for bulk-optimized :py:mod:`utils.excel_to_database` _fetch_and_assign_issues function."""
+    """Testing class for bulk-optimized :py:mod:`utils.excel_to_database` _fetch_and_assign_closed_issues function."""
 
     @pytest.mark.django_db
-    def test_utils_excel_to_database_fetch_and_assign_issues_bulk_no_token(
+    def test_utils_excel_to_database_fetch_and_assign_closed_issues_bulk_no_token(
         self, mocker
     ):
         """Test function returns False when no GitHub token is provided."""
-        result = _fetch_and_assign_issues(None)
+        result = _fetch_and_assign_closed_issues(None)
         assert result is False
 
     @pytest.mark.django_db
-    def test_utils_excel_to_database_fetch_and_assign_issues_bulk_no_contributions(
+    def test_utils_excel_to_database_fetch_and_assign_closed_issues_bulk_no_contributions(
         self, mocker
     ):
         """Test function returns True when there are no contributions to process."""
@@ -1722,20 +1722,20 @@ class TestUtilsExcelToDatabaseFetchAndAssignIssuesBulk:
             return_value=mock_contributions_queryset,
         )
 
-        mocked_all_issues = mocker.patch("utils.excel_to_database.all_issues")
+        mocked_fetch_issues = mocker.patch("utils.excel_to_database.fetch_issues")
         mocked_create_issues_bulk = mocker.patch(
             "utils.excel_to_database._create_issues_bulk"
         )
 
-        result = _fetch_and_assign_issues(github_token)
+        result = _fetch_and_assign_closed_issues(github_token)
 
         assert result is True
-        # all_issues should not be called when there are no contributions
-        mocked_all_issues.assert_not_called()
+        # fetch_issues should not be called when there are no contributions
+        mocked_fetch_issues.assert_not_called()
         mocked_create_issues_bulk.assert_not_called()
 
     @pytest.mark.django_db
-    def test_utils_excel_to_database_fetch_and_assign_issues_bulk_url_in_body_matching(
+    def test_utils_excel_to_database_fetch_and_assign_closed_issues_bulk_url_in_body_matching(
         self, mocker
     ):
         """Test successful matching when URL appears in issue body."""
@@ -1765,19 +1765,19 @@ class TestUtilsExcelToDatabaseFetchAndAssignIssuesBulk:
         mock_issue.number = 101
         mock_issue.body = "Check out https://example.com/contrib for details"
 
-        mocker.patch("utils.excel_to_database.all_issues", return_value=[mock_issue])
+        mocker.patch("utils.excel_to_database.fetch_issues", return_value=[mock_issue])
         mocker.patch("utils.excel_to_database._is_url_github_issue", return_value=False)
         mocked_create_issues_bulk = mocker.patch(
             "utils.excel_to_database._create_issues_bulk"
         )
 
-        result = _fetch_and_assign_issues(github_token)
+        result = _fetch_and_assign_closed_issues(github_token)
 
         assert result is True
         mocked_create_issues_bulk.assert_called_once_with([(101, 1)])
 
     @pytest.mark.django_db
-    def test_utils_excel_to_database_fetch_and_assign_issues_bulk_github_issue_url_matching(
+    def test_utils_excel_to_database_fetch_and_assign_closed_issues_bulk_github_issue_url_matching(
         self, mocker
     ):
         """Test successful matching when contribution URL is a GitHub issue URL."""
@@ -1808,19 +1808,19 @@ class TestUtilsExcelToDatabaseFetchAndAssignIssuesBulk:
         mock_issue.number = 456  # Matching issue number
         mock_issue.body = "Some issue body without the URL"
 
-        mocker.patch("utils.excel_to_database.all_issues", return_value=[mock_issue])
+        mocker.patch("utils.excel_to_database.fetch_issues", return_value=[mock_issue])
         mocker.patch("utils.excel_to_database._is_url_github_issue", return_value=456)
         mocked_create_issues_bulk = mocker.patch(
             "utils.excel_to_database._create_issues_bulk"
         )
 
-        result = _fetch_and_assign_issues(github_token)
+        result = _fetch_and_assign_closed_issues(github_token)
 
         assert result is True
         mocked_create_issues_bulk.assert_called_once_with([(456, 1)])
 
     @pytest.mark.django_db
-    def test_utils_excel_to_database_fetch_and_assign_issues_bulk_both_matching_methods_same_issue(
+    def test_utils_excel_to_database_fetch_and_assign_closed_issues_bulk_both_matching_methods_same_issue(
         self, mocker
     ):
         """Test that matched flag prevents duplicate assignments for same issue."""
@@ -1855,7 +1855,7 @@ class TestUtilsExcelToDatabaseFetchAndAssignIssuesBulk:
         mock_issue.number = 101
         mock_issue.body = "Contains https://example.com/contrib1"
 
-        mocker.patch("utils.excel_to_database.all_issues", return_value=[mock_issue])
+        mocker.patch("utils.excel_to_database.fetch_issues", return_value=[mock_issue])
         mocked_is_url = mocker.patch("utils.excel_to_database._is_url_github_issue")
         mocked_is_url.side_effect = lambda url: (
             101 if url == github_issue_url else False
@@ -1864,7 +1864,7 @@ class TestUtilsExcelToDatabaseFetchAndAssignIssuesBulk:
             "utils.excel_to_database._create_issues_bulk"
         )
 
-        result = _fetch_and_assign_issues(github_token)
+        result = _fetch_and_assign_closed_issues(github_token)
 
         assert result is True
         # Should only have one assignment despite both methods potentially matching
@@ -1874,7 +1874,7 @@ class TestUtilsExcelToDatabaseFetchAndAssignIssuesBulk:
         assert call_args[0] == (101, 1)
 
     @pytest.mark.django_db
-    def test_utils_excel_to_database_fetch_and_assign_issues_bulk_skip_empty_urls(
+    def test_utils_excel_to_database_fetch_and_assign_closed_issues_bulk_skip_empty_urls(
         self, mocker
     ):
         """Test that contributions with empty URLs are skipped."""
@@ -1911,20 +1911,20 @@ class TestUtilsExcelToDatabaseFetchAndAssignIssuesBulk:
         mock_issue.number = 101
         mock_issue.body = "Contains https://valid.com/url"
 
-        mocker.patch("utils.excel_to_database.all_issues", return_value=[mock_issue])
+        mocker.patch("utils.excel_to_database.fetch_issues", return_value=[mock_issue])
         mocker.patch("utils.excel_to_database._is_url_github_issue", return_value=False)
         mocked_create_issues_bulk = mocker.patch(
             "utils.excel_to_database._create_issues_bulk"
         )
 
-        result = _fetch_and_assign_issues(github_token)
+        result = _fetch_and_assign_closed_issues(github_token)
 
         assert result is True
         # Should only process the valid URL
         mocked_create_issues_bulk.assert_called_once_with([(101, 3)])
 
     @pytest.mark.django_db
-    def test_utils_excel_to_database_fetch_and_assign_issues_bulk_transaction_decorator(
+    def test_utils_excel_to_database_fetch_and_assign_closed_issues_bulk_transaction_decorator(
         self, mocker
     ):
         """Test that function has transaction.atomic decorator."""
@@ -1952,7 +1952,7 @@ class TestUtilsExcelToDatabaseFetchAndAssignIssuesBulk:
         mock_issue.number = 101
         mock_issue.body = "Contains https://example.com/contrib"
 
-        mocker.patch("utils.excel_to_database.all_issues", return_value=[mock_issue])
+        mocker.patch("utils.excel_to_database.fetch_issues", return_value=[mock_issue])
         mocker.patch("utils.excel_to_database._is_url_github_issue", return_value=False)
         mocked_create_issues_bulk = mocker.patch(
             "utils.excel_to_database._create_issues_bulk"
@@ -1960,15 +1960,15 @@ class TestUtilsExcelToDatabaseFetchAndAssignIssuesBulk:
 
         # Check that function is decorated with transaction.atomic
         # by checking if it's wrapped
-        assert _fetch_and_assign_issues.__name__ == "_fetch_and_assign_issues"
+        assert _fetch_and_assign_closed_issues.__name__ == "_fetch_and_assign_closed_issues"
 
-        result = _fetch_and_assign_issues(github_token)
+        result = _fetch_and_assign_closed_issues(github_token)
 
         assert result is True
         mocked_create_issues_bulk.assert_called_once()
 
     @pytest.mark.django_db
-    def test_utils_excel_to_database_fetch_and_assign_issues_bulk_issue_without_body_github_url_match(
+    def test_utils_excel_to_database_fetch_and_assign_closed_issues_bulk_issue_without_body_github_url_match(
         self, mocker
     ):
         """Test that issues without body are still checked for GitHub issue URL matching."""
@@ -1999,20 +1999,20 @@ class TestUtilsExcelToDatabaseFetchAndAssignIssuesBulk:
         mock_issue.number = 456
         mock_issue.body = None
 
-        mocker.patch("utils.excel_to_database.all_issues", return_value=[mock_issue])
+        mocker.patch("utils.excel_to_database.fetch_issues", return_value=[mock_issue])
         mocker.patch("utils.excel_to_database._is_url_github_issue", return_value=456)
         mocked_create_issues_bulk = mocker.patch(
             "utils.excel_to_database._create_issues_bulk"
         )
 
-        result = _fetch_and_assign_issues(github_token)
+        result = _fetch_and_assign_closed_issues(github_token)
 
         assert result is True
         # Should still match via GitHub issue URL even with no body
         mocked_create_issues_bulk.assert_called_once_with([(456, 1)])
 
     @pytest.mark.django_db
-    def test_utils_excel_to_database_fetch_and_assign_issues_bulk_no_matches(
+    def test_utils_excel_to_database_fetch_and_assign_closed_issues_bulk_no_matches(
         self, mocker
     ):
         """Test function when no URLs match any issue bodies or GitHub issue URLs."""
@@ -2040,19 +2040,19 @@ class TestUtilsExcelToDatabaseFetchAndAssignIssuesBulk:
         mock_issue.number = 101
         mock_issue.body = "Contains completely different URL"
 
-        mocker.patch("utils.excel_to_database.all_issues", return_value=[mock_issue])
+        mocker.patch("utils.excel_to_database.fetch_issues", return_value=[mock_issue])
         mocker.patch("utils.excel_to_database._is_url_github_issue", return_value=False)
         mocked_create_issues_bulk = mocker.patch(
             "utils.excel_to_database._create_issues_bulk"
         )
 
-        result = _fetch_and_assign_issues(github_token)
+        result = _fetch_and_assign_closed_issues(github_token)
 
         assert result is True
         mocked_create_issues_bulk.assert_called_once_with([])
 
     @pytest.mark.django_db
-    def test_utils_excel_to_database_fetch_and_assign_issues_bulk_multiple_issues_different_matches(
+    def test_utils_excel_to_database_fetch_and_assign_closed_issues_bulk_multiple_issues_different_matches(
         self, mocker
     ):
         """Test processing multiple issues with different matching methods."""
@@ -2092,7 +2092,7 @@ class TestUtilsExcelToDatabaseFetchAndAssignIssuesBulk:
         mock_issue2.body = "No matching URL here"
 
         mocker.patch(
-            "utils.excel_to_database.all_issues",
+            "utils.excel_to_database.fetch_issues",
             return_value=[mock_issue1, mock_issue2],
         )
         mocked_is_url = mocker.patch("utils.excel_to_database._is_url_github_issue")
@@ -2103,7 +2103,7 @@ class TestUtilsExcelToDatabaseFetchAndAssignIssuesBulk:
             "utils.excel_to_database._create_issues_bulk"
         )
 
-        result = _fetch_and_assign_issues(github_token)
+        result = _fetch_and_assign_closed_issues(github_token)
 
         assert result is True
         # Should have both assignments via different methods

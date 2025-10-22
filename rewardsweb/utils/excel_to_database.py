@@ -25,7 +25,7 @@ from core.models import (
     SocialPlatform,
 )
 from utils.helpers import get_env_variable
-from utils.issues import all_issues
+from utils.issues import fetch_issues
 
 
 ADDRESSES_CSV_COLUMNS = ["handle", "address"]
@@ -110,8 +110,8 @@ def _create_issues_bulk(issue_assignments):
     :type existing_issue_numbers: set of int
     :var issues_to_create: list of Issue instances to create in bulk
     :type issues_to_create: list of :class:`core.models.Issue`
-    :var all_issues_dict: mapping from issue number to Issue instance
-    :type all_issues_dict: dict of int: :class:`core.models.Issue`
+    :var fetch_issues_dict: mapping from issue number to Issue instance
+    :type fetch_issues_dict: dict of int: :class:`core.models.Issue`
     :var contribution_updates: list of contribution ID and Issue instance pairs
     :type contribution_updates: list of tuple (int, :class:`core.models.Issue`)
     :var contribution_ids: list of contribution IDs to update
@@ -142,7 +142,7 @@ def _create_issues_bulk(issue_assignments):
         Issue.objects.bulk_create(issues_to_create)
 
     # Get all issues (newly created + existing)
-    all_issues_dict = {
+    fetch_issues_dict = {
         issue.number: issue
         for issue in Issue.objects.filter(number__in=unique_issue_numbers)
     }
@@ -150,9 +150,9 @@ def _create_issues_bulk(issue_assignments):
     # Prepare contribution updates
     contribution_updates = []
     for issue_number, contribution_id in issue_assignments:
-        if issue_number in all_issues_dict:
+        if issue_number in fetch_issues_dict:
             contribution_updates.append(
-                (contribution_id, all_issues_dict[issue_number])
+                (contribution_id, fetch_issues_dict[issue_number])
             )
 
     # Bulk update contributions
@@ -200,10 +200,10 @@ def _dataframe_from_csv(filename, columns=CONTRIBUTION_CSV_COLUMNS):
 
 
 @transaction.atomic
-def _fetch_and_assign_issues(github_token):
+def _fetch_and_assign_closed_issues(github_token):
     """Fetch GitHub issues and assign them to contributions based on URL matching.
 
-    This function retrieves all GitHub issues and attempts to match them with
+    This function retrieves all closed GitHub issues and attempts to match them with
     existing contributions by searching for contribution URLs in the issue bodies.
     When a match is found, creates an Issue record and assigns it to the contribution.
 
@@ -228,8 +228,8 @@ def _fetch_and_assign_issues(github_token):
     if not contributions:
         return True
 
-    # Get all GitHub issues
-    github_issues = list(all_issues(github_token))
+    # Get all closed GitHub issues
+    github_issues = list(fetch_issues(github_token, state="closed"))
 
     # Create a mapping from GitHub issue number to issue object for quick lookup
     github_issues_by_number = {issue.number: issue for issue in github_issues}
@@ -590,7 +590,7 @@ def import_from_csv(contributions_path, legacy_contributions_path, github_token=
     )
     print("Contributions imported: ", len(Contribution.objects.all()))
 
-    _fetch_and_assign_issues(github_token)
+    _fetch_and_assign_closed_issues(github_token)
     print("Issues created: ", len(Issue.objects.all()))
 
     _create_superusers()

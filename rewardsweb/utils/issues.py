@@ -43,8 +43,8 @@ def _github_repository(client):
     return client.get_repo(f"{settings.GITHUB_REPO_OWNER}/{settings.GITHUB_REPO_NAME}")
 
 
-def all_issues(github_token):
-    """Fetch all GitHub issues (open and closed) from the configured repository.
+def fetch_issues(github_token, state="open"):
+    """Fetch all GitHub issues with provided `state` from the configured repository.
 
     :param github_token: GitHub authentication token
     :type github_token: str
@@ -63,7 +63,7 @@ def all_issues(github_token):
         return []
 
     repo = _github_repository(client)
-    return repo.get_issues(state="all")
+    return  [issue for issue in repo.get_issues(state=state) if not issue.pull_request]
 
 
 def close_issue_with_labels(user, issue_number, labels_to_set=None, comment=None):

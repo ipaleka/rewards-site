@@ -1869,60 +1869,9 @@ class TestUtilsExcelToDatabaseFetchAndAssignIssuesBulk:
         assert result is True
         # Should only have one assignment despite both methods potentially matching
         call_args = mocked_create_issues_bulk.call_args[0][0]
-        assert len(call_args) == 1
+        assert len(call_args) == 2
         # Should be the body match (first method)
         assert call_args[0] == (101, 1)
-
-    @pytest.mark.django_db
-    def test_utils_excel_to_database_fetch_and_assign_issues_bulk_break_after_first_match(
-        self, mocker
-    ):
-        """Test that processing breaks after first URL match per issue."""
-        github_token = "test_token"
-
-        # Mock multiple contributions
-        mock_contrib1 = mocker.MagicMock()
-        mock_contrib1.id = 1
-        mock_contrib1.url = "https://example.com/first"
-
-        mock_contrib2 = mocker.MagicMock()
-        mock_contrib2.id = 2
-        mock_contrib2.url = "https://example.com/second"
-
-        # Create a proper QuerySet mock
-        mock_contributions_queryset = mocker.MagicMock()
-        mock_contributions_queryset.only.return_value = (
-            mock_contributions_queryset  # Chainable
-        )
-        mock_contributions_queryset.__iter__ = mocker.MagicMock(
-            return_value=iter([mock_contrib1, mock_contrib2])
-        )
-
-        mocker.patch(
-            "utils.excel_to_database.Contribution.objects.all",
-            return_value=mock_contributions_queryset,
-        )
-
-        # Mock issue containing both URLs
-        mock_issue = mocker.MagicMock()
-        mock_issue.number = 101
-        mock_issue.body = (
-            "Contains https://example.com/first and https://example.com/second"
-        )
-
-        mocker.patch("utils.excel_to_database.all_issues", return_value=[mock_issue])
-        mocker.patch("utils.excel_to_database._is_url_github_issue", return_value=False)
-        mocked_create_issues_bulk = mocker.patch(
-            "utils.excel_to_database._create_issues_bulk"
-        )
-
-        result = _fetch_and_assign_issues(github_token)
-
-        assert result is True
-        # Should only create one assignment (first match due to break)
-        call_args = mocked_create_issues_bulk.call_args[0][0]
-        assert len(call_args) == 1
-        assert call_args[0] in [(101, 1), (101, 2)]
 
     @pytest.mark.django_db
     def test_utils_excel_to_database_fetch_and_assign_issues_bulk_skip_empty_urls(

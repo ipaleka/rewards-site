@@ -640,8 +640,8 @@ class Contribution(models.Model):
     percentage = models.DecimalField(
         max_digits=5, decimal_places=2, default=1, null=True
     )
-    url = models.CharField(max_length=255, blank=True)
-    comment = models.CharField(max_length=255, blank=True)
+    url = models.CharField(max_length=255, blank=True, null=True)
+    comment = models.CharField(max_length=255, blank=True, null=True)
     confirmed = models.BooleanField(default=False)
     created_at = models.DateTimeField(auto_now_add=True)
     updated_at = models.DateTimeField(auto_now=True)

@@ -211,12 +211,8 @@ def _fetch_and_assign_issues(github_token):
     :type github_token: str
     :var contributions: all the existing contribution instances
     :type contributions: QuerySet of :class:`core.models.Contribution`
-    :var url_to_contribution_id: mapping from URL to contribution ID for regular URL matching
-    :type url_to_contribution_id: dict of str: int
-    :var github_issue_urls_to_contribution_id: mapping from GitHub issue number to contribution ID
-    :type github_issue_urls_to_contribution_id: dict of int: int
-    :var valid_urls: set of valid contribution URLs for matching
-    :type valid_urls: set of str
+    :var url_to_contribution: mapping from URL to contribution instance
+    :type url_to_contribution: dict of str: :class:`core.models.Contribution`
     :var github_issues: list of GitHub issue instances retrieved from API
     :type github_issues: list of :class:`github.Issue.Issue`
     :var issue_assignments: collection of issue number and contribution ID pairs to process
@@ -232,46 +228,36 @@ def _fetch_and_assign_issues(github_token):
     if not contributions:
         return True
 
-    # Create lookup structures
-    url_to_contribution_id = {}
-    github_issue_urls_to_contribution_id = {}
-    valid_urls = set()
-
-    for contrib in contributions:
-        if contrib.url:
-            url_to_contribution_id[contrib.url] = contrib.id
-            valid_urls.add(contrib.url)
-
-            # Check if this contribution URL is a GitHub issue URL
-            issue_number = _is_url_github_issue(contrib.url)
-            if issue_number:
-                # Map the GitHub issue number to contribution ID
-                github_issue_urls_to_contribution_id[issue_number] = contrib.id
-
     # Get all GitHub issues
     github_issues = list(all_issues(github_token))
+
+    # Create a mapping from GitHub issue number to issue object for quick lookup
+    github_issues_by_number = {issue.number: issue for issue in github_issues}
 
     # Collect all assignments in memory first
     issue_assignments = set()
 
-    for github_issue in github_issues:
-        matched = False
+    # Process each contribution and try to find matching GitHub issues
+    for contribution in contributions:
+        if not contribution.url:
+            continue
 
-        # Method 1: Check for regular URL in issue body
-        if github_issue.body:
-            for url in valid_urls:
-                if url in github_issue.body:
-                    issue_assignments.add(
-                        (github_issue.number, url_to_contribution_id[url])
-                    )
-                    matched = True
-                    break  # One match per issue
+        # Method 1: Check if contribution URL is a GitHub issue URL
+        issue_number = _is_url_github_issue(contribution.url)
+        if issue_number and issue_number in github_issues_by_number:
+            # This contribution URL points directly to a GitHub issue
+            issue_assignments.add((issue_number, contribution.id))
+            continue  # Skip body matching if we found a direct GitHub issue match
 
-        # Method 2: Check if this GitHub issue number is referenced in any contribution URL
-        # Only check if not already matched by Method 1
-        if not matched and github_issue.number in github_issue_urls_to_contribution_id:
-            contrib_id = github_issue_urls_to_contribution_id[github_issue.number]
-            issue_assignments.add((github_issue.number, contrib_id))
+        # Method 2: Search through all GitHub issues for this contribution's URL in their bodies
+        for github_issue in github_issues:
+            if (
+                github_issue.body
+                and contribution.url
+                and contribution.url in github_issue.body
+            ):
+                issue_assignments.add((github_issue.number, contribution.id))
+                break  # One issue per contribution (first match found)
 
     # Process all assignments in bulk
     _create_issues_bulk(list(issue_assignments))

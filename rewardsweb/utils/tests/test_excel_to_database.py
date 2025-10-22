@@ -4,19 +4,22 @@ from datetime import datetime, timedelta
 
 import pandas as pd
 import pytest
+from django.conf import settings
 from django.core.exceptions import ObjectDoesNotExist
 from django.db.utils import IntegrityError
 from django.http import Http404
 
-from core.models import RewardType
+from core.models import IssueStatus, RewardType
 from utils.excel_to_database import (
     REWARDS_COLLECTION,
     _check_current_cycle,
     _create_active_rewards,
     _create_superusers,
     _dataframe_from_csv,
+    _fetch_and_assign_issues,
     _import_contributions,
     _import_rewards,
+    _is_url_github_issue,
     _parse_addresses,
     _parse_label_and_name_from_reward_type,
     _parse_label_and_name_from_reward_type_legacy,
@@ -150,6 +153,572 @@ class TestUtilsExcelToDatabaseHelperFunctions:
 
         assert result is None
 
+    # _import_rewards
+    def test_utils_excel_to_database_import_rewards_new_type(self, mocker):
+        # Create real DataFrame
+        mock_data = pd.DataFrame(
+            {"type": ["[F] Feature"], "level": [1], "reward": [1000]}
+        )
+
+        mocked_parse_callback = mocker.MagicMock(return_value=("F", "Feature"))
+        mocked_amount_callback = mocker.MagicMock(return_value=1000000)
+        mocked_get_object_or_404 = mocker.patch(
+            "utils.excel_to_database.get_object_or_404"
+        )
+        mocked_get_object_or_404.side_effect = Http404
+
+        mocked_reward_type_create = mocker.patch(
+            "utils.excel_to_database.RewardType.objects.create"
+        )
+        mocked_reward_create = mocker.patch(
+            "utils.excel_to_database.Reward.objects.create"
+        )
+
+        _import_rewards(mock_data, mocked_parse_callback, mocked_amount_callback)
+
+        mocked_reward_type_create.assert_called_once_with(label="F", name="Feature")
+        mocked_reward_create.assert_called_once()
+
+    def test_utils_excel_to_database_import_rewards_existing_type(self, mocker):
+        # Create real DataFrame
+        mock_data = pd.DataFrame(
+            {"type": ["[F] Feature"], "level": [1], "reward": [1000]}
+        )
+
+        mocked_parse_callback = mocker.MagicMock(return_value=("F", "Feature"))
+        mocked_amount_callback = mocker.MagicMock(return_value=1000000)
+        mocked_reward_type = mocker.MagicMock()
+
+        mocked_get_object_or_404 = mocker.patch(
+            "utils.excel_to_database.get_object_or_404"
+        )
+        mocked_get_object_or_404.return_value = mocked_reward_type
+
+        mocked_reward_create = mocker.patch(
+            "utils.excel_to_database.Reward.objects.create"
+        )
+
+        _import_rewards(mock_data, mocked_parse_callback, mocked_amount_callback)
+
+        mocked_get_object_or_404.assert_called_once_with(
+            RewardType, label="F", name="Feature"
+        )
+        mocked_reward_create.assert_called_once()
+
+    def test_utils_excel_to_database_import_rewards_for_integrity_error(self, mocker):
+        # Create real DataFrame
+        mock_data = pd.DataFrame(
+            {"type": ["[F] Feature"], "level": [1], "reward": [1000]}
+        )
+
+        mocked_parse_callback = mocker.MagicMock(return_value=("F", "Feature"))
+        mocked_amount_callback = mocker.MagicMock(return_value=1000000)
+        mocked_reward_type = mocker.MagicMock()
+
+        mocked_get_object_or_404 = mocker.patch(
+            "utils.excel_to_database.get_object_or_404"
+        )
+        mocked_get_object_or_404.return_value = mocked_reward_type
+
+        mocker.patch(
+            "utils.excel_to_database.Reward.objects.create",
+            side_effect=IntegrityError("error"),
+        )
+
+        _import_rewards(mock_data, mocked_parse_callback, mocked_amount_callback)
+
+    def test_utils_excel_to_database_fetch_and_assign_issues_no_token(self, mocker):
+        """Test function returns False when no GitHub token is provided."""
+        result = _fetch_and_assign_issues(None)
+        assert result is False
+
+    def test_utils_excel_to_database_fetch_and_assign_issues_no_contributions(
+        self, mocker
+    ):
+        """Test function returns True when there are no contributions to process."""
+        github_token = "test_token"
+
+        mocker.patch(
+            "utils.excel_to_database.Contribution.objects.all", return_value=[]
+        )
+        mocked_all_issues = mocker.patch("utils.excel_to_database.all_issues")
+
+        result = _fetch_and_assign_issues(github_token)
+
+        assert result is True
+        mocked_all_issues.assert_not_called()
+
+    def test_utils_excel_to_database_fetch_and_assign_issues_url_in_body_matching(
+        self, mocker
+    ):
+        """Test successful matching when URL appears in issue body."""
+        github_token = "test_token"
+
+        # Mock contributions
+        mock_contrib = mocker.MagicMock()
+        mock_contrib.url = "https://example.com/contrib"
+        mock_contributions = [mock_contrib]
+
+        # Mock GitHub issue with URL in body
+        mock_issue = mocker.MagicMock()
+        mock_issue.number = 101
+        mock_issue.body = "Check out https://example.com/contrib for details"
+
+        mocker.patch(
+            "utils.excel_to_database.Contribution.objects.all",
+            return_value=mock_contributions,
+        )
+        mocker.patch("utils.excel_to_database.all_issues", return_value=[mock_issue])
+        mocker.patch("utils.excel_to_database._is_url_github_issue", return_value=False)
+        mocked_issue_create = mocker.patch(
+            "utils.excel_to_database.Issue.objects.create"
+        )
+
+        result = _fetch_and_assign_issues(github_token)
+
+        assert result is True
+        mocked_issue_create.assert_called_once_with(
+            number=101, status=IssueStatus.ARCHIVED
+        )
+        mock_contrib.save.assert_called_once()
+
+    def test_utils_excel_to_database_fetch_and_assign_issues_github_issue_url_matching(
+        self, mocker
+    ):
+        """Test successful matching when contribution URL is a GitHub issue URL."""
+        github_token = "test_token"
+
+        # Mock contribution with GitHub issue URL
+        github_issue_url = f"https://github.com/{settings.GITHUB_REPO_OWNER}/{settings.GITHUB_REPO_NAME}/issues/456"
+        mock_contrib = mocker.MagicMock()
+        mock_contrib.url = github_issue_url
+        mock_contributions = [mock_contrib]
+
+        # Mock GitHub issue
+        mock_issue = mocker.MagicMock()
+        mock_issue.number = 101
+        mock_issue.body = "Some issue body without the URL"
+
+        mocker.patch(
+            "utils.excel_to_database.Contribution.objects.all",
+            return_value=mock_contributions,
+        )
+        mocker.patch("utils.excel_to_database.all_issues", return_value=[mock_issue])
+        mocker.patch("utils.excel_to_database._is_url_github_issue", return_value=456)
+        mocked_issue_create = mocker.patch(
+            "utils.excel_to_database.Issue.objects.create"
+        )
+
+        result = _fetch_and_assign_issues(github_token)
+
+        assert result is True
+        mocked_issue_create.assert_called_once_with(
+            number=101, status=IssueStatus.ARCHIVED
+        )
+        mock_contrib.save.assert_called_once()
+
+    def test_utils_excel_to_database_fetch_and_assign_issues_both_conditions_true(
+        self, mocker
+    ):
+        """Test matching when both GitHub issue URL and body contain URL."""
+        github_token = "test_token"
+
+        mock_contrib = mocker.MagicMock()
+        mock_contrib.url = "https://example.com/contrib"
+        mock_contributions = [mock_contrib]
+
+        mock_issue = mocker.MagicMock()
+        mock_issue.number = 101
+        mock_issue.body = "Contains https://example.com/contrib"
+
+        mocker.patch(
+            "utils.excel_to_database.Contribution.objects.all",
+            return_value=mock_contributions,
+        )
+        mocker.patch("utils.excel_to_database.all_issues", return_value=[mock_issue])
+        mocker.patch("utils.excel_to_database._is_url_github_issue", return_value=True)
+        mocked_issue_create = mocker.patch(
+            "utils.excel_to_database.Issue.objects.create"
+        )
+
+        result = _fetch_and_assign_issues(github_token)
+
+        assert result is True
+        # Should still create issue even though _is_url_github_issue returned True
+        mocked_issue_create.assert_called_once_with(
+            number=101, status=IssueStatus.ARCHIVED
+        )
+
+    def test_utils_excel_to_database_fetch_and_assign_issues_no_body_but_github_url(
+        self, mocker
+    ):
+        """Test matching when issue has no body but contribution URL is GitHub issue URL."""
+        github_token = "test_token"
+
+        github_issue_url = f"https://github.com/{settings.GITHUB_REPO_OWNER}/{settings.GITHUB_REPO_NAME}/issues/456"
+        mock_contrib = mocker.MagicMock()
+        mock_contrib.url = github_issue_url
+        mock_contributions = [mock_contrib]
+
+        mock_issue = mocker.MagicMock()
+        mock_issue.number = 101
+        mock_issue.body = None  # No body
+
+        mocker.patch(
+            "utils.excel_to_database.Contribution.objects.all",
+            return_value=mock_contributions,
+        )
+        mocker.patch("utils.excel_to_database.all_issues", return_value=[mock_issue])
+        mocker.patch("utils.excel_to_database._is_url_github_issue", return_value=456)
+        mocked_issue_create = mocker.patch(
+            "utils.excel_to_database.Issue.objects.create"
+        )
+
+        result = _fetch_and_assign_issues(github_token)
+
+        assert result is True
+        # Should match via _is_url_github_issue even with no body
+        mocked_issue_create.assert_called_once_with(
+            number=101, status=IssueStatus.ARCHIVED
+        )
+
+    def test_utils_excel_to_database_fetch_and_assign_issues_no_body_not_github_url(
+        self, mocker
+    ):
+        """Test no matching when issue has no body and URL is not GitHub issue URL."""
+        github_token = "test_token"
+
+        mock_contrib = mocker.MagicMock()
+        mock_contrib.url = "https://example.com/contrib"
+        mock_contributions = [mock_contrib]
+
+        mock_issue = mocker.MagicMock()
+        mock_issue.number = 101
+        mock_issue.body = None  # No body
+
+        mocker.patch(
+            "utils.excel_to_database.Contribution.objects.all",
+            return_value=mock_contributions,
+        )
+        mocker.patch("utils.excel_to_database.all_issues", return_value=[mock_issue])
+        mocker.patch("utils.excel_to_database._is_url_github_issue", return_value=False)
+        mocked_issue_create = mocker.patch(
+            "utils.excel_to_database.Issue.objects.create"
+        )
+
+        result = _fetch_and_assign_issues(github_token)
+
+        assert result is True
+        # Should not match - no body and not GitHub issue URL
+        mocked_issue_create.assert_not_called()
+
+    def test_utils_excel_to_database_fetch_and_assign_issues_multiple_urls_break_after_first(
+        self, mocker
+    ):
+        """Test that processing breaks after first URL match per issue."""
+        github_token = "test_token"
+
+        # Mock multiple contributions
+        mock_contrib1 = mocker.MagicMock()
+        mock_contrib1.url = "https://example.com/first"
+
+        mock_contrib2 = mocker.MagicMock()
+        mock_contrib2.url = "https://example.com/second"
+
+        mock_contributions = [mock_contrib1, mock_contrib2]
+
+        # Mock issue containing both URLs
+        mock_issue = mocker.MagicMock()
+        mock_issue.number = 101
+        mock_issue.body = (
+            "Contains https://example.com/first and https://example.com/second"
+        )
+
+        mocker.patch(
+            "utils.excel_to_database.Contribution.objects.all",
+            return_value=mock_contributions,
+        )
+        mocker.patch("utils.excel_to_database.all_issues", return_value=[mock_issue])
+        mocker.patch("utils.excel_to_database._is_url_github_issue", return_value=False)
+        mocked_issue_create = mocker.patch(
+            "utils.excel_to_database.Issue.objects.create"
+        )
+
+        result = _fetch_and_assign_issues(github_token)
+
+        assert result is True
+        # Should only create one issue (first match due to break)
+        mocked_issue_create.assert_called_once_with(
+            number=101, status=IssueStatus.ARCHIVED
+        )
+        # Only one contribution should be updated
+        assert sum([c.save.called for c in mock_contributions]) == 1
+
+    def test_utils_excel_to_database_fetch_and_assign_issues_skip_empty_urls(
+        self, mocker
+    ):
+        """Test that contributions with empty URLs are skipped."""
+        github_token = "test_token"
+
+        # Mock contributions with various URL states
+        mock_contrib1 = mocker.MagicMock()
+        mock_contrib1.url = ""  # Empty string
+
+        mock_contrib2 = mocker.MagicMock()
+        mock_contrib2.url = None  # None value
+
+        mock_contrib3 = mocker.MagicMock()
+        mock_contrib3.url = "https://valid.com/url"  # Valid URL
+
+        mock_contributions = [mock_contrib1, mock_contrib2, mock_contrib3]
+
+        mock_issue = mocker.MagicMock()
+        mock_issue.number = 101
+        mock_issue.body = "Contains https://valid.com/url"
+
+        mocker.patch(
+            "utils.excel_to_database.Contribution.objects.all",
+            return_value=mock_contributions,
+        )
+        mocker.patch("utils.excel_to_database.all_issues", return_value=[mock_issue])
+        mocker.patch("utils.excel_to_database._is_url_github_issue", return_value=False)
+        mocked_issue_create = mocker.patch(
+            "utils.excel_to_database.Issue.objects.create"
+        )
+
+        result = _fetch_and_assign_issues(github_token)
+
+        assert result is True
+        # Should only process the valid URL
+        mocked_issue_create.assert_called_once_with(
+            number=101, status=IssueStatus.ARCHIVED
+        )
+        mock_contrib3.save.assert_called_once()
+        mock_contrib1.save.assert_not_called()
+        mock_contrib2.save.assert_not_called()
+
+    def test_utils_excel_to_database_fetch_and_assign_issues_no_matches(self, mocker):
+        """Test function when no URLs match any issue bodies or GitHub issue URLs."""
+        github_token = "test_token"
+
+        mock_contrib = mocker.MagicMock()
+        mock_contrib.url = "https://example.com/nomatch"
+        mock_contributions = [mock_contrib]
+
+        mock_issue = mocker.MagicMock()
+        mock_issue.number = 101
+        mock_issue.body = "Contains completely different URL"
+
+        mocker.patch(
+            "utils.excel_to_database.Contribution.objects.all",
+            return_value=mock_contributions,
+        )
+        mocker.patch("utils.excel_to_database.all_issues", return_value=[mock_issue])
+        mocker.patch("utils.excel_to_database._is_url_github_issue", return_value=False)
+        mocked_issue_create = mocker.patch(
+            "utils.excel_to_database.Issue.objects.create"
+        )
+
+        result = _fetch_and_assign_issues(github_token)
+
+        assert result is True
+        mocked_issue_create.assert_not_called()
+        mock_contrib.save.assert_not_called()
+
+    def test_utils_excel_to_database_fetch_and_assign_issues_multiple_issues_one_match(
+        self, mocker
+    ):
+        """Test processing multiple issues with only one match."""
+        github_token = "test_token"
+
+        mock_contrib = mocker.MagicMock()
+        mock_contrib.url = "https://example.com/match"
+        mock_contributions = [mock_contrib]
+
+        # Mock multiple issues
+        mock_issue1 = mocker.MagicMock()
+        mock_issue1.number = 101
+        mock_issue1.body = "No matching URL here"
+
+        mock_issue2 = mocker.MagicMock()
+        mock_issue2.number = 102
+        mock_issue2.body = "Contains https://example.com/match URL"
+
+        mock_issue3 = mocker.MagicMock()
+        mock_issue3.number = 103
+        mock_issue3.body = "Another non-matching body"
+
+        mocker.patch(
+            "utils.excel_to_database.Contribution.objects.all",
+            return_value=mock_contributions,
+        )
+        mocker.patch(
+            "utils.excel_to_database.all_issues",
+            return_value=[mock_issue1, mock_issue2, mock_issue3],
+        )
+        mocker.patch("utils.excel_to_database._is_url_github_issue", return_value=False)
+        mocked_issue_create = mocker.patch(
+            "utils.excel_to_database.Issue.objects.create"
+        )
+
+        result = _fetch_and_assign_issues(github_token)
+
+        assert result is True
+        # Should only create issue for the matching one
+        mocked_issue_create.assert_called_once_with(
+            number=102, status=IssueStatus.ARCHIVED
+        )
+        mock_contrib.save.assert_called_once()
+
+    # # _import_contributions
+    def test_utils_excel_to_database_import_contributions(self, mocker):
+        # Create real DataFrame
+        mock_data = pd.DataFrame(
+            [
+                {
+                    "contributor": "testuser",
+                    "cycle_start": "2023-01-01",
+                    "platform": "GitHub",
+                    "type": "[F] Feature",
+                    "level": 1,
+                    "reward": 1000,
+                    "percentage": 50.0,
+                    "url": "https://example.com",
+                    "comment": "Test comment",
+                }
+            ]
+        )
+
+        mocked_contributor = mocker.MagicMock()
+        mocked_cycle = mocker.MagicMock()
+        mocked_platform = mocker.MagicMock()
+        mocked_reward_type = mocker.MagicMock()
+        mocked_reward = mocker.MagicMock()
+
+        mocked_contributor_from_handle = mocker.patch(
+            "utils.excel_to_database.Contributor.objects.from_full_handle"
+        )
+        mocked_contributor_from_handle.return_value = mocked_contributor
+
+        mocked_cycle_get = mocker.patch("utils.excel_to_database.Cycle.objects.get")
+        mocked_cycle_get.return_value = mocked_cycle
+
+        mocked_platform_get = mocker.patch(
+            "utils.excel_to_database.SocialPlatform.objects.get"
+        )
+        mocked_platform_get.return_value = mocked_platform
+
+        mocked_parse_callback = mocker.MagicMock(return_value=("F", "Feature"))
+        mocked_get_object_or_404 = mocker.patch(
+            "utils.excel_to_database.get_object_or_404"
+        )
+        mocked_get_object_or_404.return_value = mocked_reward_type
+
+        mocked_reward_get = mocker.patch("utils.excel_to_database.Reward.objects.get")
+        mocked_reward_get.return_value = mocked_reward
+
+        mocked_amount_callback = mocker.MagicMock(return_value=1000000)
+        mocked_contribution_create = mocker.patch(
+            "utils.excel_to_database.Contribution.objects.create"
+        )
+
+        _import_contributions(mock_data, mocked_parse_callback, mocked_amount_callback)
+
+        mocked_contributor_from_handle.assert_called_once_with("testuser")
+        mocked_cycle_get.assert_called_once_with(start="2023-01-01")
+        mocked_platform_get.assert_called_once_with(name__iexact="GitHub")
+        mocked_parse_callback.assert_called_once_with("[F] Feature")
+        mocked_get_object_or_404.assert_called_once_with(
+            RewardType, label="F", name="Feature"
+        )
+        mocked_reward_get.assert_called_once_with(
+            type=mocked_reward_type, level=1, amount=1000000
+        )
+        mocked_contribution_create.assert_called_once()
+
+    # # _is_url_github_issue
+    def test_utils_excel_to_database_is_url_github_issue_valid_url(self):
+        """Test valid GitHub issue URL returns issue number."""
+        valid_url = (
+            f"https://github.com/{settings.GITHUB_REPO_OWNER}/"
+            f"{settings.GITHUB_REPO_NAME}/issues/123"
+        )
+
+        result = _is_url_github_issue(valid_url)
+
+        assert result == 123
+
+    def test_utils_excel_to_database_is_url_github_issue_missing_scheme(self):
+        """Test URL without https scheme returns False."""
+        valid_url = (
+            f"github.com/{settings.GITHUB_REPO_OWNER}/"
+            f"{settings.GITHUB_REPO_NAME}/issues/123"
+        )
+
+        result = _is_url_github_issue(valid_url)
+
+        assert result == 123
+
+    def test_utils_excel_to_database_is_url_github_issue_with_extra_path(self):
+        """Test URL with extra path components returns False."""
+        valid_url = (
+            f"github.com/{settings.GITHUB_REPO_OWNER}/"
+            f"{settings.GITHUB_REPO_NAME}/issues/123/extra"
+        )
+        result = _is_url_github_issue(valid_url)
+
+        assert result == 123
+
+    def test_utils_excel_to_database_is_url_github_issue_invalid_domain(self):
+        """Test invalid domain returns False."""
+        invalid_url = "https://gitlab.com/owner/repo/issues/123"
+
+        result = _is_url_github_issue(invalid_url)
+
+        assert result is False
+
+    def test_utils_excel_to_database_is_url_github_issue_invalid_owner(self):
+        """Test invalid repo owner returns False."""
+        invalid_url = (
+            f"https://github.com/wrong_owner/{settings.GITHUB_REPO_NAME}/issues/123"
+        )
+
+        result = _is_url_github_issue(invalid_url)
+
+        assert result is False
+
+    def test_utils_excel_to_database_is_url_github_issue_invalid_repo(self):
+        """Test invalid repo name returns False."""
+        invalid_url = (
+            f"https://github.com/{settings.GITHUB_REPO_OWNER}/wrong_repo/issues/123"
+        )
+
+        result = _is_url_github_issue(invalid_url)
+
+        assert result is False
+
+    def test_utils_excel_to_database_is_url_github_issue_invalid_path(self):
+        """Test invalid path returns False."""
+        invalid_url = (
+            f"https://github.com/{settings.GITHUB_REPO_OWNER}/"
+            f"{settings.GITHUB_REPO_NAME}/pulls/123"
+        )
+
+        result = _is_url_github_issue(invalid_url)
+
+        assert result is False
+
+    def test_utils_excel_to_database_is_url_github_issue_non_numeric_issue(self):
+        """Test non-numeric issue number returns False."""
+        invalid_url = (
+            f"https://github.com/{settings.GITHUB_REPO_OWNER}/"
+            f"{settings.GITHUB_REPO_NAME}/issues/abc"
+        )
+
+        result = _is_url_github_issue(invalid_url)
+
+        assert result is False
+
     # # _parse_addresses
     def test_utils_excel_to_database_parse_addresses_file_not_found(self, mocker):
         mocked_dataframe_from_csv = mocker.patch(
@@ -272,150 +841,6 @@ class TestUtilsExcelToDatabaseHelperFunctions:
             ("Forum", "f@"),
         ]
         assert result == expected
-
-
-class TestUtilsExcelToDatabaseImportFunctions:
-    """Testing class for :py:mod:`utils.excel_to_database` import functions."""
-
-    # _import_rewards
-    def test_utils_excel_to_database_import_rewards_new_type(self, mocker):
-        # Create real DataFrame
-        mock_data = pd.DataFrame(
-            {"type": ["[F] Feature"], "level": [1], "reward": [1000]}
-        )
-
-        mocked_parse_callback = mocker.MagicMock(return_value=("F", "Feature"))
-        mocked_amount_callback = mocker.MagicMock(return_value=1000000)
-        mocked_get_object_or_404 = mocker.patch(
-            "utils.excel_to_database.get_object_or_404"
-        )
-        mocked_get_object_or_404.side_effect = Http404
-
-        mocked_reward_type_create = mocker.patch(
-            "utils.excel_to_database.RewardType.objects.create"
-        )
-        mocked_reward_create = mocker.patch(
-            "utils.excel_to_database.Reward.objects.create"
-        )
-
-        _import_rewards(mock_data, mocked_parse_callback, mocked_amount_callback)
-
-        mocked_reward_type_create.assert_called_once_with(label="F", name="Feature")
-        mocked_reward_create.assert_called_once()
-
-    def test_utils_excel_to_database_import_rewards_existing_type(self, mocker):
-        # Create real DataFrame
-        mock_data = pd.DataFrame(
-            {"type": ["[F] Feature"], "level": [1], "reward": [1000]}
-        )
-
-        mocked_parse_callback = mocker.MagicMock(return_value=("F", "Feature"))
-        mocked_amount_callback = mocker.MagicMock(return_value=1000000)
-        mocked_reward_type = mocker.MagicMock()
-
-        mocked_get_object_or_404 = mocker.patch(
-            "utils.excel_to_database.get_object_or_404"
-        )
-        mocked_get_object_or_404.return_value = mocked_reward_type
-
-        mocked_reward_create = mocker.patch(
-            "utils.excel_to_database.Reward.objects.create"
-        )
-
-        _import_rewards(mock_data, mocked_parse_callback, mocked_amount_callback)
-
-        mocked_get_object_or_404.assert_called_once_with(
-            RewardType, label="F", name="Feature"
-        )
-        mocked_reward_create.assert_called_once()
-
-    def test_utils_excel_to_database_import_rewards_for_integrity_error(self, mocker):
-        # Create real DataFrame
-        mock_data = pd.DataFrame(
-            {"type": ["[F] Feature"], "level": [1], "reward": [1000]}
-        )
-
-        mocked_parse_callback = mocker.MagicMock(return_value=("F", "Feature"))
-        mocked_amount_callback = mocker.MagicMock(return_value=1000000)
-        mocked_reward_type = mocker.MagicMock()
-
-        mocked_get_object_or_404 = mocker.patch(
-            "utils.excel_to_database.get_object_or_404"
-        )
-        mocked_get_object_or_404.return_value = mocked_reward_type
-
-        mocker.patch(
-            "utils.excel_to_database.Reward.objects.create",
-            side_effect=IntegrityError("error"),
-        )
-
-        _import_rewards(mock_data, mocked_parse_callback, mocked_amount_callback)
-
-    # # _import_contributions
-    def test_utils_excel_to_database_import_contributions(self, mocker):
-        # Create real DataFrame
-        mock_data = pd.DataFrame(
-            [
-                {
-                    "contributor": "testuser",
-                    "cycle_start": "2023-01-01",
-                    "platform": "GitHub",
-                    "type": "[F] Feature",
-                    "level": 1,
-                    "reward": 1000,
-                    "percentage": 50.0,
-                    "url": "https://example.com",
-                    "comment": "Test comment",
-                }
-            ]
-        )
-
-        mocked_contributor = mocker.MagicMock()
-        mocked_cycle = mocker.MagicMock()
-        mocked_platform = mocker.MagicMock()
-        mocked_reward_type = mocker.MagicMock()
-        mocked_reward = mocker.MagicMock()
-
-        mocked_contributor_from_handle = mocker.patch(
-            "utils.excel_to_database.Contributor.objects.from_full_handle"
-        )
-        mocked_contributor_from_handle.return_value = mocked_contributor
-
-        mocked_cycle_get = mocker.patch("utils.excel_to_database.Cycle.objects.get")
-        mocked_cycle_get.return_value = mocked_cycle
-
-        mocked_platform_get = mocker.patch(
-            "utils.excel_to_database.SocialPlatform.objects.get"
-        )
-        mocked_platform_get.return_value = mocked_platform
-
-        mocked_parse_callback = mocker.MagicMock(return_value=("F", "Feature"))
-        mocked_get_object_or_404 = mocker.patch(
-            "utils.excel_to_database.get_object_or_404"
-        )
-        mocked_get_object_or_404.return_value = mocked_reward_type
-
-        mocked_reward_get = mocker.patch("utils.excel_to_database.Reward.objects.get")
-        mocked_reward_get.return_value = mocked_reward
-
-        mocked_amount_callback = mocker.MagicMock(return_value=1000000)
-        mocked_contribution_create = mocker.patch(
-            "utils.excel_to_database.Contribution.objects.create"
-        )
-
-        _import_contributions(mock_data, mocked_parse_callback, mocked_amount_callback)
-
-        mocked_contributor_from_handle.assert_called_once_with("testuser")
-        mocked_cycle_get.assert_called_once_with(start="2023-01-01")
-        mocked_platform_get.assert_called_once_with(name__iexact="GitHub")
-        mocked_parse_callback.assert_called_once_with("[F] Feature")
-        mocked_get_object_or_404.assert_called_once_with(
-            RewardType, label="F", name="Feature"
-        )
-        mocked_reward_get.assert_called_once_with(
-            type=mocked_reward_type, level=1, amount=1000000
-        )
-        mocked_contribution_create.assert_called_once()
 
 
 class TestUtilsExcelToDatabasePublicFunctions:

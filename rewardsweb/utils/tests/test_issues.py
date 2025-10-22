@@ -9,6 +9,7 @@ from utils.issues import (
     _prepare_issue_labels_from_contribution,
     _prepare_issue_priority_from_contribution,
     _prepare_issue_title_from_contribution,
+    all_issues,
     set_labels_to_issue,
     close_issue_with_labels,
     create_github_issue,
@@ -50,6 +51,43 @@ class TestUtilsIssuesCrudFunctions:
         client.get_repo.assert_called_once_with(
             f"{settings.GITHUB_REPO_OWNER}/{settings.GITHUB_REPO_NAME}"
         )
+
+    def test_utils_issues_all_issues_success(self, mocker):
+        """Test successful retrieval of all issues."""
+        github_token = "test_token"
+        mock_auth = mocker.MagicMock()
+        mock_client = mocker.MagicMock()
+        mock_repo = mocker.MagicMock()
+        mock_issues = [mocker.MagicMock(), mocker.MagicMock()]
+
+        mocked_auth = mocker.patch("utils.issues.Auth.Token", return_value=mock_auth)
+        mocked_github = mocker.patch("utils.issues.Github", return_value=mock_client)
+        mocked_repo = mocker.patch(
+            "utils.issues._github_repository", return_value=mock_repo
+        )
+        mock_repo.get_issues.return_value = mock_issues
+
+        result = all_issues(github_token)
+
+        assert result == mock_issues
+        mocked_auth.assert_called_once_with(github_token)
+        mocked_github.assert_called_once_with(auth=mock_auth)
+        mocked_repo.assert_called_once_with(mock_client)
+        mock_repo.get_issues.assert_called_once_with(state="all")
+
+    def test_utils_issues_all_issues_no_client(self, mocker):
+        """Test handling when GitHub client creation fails."""
+        github_token = "test_token"
+        mock_auth = mocker.MagicMock()
+
+        mocked_auth = mocker.patch("utils.issues.Auth.Token", return_value=mock_auth)
+        mocked_github = mocker.patch("utils.issues.Github", return_value=None)
+
+        result = all_issues(github_token)
+
+        assert result == []
+        mocked_auth.assert_called_once_with(github_token)
+        mocked_github.assert_called_once_with(auth=mock_auth)
 
     # # close_issue_with_labels
     def test_utils_issues_close_issue_with_labels_for_no_client(self, mocker):

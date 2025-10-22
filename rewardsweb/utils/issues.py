@@ -44,11 +44,23 @@ def _github_repository(client):
 
 
 def all_issues(github_token):
-    """TODO: doicstring and tests"""
+    """Fetch all GitHub issues (open and closed) from the configured repository.
+
+    :param github_token: GitHub authentication token
+    :type github_token: str
+    :var auth: GitHub authentication instance
+    :type auth: :class:`github.Auth.Token`
+    :var client: GitHub client instance
+    :type client: :class:`github.Github`
+    :var repo: GitHub repository instance
+    :type repo: :class:`github.Repository.Repository`
+    :return: list of GitHub issues
+    :rtype: list
+    """
     auth = Auth.Token(github_token)
     client = Github(auth=auth)
     if not client:
-        return {"success": False, "error": MISSING_TOKEN_TEXT}
+        return []
 
     repo = _github_repository(client)
     return repo.get_issues(state="all")

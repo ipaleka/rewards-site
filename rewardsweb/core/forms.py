@@ -7,6 +7,7 @@ from django.forms import (
     ChoiceField,
     DecimalField,
     Form,
+    IntegerField,
     ModelChoiceField,
     MultipleChoiceField,
     NumberInput,
@@ -18,7 +19,7 @@ from django.forms import (
 )
 from django.forms.models import ModelForm, inlineformset_factory
 
-from core.models import Contribution, Profile, Reward
+from core.models import Contribution, IssueStatus, Profile, Reward
 from utils.constants.core import ISSUE_CREATION_LABEL_CHOICES, ISSUE_PRIORITY_CHOICES
 from utils.constants.ui import MISSING_OPTION_TEXT, TEXTINPUT_CLASS
 
@@ -32,6 +33,10 @@ class ContributionEditForm(ModelForm):
     :type ContributionEditForm.percentage: :class:`django.forms.DecimalField`
     :var ContributionEditForm.comment: optional comment for the contribution
     :type ContributionEditForm.comment: :class:`django.forms.CharField`
+    :var ContributionEditForm.issue_number: GitHub issue number
+    :type ContributionEditForm.issue_number: :class:`django.forms.IntegerField`
+    :var ContributionEditForm.issue_status: Status for newly created issue
+    :type ContributionEditForm.issue_status: :class:`django.forms.ChoiceField`
     """
 
     reward = ModelChoiceField(
@@ -54,10 +59,35 @@ class ContributionEditForm(ModelForm):
     comment = CharField(
         required=False, widget=TextInput(attrs={"class": TEXTINPUT_CLASS})
     )
+    issue_number = IntegerField(
+        required=False,
+        min_value=1,
+        widget=NumberInput(
+            attrs={
+                "class": TEXTINPUT_CLASS,
+                "placeholder": "GitHub issue number (optional)",
+            }
+        ),
+    )
+    issue_status = ChoiceField(
+        choices=IssueStatus.choices,
+        widget=RadioSelect(),
+        label="Issue Status",
+        required=False,
+        initial=IssueStatus.ARCHIVED,
+    )
 
     class Meta:
         model = Contribution
         fields = ["reward", "percentage", "comment"]
+
+    def __init__(self, *args, **kwargs):
+        super().__init__(*args, **kwargs)
+        # Set initial value for issue_number from existing issue
+        if self.instance and self.instance.issue:
+            self.fields["issue_number"].initial = self.instance.issue.number
+            # Set initial issue_status from existing issue
+            self.fields["issue_status"].initial = self.instance.issue.status
 
 
 class ContributionInvalidateForm(ModelForm):

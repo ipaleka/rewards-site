@@ -1,79 +1,131 @@
-<!-- templates/contribution_edit.html -->
 {% extends "base_generic.html" %}
 
 {% block content %}
-<div class="max-w-2xl mx-auto">
-  <div class="card bg-base-100 shadow-xl">
-    <div class="card-body">
-      <h1 class="card-title text-2xl font-bold mb-6">Edit Contribution</h1>
-      
-      <div class="bg-base-200 p-4 rounded-lg mb-6">
-        <h2 class="font-semibold mb-2">Contribution Details:</h2>
-        <p><strong>Contributor:</strong> {{ object.contributor }}</p>
-        <p><strong>Cycle:</strong> {{ object.cycle }}</p>
-        <p><strong>Platform:</strong> {{ object.platform }}</p>
-        <p><strong>URL:</strong> <a href="{{ object.url }}" class="link link-accent" target="_blank">{{ object.url|truncatechars:50 }}</a></p>
-      </div>
+<div class="max-w-4xl mx-auto">
+  <div class="flex justify-between items-center mb-6">
+    <h1 class="text-3xl font-bold">Edit Contribution</h1>
+  </div>
 
+  <div class="card bg-base-100 shadow-md">
+    <div class="card-body">
       <form method="post">
         {% csrf_token %}
         
         {% if form.non_field_errors %}
         <div class="alert alert-error mb-4">
-          {{ form.non_field_errors }}
+          {% for error in form.non_field_errors %}
+            <span>{{ error }}</span>
+          {% endfor %}
         </div>
         {% endif %}
 
-        <!-- Reward Field -->
-        <div class="form-control mb-4">
-          <label class="label" for="{{ form.reward.id_for_label }}">
-            <span class="label-text font-semibold">Reward Type</span>
-          </label>
-          {{ form.reward }}
-          {% if form.reward.errors %}
-          <div class="text-error text-sm mt-1">
-            {{ form.reward.errors }}
+        <div class="space-y-4">
+          <!-- Reward Field -->
+          <div class="form-control">
+            <label class="label" for="{{ form.reward.id_for_label }}">
+              <span class="label-text font-semibold">{{ form.reward.label }}</span>
+            </label>
+            {{ form.reward }}
+            {% if form.reward.errors %}
+            <div class="text-error text-sm mt-1">
+              {% for error in form.reward.errors %}
+                <span>{{ error }}</span>
+              {% endfor %}
+            </div>
+            {% endif %}
           </div>
-          {% endif %}
+
+          <!-- Percentage Field -->
+          <div class="form-control">
+            <label class="label" for="{{ form.percentage.id_for_label }}">
+              <span class="label-text font-semibold">{{ form.percentage.label }}</span>
+            </label>
+            {{ form.percentage }}
+            {% if form.percentage.errors %}
+            <div class="text-error text-sm mt-1">
+              {% for error in form.percentage.errors %}
+                <span>{{ error }}</span>
+              {% endfor %}
+            </div>
+            {% endif %}
+          </div>
+
+          <!-- Comment Field -->
+          <div class="form-control">
+            <label class="label" for="{{ form.comment.id_for_label }}">
+              <span class="label-text font-semibold">{{ form.comment.label }}</span>
+            </label>
+            {{ form.comment }}
+            {% if form.comment.errors %}
+            <div class="text-error text-sm mt-1">
+              {% for error in form.comment.errors %}
+                <span>{{ error }}</span>
+              {% endfor %}
+            </div>
+            {% endif %}
+          </div>
+
+        <!-- GitHub Issue Section - Card Style -->
+        <div class="form-control">
+          <label class="label">
+            <span class="label-text font-semibold text-lg">GitHub Issue</span>
+          </label>
+
+          <div class="bg-base-100 p-4 rounded-lg border border-base-300">
+            <div class="grid grid-cols-1 lg:grid-cols-4 gap-4">
+              <!-- Issue Number - Takes 1/4 of the space -->
+              <div class="lg:col-span-1 space-y-2">
+                <label class="label py-0" for="{{ form.issue_number.id_for_label }}">
+                  <span class="label-text font-medium">Issue Number</span>
+                </label>
+                {{ form.issue_number }}
+                {% if form.issue_number.errors %}
+                <div class="text-error text-sm">
+                  {% for error in form.issue_number.errors %}
+                    <span>{{ error }}</span>
+                  {% endfor %}
+                </div>
+                {% endif %}
+              </div>
+
+              <!-- Issue Status - Takes 3/4 of the space -->
+              <div class="lg:col-span-3 space-y-2">
+                <label class="label py-0">
+                  <span class="label-text font-medium">Status</span>
+                </label>
+
+                <!-- Horizontal radio buttons without background, left-aligned text -->
+                <div class="flex gap-2 p-0 rounded-lg h-[42px] items-stretch">
+                  {% for radio in form.issue_status %}
+                  <label class="flex items-center space-x-2 cursor-pointer border border-base-300 hover:bg-base-200 px-3 py-2 rounded transition-colors duration-200 flex-1 h-full">
+                    {{ radio.tag }}
+                    <span class="label-text text-sm whitespace-nowrap">{{ radio.choice_label }}</span>
+                  </label>
+                  {% endfor %}
+                </div>
+
+                {% if form.issue_status.errors %}
+                <div class="text-error text-sm">
+                  {% for error in form.issue_status.errors %}
+                    <span>{{ error }}</span>
+                  {% endfor %}
+                </div>
+                {% endif %}
+              </div>
+            </div>
+
+            <!-- Helper text -->
+            <div class="mt-3 pt-3 border-t border-base-300">
+              <span class="text-xs text-base-content/70">
+                Leave issue number empty to remove association. Status applies to both new and existing issues.
+              </span>
+            </div>
+          </div>
         </div>
 
-        <!-- Percentage Field -->
-        <div class="form-control mb-4">
-          <label class="label" for="{{ form.percentage.id_for_label }}">
-            <span class="label-text font-semibold">Percentage (%)</span>
-          </label>
-          {{ form.percentage }}
-          {% if form.percentage.errors %}
-          <div class="text-error text-sm mt-1">
-            {{ form.percentage.errors }}
-          </div>
-          {% endif %}
-          <div class="text-sm text-base-content/70 mt-1">
-            Enter percentage as a decimal (e.g., 0.50 for 50%)
-          </div>
-        </div>
-
-        <!-- Comment Field -->
-        <div class="form-control mb-6">
-          <label class="label" for="{{ form.comment.id_for_label }}">
-            <span class="label-text font-semibold">Comment</span>
-          </label>
-          {{ form.comment }}
-          {% if form.comment.errors %}
-          <div class="text-error text-sm mt-1">
-            {{ form.comment.errors }}
-          </div>
-          {% endif %}
-        </div>
-
-        <!-- Form Actions -->
-        <div class="flex gap-4">
-          <button type="submit" class="btn btn-primary flex-1">
-            Update Contribution
-          </button>
-          <a href="{% url 'contribution-detail' object.pk %}" class="btn btn-outline flex-1">
-            Cancel
-          </a>
+        <div class="flex gap-2 mt-6">
+          <button type="submit" class="btn btn-primary">Save Changes</button>
+          <a href="{% url 'contribution-detail' object.pk %}" class="btn btn-ghost">Cancel</a>
         </div>
       </form>
     </div>

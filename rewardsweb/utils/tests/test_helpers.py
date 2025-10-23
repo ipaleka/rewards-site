@@ -1,6 +1,8 @@
 """Testing module for :py:mod:`utils.helpers` module."""
 
 import os
+import pickle
+from unittest import mock
 
 import pytest
 from django.core.exceptions import ImproperlyConfigured
@@ -11,6 +13,7 @@ from utils.helpers import (
     get_env_variable,
     humanize_contributions,
     parse_full_handle,
+    read_pickle,
     user_display,
 )
 
@@ -272,6 +275,81 @@ class TestUtilsHelpersFunctions:
         self, full_handle, prefix, handle
     ):
         assert parse_full_handle(full_handle) == (prefix, handle)
+
+    # # read_pickle
+    def test_utils_helpers_read_pickle_returns_empty_dict_for_no_file(self, mocker):
+        path = mocker.MagicMock()
+        with (
+            mock.patch(
+                "utils.helpers.os.path.exists", return_value=False
+            ) as mocked_exist,
+            mock.patch("utils.helpers.open") as mocked_open,
+        ):
+            assert read_pickle(path) == {}
+            mocked_exist.assert_called_once_with(path)
+            mocked_open.assert_not_called()
+
+    def test_utils_helpers_read_pickle_returns_empty_dict_for_exception(self, mocker):
+        path = mocker.MagicMock()
+        with (
+            mock.patch("utils.helpers.os.path.exists", return_value=True),
+            mock.patch("utils.helpers.open") as mocked_open,
+            mock.patch(
+                "utils.helpers.pickle.load", side_effect=pickle.PickleError("Corrupted")
+            ),
+        ):
+            assert read_pickle(path) == {}
+            mocked_open.assert_called_once_with(path, "rb")
+
+    def test_utils_helpers_read_pickle_returns_pickle_file_content(self, mocker):
+        path = mocker.MagicMock()
+        expected_data = {"key": "value", "list": [1, 2, 3]}
+        with (
+            mock.patch("utils.helpers.os.path.exists", return_value=True),
+            mock.patch("utils.helpers.open") as mocked_open,
+            mock.patch(
+                "utils.helpers.pickle.load", return_value=expected_data
+            ) as mocked_load,
+        ):
+            assert read_pickle(path) == expected_data
+            mocked_open.assert_called_once_with(path, "rb")
+            mocked_load.assert_called_once_with(
+                mocked_open.return_value.__enter__.return_value
+            )
+
+    def test_utils_helpers_read_pickle_handles_eoferror(self, mocker):
+        path = mocker.MagicMock()
+        with (
+            mock.patch("utils.helpers.os.path.exists", return_value=True),
+            mock.patch("utils.helpers.open"),
+            mock.patch(
+                "utils.helpers.pickle.load", side_effect=EOFError("Unexpected EOF")
+            ),
+        ):
+            assert read_pickle(path) == {}
+
+    def test_utils_helpers_read_pickle_handles_attribute_error(self, mocker):
+        path = mocker.MagicMock()
+        with (
+            mock.patch("utils.helpers.os.path.exists", return_value=True),
+            mock.patch("utils.helpers.open"),
+            mock.patch(
+                "utils.helpers.pickle.load",
+                side_effect=AttributeError("Missing attribute"),
+            ),
+        ):
+            assert read_pickle(path) == {}
+
+    def test_utils_helpers_read_pickle_handles_import_error(self, mocker):
+        path = mocker.MagicMock()
+        with (
+            mock.patch("utils.helpers.os.path.exists", return_value=True),
+            mock.patch("utils.helpers.open"),
+            mock.patch(
+                "utils.helpers.pickle.load", side_effect=ImportError("Missing module")
+            ),
+        ):
+            assert read_pickle(path) == {}
 
     # # user_display
     def test_utils_userhelpers_user_display_calls_and_returns_profile_name(

@@ -51,7 +51,7 @@ class Command(BaseCommand):
 
         response = import_from_csv(output_file, legacy_file)
         if not response:
-            self.stdout.write("Database successfully recreated!")
+            self.stdout.write("Records successfully imported!")
             response = map_github_issues(github_token=github_token)
             if not response:
                 self.stdout.write("Issues successfully mapped!")

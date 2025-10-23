@@ -549,7 +549,7 @@ class TestCoreContributorModel:
 
         result = contributor.info  # Changed from info() to info
 
-        returned = "test_contributor (discorduser, githubuser, twitteruser)"
+        returned = "test_contributor (discorduser, g@githubuser, @twitteruser)"
         assert result == returned
 
     @pytest.mark.django_db
@@ -611,7 +611,7 @@ class TestCoreContributorModel:
 
         result = contributor.info  # Changed from info() to info
 
-        returned = "test_contributor (user-with-dashes, user_with_underscores)"
+        returned = "test_contributor (g@user-with-dashes, user_with_underscores)"
         assert result == returned
 
     @pytest.mark.django_db
@@ -646,7 +646,7 @@ class TestCoreContributorModel:
 
         result = contributor.info  # Changed from info() to info
 
-        returned = "test_contributor (user_🎉, user_😊)"
+        returned = "test_contributor (g@user_🎉, g@user_😊)"
         assert result == returned
 
     @pytest.mark.django_db
@@ -668,7 +668,7 @@ class TestCoreContributorModel:
         result = contributor.info  # Changed from info() to info
 
         # Should include duplicate handle values
-        returned = "test_contributor (sameuser, sameuser)"
+        returned = "test_contributor (g@sameuser, sameuser)"
         assert result == returned
 
     # # total_rewards

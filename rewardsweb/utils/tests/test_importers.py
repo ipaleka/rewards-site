@@ -1,6 +1,7 @@
 """Testing module for :py:mod:`utils.importers` module."""
 
 from datetime import datetime, timedelta
+from unittest import mock
 
 import pandas as pd
 import pytest
@@ -10,6 +11,7 @@ from django.http import Http404
 
 from core.models import RewardType
 from utils.importers import (
+    CONTRIBUTION_CSV_COLUMNS,
     REWARDS_COLLECTION,
     _check_current_cycle,
     _create_active_rewards,
@@ -55,6 +57,21 @@ class TestUtilsImportersHelperFunctions:
 
         mocked_cycle_create.assert_not_called()
 
+    def test_utils_importers_check_current_cycle_today_is_end_date(self, mocker):
+        """Test _check_current_cycle when today is the end date."""
+        cycle_instance = mocker.MagicMock()
+        # Set end date to today
+        cycle_instance.end = datetime.now().date()
+
+        mocked_cycle_create = mocker.patch("utils.importers.Cycle.objects.create")
+        mocked_datetime = mocker.patch("utils.importers.datetime")
+        mocked_datetime.now.return_value.date.return_value = datetime.now().date()
+
+        _check_current_cycle(cycle_instance)
+
+        # Should not create new cycle since today is not after end date
+        mocked_cycle_create.assert_not_called()
+
     # # _create_active_rewards
     def test_utils_importers_create_active_rewards(self, mocker):
         mocked_get_object_or_404 = mocker.patch("utils.importers.get_object_or_404")
@@ -80,6 +97,48 @@ class TestUtilsImportersHelperFunctions:
         mocked_reward_create.assert_has_calls(calls, any_order=True)
         assert mocked_reward_create.call_count == 2
 
+    def test_utils_importers_create_active_rewards_no_existing_rewards(self, mocker):
+        """Test _create_active_rewards when no rewards exist."""
+        mocked_get_object_or_404 = mocker.patch("utils.importers.get_object_or_404")
+        reward_type = mocker.MagicMock()
+
+        # All Reward.objects.get calls raise ObjectDoesNotExist (no existing rewards)
+        mocker.patch(
+            "utils.importers.Reward.objects.get",
+            side_effect=ObjectDoesNotExist("No reward found"),
+        )
+        mocked_reward_create = mocker.patch("utils.importers.Reward.objects.create")
+        mocked_get_object_or_404.return_value = reward_type
+
+        _create_active_rewards()
+
+        # Should create all rewards from REWARDS_COLLECTION
+        total_expected_rewards = sum(len(reward) - 1 for reward in REWARDS_COLLECTION)
+        assert mocked_reward_create.call_count == total_expected_rewards
+
+    def test_utils_importers_create_active_rewards_all_exist(self, mocker):
+        """Test _create_active_rewards when all rewards already exist."""
+        mocked_get_object_or_404 = mocker.patch("utils.importers.get_object_or_404")
+        reward_type = mocker.MagicMock()
+        existing_reward = mocker.MagicMock()
+
+        # All Reward.objects.get calls return existing rewards
+        mocker.patch(
+            "utils.importers.Reward.objects.get",
+            return_value=existing_reward,
+        )
+        mocked_reward_create = mocker.patch("utils.importers.Reward.objects.create")
+        mocked_reward_save = mocker.patch.object(existing_reward, "save")
+        mocked_get_object_or_404.return_value = reward_type
+
+        _create_active_rewards()
+
+        # Should activate all existing rewards but not create new ones
+        mocked_reward_create.assert_not_called()
+        assert mocked_reward_save.call_count == sum(
+            len(reward) - 1 for reward in REWARDS_COLLECTION
+        )
+
     # # _create_superusers
     def test_utils_importers_create_superusers(self, mocker):
         mocked_get_env_variable = mocker.patch("utils.importers.get_env_variable")
@@ -94,6 +153,42 @@ class TestUtilsImportersHelperFunctions:
         assert mocked_user_create.call_count == 2
         mocked_user_create.assert_any_call("user1", password="pass1")
         mocked_user_create.assert_any_call("user2", password="pass2")
+
+    def test_utils_importers_create_superusers_empty_env_vars(self, mocker):
+        """Test _create_superusers with empty environment variables."""
+        # Mock get_env_variable to return empty strings
+        mocker.patch("utils.importers.get_env_variable", return_value="")
+
+        mocked_user_create = mocker.patch(
+            "utils.importers.User.objects.create_superuser"
+        )
+
+        _create_superusers()
+
+        # Should not create any users since empty strings are filtered out
+        mocked_user_create.assert_not_called()
+
+    def test_utils_importers_create_superusers_single_user(self, mocker):
+        """Test _create_superusers with single user."""
+        mocker.patch("utils.importers.get_env_variable", side_effect=["user1", "pass1"])
+
+        mocked_user_create = mocker.patch(
+            "utils.importers.User.objects.create_superuser"
+        )
+
+        _create_superusers()
+
+        # Should create one user
+        mocked_user_create.assert_called_once_with("user1", password="pass1")
+
+    def test_utils_importers_create_superusers_mismatched_lengths(self, mocker):
+        """Test _create_superusers with mismatched user/password counts."""
+        mocker.patch(
+            "utils.importers.get_env_variable", side_effect=["user1,user2", "pass1"]
+        )
+
+        with pytest.raises(AssertionError):
+            _create_superusers()
 
     # # _dataframe_from_csv
     def test_utils_importers_dataframe_from_csv_success(self, mocker):
@@ -136,6 +231,193 @@ class TestUtilsImportersHelperFunctions:
         result = _dataframe_from_csv("empty.csv")
 
         assert result is None
+
+    # # _import_contributions
+    def test_utils_importers_import_contributions(self, mocker):
+        # Create real DataFrame
+        mock_data = pd.DataFrame(
+            [
+                {
+                    "contributor": "testuser",
+                    "cycle_start": "2023-01-01",
+                    "platform": "GitHub",
+                    "type": "[F] Feature",
+                    "level": 1,
+                    "reward": 1000,
+                    "percentage": 50.0,
+                    "url": "https://example.com",
+                    "comment": "Test comment",
+                }
+            ]
+        )
+
+        mocked_contributor = mocker.MagicMock()
+        mocked_cycle = mocker.MagicMock()
+        mocked_platform = mocker.MagicMock()
+        mocked_reward_type = mocker.MagicMock()
+        mocked_reward = mocker.MagicMock()
+
+        mocked_contributor_from_handle = mocker.patch(
+            "utils.importers.Contributor.objects.from_full_handle"
+        )
+        mocked_contributor_from_handle.return_value = mocked_contributor
+
+        mocked_cycle_get = mocker.patch("utils.importers.Cycle.objects.get")
+        mocked_cycle_get.return_value = mocked_cycle
+
+        mocked_platform_get = mocker.patch("utils.importers.SocialPlatform.objects.get")
+        mocked_platform_get.return_value = mocked_platform
+
+        mocked_parse_callback = mocker.MagicMock(return_value=("F", "Feature"))
+        mocked_get_object_or_404 = mocker.patch("utils.importers.get_object_or_404")
+        mocked_get_object_or_404.return_value = mocked_reward_type
+
+        mocked_reward_get = mocker.patch("utils.importers.Reward.objects.get")
+        mocked_reward_get.return_value = mocked_reward
+
+        mocked_amount_callback = mocker.MagicMock(return_value=1000000)
+        mocked_contribution_create = mocker.patch(
+            "utils.importers.Contribution.objects.create"
+        )
+
+        _import_contributions(mock_data, mocked_parse_callback, mocked_amount_callback)
+
+        mocked_contributor_from_handle.assert_called_once_with("testuser")
+        mocked_cycle_get.assert_called_once_with(start="2023-01-01")
+        mocked_platform_get.assert_called_once_with(name__iexact="GitHub")
+        mocked_parse_callback.assert_called_once_with("[F] Feature")
+        mocked_get_object_or_404.assert_called_once_with(
+            RewardType, label="F", name="Feature"
+        )
+        mocked_reward_get.assert_called_once_with(
+            type=mocked_reward_type, level=1, amount=1000000
+        )
+        mocked_contribution_create.assert_called_once()
+
+    def test_utils_importers_import_contributions_handles_missing_values(self, mocker):
+        """Test _import_contributions handles missing values correctly."""
+        # Create real DataFrame with missing values
+        mock_data = pd.DataFrame(
+            [
+                {
+                    "contributor": "testuser",
+                    "cycle_start": "2023-01-01",
+                    "platform": "GitHub",
+                    "type": "[F] Feature",
+                    "level": float("nan"),  # Missing level
+                    "reward": 1000,
+                    "percentage": float("nan"),  # Missing percentage
+                    "url": float("nan"),  # Missing URL
+                    "comment": float("nan"),  # Missing comment
+                }
+            ]
+        )
+
+        mocked_contributor = mocker.MagicMock()
+        mocked_cycle = mocker.MagicMock()
+        mocked_platform = mocker.MagicMock()
+        mocked_reward_type = mocker.MagicMock()
+        mocked_reward = mocker.MagicMock()
+
+        mocker.patch(
+            "utils.importers.Contributor.objects.from_full_handle",
+            return_value=mocked_contributor,
+        )
+        mocker.patch("utils.importers.Cycle.objects.get", return_value=mocked_cycle)
+        mocker.patch(
+            "utils.importers.SocialPlatform.objects.get", return_value=mocked_platform
+        )
+        mocker.patch(
+            "utils.importers._parse_label_and_name_from_reward_type",
+            return_value=("F", "Feature"),
+        )
+        mocker.patch(
+            "utils.importers.get_object_or_404", return_value=mocked_reward_type
+        )
+        mocker.patch("utils.importers.Reward.objects.get", return_value=mocked_reward)
+        mocker.patch("utils.importers._reward_amount", return_value=1000000)
+        mocked_contribution_create = mocker.patch(
+            "utils.importers.Contribution.objects.create"
+        )
+
+        _import_contributions(
+            mock_data,
+            _parse_label_and_name_from_reward_type,
+            _reward_amount,
+        )
+
+        # Verify default values are used for missing data
+        mocked_contribution_create.assert_called_once()
+        call_kwargs = mocked_contribution_create.call_args[1]
+        assert call_kwargs["percentage"] == 1  # Default for missing percentage
+        assert call_kwargs["url"] is None  # Default for missing URL
+        assert call_kwargs["comment"] is None  # Default for missing comment
+
+    def test_utils_importers_import_contributions_multiple_rows(self, mocker):
+        """Test _import_contributions processes multiple rows correctly."""
+        # Create real DataFrame with multiple rows
+        mock_data = pd.DataFrame(
+            [
+                {
+                    "contributor": "user1",
+                    "cycle_start": "2023-01-01",
+                    "platform": "GitHub",
+                    "type": "[F] Feature",
+                    "level": 1,
+                    "reward": 1000,
+                    "percentage": 100.0,
+                    "url": "https://example.com/1",
+                    "comment": "Comment 1",
+                },
+                {
+                    "contributor": "user2",
+                    "cycle_start": "2023-02-01",
+                    "platform": "Discord",
+                    "type": "[B] Bug",
+                    "level": 2,
+                    "reward": 500,
+                    "percentage": 50.0,
+                    "url": None,
+                    "comment": "Comment 2",
+                },
+            ]
+        )
+
+        mocked_contributor = mocker.MagicMock()
+        mocked_cycle = mocker.MagicMock()
+        mocked_platform = mocker.MagicMock()
+        mocked_reward_type = mocker.MagicMock()
+        mocked_reward = mocker.MagicMock()
+
+        mocker.patch(
+            "utils.importers.Contributor.objects.from_full_handle",
+            return_value=mocked_contributor,
+        )
+        mocker.patch("utils.importers.Cycle.objects.get", return_value=mocked_cycle)
+        mocker.patch(
+            "utils.importers.SocialPlatform.objects.get", return_value=mocked_platform
+        )
+        mocker.patch(
+            "utils.importers._parse_label_and_name_from_reward_type",
+            return_value=("F", "Feature"),
+        )
+        mocker.patch(
+            "utils.importers.get_object_or_404", return_value=mocked_reward_type
+        )
+        mocker.patch("utils.importers.Reward.objects.get", return_value=mocked_reward)
+        mocker.patch("utils.importers._reward_amount", return_value=1000000)
+        mocked_contribution_create = mocker.patch(
+            "utils.importers.Contribution.objects.create"
+        )
+
+        _import_contributions(
+            mock_data,
+            _parse_label_and_name_from_reward_type,
+            _reward_amount,
+        )
+
+        # Verify create was called twice (once for each row)
+        assert mocked_contribution_create.call_count == 2
 
     # _import_rewards
     def test_utils_importers_import_rewards_new_type(self, mocker):
@@ -201,80 +483,126 @@ class TestUtilsImportersHelperFunctions:
 
         _import_rewards(mock_data, mocked_parse_callback, mocked_amount_callback)
 
-    # # _import_contributions
-    def test_utils_importers_import_contributions(self, mocker):
-        # Create real DataFrame
+    def test_utils_importers_import_rewards_handles_missing_level(self, mocker):
+        """Test _import_rewards handles missing level values."""
+        # Create real DataFrame with missing level
         mock_data = pd.DataFrame(
-            [
-                {
-                    "contributor": "testuser",
-                    "cycle_start": "2023-01-01",
-                    "platform": "GitHub",
-                    "type": "[F] Feature",
-                    "level": 1,
-                    "reward": 1000,
-                    "percentage": 50.0,
-                    "url": "https://example.com",
-                    "comment": "Test comment",
-                }
-            ]
+            {"type": ["[F] Feature"], "level": [float("nan")], "reward": [1000]}
         )
-
-        mocked_contributor = mocker.MagicMock()
-        mocked_cycle = mocker.MagicMock()
-        mocked_platform = mocker.MagicMock()
-        mocked_reward_type = mocker.MagicMock()
-        mocked_reward = mocker.MagicMock()
-
-        mocked_contributor_from_handle = mocker.patch(
-            "utils.importers.Contributor.objects.from_full_handle"
-        )
-        mocked_contributor_from_handle.return_value = mocked_contributor
-
-        mocked_cycle_get = mocker.patch("utils.importers.Cycle.objects.get")
-        mocked_cycle_get.return_value = mocked_cycle
-
-        mocked_platform_get = mocker.patch("utils.importers.SocialPlatform.objects.get")
-        mocked_platform_get.return_value = mocked_platform
 
         mocked_parse_callback = mocker.MagicMock(return_value=("F", "Feature"))
-        mocked_get_object_or_404 = mocker.patch("utils.importers.get_object_or_404")
-        mocked_get_object_or_404.return_value = mocked_reward_type
-
-        mocked_reward_get = mocker.patch("utils.importers.Reward.objects.get")
-        mocked_reward_get.return_value = mocked_reward
-
         mocked_amount_callback = mocker.MagicMock(return_value=1000000)
-        mocked_contribution_create = mocker.patch(
-            "utils.importers.Contribution.objects.create"
+        mocked_reward_type = mocker.MagicMock()
+
+        mocker.patch(
+            "utils.importers.get_object_or_404", return_value=mocked_reward_type
+        )
+        mocked_reward_create = mocker.patch("utils.importers.Reward.objects.create")
+
+        _import_rewards(mock_data, mocked_parse_callback, mocked_amount_callback)
+
+        # Verify default level (1) is used
+        mocked_reward_create.assert_called_once()
+        call_kwargs = mocked_reward_create.call_args[1]
+        assert call_kwargs["level"] == 1
+
+    def test_utils_importers_import_rewards_multiple_rows(self, mocker):
+        """Test _import_rewards processes multiple rows correctly."""
+        # Create real DataFrame with multiple rows
+        mock_data = pd.DataFrame(
+            {
+                "type": ["[F] Feature", "[B] Bug", "[S] Suggestion"],
+                "level": [1, 2, 3],
+                "reward": [1000, 500, 200],
+            }
         )
 
-        _import_contributions(mock_data, mocked_parse_callback, mocked_amount_callback)
+        mocked_parse_callback = mocker.MagicMock(
+            side_effect=[("F", "Feature"), ("B", "Bug"), ("S", "Suggestion")]
+        )
+        mocked_amount_callback = mocker.MagicMock(side_effect=[1000000, 500000, 200000])
+        mocked_reward_type = mocker.MagicMock()
 
-        mocked_contributor_from_handle.assert_called_once_with("testuser")
-        mocked_cycle_get.assert_called_once_with(start="2023-01-01")
-        mocked_platform_get.assert_called_once_with(name__iexact="GitHub")
-        mocked_parse_callback.assert_called_once_with("[F] Feature")
-        mocked_get_object_or_404.assert_called_once_with(
-            RewardType, label="F", name="Feature"
+        mocker.patch(
+            "utils.importers.get_object_or_404", return_value=mocked_reward_type
         )
-        mocked_reward_get.assert_called_once_with(
-            type=mocked_reward_type, level=1, amount=1000000
+        mocked_reward_create = mocker.patch("utils.importers.Reward.objects.create")
+
+        _import_rewards(mock_data, mocked_parse_callback, mocked_amount_callback)
+
+        # Verify create was called three times
+        assert mocked_reward_create.call_count == 3
+
+    def test_utils_importers_import_rewards_creates_new_reward_types(self, mocker):
+        """Test _import_rewards creates new reward types when needed."""
+        # Create real DataFrame
+        mock_data = pd.DataFrame(
+            {"type": ["[NEW] New Type"], "level": [1], "reward": [1000]}
         )
-        mocked_contribution_create.assert_called_once()
+
+        mocked_parse_callback = mocker.MagicMock(return_value=("NEW", "New Type"))
+        mocked_amount_callback = mocker.MagicMock(return_value=1000000)
+
+        # Mock get_object_or_404 to raise Http404 (reward type doesn't exist)
+        mocker.patch(
+            "utils.importers.get_object_or_404", side_effect=Http404("Not found")
+        )
+        mocked_reward_type_create = mocker.patch(
+            "utils.importers.RewardType.objects.create"
+        )
+        mocked_reward_create = mocker.patch("utils.importers.Reward.objects.create")
+
+        _import_rewards(mock_data, mocked_parse_callback, mocked_amount_callback)
+
+        # Verify new reward type was created
+        mocked_reward_type_create.assert_called_once_with(label="NEW", name="New Type")
+        mocked_reward_create.assert_called_once()
 
     # # _parse_addresses
     def test_utils_importers_parse_addresses_file_not_found(self, mocker):
         mocked_dataframe_from_csv = mocker.patch("utils.importers._dataframe_from_csv")
+        # Mock both calls to return None to simulate file not found
         mocked_dataframe_from_csv.return_value = None
 
         result = _parse_addresses()
 
         assert result == []
 
-    def test_utils_importers_parse_addresses_success(self, mocker):
-        # Create a real DataFrame for testing
-        test_data = pd.DataFrame(
+    def test_utils_importers_parse_addresses_success_with_both_files(self, mocker):
+        # Create test data for addresses
+        addresses_data = pd.DataFrame(
+            {
+                "handle": ["handle1", "handle2", "handle3", "handle1"],
+                "address": ["addr1", "addr1", "addr2", "addr1"],
+            }
+        )
+
+        # Create test data for users
+        users_data = pd.DataFrame(
+            {
+                "handle": ["handle4", "handle5"],
+                "address": ["addr1", "addr3"],
+            }
+        )
+
+        mocked_dataframe_from_csv = mocker.patch("utils.importers._dataframe_from_csv")
+        # Mock the first call to return addresses data, second call to return users data
+        mocked_dataframe_from_csv.side_effect = [addresses_data, users_data]
+
+        result = _parse_addresses()
+
+        # Expected result after combining both dataframes and grouping
+        # Note: handles are reversed within each address group
+        expected = [
+            ["addr1", ["handle4", "handle2", "handle1"]],
+            ["addr2", ["handle3"]],
+            ["addr3", ["handle5"]],
+        ]
+        assert result == expected
+
+    def test_utils_importers_parse_addresses_success_users_file_not_found(self, mocker):
+        # Create test data for addresses
+        addresses_data = pd.DataFrame(
             {
                 "handle": ["handle1", "handle2", "handle3", "handle1"],
                 "address": ["addr1", "addr1", "addr2", "addr1"],
@@ -282,12 +610,80 @@ class TestUtilsImportersHelperFunctions:
         )
 
         mocked_dataframe_from_csv = mocker.patch("utils.importers._dataframe_from_csv")
-        mocked_dataframe_from_csv.return_value = test_data
+        # Mock first call to return addresses data, second call to return None (users file not found)
+        mocked_dataframe_from_csv.side_effect = [addresses_data, None]
 
         result = _parse_addresses()
 
-        # Expected result after grouping
+        # Expected result using only addresses data (same as original test)
         expected = [["addr1", ["handle2", "handle1"]], ["addr2", ["handle3"]]]
+        assert result == expected
+
+    def test_utils_importers_parse_addresses_both_files_empty(self, mocker):
+        # Create empty dataframes
+        empty_addresses = pd.DataFrame(columns=["handle", "address"])
+        empty_users = pd.DataFrame(columns=["handle", "address"])
+
+        mocked_dataframe_from_csv = mocker.patch("utils.importers._dataframe_from_csv")
+        mocked_dataframe_from_csv.side_effect = [empty_addresses, empty_users]
+
+        result = _parse_addresses()
+
+        # Expected empty result
+        expected = []
+        assert result == expected
+
+    def test_utils_importers_parse_addresses_handles_duplicates(self, mocker):
+        """Test _parse_addresses handles duplicate handle-address pairs."""
+        # Create test data with duplicates
+        addresses_data = pd.DataFrame(
+            {
+                "handle": ["handle1", "handle1", "handle2", "handle2"],
+                "address": ["addr1", "addr1", "addr2", "addr2"],
+            }
+        )
+
+        mocker.patch(
+            "utils.importers._dataframe_from_csv",
+            side_effect=[addresses_data, None],  # No users file
+        )
+
+        result = _parse_addresses()
+
+        # Should remove duplicates and reverse handles
+        expected = [["addr1", ["handle1"]], ["addr2", ["handle2"]]]
+        assert result == expected
+
+    def test_utils_importers_parse_addresses_empty_dataframes(self, mocker):
+        """Test _parse_addresses with empty dataframes."""
+        empty_df = pd.DataFrame(columns=["handle", "address"])
+
+        mocker.patch(
+            "utils.importers._dataframe_from_csv",
+            side_effect=[empty_df, empty_df],
+        )
+
+        result = _parse_addresses()
+
+        assert result == []
+
+    def test_utils_importers_parse_addresses_only_users_file(self, mocker):
+        """Test _parse_addresses when only users file exists."""
+        users_data = pd.DataFrame(
+            {
+                "handle": ["user1", "user2"],
+                "address": ["addr1", "addr2"],
+            }
+        )
+
+        mocked_dataframe_from_csv = mocker.patch("utils.importers._dataframe_from_csv")
+        # Mock the first call (addresses) to return None, second call (users) to return data
+        mocked_dataframe_from_csv.side_effect = [None, users_data]
+
+        result = _parse_addresses()
+
+        # When addresses file is None but users file exists, should use users data
+        expected = [["addr1", ["user1"]], ["addr2", ["user2"]]]
         assert result == expected
 
     # # _parse_label_and_name_from_reward_type
@@ -305,6 +701,30 @@ class TestUtilsImportersHelperFunctions:
 
     def test_utils_importers_parse_label_and_name_from_reward_type_nan(self):
         result = _parse_label_and_name_from_reward_type(float("nan"))
+
+        assert result == ("CST", "Custom")
+
+    def test_utils_importers_parse_label_and_name_from_reward_type_empty_string(self):
+        """Test _parse_label_and_name_from_reward_type with empty string."""
+        result = _parse_label_and_name_from_reward_type("")
+
+        assert result == ("CST", "Custom")
+
+    def test_utils_importers_parse_label_and_name_from_reward_type_none(self):
+        """Test _parse_label_and_name_from_reward_type with None."""
+        result = _parse_label_and_name_from_reward_type(None)
+
+        assert result == ("CST", "Custom")
+
+    def test_utils_importers_parse_label_and_name_from_reward_type_no_brackets(self):
+        """Test _parse_label_and_name_from_reward_type without brackets."""
+        result = _parse_label_and_name_from_reward_type("Feature Request")
+
+        assert result == ("CST", "Custom")
+
+    def test_utils_importers_parse_label_and_name_from_reward_type_malformed(self):
+        """Test _parse_label_and_name_from_reward_type with malformed input."""
+        result = _parse_label_and_name_from_reward_type("[F Feature")
 
         assert result == ("CST", "Custom")
 
@@ -346,6 +766,46 @@ class TestUtilsImportersHelperFunctions:
 
         assert result == ("F", "Feature Request")
 
+    def test_utils_importers_parse_label_and_name_from_reward_type_legacy_empty(self):
+        """Test _parse_label_and_name_from_reward_type_legacy with empty string."""
+        result = _parse_label_and_name_from_reward_type_legacy("")
+
+        # Empty string should fall through to "Suggestion" in legacy parser
+        assert result == ("S", "Suggestion")
+
+    def test_utils_importers_parse_label_and_name_from_reward_type_legacy_none(self):
+        """Test _parse_label_and_name_from_reward_type_legacy with None."""
+        # None should be handled by the base function and return ("CST", "Custom")
+        # but then legacy logic converts "Custom" to "Suggestion"
+        result = _parse_label_and_name_from_reward_type_legacy(None)
+
+        assert result == ("S", "Suggestion")
+
+    def test_utils_importers_parse_label_and_name_from_reward_type_legacy_case_insensitive(
+        self,
+    ):
+        """Test _parse_label_and_name_from_reward_type_legacy is case insensitive."""
+        # The legacy function converts to lowercase for comparison
+        result1 = _parse_label_and_name_from_reward_type_legacy("Feature Request")
+        result2 = _parse_label_and_name_from_reward_type_legacy("FEATURE REQUEST")
+        result3 = _parse_label_and_name_from_reward_type_legacy("feature request")
+
+        # All should match "feature request" pattern
+        assert result1 == ("F", "Feature Request")
+        assert result2 == ("F", "Feature Request")
+        assert result3 == ("F", "Feature Request")
+
+    def test_utils_importers_parse_label_and_name_from_reward_type_legacy_priority(
+        self,
+    ):
+        """Test _parse_label_and_name_from_reward_type_legacy priority of patterns."""
+        # Should match "feature request" first
+        result = _parse_label_and_name_from_reward_type_legacy(
+            "feature request and bug report"
+        )
+
+        assert result == ("F", "Feature Request")
+
     # # _reward_amount
     def test_utils_importers_reward_amount_normal(self):
         result = _reward_amount(1.5)
@@ -357,6 +817,30 @@ class TestUtilsImportersHelperFunctions:
 
         assert result == 0
 
+    def test_utils_importers_reward_amount_zero(self):
+        """Test _reward_amount with zero value."""
+        result = _reward_amount(0)
+
+        assert result == 0
+
+    def test_utils_importers_reward_amount_negative(self):
+        """Test _reward_amount with negative value."""
+        result = _reward_amount(-1.5)
+
+        assert result == -1500000
+
+    def test_utils_importers_reward_amount_decimal_precision(self):
+        """Test _reward_amount with decimal precision."""
+        result = _reward_amount(1.234567)
+
+        assert result == 1234567  # Should round to nearest integer
+
+    def test_utils_importers_reward_amount_none(self):
+        """Test _reward_amount with None."""
+        result = _reward_amount(None)
+
+        assert result == 0
+
     # # _reward_amount_legacy
     def test_utils_importers_reward_amount_legacy_normal(self):
         result = _reward_amount_legacy(1.5)
@@ -365,6 +849,31 @@ class TestUtilsImportersHelperFunctions:
 
     def test_utils_importers_reward_amount_legacy_nan(self):
         result = _reward_amount_legacy(float("nan"))
+
+        assert result == 0
+
+    def test_utils_importers_reward_amount_legacy_zero(self):
+        """Test _reward_amount_legacy with zero value."""
+        result = _reward_amount_legacy(0)
+
+        assert result == 0
+
+    def test_utils_importers_reward_amount_legacy_negative(self):
+        """Test _reward_amount_legacy with negative value."""
+        result = _reward_amount_legacy(-1.5)
+
+        assert result == -1500000
+
+    def test_utils_importers_reward_amount_legacy_rounding(self):
+        """Test _reward_amount_legacy rounding behavior."""
+        result = _reward_amount_legacy(1.234567)
+
+        # Should first round to 2 decimal places (1.23), then multiply
+        assert result == 1230000
+
+    def test_utils_importers_reward_amount_legacy_none(self):
+        """Test _reward_amount_legacy with None."""
+        result = _reward_amount_legacy(None)
 
         assert result == 0
 
@@ -1053,3 +1562,122 @@ class TestUtilsImportersPublicFunctions:
         mock_create_superusers.assert_called_once_with()
 
         assert result is False
+
+    @pytest.mark.django_db
+    def test_utils_importers_import_from_csv_empty_dataframes(self, mocker):
+        """Test import_from_csv with empty DataFrames."""
+        # Mock empty database check
+        mock_social_platforms = mocker.MagicMock()
+        mock_social_platforms.__len__ = mocker.MagicMock(return_value=0)
+        mocker.patch(
+            "utils.importers.SocialPlatform.objects.all",
+            return_value=mock_social_platforms,
+        )
+
+        # Mock empty DataFrames with proper columns
+        empty_df = pd.DataFrame(columns=CONTRIBUTION_CSV_COLUMNS)
+        mocker.patch("utils.importers._dataframe_from_csv", return_value=empty_df)
+
+        # Mock basic dependencies
+        mocker.patch("utils.importers._social_platforms")
+        mocker.patch("utils.importers.SocialPlatform.objects.bulk_create")
+        mocker.patch("utils.importers._parse_addresses", return_value=[])
+        mocker.patch("utils.importers.Contributor.objects.bulk_create")
+        mocker.patch("utils.importers.Handle.objects.from_address_and_full_handle")
+
+        # Mock cycle operations to handle empty data
+        mocker.patch("utils.importers.Cycle.objects.bulk_create")
+        mocker.patch("utils.importers.Cycle.objects.latest")
+        mocker.patch("utils.importers._check_current_cycle")
+        mocker.patch("utils.importers._import_rewards")
+        mocker.patch("utils.importers._create_active_rewards")
+        mocker.patch("utils.importers._import_contributions")
+        mocker.patch("utils.importers._create_superusers")
+
+        result = import_from_csv("empty.csv", "empty_legacy.csv")
+
+        assert result is False
+
+    @pytest.mark.django_db
+    def test_utils_importers_import_from_csv_missing_files(self, mocker):
+        """Test import_from_csv when CSV files are missing."""
+        # Mock empty database check
+        mock_social_platforms = mocker.MagicMock()
+        mock_social_platforms.__len__ = mocker.MagicMock(return_value=0)
+        mocker.patch(
+            "utils.importers.SocialPlatform.objects.all",
+            return_value=mock_social_platforms,
+        )
+
+        # Mock _dataframe_from_csv to return None (files not found)
+        mocker.patch("utils.importers._dataframe_from_csv", return_value=None)
+
+        # Mock basic dependencies
+        mocker.patch("utils.importers._social_platforms")
+        mocker.patch("utils.importers.SocialPlatform.objects.bulk_create")
+        mocker.patch("utils.importers._parse_addresses", return_value=[])
+        mocker.patch("utils.importers.Contributor.objects.bulk_create")
+        mocker.patch("utils.importers.Handle.objects.from_address_and_full_handle")
+
+        # Mock empty DataFrames for cycle operations
+        empty_cycles_df = pd.DataFrame(columns=["cycle_start", "cycle_end"])
+        mocker.patch("utils.importers.pd.concat", return_value=empty_cycles_df)
+
+        mocker.patch("utils.importers.Cycle.objects.bulk_create")
+        mocker.patch("utils.importers.Cycle.objects.latest")
+        mocker.patch("utils.importers._check_current_cycle")
+        mocker.patch("utils.importers._import_rewards")
+        mocker.patch("utils.importers._create_active_rewards")
+        mocker.patch("utils.importers._import_contributions")
+        mocker.patch("utils.importers._create_superusers")
+
+        result = import_from_csv("nonexistent.csv", "nonexistent_legacy.csv")
+
+        assert result is False
+
+    @pytest.mark.django_db
+    def test_utils_importers_import_from_csv_no_addresses(self, mocker):
+        """Test import_from_csv when no addresses are found."""
+        # Mock empty database check
+        mock_social_platforms = mocker.MagicMock()
+        mock_social_platforms.__len__ = mocker.MagicMock(return_value=0)
+        mocker.patch(
+            "utils.importers.SocialPlatform.objects.all",
+            return_value=mock_social_platforms,
+        )
+
+        # Mock no addresses
+        mocker.patch("utils.importers._parse_addresses", return_value=[])
+
+        # Mock basic dependencies
+        mocker.patch("utils.importers._social_platforms")
+        mocker.patch("utils.importers.SocialPlatform.objects.bulk_create")
+        mocker.patch("utils.importers.Contributor.objects.bulk_create")
+        mocker.patch("utils.importers.Handle.objects.from_address_and_full_handle")
+
+        # Mock DataFrames
+        mock_data = pd.DataFrame(
+            {
+                "cycle_start": ["2023-01-01"],
+                "cycle_end": ["2023-01-31"],
+                "type": ["[F] Feature"],
+                "level": [1],
+                "reward": [1000],
+            }
+        )
+        mocker.patch("utils.importers._dataframe_from_csv", return_value=mock_data)
+
+        mocker.patch("utils.importers.Cycle.objects.bulk_create")
+        mocker.patch("utils.importers.Cycle.objects.latest")
+        mocker.patch("utils.importers._check_current_cycle")
+        mocker.patch("utils.importers._import_rewards")
+        mocker.patch("utils.importers._create_active_rewards")
+        mocker.patch("utils.importers._import_contributions")
+        mocker.patch("utils.importers._create_superusers")
+
+        result = import_from_csv("contributions.csv", "legacy.csv")
+
+        # Should still complete successfully
+        assert result is False
+        # Contributor.objects.bulk_create should be called with empty generator
+        # (though it won't create anything)

@@ -1447,8 +1447,8 @@ class TestDbIssueListView:
         queryset = view.get_queryset()
 
         assert queryset.count() == 3
-        assert queryset.first() == issue2
-        assert queryset.last() == issue1
+        assert queryset.first() == issue1
+        assert queryset.last() == issue2
 
 
 @pytest.mark.django_db

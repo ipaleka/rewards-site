@@ -13,6 +13,7 @@ rewardsweb/.env
 rewardsweb/*.log
 rewardsweb/fixtures/*.csv
 rewardsweb/fixtures/*.xlsx
+rewardsweb/fixtures/*.pkl
 rewardsweb/.coverage
 rewardsweb/core/static/css/tailwindcss
 rewardsweb/rewardsbot/.env

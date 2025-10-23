@@ -288,10 +288,19 @@
   :show-inheritance:
 
 
-:mod:`utils.excel_to_database` -- Website's utility functions for importing data from the old system
-----------------------------------------------------------------------------------------------------
+:mod:`utils.importers` -- Website's utility functions for importing data from the old system
+--------------------------------------------------------------------------------------------
 
-.. automodule:: utils.excel_to_database
+.. automodule:: utils.importers
+  :members:
+  :undoc-members:
+  :show-inheritance:
+
+
+:mod:`utils.mappers` -- Website's utility functions for mapping existing GitHub issues
+--------------------------------------------------------------------------------------
+
+.. automodule:: utils.mappers
   :members:
   :undoc-members:
   :show-inheritance:

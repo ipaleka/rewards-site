@@ -1,4 +1,4 @@
-"""Django management command for NFT purchases data retrieving."""
+"""Django management command for importing and mapping existing data to database."""
 
 import time
 from pathlib import Path
@@ -6,8 +6,9 @@ from pathlib import Path
 from django.conf import settings
 from django.core.management.base import BaseCommand
 
-from utils.excel_to_database import convert_and_clean_excel
-from utils.excel_to_database import import_from_csv
+from utils.helpers import convert_and_clean_excel
+from utils.importers import import_from_csv
+from utils.mappers import map_github_issues
 
 
 class Command(BaseCommand):
@@ -48,9 +49,16 @@ class Command(BaseCommand):
             "CSV successfully exported into %s file!" % (output_file.name)
         )
 
-        response = import_from_csv(output_file, legacy_file, github_token=github_token)
+        response = import_from_csv(output_file, legacy_file)
         if not response:
             self.stdout.write("Database successfully recreated!")
+
+        else:
+            self.stdout.write(response)
+
+        response = map_github_issues(github_token=github_token)
+        if not response:
+            self.stdout.write("Issues successfully mapped!")
 
         else:
             self.stdout.write(response)

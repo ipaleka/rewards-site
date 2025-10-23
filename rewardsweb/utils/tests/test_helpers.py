@@ -7,6 +7,7 @@ from django.core.exceptions import ImproperlyConfigured
 
 from utils.constants.core import MISSING_ENVIRONMENT_VARIABLE_ERROR
 from utils.helpers import (
+    convert_and_clean_excel,
     get_env_variable,
     humanize_contributions,
     parse_full_handle,
@@ -16,6 +17,43 @@ from utils.helpers import (
 
 class TestUtilsHelpersFunctions:
     """Testing class for :py:mod:`utils.helpers` functions."""
+
+    # # convert_and_clean_excel
+    def test_utils_importers_convert_and_clean_excel(self, mocker):
+        # Mock the entire pandas read operation chain
+        mock_df = mocker.MagicMock()
+
+        # Mock pd.read_excel and all subsequent operations
+        mocker.patch("utils.importers.pd.read_excel").return_value.iloc.return_value = (
+            mock_df
+        )
+        mock_df.fillna.return_value.infer_objects.return_value = mock_df
+        mock_df.drop.return_value = mock_df
+        mock_df.__getitem__.return_value = mock_df
+        mock_df.map.return_value = mock_df
+        mock_df.loc.__getitem__.return_value = mock_df
+
+        # Mock the DataFrame slicing operations
+        mock_df.iloc.__getitem__.return_value = mock_df
+
+        # Mock pd.concat to avoid real DataFrame operations
+        mocker.patch("utils.importers.pd.concat", return_value=mock_df)
+
+        # Mock Path operations
+        mocker.patch(
+            "utils.importers.Path"
+        ).return_value.resolve.return_value.parent.parent.__truediv__.return_value.to_csv = (
+            mocker.MagicMock()
+        )
+
+        # Mock the final to_csv calls
+        mock_df.to_csv = mocker.MagicMock()
+        mock_df.iloc.__getitem__.return_value.to_csv = mocker.MagicMock()
+
+        convert_and_clean_excel("input.xlsx", "output.csv", "legacy.csv")
+
+        # Verify the function completed
+        assert mock_df.to_csv.called
 
     # # get_env_variable
     def test_utils_helpers_get_env_variable_access_and_returns_os_environ_key(self):

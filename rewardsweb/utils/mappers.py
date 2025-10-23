@@ -3,6 +3,7 @@
 import pickle
 import re
 from collections import defaultdict
+from dataclasses import dataclass
 from datetime import timedelta
 from pathlib import Path
 
@@ -30,47 +31,16 @@ from utils.issues import fetch_issues
 
 
 ## HELPERS
+
+from typing import List, Any
+
+
+@dataclass
 class CustomIssue:
-    """A wrapper class for PyGithub Issue objects with custom attributes.
+    """A simple data class for issues and comments."""
 
-    This class extends PyGithub Issue objects by allowing additional custom
-    attributes while maintaining full compatibility with the original issue
-    interface through attribute delegation.
-
-    :param github_issue: original PyGithub Issue object to wrap
-    :type github_issue: :class:`github.Issue.Issue`
-    :param comments: optional comments to add to the issue
-    :type comments: list
-    """
-
-    def __init__(self, github_issue, comments=None):
-        """Initialize the CustomIssue with original issue and custom attributes.
-
-        :param github_issue: The original PyGithub Issue object
-        :type github_issue: :class:`github.Issue.Issue`
-        :param comments: Custom attribute to add to the issue
-        :type comments: Any, optional
-        """
-        self.github_issue = github_issue
-        self.comments = comments
-
-        # Delegate all other attributes to the original issue
-        self.__dict__.update(github_issue.__dict__)
-
-    def __getattr__(self, name):
-        """Delegate attribute access to the original github issue.
-
-        This method is called when an attribute is not found in the
-        CustomIssue instance. It delegates the lookup to the wrapped
-        github_issue object.
-
-        :param name: Name of the attribute to access
-        :type name: str
-        :return: The attribute value from the original issue
-        :rtype: Any
-        :raises AttributeError: If the attribute doesn't exist in the original issue
-        """
-        return getattr(self.github_issue, name)
+    issue: Any
+    comments: List[Any]
 
 
 def _build_reward_mapping():
@@ -166,9 +136,9 @@ def _fetch_and_categorize_issues(github_token, refetch=False):
     :return: collection of categorized GitHub issue instances
     :rtype: dict
     """
-    github_issues = _load_saved_issues()
+    github_issues = _load_saved_issues() if not refetch else defaultdict(list)
 
-    if not github_token or (github_issues and not refetch):
+    if not github_token:
         return github_issues
 
     issue = None
@@ -182,7 +152,9 @@ def _fetch_and_categorize_issues(github_token, refetch=False):
         if issue.pull_request:
             continue
 
-        comments = list(issue.get_comments()) if issue.comments else []
+        comments = (
+            [comment.body for comment in issue.get_comments()] if issue.comments else []
+        )
         custom_issue = CustomIssue(issue, comments)
 
         github_issues[issue.state].append(custom_issue)
@@ -479,7 +451,9 @@ def _map_closed_issues(github_issues):
         return True
 
     # Create a mapping from GitHub issue number to issue object for quick lookup
-    github_issues_by_number = {issue.number: issue for issue in github_issues}
+    github_issues_by_number = {
+        issue.issue.number: issue.issue for issue in github_issues
+    }
 
     # Collect all assignments in memory first
     issue_assignments = set()
@@ -496,14 +470,14 @@ def _map_closed_issues(github_issues):
             issue_assignments.add((issue_number, contribution.id))
             continue  # Skip body matching if we found a direct GitHub issue match
 
-        # Method 2: Search through all GitHub issues for this contribution's URL in their bodies
+        # Method 2: Search through issues for this contribution's URL in their bodies
         for github_issue in github_issues:
             if (
-                github_issue.body
-                and contribution.url
-                and contribution.url in github_issue.body
+                contribution.url
+                and contribution.url in github_issue.issue.body
+                or "" + "\n".join(github_issue.comments)
             ):
-                issue_assignments.add((github_issue.number, contribution.id))
+                issue_assignments.add((github_issue.issue.number, contribution.id))
                 break  # One issue per contribution (first match found)
 
     # Process all assignments in bulk
@@ -558,33 +532,34 @@ def _map_open_issues(github_issues):
     # Process each open issue
     for github_issue in github_issues:
         if (
-            not (github_issue.body or github_issue.comments)
-            or "[Internal]" in github_issue.title
+            not (github_issue.issue.body or github_issue.comments)
+            or "[Internal]" in github_issue.issue.title
         ):
             continue
 
-        search_text = github_issue.body or "" + "\n".join(github_issue.comments)
+        number = github_issue.issue.number
+        search_text = github_issue.issue.body or "" + "\n".join(github_issue.comments)
 
         # Identify contributor from issue user or text
         contributor_id = _identify_contributor_from_user(
-            github_issue.user.login, contributors
+            github_issue.issue.user.login, contributors
         )
         if not contributor_id:
             contributor_id = _identify_contributor_from_text(search_text, contributors)
             if not contributor_id:
-                print("No contributor for GitHub issue", github_issue.number)
+                print("No contributor for GitHub issue", number)
                 continue  # Skip if no contributor identified
 
         # Identify platform from issue body
         platform_id = _identify_platform_from_text(search_text, platforms)
         if not platform_id:
-            print("No platform for GitHub issue", github_issue.number)
+            print("No platform for GitHub issue", number)
             continue  # Skip if no platform identified
 
         # Identify reward based on issue labels
-        reward = _identify_reward_from_labels(github_issue.labels, reward_mapping)
+        reward = _identify_reward_from_labels(github_issue.issue.labels, reward_mapping)
         if not reward:
-            print("No reward for GitHub issue", github_issue.number)
+            print("No reward for GitHub issue", number)
             continue  # Skip if no reward identified
 
         # Extract URL from issue body
@@ -592,14 +567,10 @@ def _map_open_issues(github_issues):
 
         # Get or create issue
         try:
-            issue = get_object_or_404(
-                Issue, number=github_issue.number, status=IssueStatus.CREATED
-            )
+            issue = get_object_or_404(Issue, number=number, status=IssueStatus.CREATED)
 
         except Http404:
-            issue = Issue.objects.create(
-                number=github_issue.number, status=IssueStatus.CREATED
-            )
+            issue = Issue.objects.create(number=number, status=IssueStatus.CREATED)
 
         # Create contribution
         Contribution.objects.create(

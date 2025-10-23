@@ -42,6 +42,6 @@ DEFAULT_USER_PASSWORD="password1,password2"
 - [x] Create API routes
 - [x] Create methods for managing http requests and bind them to API routes
 - [x] Automated documentation building and publishing on Read The Docs platform
-- [ ] Create methods for CRUD operations
+- [x] Create methods for CRUD operations
 - [ ] Create deploy workflow
 - [ ] Setup a server and deploy the application

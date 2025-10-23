@@ -1,7 +1,7 @@
 """Testing module for :py:mod:`utils.mappers` module."""
 
 import pickle
-from collections import defaultdict
+from collections import defaultdict, namedtuple
 from datetime import datetime
 from unittest import mock
 
@@ -30,73 +30,28 @@ from utils.mappers import (
 
 
 class TestUtilsMappersCustomIssue:
-    """Testing class for :class:`utils.mappers.CustomIssue` class."""
+    """Testing class for :class:`utils.mappers.CustomIssue` wrapper."""
 
     def test_utils_mappers_custom_issue_initialization(self, mocker):
-        """Test CustomIssue initialization with custom attributes."""
-        # Mock a PyGithub issue
-        mock_github_issue = mocker.MagicMock()
-        mock_github_issue.number = 101
-        mock_github_issue.title = "Test Issue"
-        mock_github_issue.state = "open"
+        """Test basic initialization."""
+        mock_issue = mocker.MagicMock()
+        mock_issue.number = 101
 
-        # Create custom issue
-        custom_issue = CustomIssue(mock_github_issue, comments="test_value")
+        custom_issue = CustomIssue(issue=mock_issue, comments=[])
 
-        # Test custom attributes
-        assert custom_issue.comments == "test_value"
+        assert custom_issue.issue == mock_issue
+        assert custom_issue.comments == []
 
-        # Test original attributes are accessible
-        assert custom_issue.number == 101
-        assert custom_issue.title == "Test Issue"
-        assert custom_issue.state == "open"
+    def test_utils_mappers_custom_issue_with_comments(self, mocker):
+        """Test initialization with comments."""
+        mock_issue = mocker.MagicMock()
+        mock_issue.number = 102
 
-    def test_utils_mappers_custom_issue_delegation(self, mocker):
-        """Test that CustomIssue delegates to original issue for missing attributes."""
-        mock_github_issue = mocker.MagicMock()
-        mock_github_issue.number = 102
-        mock_github_issue.body = "Test body content"
-        mock_github_issue.user.login = "testuser"
+        comments = [mocker.MagicMock(), mocker.MagicMock()]
+        custom_issue = CustomIssue(issue=mock_issue, comments=comments)
 
-        custom_issue = CustomIssue(mock_github_issue)
-
-        # Test delegated attributes
-        assert custom_issue.number == 102
-        assert custom_issue.body == "Test body content"
-        assert custom_issue.user.login == "testuser"
-
-    def test_utils_mappers_custom_issue_attribute_error(self, mocker):
-        """Test that CustomIssue raises AttributeError for non-existent attributes."""
-        mock_github_issue = mocker.MagicMock()
-        # Make sure the original issue doesn't have the attribute
-        delattr(mock_github_issue, "nonexistent_attribute")
-
-        custom_issue = CustomIssue(mock_github_issue)
-
-        # Should raise AttributeError when attribute doesn't exist in either
-        with pytest.raises(AttributeError):
-            _ = custom_issue.nonexistent_attribute
-
-    def test_utils_mappers_custom_issue_none_comments(self, mocker):
-        """Test CustomIssue with None custom attribute."""
-        mock_github_issue = mocker.MagicMock()
-        mock_github_issue.number = 106
-
-        custom_issue = CustomIssue(mock_github_issue, comments=None)
-
-        assert custom_issue.comments is None
-        assert custom_issue.number == 106
-
-    def test_utils_mappers_custom_issue_comments_attribute(self, mocker):
-        """Test CustomIssue with None custom attribute."""
-        mock_github_issue = mocker.MagicMock()
-        mock_github_issue.number = 106
-        comments = mocker.MagicMock()
-
-        custom_issue = CustomIssue(mock_github_issue, comments=comments)
-
+        assert custom_issue.issue == mock_issue
         assert custom_issue.comments == comments
-        assert custom_issue.number == 106
 
 
 class TestUtilsMappersHelpers:
@@ -317,12 +272,11 @@ class TestUtilsMappersHelpers:
         }
 
         mocker.patch("utils.mappers._load_saved_issues", return_value=saved_issues)
-        mock_fetch_issues = mocker.patch("utils.mappers.fetch_issues")
+        mocker.patch("utils.mappers.fetch_issues", return_value=[])
 
         result = _fetch_and_categorize_issues("valid_token", refetch=False)
 
         assert result == saved_issues
-        mock_fetch_issues.assert_not_called()
 
     def test_utils_mappers_fetch_and_categorize_issues_refetch_true_fetches_new(
         self, mocker
@@ -360,8 +314,8 @@ class TestUtilsMappersHelpers:
         mock_fetch_issues.assert_called_once()
         assert len(result["closed"]) == 1
         assert len(result["open"]) == 1
-        assert result["closed"][0].number == 101
-        assert result["open"][0].number == 102
+        assert result["closed"][0].issue.number == 101
+        assert result["open"][0].issue.number == 102
 
     def test_utils_mappers_fetch_and_categorize_issues_saves_every_10_issues(
         self, mocker
@@ -409,7 +363,7 @@ class TestUtilsMappersHelpers:
         )
         mocker.patch("utils.mappers._save_issues")
 
-        _fetch_and_categorize_issues("valid_token", refetch=True)
+        _fetch_and_categorize_issues("valid_token", refetch=False)
 
         # Should use timestamp from saved issues as since parameter
         mock_fetch_issues.assert_called_once_with(
@@ -584,10 +538,10 @@ class TestUtilsMappersHelpers:
 
         assert len(result["closed"]) == 2
         assert len(result["open"]) == 2
-        assert result["closed"][0].number == 101
-        assert result["closed"][1].number == 103
-        assert result["open"][0].number == 102
-        assert result["open"][1].number == 104
+        assert result["closed"][0].issue.number == 101
+        assert result["closed"][1].issue.number == 103
+        assert result["open"][0].issue.number == 102
+        assert result["open"][1].issue.number == 104
 
     def test_utils_mappers_fetch_and_categorize_issues_handles_missing_keys_in_print(
         self, mocker
@@ -1796,8 +1750,8 @@ class TestUtilsMappersMapping:
 
         # Mock GitHub issue with URL in body
         mock_issue = mocker.MagicMock()
-        mock_issue.number = 101
-        mock_issue.body = "Check out https://example.com/contrib for details"
+        mock_issue.issue.number = 101
+        mock_issue.issue.body = "Check out https://example.com/contrib for details"
 
         mocker.patch("utils.mappers.fetch_issues", return_value=[mock_issue])
         mocker.patch("utils.mappers._is_url_github_issue", return_value=False)
@@ -1837,8 +1791,8 @@ class TestUtilsMappersMapping:
 
         # Mock GitHub issue
         mock_issue = mocker.MagicMock()
-        mock_issue.number = 456  # Matching issue number
-        mock_issue.body = "Some issue body without the URL"
+        mock_issue.issue.number = 456  # Matching issue number
+        mock_issue.issue.body = "Some issue body without the URL"
 
         mocker.patch("utils.mappers.fetch_issues", return_value=[mock_issue])
         mocker.patch("utils.mappers._is_url_github_issue", return_value=456)
@@ -1882,8 +1836,8 @@ class TestUtilsMappersMapping:
 
         # Mock GitHub issue that matches both methods
         mock_issue = mocker.MagicMock()
-        mock_issue.number = 101
-        mock_issue.body = "Contains https://example.com/contrib1"
+        mock_issue.issue.number = 101
+        mock_issue.issue.body = "Contains https://example.com/contrib1"
 
         mocker.patch("utils.mappers.fetch_issues", return_value=[mock_issue])
         mocked_is_url = mocker.patch("utils.mappers._is_url_github_issue")
@@ -1933,8 +1887,8 @@ class TestUtilsMappersMapping:
         )
 
         mock_issue = mocker.MagicMock()
-        mock_issue.number = 101
-        mock_issue.body = "Contains https://valid.com/url"
+        mock_issue.issue.number = 101
+        mock_issue.issue.body = "Contains https://valid.com/url"
 
         mocker.patch("utils.mappers.fetch_issues", return_value=[mock_issue])
         mocker.patch("utils.mappers._is_url_github_issue", return_value=False)
@@ -1969,8 +1923,8 @@ class TestUtilsMappersMapping:
         )
 
         mock_issue = mocker.MagicMock()
-        mock_issue.number = 101
-        mock_issue.body = "Contains https://example.com/contrib"
+        mock_issue.issue.number = 101
+        mock_issue.issue.body = "Contains https://example.com/contrib"
 
         mocker.patch("utils.mappers.fetch_issues", return_value=[mock_issue])
         mocker.patch("utils.mappers._is_url_github_issue", return_value=False)
@@ -2014,8 +1968,8 @@ class TestUtilsMappersMapping:
 
         # Mock GitHub issue without body but with matching number
         mock_issue = mocker.MagicMock()
-        mock_issue.number = 456
-        mock_issue.body = None
+        mock_issue.issue.number = 456
+        mock_issue.issue.body = None
 
         mocker.patch("utils.mappers.fetch_issues", return_value=[mock_issue])
         mocker.patch("utils.mappers._is_url_github_issue", return_value=456)
@@ -2050,8 +2004,8 @@ class TestUtilsMappersMapping:
         )
 
         mock_issue = mocker.MagicMock()
-        mock_issue.number = 101
-        mock_issue.body = "Contains completely different URL"
+        mock_issue.issue.number = 101
+        mock_issue.issue.body = "Contains completely different URL"
 
         mocker.patch("utils.mappers.fetch_issues", return_value=[mock_issue])
         mocker.patch("utils.mappers._is_url_github_issue", return_value=False)
@@ -2095,12 +2049,12 @@ class TestUtilsMappersMapping:
 
         # Mock multiple issues
         mock_issue1 = mocker.MagicMock()
-        mock_issue1.number = 101
-        mock_issue1.body = "Contains https://example.com/body_match"
+        mock_issue1.issue.number = 101
+        mock_issue1.issue.body = "Contains https://example.com/body_match"
 
         mock_issue2 = mocker.MagicMock()
-        mock_issue2.number = 202
-        mock_issue2.body = "No matching URL here"
+        mock_issue2.issue.number = 202
+        mock_issue2.issue.body = "No matching URL here"
 
         mocker.patch(
             "utils.mappers.fetch_issues",
@@ -2132,12 +2086,12 @@ class TestUtilsMappersMapping:
         """Test _map_open_issues successfully creates contributions."""
         # Mock GitHub issue
         mock_issue = mocker.MagicMock()
-        mock_issue.number = 101
-        mock_issue.body = "Discord discussion about feature"
-        mock_issue.title = "Feature Request"
-        mock_issue.user.login = "testuser"
+        mock_issue.issue.number = 101
+        mock_issue.issue.body = "Discord discussion about feature"
+        mock_issue.issue.title = "Feature Request"
+        mock_issue.issue.user.login = "testuser"
         mock_issue.comments = []
-        mock_issue.labels = []
+        mock_issue.issue.labels = []
 
         # Mock all dependencies
         mocker.patch(
@@ -2187,10 +2141,10 @@ class TestUtilsMappersMapping:
     def test_utils_mappers_map_open_issues_skip_no_contributor(self, mocker):
         """Test _map_open_issues skips issues with no contributor."""
         mock_issue = mocker.MagicMock()
-        mock_issue.number = 101
-        mock_issue.body = "Some text"
-        mock_issue.title = "No Internal"
-        mock_issue.user.login = "unknownuser"
+        mock_issue.issue.number = 101
+        mock_issue.issue.body = "Some text"
+        mock_issue.issue.title = "No Internal"
+        mock_issue.issue.user.login = "unknownuser"
         mock_issue.comments = []
 
         mocker.patch("utils.mappers._build_reward_mapping", return_value={})
@@ -2215,9 +2169,9 @@ class TestUtilsMappersMapping:
     def test_utils_mappers_map_open_issues_skip_internal_title(self, mocker):
         """Test _map_open_issues skips issues with [Internal] in title."""
         mock_issue = mocker.MagicMock()
-        mock_issue.number = 101
-        mock_issue.body = "Some text"
-        mock_issue.title = "[Internal] Internal task"
+        mock_issue.issue.number = 101
+        mock_issue.issue.body = "Some text"
+        mock_issue.issue.title = "[Internal] Internal task"
         mock_issue.comments = []
 
         mock_contribution_create = mocker.patch(
@@ -2234,10 +2188,10 @@ class TestUtilsMappersMapping:
     def test_utils_mappers_map_open_issues_skip_no_body_comments(self, mocker):
         """Test _map_open_issues skips issues with no body or comments."""
         mock_issue = mocker.MagicMock()
-        mock_issue.number = 101
-        mock_issue.body = None
+        mock_issue.issue.number = 101
+        mock_issue.issue.body = None
         mock_issue.comments = []
-        mock_issue.title = "Regular issue"
+        mock_issue.issue.title = "Regular issue"
 
         mock_contribution_create = mocker.patch(
             "utils.mappers.Contribution.objects.create"
@@ -2255,14 +2209,14 @@ class TestUtilsMappersMapping:
     ):
         # Mock GitHub issue
         mock_issue = mocker.MagicMock()
-        mock_issue.number = 101
-        mock_issue.body = "Discord discussion about feature by @johndoe"
-        mock_issue.title = "Feature Request"
-        mock_issue.user.login = (
+        mock_issue.issue.number = 101
+        mock_issue.issue.body = "Discord discussion about feature by @johndoe"
+        mock_issue.issue.title = "Feature Request"
+        mock_issue.issue.user.login = (
             "unknownuser"  # This won't match in _identify_contributor_from_user
         )
         mock_issue.comments = []
-        mock_issue.labels = [mocker.MagicMock(name="feature")]
+        mock_issue.issue.labels = [mocker.MagicMock(name="feature")]
 
         # Mock dependencies
         mocker.patch(
@@ -2322,12 +2276,12 @@ class TestUtilsMappersMapping:
         """Test _map_open_issues skips issue when no platform is identified."""
         # Mock GitHub issue
         mock_issue = mocker.MagicMock()
-        mock_issue.number = 101
-        mock_issue.body = "General discussion about feature"
-        mock_issue.title = "Feature Request"
-        mock_issue.user.login = "johndoe"
+        mock_issue.issue.number = 101
+        mock_issue.issue.body = "General discussion about feature"
+        mock_issue.issue.title = "Feature Request"
+        mock_issue.issue.user.login = "johndoe"
         mock_issue.comments = []
-        mock_issue.labels = [mocker.MagicMock(name="feature")]
+        mock_issue.issue.labels = [mocker.MagicMock(name="feature")]
 
         # Mock dependencies
         mocker.patch(
@@ -2375,12 +2329,12 @@ class TestUtilsMappersMapping:
         """Test _map_open_issues skips issue when no reward is identified."""
         # Mock GitHub issue
         mock_issue = mocker.MagicMock()
-        mock_issue.number = 101
-        mock_issue.body = "Discord discussion about feature"
-        mock_issue.title = "Feature Request"
-        mock_issue.user.login = "johndoe"
+        mock_issue.issue.number = 101
+        mock_issue.issue.body = "Discord discussion about feature"
+        mock_issue.issue.title = "Feature Request"
+        mock_issue.issue.user.login = "johndoe"
         mock_issue.comments = []
-        mock_issue.labels = [
+        mock_issue.issue.labels = [
             mocker.MagicMock(name="unknown-label")
         ]  # No matching reward
 

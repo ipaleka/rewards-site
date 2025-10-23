@@ -1,0 +1,15 @@
+{% load static %}
+{% block extra_head %}
+<!DOCTYPE html>
+  <link rel="stylesheet" href="{% static 'css/bundle.css' %}">
+
+{% endblock %}
+
+<div class="card bg-base-100 shadow-sm mt-6">
+  <div class="card-body">
+    <h2 class="card-title text-xl">Login with Algorand Wallet</h2>
+      {% csrf_token %}
+      <div id="app"></div>
+      <script type="module" src="{% static 'js/bundle.js' %}"></script>
+  </div>
+</div>

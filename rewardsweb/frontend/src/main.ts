@@ -6,9 +6,12 @@ import { WalletComponent } from './WalletComponent'
 const walletManager = new WalletManager({
   wallets: [
     WalletId.PERA,
-    WalletId.DEFLY
+    WalletId.DEFLY,
+    WalletId.EXODUS, // Exodus wallet
+    WalletId.LUTE, // Lute wallet
+    WalletId.KIBISIS, // Kibisis wallet
   ],
-  defaultNetwork: NetworkId.TESTNET  // Start with Testnet for safety
+  defaultNetwork: NetworkId.MAINNET  // Start with Testnet for safety
 })
 
 const appDiv = document.querySelector<HTMLDivElement>('#app')!

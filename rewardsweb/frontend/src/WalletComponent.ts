@@ -1,14 +1,9 @@
-import * as ed from '@noble/ed25519'
 import {
   BaseWallet,
-  ScopeType,
-  SignDataError,
-  Siwa,
   WalletId,
   WalletManager
 } from '@txnlab/use-wallet'
 import algosdk from 'algosdk'
-import { canonify } from 'canonify'
 
 export class WalletComponent {
   wallet: BaseWallet
@@ -21,12 +16,10 @@ export class WalletComponent {
     this.wallet = wallet
     this.manager = manager
     this.element = document.createElement('div')
-
     this.unsubscribe = wallet.subscribe((state) => {
       console.info('[App] State change:', state)
       this.render()
     })
-
     this.render()
     this.addEventListeners()
   }
@@ -41,14 +34,12 @@ export class WalletComponent {
 
     try {
       const activeAddress = this.wallet.activeAccount?.address
-
       if (!activeAddress) {
         throw new Error('[App] No active account')
       }
 
       const atc = new algosdk.AtomicTransactionComposer()
       const suggestedParams = await this.manager.algodClient.getTransactionParams().do()
-
       const transaction = algosdk.makePaymentTxnWithSuggestedParamsFromObject({
         sender: activeAddress,
         receiver: activeAddress,
@@ -57,14 +48,12 @@ export class WalletComponent {
       })
 
       atc.addTransaction({ txn: transaction, signer: this.wallet.transactionSigner })
-
       console.info(`[App] Sending transaction...`, transaction)
 
       txnButton.disabled = true
       txnButton.textContent = 'Sending Transaction...'
 
       const result = await atc.execute(this.manager.algodClient, 4)
-
       console.info(`[App] ✅ Successfully sent transaction!`, {
         confirmedRound: result.confirmedRound,
         txIDs: result.txIDs
@@ -79,38 +68,104 @@ export class WalletComponent {
 
   auth = async () => {
     const activeAddress = this.wallet.activeAccount?.address
-    if (!activeAddress) {
-      throw new Error('[App] No active account')
+    if (!activeAddress || !algosdk.isValidAddress(activeAddress)) {
+      throw new Error(`[App] Invalid or missing address: ${activeAddress || 'undefined'}`)
     }
+    console.info(`[App] Authenticating with address: ${activeAddress}`)
     try {
-      const siwaRequest: Siwa = {
-        domain: location.host,
-        chain_id: '283',
-        account_address: activeAddress,
-        type: 'ed25519',
-        uri: location.origin,
-        version: '1',
-        'issued-at': new Date().toISOString()
+      // Get CSRF token
+      const getCsrfToken = () => {
+        const name = 'csrftoken'
+        const cookieValue = document.cookie.match('(^|;)\\s*' + name + '\\s*=\\s*([^;]+)')?.pop() || ''
+        return cookieValue || (document.querySelector('input[name="csrfmiddlewaretoken"]') as HTMLInputElement)?.value || ''
       }
-      const dataString = canonify(siwaRequest)
-      if (!dataString) throw Error('Invalid JSON')
-      const data = btoa(dataString)
-      const metadata = { scope: ScopeType.AUTH, encoding: 'base64' }
-      const resp = await this.wallet.signData(data, metadata)
-      // verify signature
-      const enc = new TextEncoder()
-      const clientDataJsonHash = await crypto.subtle.digest('SHA-256', enc.encode(dataString))
-      const authenticatorDataHash = await crypto.subtle.digest('SHA-256', resp.authenticatorData)
-      const toSign = new Uint8Array(64)
-      toSign.set(new Uint8Array(clientDataJsonHash), 0)
-      toSign.set(new Uint8Array(authenticatorDataHash), 32)
-      const pubKey = algosdk.Address.fromString(activeAddress).publicKey
-      if (!(await ed.verifyAsync(resp.signature, toSign, pubKey))) {
-        throw new SignDataError('Verification Failed', 4300)
+      const headers = {
+        'Content-Type': 'application/json',
+        'X-CSRFToken': getCsrfToken()
       }
-      console.info(`[App] ✅ Successfully authenticated!`)
-    } catch (error) {
+
+      // Fetch nonce
+      console.info('[App] Fetching nonce for address:', activeAddress)
+      const nonceResponse = await fetch('/api/wallet/nonce/', {
+        method: 'POST',
+        headers,
+        body: JSON.stringify({ address: activeAddress })
+      })
+      const nonceData = await nonceResponse.json()
+      if (nonceData.error) {
+        throw new Error(`[App] Failed to fetch nonce: ${nonceData.error}`)
+      }
+      const nonce = nonceData.nonce
+      console.info('[App] Received nonce:', nonce)
+
+      // Create a transaction with SIWA-prefixed note
+      const message = `SIWA:Login to ASA Stats: ${nonce}`
+      const note = new TextEncoder().encode(message)
+      const suggestedParams = await this.manager.algodClient.getTransactionParams().do()
+      const transaction = algosdk.makePaymentTxnWithSuggestedParamsFromObject({
+        sender: activeAddress,
+        receiver: activeAddress,
+        amount: 0,
+        note,
+        suggestedParams
+      })
+      const encodedTx = algosdk.encodeUnsignedTransaction(transaction)
+      console.info('[App] Client encodedTx:', Array.from(encodedTx))
+      console.info('[App] Client suggestedParams:', {
+        fee: suggestedParams.fee.toString(),
+        firstRound: Number(suggestedParams.firstValid),
+        lastRound: Number(suggestedParams.lastValid),
+        genesisHash: btoa(String.fromCharCode(...suggestedParams.genesisHash)),
+        genesisID: suggestedParams.genesisID
+      })
+      console.info('[App] Signing transaction with note:', message)
+      const signedTxs = await this.wallet.signTransactions([encodedTx])
+
+      // Extract signature
+      if (!signedTxs[0]) {
+        throw new Error('[App] No signed transaction returned')
+      }
+      const signedTx = algosdk.decodeSignedTransaction(signedTxs[0])
+      const signature = signedTx.sig ? Array.from(signedTx.sig) : []
+      console.info('[App] Extracted signature:', signature)
+
+      // Send to verify
+      const genesisHashBase64 = btoa(String.fromCharCode(...suggestedParams.genesisHash))
+      console.info('[App] genesisHashBase64:', genesisHashBase64)
+      const verifyResponse = await fetch('/api/wallet/verify/', {
+        method: 'POST',
+        headers,
+        body: JSON.stringify({
+          address: activeAddress,
+          signature,
+          nonce,
+          note: Array.from(note),
+          suggestedParams: {
+            fee: suggestedParams.fee.toString(),
+            firstRound: Number(suggestedParams.firstValid),
+            lastRound: Number(suggestedParams.lastValid),
+            genesisHash: genesisHashBase64,
+            genesisID: suggestedParams.genesisID
+          }
+        })
+      })
+      const verifyData = await verifyResponse.json()
+      if (!verifyData.success) {
+        throw new Error(`[App] Verification failed: ${verifyData.error}`)
+      }
+
+      console.info(`[App] ✅ Successfully authenticated with ${this.wallet.metadata.name}!`)
+      window.location.href = '/accounts/profile/' // Adjust as needed
+    } catch (error: unknown) {
+      const errorMessage = error instanceof Error ? error.message : String(error)
       console.error('[App] Error signing data:', error)
+      // Display error to user
+      const errorDiv = document.createElement('div')
+      errorDiv.className = 'error-message'
+      errorDiv.style.color = 'red'
+      errorDiv.textContent = errorMessage
+      this.element.appendChild(errorDiv)
+      setTimeout(() => errorDiv.remove(), 5000)
     }
   }
 
@@ -125,6 +180,7 @@ export class WalletComponent {
   getConnectArgs = () => (this.isMagicLink() ? { email: this.magicEmail } : undefined)
 
   render() {
+    console.log(`[WalletComponent] ${this.wallet.metadata.name}: id = ${this.wallet.id}, isActive = ${this.wallet.isActive}, canSignData = ${this.wallet.canSignData}, metadata =`, JSON.stringify(this.wallet.metadata, null, 2));
     this.element.innerHTML = `
       <div class="wallet-group">
         <h4>
@@ -141,11 +197,7 @@ export class WalletComponent {
           ${
             this.wallet.isActive
               ? `<button id="transaction-button" type="button">Send Transaction</button>
-              ${
-                this.wallet.canSignData
-                  ? `<button id="auth-button" type="button">Authenticate</button>`
-                  : ''
-              }`
+                 <button id="auth-button" type="button">Authenticate</button>`
               : `<button id="set-active-button" type="button" ${
                   !this.wallet.isConnected ? 'disabled' : ''
                 }>Set Active</button>`
@@ -223,7 +275,6 @@ export class WalletComponent {
       }
     })
 
-    // Select a new active account
     this.element.addEventListener('change', (e: Event) => {
       const target = e.target as HTMLElement
       if (target.tagName.toLowerCase() === 'select') {
@@ -231,7 +282,6 @@ export class WalletComponent {
       }
     })
 
-    // Update email input on each keystroke
     this.element.addEventListener('input', (e: Event) => {
       const target = e.target as HTMLInputElement
       if (target.id === 'magic-email') {
@@ -242,7 +292,6 @@ export class WalletComponent {
   }
 
   destroy() {
-    // Disconnect the listener on unmount to prevent memory leaks
     if (this.unsubscribe) {
       this.unsubscribe()
     }

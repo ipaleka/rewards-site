@@ -2,20 +2,24 @@ import { defineConfig } from 'vite'
 import { nodePolyfills } from 'vite-plugin-node-polyfills'
 
 export default defineConfig({
+  base: '/static/', // Ensure all assets are prefixed with /static/
   plugins: [nodePolyfills()],
   build: {
     outDir: '../static', // Output to static/ (parent of js/ and css/)
     emptyOutDir: true, // Clear outDir before build
+    manifest: 'manifest.json', // Output manifest.json directly to outDir (static/)
+    minify: 'esbuild', // Default, but explicit
     chunkSizeWarningLimit: 600,
     rollupOptions: {
       output: {
         entryFileNames: 'js/bundle.js', // JS to static/js/bundle.js
+        chunkFileNames: 'assets/[name]-[hash].js',
         assetFileNames: ({ name }) => {
           if (name && name.endsWith('.css')) {
             return 'css/bundle.css'; // CSS to static/css/bundle.css
           }
           return 'assets/[name].[ext]'; // Other assets to static/assets/
-        }
+        },
       }
     }
   }

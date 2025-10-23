@@ -181,7 +181,11 @@ class Contributor(models.Model):
         # Use sorted_handles which will use prefetched data when available
         handles = self.sorted_handles
         if len(handles) > 1:
-            return f"{self.name} ({', '.join(h.handle for h in handles)})"
+            formatted_handles = ", ".join(
+                [f"{h.platform.prefix}{h.handle}" for h in handles]
+            )
+            return f"{self.name} ({formatted_handles})"
+
         return self.name
 
     @cached_property

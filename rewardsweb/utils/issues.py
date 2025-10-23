@@ -7,6 +7,7 @@ from django.conf import settings
 from github import Auth, Github
 
 from utils.bot import message_from_url
+from utils.constants.core import GITHUB_ISSUES_START_DATE
 from utils.constants.ui import MISSING_TOKEN_TEXT
 
 logger = logging.getLogger(__name__)
@@ -43,19 +44,23 @@ def _github_repository(client):
     return client.get_repo(f"{settings.GITHUB_REPO_OWNER}/{settings.GITHUB_REPO_NAME}")
 
 
-def fetch_issues(github_token, state="open"):
+def fetch_issues(github_token, state="all", since=GITHUB_ISSUES_START_DATE):
     """Fetch all GitHub issues with provided `state` from the configured repository.
 
     :param github_token: GitHub authentication token
     :type github_token: str
+    :param since: fetch only issues that have been updated after this date
+    :type since: :class:`datetime.datetime`
     :var auth: GitHub authentication instance
     :type auth: :class:`github.Auth.Token`
     :var client: GitHub client instance
     :type client: :class:`github.Github`
     :var repo: GitHub repository instance
     :type repo: :class:`github.Repository.Repository`
-    :return: list of GitHub issues
-    :rtype: list
+    :var issues: collection of GitHub issue instances
+    :type issues: list
+    :return: collection of GitHub issues
+    :rtype: :class:`github.PaginatedList`
     """
     auth = Auth.Token(github_token)
     client = Github(auth=auth)
@@ -63,7 +68,9 @@ def fetch_issues(github_token, state="open"):
         return []
 
     repo = _github_repository(client)
-    return  [issue for issue in repo.get_issues(state=state) if not issue.pull_request]
+    issues = repo.get_issues(state=state, sort="updated", direction="asc", since=since)
+
+    return issues
 
 
 def close_issue_with_labels(user, issue_number, labels_to_set=None, comment=None):
@@ -190,9 +197,9 @@ def issue_by_number(user, issue_number):
             "title": issue.title,
             "body": issue.body,
             "state": issue.state,
-            "created_at": issue.created_at,  # Keep as datetime object
-            "updated_at": issue.updated_at,  # Keep as datetime object
-            "closed_at": issue.closed_at,  # Keep as datetime object
+            "created_at": issue.created_at,
+            "updated_at": issue.updated_at,
+            "closed_at": issue.closed_at,
             "labels": [label.name for label in issue.labels],
             "assignees": [assignee.login for assignee in issue.assignees],
             "user": issue.user.login if issue.user else None,

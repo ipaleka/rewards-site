@@ -16,6 +16,7 @@ from utils.issues import (
     issue_by_number,
     issue_data_for_contribution,
 )
+from utils.constants.core import GITHUB_ISSUES_START_DATE
 from utils.constants.ui import MISSING_TOKEN_TEXT
 
 
@@ -53,68 +54,6 @@ class TestUtilsIssuesCrudFunctions:
         )
 
     # # fetch_issues
-    def test_utils_issues_fetch_issues_success(self, mocker):
-        """Test successful retrieval of all issues."""
-        github_token = "test_token"
-        mock_auth = mocker.MagicMock()
-        mock_client = mocker.MagicMock()
-        mock_repo = mocker.MagicMock()
-        issue1, issue2, issue3 = (
-            mocker.MagicMock(),
-            mocker.MagicMock(),
-            mocker.MagicMock(),
-        )
-        mock_issues = [issue1, issue2, issue3]
-        issue1.pull_request = False
-        issue2.pull_request = True
-        issue3.pull_request = False
-
-        mocked_auth = mocker.patch("utils.issues.Auth.Token", return_value=mock_auth)
-        mocked_github = mocker.patch("utils.issues.Github", return_value=mock_client)
-        mocked_repo = mocker.patch(
-            "utils.issues._github_repository", return_value=mock_repo
-        )
-        mock_repo.get_issues.return_value = mock_issues
-
-        result = fetch_issues(github_token)
-
-        assert result == [issue1, issue3]
-        mocked_auth.assert_called_once_with(github_token)
-        mocked_github.assert_called_once_with(auth=mock_auth)
-        mocked_repo.assert_called_once_with(mock_client)
-        mock_repo.get_issues.assert_called_once_with(state="open")
-
-    def test_utils_issues_fetch_issues_success_provided_state(self, mocker):
-        """Test successful retrieval of all issues."""
-        github_token = "test_token"
-        mock_auth = mocker.MagicMock()
-        mock_client = mocker.MagicMock()
-        mock_repo = mocker.MagicMock()
-        issue1, issue2, issue3 = (
-            mocker.MagicMock(),
-            mocker.MagicMock(),
-            mocker.MagicMock(),
-        )
-        mock_issues = [issue1, issue2, issue3]
-        issue1.pull_request = False
-        issue2.pull_request = False
-        issue3.pull_request = False
-
-        mocked_auth = mocker.patch("utils.issues.Auth.Token", return_value=mock_auth)
-        mocked_github = mocker.patch("utils.issues.Github", return_value=mock_client)
-        mocked_repo = mocker.patch(
-            "utils.issues._github_repository", return_value=mock_repo
-        )
-        mock_repo.get_issues.return_value = mock_issues
-
-        result = fetch_issues(github_token, state="closed")
-
-        assert result == mock_issues
-        mocked_auth.assert_called_once_with(github_token)
-        mocked_github.assert_called_once_with(auth=mock_auth)
-        mocked_repo.assert_called_once_with(mock_client)
-        mock_repo.get_issues.assert_called_once_with(state="closed")
-
     def test_utils_issues_fetch_issues_no_client(self, mocker):
         """Test handling when GitHub client creation fails."""
         github_token = "test_token"
@@ -128,6 +67,55 @@ class TestUtilsIssuesCrudFunctions:
         assert result == []
         mocked_auth.assert_called_once_with(github_token)
         mocked_github.assert_called_once_with(auth=mock_auth)
+
+    def test_utils_issues_fetch_issues_success(self, mocker):
+        """Test successful retrieval of all issues."""
+        github_token = "test_token"
+        mock_auth = mocker.MagicMock()
+        mock_client = mocker.MagicMock()
+        mock_repo = mocker.MagicMock()
+        mock_issues = mocker.MagicMock()
+        mocked_auth = mocker.patch("utils.issues.Auth.Token", return_value=mock_auth)
+        mocked_github = mocker.patch("utils.issues.Github", return_value=mock_client)
+        mocked_repo = mocker.patch(
+            "utils.issues._github_repository", return_value=mock_repo
+        )
+        mock_repo.get_issues.return_value = mock_issues
+
+        result = fetch_issues(github_token)
+
+        assert result == mock_issues
+        mocked_auth.assert_called_once_with(github_token)
+        mocked_github.assert_called_once_with(auth=mock_auth)
+        mocked_repo.assert_called_once_with(mock_client)
+        mock_repo.get_issues.assert_called_once_with(
+            state="all", sort="updated", direction="asc", since=GITHUB_ISSUES_START_DATE
+        )
+
+    def test_utils_issues_fetch_issues_success_provided_arguments(self, mocker):
+        """Test successful retrieval of all issues."""
+        github_token = "test_token"
+        mock_auth = mocker.MagicMock()
+        mock_client = mocker.MagicMock()
+        mock_repo = mocker.MagicMock()
+        mock_issues = mocker.MagicMock()
+
+        mocked_auth = mocker.patch("utils.issues.Auth.Token", return_value=mock_auth)
+        mocked_github = mocker.patch("utils.issues.Github", return_value=mock_client)
+        mocked_repo = mocker.patch(
+            "utils.issues._github_repository", return_value=mock_repo
+        )
+        mock_repo.get_issues.return_value = mock_issues
+        since = mocker.MagicMock()
+        result = fetch_issues(github_token, state="closed", since=since)
+
+        assert result == mock_issues
+        mocked_auth.assert_called_once_with(github_token)
+        mocked_github.assert_called_once_with(auth=mock_auth)
+        mocked_repo.assert_called_once_with(mock_client)
+        mock_repo.get_issues.assert_called_once_with(
+            state="closed", sort="updated", direction="asc", since=since
+        )
 
     # # close_issue_with_labels
     def test_utils_issues_close_issue_with_labels_for_no_client(self, mocker):

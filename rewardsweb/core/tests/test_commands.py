@@ -28,7 +28,7 @@ class TestExcel2DbCommand:
             call_command("excel2db")
             calls = [
                 mocker.call("CSV successfully exported into contributions.csv file!"),
-                mocker.call("Database successfully recreated!"),
+                mocker.call("Records successfully imported!"),
                 mocker.call("Issues successfully mapped!"),
             ]
             output_log.assert_has_calls(calls, any_order=True)
@@ -100,7 +100,7 @@ class TestExcel2DbCommand:
             call_command("excel2db")
             calls = [
                 mocker.call("CSV successfully exported into contributions.csv file!"),
-                mocker.call("Database successfully recreated!"),
+                mocker.call("Records successfully imported!"),
                 mocker.call(response),
             ]
             output_log.assert_has_calls(calls, any_order=True)
@@ -146,7 +146,7 @@ class TestExcel2DbCommand:
             )
             calls = [
                 mocker.call(f"CSV successfully exported into {output_file} file!"),
-                mocker.call("Database successfully recreated!"),
+                mocker.call("Records successfully imported!"),
                 mocker.call("Issues successfully mapped!"),
             ]
             output_log.assert_has_calls(calls, any_order=True)

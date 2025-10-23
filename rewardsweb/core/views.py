@@ -394,7 +394,7 @@ class IssueListView(ListView):
         :return: QuerySet of open issues in reverse order
         :rtype: :class:`django.db.models.QuerySet`
         """
-        return Issue.objects.filter(status=IssueStatus.CREATED).reverse()
+        return Issue.objects.filter(status=IssueStatus.CREATED)
 
 
 class IssueDetailView(DetailView):

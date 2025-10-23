@@ -1,5 +1,7 @@
 """Module containing core app's constants."""
 
+from datetime import datetime, timezone
+
 ADDRESS_LEN = 58
 
 MISSING_ENVIRONMENT_VARIABLE_ERROR = "Environment variable is not set"
@@ -7,6 +9,17 @@ MISSING_ENVIRONMENT_VARIABLE_ERROR = "Environment variable is not set"
 HANDLE_EXCEPTIONS = ("RR", "Di")
 
 CONTRIBUTIONS_TAIL_SIZE = 5
+
+REWARDS_COLLECTION = (
+    ("[F] Feature Request", 30000, 60000, 135000),
+    ("[B] Bug Report", 30000, 60000, 135000),
+    ("[AT] Admin Task", 35000, 70000, 150000),
+    ("[CT] Content Task", 100000, 200000, 300000),
+    ("[IC] Issue Creation", 30000, 60000, 135000),
+    ("[TWR] Twitter Post", 30000, 60000, 135000),
+    ("[D] Development", 100000, 200000, 300000),
+    ("[ER] Ecosystem Research", 50000, 100000, 200000),
+)
 
 DISCORD_EMOJIS = {
     "noted": "noted:930825381974523954",
@@ -35,6 +48,8 @@ ISSUE_PRIORITY_CHOICES = [
     ("medium priority", "Medium Priority"),
     ("high priority", "High Priority"),
 ]
+
+GITHUB_ISSUES_START_DATE = datetime(2022, 4, 15, 0, 0, 0, tzinfo=timezone.utc)
 
 GITHUB_LABELS = (
     "high priority",

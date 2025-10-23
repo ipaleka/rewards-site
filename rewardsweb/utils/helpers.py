@@ -2,6 +2,7 @@
 
 import logging
 import os
+import pickle
 from pathlib import Path
 
 import pandas as pd
@@ -142,6 +143,23 @@ def parse_full_handle(full_handle):
         handle = full_handle[2:]
 
     return prefix, handle
+
+
+def read_pickle(filename):
+    """Return collection of key and values created from provided `filename` pickle file.
+
+    :param filename: full path to pickle file
+    :type filename: :class:`pathlib.Path`
+    :return: dict with loaded data or empty dict if file doesn't exist or is corrupted
+    """
+    if os.path.exists(filename):
+        try:
+            with open(filename, "rb") as pickle_file:
+                return pickle.load(pickle_file)
+        except (pickle.PickleError, EOFError, AttributeError, ImportError):
+            # Handle various pickle-related errors
+            pass
+    return {}
 
 
 def user_display(user):

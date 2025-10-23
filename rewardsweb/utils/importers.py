@@ -20,6 +20,7 @@ from core.models import (
     RewardType,
     SocialPlatform,
 )
+from utils.constants.core import REWARDS_COLLECTION
 from utils.helpers import get_env_variable
 
 
@@ -36,16 +37,6 @@ CONTRIBUTION_CSV_COLUMNS = [
     "reward",
     "comment",
 ]
-REWARDS_COLLECTION = (
-    ("[F] Feature Request", 30000, 60000, 135000),
-    ("[B] Bug Report", 30000, 60000, 135000),
-    ("[AT] Admin Task", 35000, 70000, 150000),
-    ("[CT] Content Task", 100000, 200000, 300000),
-    ("[IC] Issue Creation", 30000, 60000, 135000),
-    ("[TWR] Twitter Post", 30000, 60000, 135000),
-    ("[D] Development", 100000, 200000, 300000),
-    ("[ER] Ecosystem Research", 50000, 100000, 200000),
-)
 
 
 def _check_current_cycle(cycle_instance):
@@ -57,6 +48,7 @@ def _check_current_cycle(cycle_instance):
     if datetime.now().date() > cycle_instance.end:
         start = cycle_instance.end + timedelta(days=1)
         end = start + timedelta(days=92)
+        # Adjust to end of month
         end = datetime(end.year, end.month, 1) + timedelta(days=-1)
         Cycle.objects.create(start=start, end=end)
 
@@ -90,8 +82,13 @@ def _create_active_rewards():
 
 def _create_superusers():
     """Create initial superusers from environment variables."""
-    superusers = get_env_variable("INITIAL_SUPERUSERS", "").split(",")
-    passwords = get_env_variable("DEFAULT_USER_PASSWORD", "").split(",")
+    superusers_str = get_env_variable("INITIAL_SUPERUSERS", "")
+    passwords_str = get_env_variable("DEFAULT_USER_PASSWORD", "")
+
+    # Filter out empty strings after splitting
+    superusers = [user for user in superusers_str.split(",") if user.strip()]
+    passwords = [pwd for pwd in passwords_str.split(",") if pwd.strip()]
+
     assert len(superusers) == len(passwords)
     for index, superuser in enumerate(superusers):
         User.objects.create_superuser(superuser, password=passwords[index])
@@ -189,9 +186,24 @@ def _parse_addresses():
     addresses_filename = (
         Path(__file__).resolve().parent.parent / "fixtures" / "addresses.csv"
     )
-    data = _dataframe_from_csv(addresses_filename, columns=ADDRESSES_CSV_COLUMNS)
-    if data is None:
+    addresses = _dataframe_from_csv(addresses_filename, columns=ADDRESSES_CSV_COLUMNS)
+
+    users_filename = (
+        Path(__file__).resolve().parent.parent
+        / "fixtures"
+        / "users_without_addresses.csv"
+    )
+    users = _dataframe_from_csv(users_filename, columns=ADDRESSES_CSV_COLUMNS)
+
+    # Handle cases where one or both files are missing/empty
+    if addresses is None and users is None:
         return []
+    elif addresses is None:
+        data = users
+    elif users is None:
+        data = addresses
+    else:
+        data = pd.concat([addresses, users])
 
     data = data[["handle", "address"]].drop_duplicates()
     grouped = (
@@ -212,13 +224,18 @@ def _parse_label_and_name_from_reward_type_legacy(typ):
     """
     label, name = _parse_label_and_name_from_reward_type(typ)
     if name == "Custom":
-        if "feature request" in typ:
+        # Handle None or empty strings
+        if not typ:
+            return "S", "Suggestion"
+
+        typ_lower = typ.lower()
+        if "feature request" in typ_lower:
             return "F", "Feature Request"
 
-        if "bug report" in typ:
+        if "bug report" in typ_lower:
             return "B", "Bug Report"
 
-        if "ecosystem research" in typ:
+        if "ecosystem research" in typ_lower:
             return "ER", "Ecosystem Research"
 
         return "S", "Suggestion"
@@ -316,6 +333,12 @@ def import_from_csv(contributions_path, legacy_contributions_path):
     # # CONTRIBUTIONS
     data = _dataframe_from_csv(contributions_path)
     legacy_data = _dataframe_from_csv(legacy_contributions_path)
+
+    # Handle case where CSV files are missing or empty
+    if data is None:
+        data = pd.DataFrame(columns=CONTRIBUTION_CSV_COLUMNS)
+    if legacy_data is None:
+        legacy_data = pd.DataFrame(columns=CONTRIBUTION_CSV_COLUMNS)
 
     cycles_data = data[["cycle_start", "cycle_end"]].drop_duplicates()
     legacy_cycles_data = legacy_data[["cycle_start", "cycle_end"]].drop_duplicates()

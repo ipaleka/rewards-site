@@ -538,7 +538,9 @@ def _map_open_issues(github_issues):
             continue
 
         number = github_issue.issue.number
-        search_text = github_issue.issue.body or "" + "\n".join(github_issue.comments)
+
+        search_text = github_issue.issue.body or ""
+        search_text += "\n".join(github_issue.comments)
 
         # Identify contributor from issue user or text
         contributor_id = _identify_contributor_from_user(

@@ -53,7 +53,7 @@ def convert_and_clean_excel(input_file, output_file, legacy_contributions):
 
     replacement_index = df_len - MOVED_CYCLE_LENGTH
 
-    print("DF length: " + str(len(df.index)))
+    print("Dataframe size: " + str(len(df.index)))
 
     df1 = df.iloc[:855]  # start part
     df2 = df.iloc[replacement_index:]  # Part to cut and insert

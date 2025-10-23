@@ -46,17 +46,53 @@ class TestExcel2DbCommand:
         )
         mocked_map.assert_called_once_with(github_token="")
 
-    def test_excel2db_command_output_for_default_values_on_response(self, mocker):
+    def test_excel2db_command_output_for_default_values_on_import_response(
+        self, mocker
+    ):
         mocked_convert = mocker.patch(
             "core.management.commands.excel2db.convert_and_clean_excel"
         )
-        response1, response2 = "response1", "response2"
+        response = "response"
         mocked_import = mocker.patch(
-            "core.management.commands.excel2db.import_from_csv", return_value=response1
+            "core.management.commands.excel2db.import_from_csv", return_value=response
+        )
+        mocked_map = mocker.patch("core.management.commands.excel2db.map_github_issues")
+        with mock.patch(
+            "django.core.management.base.OutputWrapper.write"
+        ) as output_log:
+            call_command("excel2db")
+            calls = [
+                mocker.call("CSV successfully exported into contributions.csv file!"),
+                mocker.call(response),
+            ]
+            output_log.assert_has_calls(calls, any_order=True)
+            assert output_log.call_count == 2
+
+        fixtures_dir = settings.BASE_DIR.parent / "fixtures"
+        mocked_convert.assert_called_once_with(
+            fixtures_dir / "contributions.xlsx",
+            fixtures_dir / "contributions.csv",
+            fixtures_dir / "legacy_contributions.csv",
+        )
+        mocked_import.assert_called_once_with(
+            fixtures_dir / "contributions.csv",
+            fixtures_dir / "legacy_contributions.csv",
+        )
+        mocked_map.assert_not_called()
+
+    def test_excel2db_command_output_for_default_values_on_mapping_response(
+        self, mocker
+    ):
+        mocked_convert = mocker.patch(
+            "core.management.commands.excel2db.convert_and_clean_excel"
+        )
+        response = "response2"
+        mocked_import = mocker.patch(
+            "core.management.commands.excel2db.import_from_csv", return_value=False
         )
         mocked_map = mocker.patch(
             "core.management.commands.excel2db.map_github_issues",
-            return_value=response2,
+            return_value=response,
         )
         with mock.patch(
             "django.core.management.base.OutputWrapper.write"
@@ -64,8 +100,8 @@ class TestExcel2DbCommand:
             call_command("excel2db")
             calls = [
                 mocker.call("CSV successfully exported into contributions.csv file!"),
-                mocker.call(response1),
-                mocker.call(response2),
+                mocker.call("Database successfully recreated!"),
+                mocker.call(response),
             ]
             output_log.assert_has_calls(calls, any_order=True)
             assert output_log.call_count == 3

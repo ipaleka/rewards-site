@@ -5,53 +5,32 @@
     "src": "__vite-optional-peer-dep:@agoralabs-sh/avm-web-provider:@txnlab/use-wallet",
     "isDynamicEntry": true
   },
-  "_bowser-Dq7hL60-.js": {
-    "file": "assets/bowser-Dq7hL60-.js",
+  "_bowser-6lpdwbQt.js": {
+    "file": "assets/bowser-6lpdwbQt.js",
     "name": "bowser",
     "imports": [
-      "index.html",
-      "_format-DCjLs-R4.js"
-    ]
-  },
-  "_format-DCjLs-R4.js": {
-    "file": "assets/format-DCjLs-R4.js",
-    "name": "format",
-    "imports": [
       "index.html"
     ]
   },
-  "_index-D-e5qPEY.js": {
-    "file": "assets/index-D-e5qPEY.js",
-    "name": "index",
-    "isDynamicEntry": true,
-    "imports": [
-      "index.html"
-    ],
-    "dynamicImports": [
-      "node_modules/@walletconnect/modal-ui/dist/index.js"
-    ]
-  },
-  "_index-HuyIvUVl.js": {
-    "file": "assets/index-HuyIvUVl.js",
+  "_index-BF62KPoo.js": {
+    "file": "assets/index-BF62KPoo.js",
     "name": "index",
     "isDynamicEntry": true,
     "imports": [
       "index.html",
-      "_bowser-Dq7hL60-.js",
-      "_format-DCjLs-R4.js"
+      "_bowser-6lpdwbQt.js"
     ],
     "dynamicImports": [
       "node_modules/@perawallet/connect/dist/App-428f5096.js"
     ]
   },
-  "_index-Ssr7Eh5j.js": {
-    "file": "assets/index-Ssr7Eh5j.js",
+  "_index-DD2Zj1gE.js": {
+    "file": "assets/index-DD2Zj1gE.js",
     "name": "index",
     "isDynamicEntry": true,
     "imports": [
       "index.html",
-      "_bowser-Dq7hL60-.js",
-      "_format-DCjLs-R4.js"
+      "_bowser-6lpdwbQt.js"
     ],
     "dynamicImports": [
       "node_modules/@blockshake/defly-connect/dist/App-58ab7d48.js"
@@ -63,56 +42,32 @@
     "src": "index.html",
     "isEntry": true,
     "dynamicImports": [
-      "node_modules/@walletconnect/sign-client/dist/index.js",
-      "_index-D-e5qPEY.js",
-      "_index-Ssr7Eh5j.js",
+      "_index-DD2Zj1gE.js",
       "__vite-optional-peer-dep:@agoralabs-sh/avm-web-provider:@txnlab/use-wallet",
       "node_modules/lute-connect/dist/main.esm.js",
-      "_index-HuyIvUVl.js"
+      "_index-BF62KPoo.js"
     ]
   },
   "node_modules/@blockshake/defly-connect/dist/App-58ab7d48.js": {
-    "file": "assets/App-58ab7d48-Zn9Y7CaM.js",
+    "file": "assets/App-58ab7d48-CAFIoEqt.js",
     "name": "App-58ab7d48",
     "src": "node_modules/@blockshake/defly-connect/dist/App-58ab7d48.js",
     "isDynamicEntry": true,
     "imports": [
-      "_index-Ssr7Eh5j.js",
+      "_index-DD2Zj1gE.js",
       "index.html",
-      "_bowser-Dq7hL60-.js",
-      "_format-DCjLs-R4.js"
+      "_bowser-6lpdwbQt.js"
     ]
   },
   "node_modules/@perawallet/connect/dist/App-428f5096.js": {
-    "file": "assets/App-428f5096-Blydlz2D.js",
+    "file": "assets/App-428f5096-CMk5PwP5.js",
     "name": "App-428f5096",
     "src": "node_modules/@perawallet/connect/dist/App-428f5096.js",
     "isDynamicEntry": true,
     "imports": [
-      "_index-HuyIvUVl.js",
+      "_index-BF62KPoo.js",
       "index.html",
-      "_bowser-Dq7hL60-.js",
-      "_format-DCjLs-R4.js"
-    ]
-  },
-  "node_modules/@walletconnect/modal-ui/dist/index.js": {
-    "file": "assets/index-TLukGsOh.js",
-    "name": "index",
-    "src": "node_modules/@walletconnect/modal-ui/dist/index.js",
-    "isDynamicEntry": true,
-    "imports": [
-      "_index-D-e5qPEY.js",
-      "index.html"
-    ]
-  },
-  "node_modules/@walletconnect/sign-client/dist/index.js": {
-    "file": "assets/index-BBlbMXi0.js",
-    "name": "index",
-    "src": "node_modules/@walletconnect/sign-client/dist/index.js",
-    "isDynamicEntry": true,
-    "imports": [
-      "index.html",
-      "_format-DCjLs-R4.js"
+      "_bowser-6lpdwbQt.js"
     ]
   },
   "node_modules/lute-connect/dist/main.esm.js": {

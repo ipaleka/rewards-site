@@ -1,6 +1,5 @@
 jest.mock('@txnlab/use-wallet', () => ({
   NetworkId: {
-    BETANET: 'betanet',
     TESTNET: 'testnet',
     MAINNET: 'mainnet'
   },
@@ -64,8 +63,6 @@ describe('ActiveNetwork', () => {
       // Current network button should be disabled
       expect(activeNetwork.element.innerHTML).toContain('id="set-testnet" disabled');
       // Other network buttons should be enabled
-      expect(activeNetwork.element.innerHTML).toContain('id="set-betanet"');
-      expect(activeNetwork.element.innerHTML).not.toContain('id="set-betanet" disabled');
       expect(activeNetwork.element.innerHTML).toContain('id="set-mainnet"');
       expect(activeNetwork.element.innerHTML).not.toContain('id="set-mainnet" disabled');
     });
@@ -80,16 +77,6 @@ describe('ActiveNetwork', () => {
   });
 
   describe('Event Listeners', () => {
-    it('should handle betanet button click', () => {
-      const betanetButton = document.createElement('button');
-      betanetButton.id = 'set-betanet';
-
-      activeNetwork.element.appendChild(betanetButton);
-      betanetButton.click();
-
-      expect(mockManager.setActiveNetwork).toHaveBeenCalledWith(NetworkId.BETANET);
-    });
-
     it('should handle testnet button click', () => {
       const testnetButton = document.createElement('button');
       testnetButton.id = 'set-testnet';
@@ -130,4 +117,30 @@ describe('ActiveNetwork', () => {
       expect(removeSpy).toHaveBeenCalledWith('click', activeNetwork.addEventListeners);
     });
   });
+
+  it('should render without betanet button', () => {
+    activeNetwork.render();
+
+    // Should not contain betanet button
+    expect(activeNetwork.element.innerHTML).not.toContain('set-betanet');
+    expect(activeNetwork.element.innerHTML).toContain('set-testnet');
+    expect(activeNetwork.element.innerHTML).toContain('set-mainnet');
+  });
+
+  it('should handle network changes without betanet', () => {
+    // Test that only testnet and mainnet buttons work
+    const testnetButton = document.createElement('button');
+    testnetButton.id = 'set-testnet';
+    activeNetwork.element.appendChild(testnetButton);
+    testnetButton.click();
+    expect(mockManager.setActiveNetwork).toHaveBeenCalledWith(NetworkId.TESTNET);
+
+    const mainnetButton = document.createElement('button');
+    mainnetButton.id = 'set-mainnet';
+    activeNetwork.element.appendChild(mainnetButton);
+    mainnetButton.click();
+    expect(mockManager.setActiveNetwork).toHaveBeenCalledWith(NetworkId.MAINNET);
+  });
+
+
 });

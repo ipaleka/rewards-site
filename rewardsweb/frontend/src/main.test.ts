@@ -11,7 +11,6 @@ jest.mock('@txnlab/use-wallet', () => {
 
   return {
     NetworkId: {
-      BETANET: 'betanet',
       TESTNET: 'testnet',
       MAINNET: 'mainnet'
     },

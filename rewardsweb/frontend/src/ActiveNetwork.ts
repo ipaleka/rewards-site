@@ -25,9 +25,6 @@ export class ActiveNetwork {
         Current Network: <span class="active-network">${activeNetwork}</span>
       </h4>
       <div class="network-buttons">
-        <button type="button" id="set-betanet" ${activeNetwork === NetworkId.BETANET ? 'disabled' : ''}>
-          Set to Betanet
-        </button>
         <button type="button" id="set-testnet" ${activeNetwork === NetworkId.TESTNET ? 'disabled' : ''}>
           Set to Testnet
         </button>
@@ -41,9 +38,7 @@ export class ActiveNetwork {
   addEventListeners() {
     this.element.addEventListener('click', (e: Event) => {
       const target = e.target as HTMLButtonElement
-      if (target.id === 'set-betanet') {
-        this.setActiveNetwork(NetworkId.BETANET)
-      } else if (target.id === 'set-testnet') {
+      if (target.id === 'set-testnet') {
         this.setActiveNetwork(NetworkId.TESTNET)
       } else if (target.id === 'set-mainnet') {
         this.setActiveNetwork(NetworkId.MAINNET)

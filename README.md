@@ -44,5 +44,6 @@ INITIAL_SUPERUSER_PASSWORDS="password1,password2"
 - [x] Create methods for managing http requests and bind them to API routes
 - [x] Automated documentation building and publishing on Read The Docs platform
 - [x] Create methods for CRUD operations
+- [x] Implement authentication by connecting a wallet
 - [ ] Create deploy workflow
 - [ ] Setup a server and deploy the application

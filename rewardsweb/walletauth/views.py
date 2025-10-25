@@ -12,6 +12,7 @@ from django.views import View
 from django.contrib.auth import get_user_model, login
 
 from core.models import Contributor, Profile
+from utils.constants.core import WALLET_CONNECT_NONCE_PREFIX
 from utils.helpers import verify_signed_transaction
 from walletauth.models import WalletNonce
 
@@ -36,7 +37,7 @@ class WalletNonceView(View):
         nonce = token_hex(16)
         WalletNonce.objects.create(address=address, nonce=nonce)
         print(f"[WalletNonceView] Generated nonce: {nonce} for address: {address}")
-        return JsonResponse({"nonce": nonce})
+        return JsonResponse({"nonce": nonce, "prefix": WALLET_CONNECT_NONCE_PREFIX})
 
 
 class WalletVerifyView(View):
@@ -117,8 +118,8 @@ class WalletVerifyView(View):
                 stxn.transaction.note.decode("utf-8") if stxn.transaction.note else ""
             )
             if (
-                not note_str.startswith("SIWA:Login to ASA Stats: ")
-                or note_str.split("SIWA:Login to ASA Stats: ")[1] != nonce_str
+                not note_str.startswith(WALLET_CONNECT_NONCE_PREFIX)
+                or note_str.split(WALLET_CONNECT_NONCE_PREFIX)[1] != nonce_str
             ):
                 print(
                     f"[WalletVerifyView] Note mismatch - "
@@ -133,7 +134,7 @@ class WalletVerifyView(View):
                 f"[WalletVerifyView] Signature and nonce "
                 f"verified for address: {address}"
             )
-            
+
         except Exception as e:
             print(f"[WalletVerifyView] Verification error: {e}")
             return JsonResponse(
@@ -164,4 +165,5 @@ class WalletVerifyView(View):
         print(f"[WalletVerifyView] Logged in user: {user.username}")
 
         login(request, user)
-        return JsonResponse({"success": True})
+
+        return JsonResponse({"success": True, "redirect_url": "/"})

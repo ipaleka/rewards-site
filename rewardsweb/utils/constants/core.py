@@ -64,3 +64,5 @@ GITHUB_LABELS = (
     "archived",
     "wontfix",
 )
+
+WALLET_CONNECT_NONCE_PREFIX = "Login to ASA Stats Rewards website: "

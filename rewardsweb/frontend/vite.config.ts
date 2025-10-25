@@ -26,9 +26,6 @@ export default defineConfig({
         entryFileNames: 'js/bundle.js', // JS to static/js/bundle.js
         chunkFileNames: 'assets/[name]-[hash].js',
         assetFileNames: ({ name }) => {
-          if (name && name.endsWith('.css')) {
-            return 'css/bundle.css'; // CSS to static/css/bundle.css
-          }
           return 'assets/[name].[ext]'; // Other assets to static/assets/
         },
         manualChunks: undefined // Single bundle for simplicity

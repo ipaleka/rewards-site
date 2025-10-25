@@ -69,9 +69,6 @@
       "__vite-optional-peer-dep:@agoralabs-sh/avm-web-provider:@txnlab/use-wallet",
       "node_modules/lute-connect/dist/main.esm.js",
       "_index-HuyIvUVl.js"
-    ],
-    "css": [
-      "css/bundle.css"
     ]
   },
   "node_modules/@blockshake/defly-connect/dist/App-58ab7d48.js": {

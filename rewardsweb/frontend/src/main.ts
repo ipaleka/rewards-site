@@ -1,4 +1,3 @@
-import './style.css'
 import { NetworkId, WalletId, WalletManager } from '@txnlab/use-wallet'
 import { ActiveNetwork } from './ActiveNetwork'
 import { WalletComponent } from './WalletComponent'

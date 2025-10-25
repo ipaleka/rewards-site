@@ -96,10 +96,11 @@ export class WalletComponent {
         throw new Error(`[App] Failed to fetch nonce: ${nonceData.error}`)
       }
       const nonce = nonceData.nonce
+      const prefix = nonceData.prefix
       console.info('[App] Received nonce:', nonce)
 
-      // Create a transaction with SIWA-prefixed note
-      const message = `SIWA:Login to ASA Stats: ${nonce}`
+      // Create a transaction with a note
+      const message = `${prefix}${nonce}`
       const note = new TextEncoder().encode(message)
       const suggestedParams = await this.manager.algodClient.getTransactionParams().do()
       const transaction = makePaymentTxnWithSuggestedParamsFromObject({
@@ -138,7 +139,8 @@ export class WalletComponent {
       }
 
       console.info(`[App] ✅ Successfully authenticated with ${this.wallet.metadata.name}!`)
-      window.location.href = '/accounts/profile/' // Adjust as needed
+      // Use backend redirect URL if provided, fallback to root
+      window.location.href = verifyData.redirect_url || '/'
     } catch (error: unknown) {
       const errorMessage = error instanceof Error ? error.message : String(error)
       console.error('[App] Error signing data:', error)
@@ -163,7 +165,6 @@ export class WalletComponent {
   getConnectArgs = () => (this.isMagicLink() ? { email: this.magicEmail } : undefined)
 
   render() {
-    console.log(`[WalletComponent] ${this.wallet.metadata.name}: id = ${this.wallet.id}, isActive = ${this.wallet.isActive}, canSignData = ${this.wallet.canSignData}, metadata =`, JSON.stringify(this.wallet.metadata, null, 2));
     this.element.innerHTML = `
       <div class="wallet-group">
         <h4>

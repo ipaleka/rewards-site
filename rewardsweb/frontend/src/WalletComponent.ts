@@ -161,8 +161,7 @@ export class WalletComponent {
 
   isMagicLink = () => this.wallet.id === WalletId.MAGIC
 
-  // In WalletComponent.ts
-  isEmailValid = () => /^[a-zA-Z0-9!#$%&'*+/=?^_`{|}~-]+@[a-zA-Z0-9](?:[a-zA-Z0-9-]{0,61}[a-zA-Z0-9])?(?:\.[a-zA-Z0-9](?:[a-zA-Z0-9-]{0,61}[a-zA-Z0-9])?)*$/.test(this.magicEmail)
+  isEmailValid = () => /^[a-zA-Z0-9.!#$%&'*+/=?^_`{|}~-]+@[a-zA-Z0-9](?:[a-zA-Z0-9-]{0,61}[a-zA-Z0-9])?(?:\.[a-zA-Z0-9](?:[a-zA-Z0-9-]{0,61}[a-zA-Z0-9])?)*$/.test(this.magicEmail)
   isConnectDisabled = () => this.wallet.isConnected || (this.isMagicLink() && !this.isEmailValid())
   getConnectArgs = () => (this.isMagicLink() ? { email: this.magicEmail } : undefined)
 
@@ -171,73 +170,65 @@ export class WalletComponent {
     div.textContent = text;
     return div.innerHTML; // Escapes HTML
   }
-
   render() {
     console.log(`[WalletComponent] ${this.wallet.metadata.name}: id = ${this.wallet.id}, isActive = ${this.wallet.isActive}, canSignData = ${this.wallet.canSignData}, metadata =`, JSON.stringify(this.wallet.metadata, null, 2));
-    const walletName = this.sanitizeText(this.wallet.metadata.name) // Sanitize name
+    const walletName = this.sanitizeText(this.wallet.metadata.name); // Sanitize wallet name
+    const sanitizedEmail = this.sanitizeText(this.magicEmail); // Sanitize email
     this.element.innerHTML = `
-      <div class="wallet-group">
-        <h4>
-          ${walletName} ${this.wallet.isActive ? '[active]' : ''}
-        </h4>
-
-        <div class="wallet-buttons">
-          <button id="connect-button" type="button" ${this.isConnectDisabled() ? 'disabled' : ''}>
-            Connect
-          </button>
-          <button id="disconnect-button" type="button" ${!this.wallet.isConnected ? 'disabled' : ''}>
-            Disconnect
-          </button>
-          ${
-            this.wallet.isActive
-              ? `<button id="transaction-button" type="button">Send Transaction</button>
-                 <button id="auth-button" type="button">Authenticate</button>`
-              : `<button id="set-active-button" type="button" ${
-                  !this.wallet.isConnected ? 'disabled' : ''
-                }>Set Active</button>`
-          }
-        </div>
-
-        ${
-          this.isMagicLink()
-            ? `
-          <div class="input-group">
-            <label for="magic-email">Email:</label>
-            <input
-              id="magic-email"
-              type="email"
-              value="${this.magicEmail}"
-              placeholder="Enter email to connect..."
-              ${this.wallet.isConnected ? 'disabled' : ''}
-            />
-          </div>
-        `
-            : ''
-        }
-
-        ${
-          this.wallet.isActive && this.wallet.accounts.length
-            ? `
-          <div>
-            <select>
-              ${this.wallet.accounts
-                .map(
-                  (account) => `
-                <option value="${this.sanitizeText(account.address)}" ${
-                  account.address === this.wallet.activeAccount?.address ? 'selected' : ''
-                }>
-                  ${this.sanitizeText(account.address)}
-                </option>
-              `
-                )
-                .join('')}
-            </select>
-          </div>
-        `
-            : ''
-        }
+    <div class="wallet-group">
+      <h4>
+        ${walletName} ${this.wallet.isActive ? '[active]' : ''}
+      </h4>
+      <div class="wallet-buttons">
+        <button id="connect-button" type="button" ${this.isConnectDisabled() ? 'disabled' : ''}>
+          Connect
+        </button>
+        <button id="disconnect-button" type="button" ${!this.wallet.isConnected ? 'disabled' : ''}>
+          Disconnect
+        </button>
+        ${this.wallet.isActive
+        ? `<button id="transaction-button" type="button">Send Transaction</button>
+               <button id="auth-button" type="button">Authenticate</button>`
+        : `<button id="set-active-button" type="button" ${!this.wallet.isConnected ? 'disabled' : ''
+        }>Set Active</button>`
+      }
       </div>
-    `
+      ${this.isMagicLink()
+        ? `
+        <div class="input-group">
+          <label for="magic-email">Email:</label>
+          <input
+            id="magic-email"
+            type="email"
+            value="${sanitizedEmail}"
+            placeholder="Enter email to connect..."
+            ${this.wallet.isConnected ? 'disabled' : ''}
+          />
+        </div>
+      `
+        : ''
+      }
+      ${this.wallet.isActive && this.wallet.accounts.length
+        ? `
+        <div>
+          <select>
+            ${this.wallet.accounts
+          .map(
+            (account) => `
+              <option value="${this.sanitizeText(account.address)}" ${account.address === this.wallet.activeAccount?.address ? 'selected' : ''
+              }>
+                ${this.sanitizeText(account.address)}
+              </option>
+            `
+          )
+          .join('')}
+          </select>
+        </div>
+      `
+        : ''
+      }
+    </div>
+  `
   }
 
   updateEmailInput = () => {

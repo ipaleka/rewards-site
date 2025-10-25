@@ -18,3 +18,4 @@ PyGithub>=2.8.1
 ## auth
 django-allauth[socialaccount]>=65.12.1
 py-algorand-sdk>=2.11.1
+msgpack>=1.1.2

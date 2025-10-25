@@ -111,42 +111,25 @@ export class WalletComponent {
       })
       const encodedTx = algosdk.encodeUnsignedTransaction(transaction)
       console.info('[App] Client encodedTx:', Array.from(encodedTx))
-      console.info('[App] Client suggestedParams:', {
-        fee: suggestedParams.fee.toString(),
-        firstRound: Number(suggestedParams.firstValid),
-        lastRound: Number(suggestedParams.lastValid),
-        genesisHash: btoa(String.fromCharCode(...suggestedParams.genesisHash)),
-        genesisID: suggestedParams.genesisID
-      })
       console.info('[App] Signing transaction with note:', message)
       const signedTxs = await this.wallet.signTransactions([encodedTx])
 
-      // Extract signature
+      // Extract signed transaction bytes
       if (!signedTxs[0]) {
         throw new Error('[App] No signed transaction returned')
       }
-      const signedTx = algosdk.decodeSignedTransaction(signedTxs[0])
-      const signature = signedTx.sig ? Array.from(signedTx.sig) : []
-      console.info('[App] Extracted signature:', signature)
+      const signedTxBytes = signedTxs[0] // Already bytes from signTransactions
+      const signedTxBase64 = btoa(String.fromCharCode(...signedTxBytes)) // Convert to base64 for JSON
+      console.info('[App] Signed transaction base64 length:', signedTxBase64.length)
 
       // Send to verify
-      const genesisHashBase64 = btoa(String.fromCharCode(...suggestedParams.genesisHash))
-      console.info('[App] genesisHashBase64:', genesisHashBase64)
       const verifyResponse = await fetch('/api/wallet/verify/', {
         method: 'POST',
         headers,
         body: JSON.stringify({
           address: activeAddress,
-          signature,
-          nonce,
-          note: Array.from(note),
-          suggestedParams: {
-            fee: suggestedParams.fee.toString(),
-            firstRound: Number(suggestedParams.firstValid),
-            lastRound: Number(suggestedParams.lastValid),
-            genesisHash: genesisHashBase64,
-            genesisID: suggestedParams.genesisID
-          }
+          signedTransaction: signedTxBase64, // Send full signed txn as base64
+          nonce
         })
       })
       const verifyData = await verifyResponse.json()
@@ -194,19 +177,16 @@ export class WalletComponent {
           <button id="disconnect-button" type="button" ${!this.wallet.isConnected ? 'disabled' : ''}>
             Disconnect
           </button>
-          ${
-            this.wallet.isActive
-              ? `<button id="transaction-button" type="button">Send Transaction</button>
+          ${this.wallet.isActive
+        ? `<button id="transaction-button" type="button">Send Transaction</button>
                  <button id="auth-button" type="button">Authenticate</button>`
-              : `<button id="set-active-button" type="button" ${
-                  !this.wallet.isConnected ? 'disabled' : ''
-                }>Set Active</button>`
-          }
+        : `<button id="set-active-button" type="button" ${!this.wallet.isConnected ? 'disabled' : ''
+        }>Set Active</button>`
+      }
         </div>
 
-        ${
-          this.isMagicLink()
-            ? `
+        ${this.isMagicLink()
+        ? `
         <div class="input-group">
           <label for="magic-email">Email:</label>
           <input
@@ -218,30 +198,28 @@ export class WalletComponent {
           />
         </div>
       `
-            : ''
-        }
+        : ''
+      }
 
-        ${
-          this.wallet.isActive && this.wallet.accounts.length
-            ? `
+        ${this.wallet.isActive && this.wallet.accounts.length
+        ? `
           <div>
             <select>
               ${this.wallet.accounts
-                .map(
-                  (account) => `
-                <option value="${account.address}" ${
-                  account.address === this.wallet.activeAccount?.address ? 'selected' : ''
-                }>
+          .map(
+            (account) => `
+                <option value="${account.address}" ${account.address === this.wallet.activeAccount?.address ? 'selected' : ''
+              }>
                   ${account.address}
                 </option>
               `
-                )
-                .join('')}
+          )
+          .join('')}
             </select>
           </div>
         `
-            : ''
-        }
+        : ''
+      }
       </div>
     `
   }

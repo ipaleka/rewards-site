@@ -10,6 +10,7 @@ from django.conf import settings
 from django.http import Http404
 
 from core.models import IssueStatus, Reward, SocialPlatform
+from utils.constants.core import GITHUB_ISSUES_EXCLUDED_CONTRIBUTORS
 from utils.mappers import (
     CustomIssue,
     _build_reward_mapping,
@@ -2136,6 +2137,61 @@ class TestUtilsMappersMapping:
 
         assert result is True
         mock_contribution_create.assert_called_once()
+
+    @pytest.mark.django_db
+    def test_utils_mappers_map_open_issues_for_excluded_contributors(self, mocker):
+        # Mock GitHub issue
+        mock_issue = mocker.MagicMock()
+        mock_issue.issue.number = 101
+        mock_issue.issue.body = "Discord discussion about feature"
+        mock_issue.issue.title = "Feature Request"
+        mock_issue.issue.user.login = "testuser"
+        mock_issue.comments = []
+        mock_issue.issue.labels = []
+
+        # Mock all dependencies
+        mocker.patch(
+            "utils.mappers._build_reward_mapping",
+            return_value={"feature request": "mock_reward"},
+        )
+
+        excluded_contributor = GITHUB_ISSUES_EXCLUDED_CONTRIBUTORS[0]
+        mocker.patch(
+            "utils.mappers.Contributor.objects.all",
+            return_value=[
+                mocker.MagicMock(info=f"{excluded_contributor} (g@testuser)", id=1)
+            ],
+        )
+
+        mocker.patch(
+            "utils.mappers.SocialPlatform.objects.all",
+            return_value=[mocker.MagicMock(name="Discord", id=1)],
+        )
+
+        mock_cycle = mocker.MagicMock()
+        mocker.patch("utils.mappers.Cycle.objects.latest", return_value=mock_cycle)
+
+        mocker.patch("utils.mappers._identify_platform_from_text", return_value=1)
+        mocker.patch(
+            "utils.mappers._identify_reward_from_labels", return_value="mock_reward"
+        )
+        mocker.patch(
+            "utils.mappers._extract_url_text",
+            return_value="https://discord.com/test",
+        )
+
+        mock_issue_obj = mocker.MagicMock()
+        mocker.patch("utils.mappers.get_object_or_404", side_effect=Http404)
+        mocker.patch("utils.mappers.Issue.objects.create", return_value=mock_issue_obj)
+
+        mock_contribution_create = mocker.patch(
+            "utils.mappers.Contribution.objects.create"
+        )
+
+        result = _map_open_issues([mock_issue])
+
+        assert result is True
+        mock_contribution_create.assert_not_called()
 
     @pytest.mark.django_db
     def test_utils_mappers_map_open_issues_skip_no_contributor(self, mocker):

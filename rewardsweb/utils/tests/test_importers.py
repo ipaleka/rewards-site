@@ -141,18 +141,51 @@ class TestUtilsImportersHelperFunctions:
 
     # # _create_superusers
     def test_utils_importers_create_superusers(self, mocker):
+        """Test _create_superusers with all data provided."""
         mocked_get_env_variable = mocker.patch("utils.importers.get_env_variable")
-        mocked_get_env_variable.side_effect = ["user1,user2", "pass1,pass2"]
+        # Use valid Algorand addresses (58 characters)
+        mocked_get_env_variable.side_effect = [
+            "user1,user2",
+            "pass1,pass2",
+            "A" * 58 + "," + "B" * 58,  # Two valid addresses
+        ]
 
         mocked_user_create = mocker.patch(
             "utils.importers.User.objects.create_superuser"
         )
+        mocked_contributor_filter = mocker.patch(
+            "utils.importers.Contributor.objects.filter"
+        )
+        mocked_contributor_create = mocker.patch(
+            "utils.importers.Contributor.objects.create"
+        )
+
+        # Mock user and profile
+        mock_user1 = mocker.MagicMock()
+        mock_user1.username = "user1"
+        mock_user1.profile = mocker.MagicMock()
+        mock_user2 = mocker.MagicMock()
+        mock_user2.username = "user2"
+        mock_user2.profile = mocker.MagicMock()
+        mocked_user_create.side_effect = [mock_user1, mock_user2]
+
+        # Mock contributor queries - no existing contributors
+        mocked_contributor_filter.return_value.first.return_value = None
 
         _create_superusers()
 
         assert mocked_user_create.call_count == 2
         mocked_user_create.assert_any_call("user1", password="pass1")
         mocked_user_create.assert_any_call("user2", password="pass2")
+
+        # Verify contributor creation was attempted for both users
+        assert mocked_contributor_create.call_count == 2
+        mocked_contributor_create.assert_any_call(name="user1", address="A" * 58)
+        mocked_contributor_create.assert_any_call(name="user2", address="B" * 58)
+
+        # Verify profiles were saved
+        assert mock_user1.profile.save.call_count == 1
+        assert mock_user2.profile.save.call_count == 1
 
     def test_utils_importers_create_superusers_empty_env_vars(self, mocker):
         """Test _create_superusers with empty environment variables."""
@@ -162,33 +195,299 @@ class TestUtilsImportersHelperFunctions:
         mocked_user_create = mocker.patch(
             "utils.importers.User.objects.create_superuser"
         )
+        mocked_contributor_create = mocker.patch(
+            "utils.importers.Contributor.objects.create"
+        )
 
         _create_superusers()
 
         # Should not create any users since empty strings are filtered out
         mocked_user_create.assert_not_called()
+        mocked_contributor_create.assert_not_called()
 
     def test_utils_importers_create_superusers_single_user(self, mocker):
         """Test _create_superusers with single user."""
-        mocker.patch("utils.importers.get_env_variable", side_effect=["user1", "pass1"])
+        mocker.patch(
+            "utils.importers.get_env_variable",
+            side_effect=["user1", "pass1", "A" * 58],  # Valid address
+        )
 
         mocked_user_create = mocker.patch(
             "utils.importers.User.objects.create_superuser"
         )
+        mocked_contributor_filter = mocker.patch(
+            "utils.importers.Contributor.objects.filter"
+        )
+        mocked_contributor_create = mocker.patch(
+            "utils.importers.Contributor.objects.create"
+        )
+
+        # Mock user and profile
+        mock_user = mocker.MagicMock()
+        mock_user.username = "user1"
+        mock_user.profile = mocker.MagicMock()
+        mocked_user_create.return_value = mock_user
+
+        # Mock contributor query - no existing contributor
+        mocked_contributor_filter.return_value.first.return_value = None
 
         _create_superusers()
 
         # Should create one user
         mocked_user_create.assert_called_once_with("user1", password="pass1")
+        mocked_contributor_create.assert_called_once_with(
+            name="user1", address="A" * 58
+        )
+        mock_user.profile.save.assert_called_once()
 
-    def test_utils_importers_create_superusers_mismatched_lengths(self, mocker):
+    def test_utils_importers_create_superusers_mismatched_user_password_lengths(
+        self, mocker
+    ):
         """Test _create_superusers with mismatched user/password counts."""
         mocker.patch(
-            "utils.importers.get_env_variable", side_effect=["user1,user2", "pass1"]
+            "utils.importers.get_env_variable",
+            side_effect=["user1,user2", "pass1", "A" * 58 + "," + "B" * 58],
         )
 
         with pytest.raises(AssertionError):
             _create_superusers()
+
+    def test_utils_importers_create_superusers_with_existing_contributor(self, mocker):
+        """Test _create_superusers when contributor already exists."""
+        mocker.patch(
+            "utils.importers.get_env_variable",
+            side_effect=["user1", "pass1", "A" * 58],  # Valid address
+        )
+
+        mocked_user_create = mocker.patch(
+            "utils.importers.User.objects.create_superuser"
+        )
+        mocked_contributor_filter = mocker.patch(
+            "utils.importers.Contributor.objects.filter"
+        )
+        mocked_contributor_create = mocker.patch(
+            "utils.importers.Contributor.objects.create"
+        )
+
+        # Mock user and profile
+        mock_user = mocker.MagicMock()
+        mock_user.username = "user1"
+        mock_user.profile = mocker.MagicMock()
+        mocked_user_create.return_value = mock_user
+
+        # Mock existing contributor
+        mock_contributor = mocker.MagicMock()
+        mocked_contributor_filter.return_value.first.return_value = mock_contributor
+
+        _create_superusers()
+
+        mocked_user_create.assert_called_once_with("user1", password="pass1")
+        # Should not create new contributor since one exists
+        mocked_contributor_create.assert_not_called()
+        # Should link existing contributor to user profile
+        assert mock_user.profile.contributor == mock_contributor
+        mock_user.profile.save.assert_called_once()
+
+    def test_utils_importers_create_superusers_no_addresses(self, mocker):
+        """Test _create_superusers when no addresses are provided."""
+        mocker.patch(
+            "utils.importers.get_env_variable",
+            side_effect=["user1,user2", "pass1,pass2", ""],  # Empty addresses
+        )
+
+        mocked_user_create = mocker.patch(
+            "utils.importers.User.objects.create_superuser"
+        )
+        mocked_contributor_filter = mocker.patch(
+            "utils.importers.Contributor.objects.filter"
+        )
+        mocked_contributor_create = mocker.patch(
+            "utils.importers.Contributor.objects.create"
+        )
+
+        # Mock users
+        mock_user1 = mocker.MagicMock()
+        mock_user1.username = "user1"
+        mock_user1.profile = mocker.MagicMock()
+        mock_user2 = mocker.MagicMock()
+        mock_user2.username = "user2"
+        mock_user2.profile = mocker.MagicMock()
+        mocked_user_create.side_effect = [mock_user1, mock_user2]
+
+        _create_superusers()
+
+        assert mocked_user_create.call_count == 2
+        mocked_user_create.assert_any_call("user1", password="pass1")
+        mocked_user_create.assert_any_call("user2", password="pass2")
+
+        # Should not create any contributors when no addresses provided
+        mocked_contributor_filter.assert_not_called()
+        mocked_contributor_create.assert_not_called()
+
+        # Profiles should not be saved since no contributor linking occurred
+        mock_user1.profile.save.assert_not_called()
+        mock_user2.profile.save.assert_not_called()
+
+    def test_utils_importers_create_superusers_different_address_count(self, mocker):
+        """Test _create_superusers with different number of addresses than users."""
+        mocker.patch(
+            "utils.importers.get_env_variable",
+            side_effect=[
+                "user1,user2",
+                "pass1,pass2",
+                "A" * 58,  # Only one address for two users
+            ],
+        )
+
+        with pytest.raises(AssertionError):
+            _create_superusers()
+
+    def test_utils_importers_create_superusers_empty_address_string(self, mocker):
+        """Test _create_superusers with empty address string (not None)."""
+        mocker.patch(
+            "utils.importers.get_env_variable",
+            side_effect=["user1", "pass1", ""],  # Empty address string
+        )
+
+        mocked_user_create = mocker.patch(
+            "utils.importers.User.objects.create_superuser"
+        )
+        mocked_contributor_filter = mocker.patch(
+            "utils.importers.Contributor.objects.filter"
+        )
+        mocked_contributor_create = mocker.patch(
+            "utils.importers.Contributor.objects.create"
+        )
+
+        # Mock user
+        mock_user = mocker.MagicMock()
+        mock_user.username = "user1"
+        mock_user.profile = mocker.MagicMock()
+        mocked_user_create.return_value = mock_user
+
+        _create_superusers()
+
+        mocked_user_create.assert_called_once_with("user1", password="pass1")
+        # Should not attempt to create/link contributor when addresses list is empty
+        mocked_contributor_filter.assert_not_called()
+        mocked_contributor_create.assert_not_called()
+        mock_user.profile.save.assert_not_called()
+
+    def test_utils_importers_create_superusers_address_length_exactly_50(self, mocker):
+        """Test _create_superusers with addresses exactly 50 characters long (should be filtered out)."""
+        mocker.patch(
+            "utils.importers.get_env_variable",
+            side_effect=[
+                "user1",
+                "pass1",
+                "A" * 50,  # Exactly 50 characters - should be filtered out
+            ],
+        )
+
+        mocked_user_create = mocker.patch(
+            "utils.importers.User.objects.create_superuser"
+        )
+        mocked_contributor_filter = mocker.patch(
+            "utils.importers.Contributor.objects.filter"
+        )
+        mocked_contributor_create = mocker.patch(
+            "utils.importers.Contributor.objects.create"
+        )
+
+        # Mock user
+        mock_user = mocker.MagicMock()
+        mock_user.username = "user1"
+        mock_user.profile = mocker.MagicMock()
+        mocked_user_create.return_value = mock_user
+
+        _create_superusers()
+
+        mocked_user_create.assert_called_once_with("user1", password="pass1")
+        # Should not create contributor since address is filtered out (length <= 50)
+        mocked_contributor_filter.assert_not_called()
+        mocked_contributor_create.assert_not_called()
+        mock_user.profile.save.assert_not_called()
+
+    def test_utils_importers_create_superusers_address_length_51(self, mocker):
+        """Test _create_superusers with addresses 51 characters long (should be included)."""
+        mocker.patch(
+            "utils.importers.get_env_variable",
+            side_effect=[
+                "user1",
+                "pass1",
+                "A" * 51,  # 51 characters - should be included
+            ],
+        )
+
+        mocked_user_create = mocker.patch(
+            "utils.importers.User.objects.create_superuser"
+        )
+        mocked_contributor_filter = mocker.patch(
+            "utils.importers.Contributor.objects.filter"
+        )
+        mocked_contributor_create = mocker.patch(
+            "utils.importers.Contributor.objects.create"
+        )
+
+        # Mock user and profile
+        mock_user = mocker.MagicMock()
+        mock_user.username = "user1"
+        mock_user.profile = mocker.MagicMock()
+        mocked_user_create.return_value = mock_user
+
+        # Mock contributor query - no existing contributor
+        mocked_contributor_filter.return_value.first.return_value = None
+
+        _create_superusers()
+
+        mocked_user_create.assert_called_once_with("user1", password="pass1")
+        # Should create contributor since address length > 50
+        mocked_contributor_create.assert_called_once_with(
+            name="user1", address="A" * 51
+        )
+        mock_user.profile.save.assert_called_once()
+
+    def test_utils_importers_create_superusers_whitespace_addresses_length_check(
+        self, mocker
+    ):
+        """Test _create_superusers with whitespace addresses that might pass length check."""
+        mocker.patch(
+            "utils.importers.get_env_variable",
+            side_effect=[
+                "user1",
+                "pass1",
+                " "
+                * 51,  # 51 whitespace characters - should be included by length check
+            ],
+        )
+
+        mocked_user_create = mocker.patch(
+            "utils.importers.User.objects.create_superuser"
+        )
+        mocked_contributor_filter = mocker.patch(
+            "utils.importers.Contributor.objects.filter"
+        )
+        mocked_contributor_create = mocker.patch(
+            "utils.importers.Contributor.objects.create"
+        )
+
+        # Mock user and profile
+        mock_user = mocker.MagicMock()
+        mock_user.username = "user1"
+        mock_user.profile = mocker.MagicMock()
+        mocked_user_create.return_value = mock_user
+
+        # Mock contributor query - no existing contributor
+        mocked_contributor_filter.return_value.first.return_value = None
+
+        _create_superusers()
+
+        mocked_user_create.assert_called_once_with("user1", password="pass1")
+        # Should create contributor since address length > 50 (even though it's whitespace)
+        mocked_contributor_create.assert_called_once_with(
+            name="user1", address=" " * 51
+        )
+        mock_user.profile.save.assert_called_once()
 
     # # _dataframe_from_csv
     def test_utils_importers_dataframe_from_csv_success(self, mocker):

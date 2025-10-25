@@ -1,0 +1,6 @@
+name: "CodeQL Config"
+paths-ignore:
+  - '**/static/**'  # Ignore all static/bundled files (e.g., bundle.js, assets/)
+  - '**/node_modules/**'  # Ignore dependencies
+queries:
+  - uses: security-extended

@@ -13,48 +13,6 @@ from utils.constants.core import ADDRESS_LEN, HANDLE_EXCEPTIONS
 from utils.helpers import parse_full_handle
 
 
-class Profile(models.Model):
-    """App's connection to main django user model."""
-
-    user = models.OneToOneField(User, on_delete=models.CASCADE, null=True)
-    github_token = models.CharField(max_length=100, blank=True)
-
-    def __str__(self):
-        """Return string representation of the profile instance
-
-        :return: str
-        """
-        return self.name
-
-    def get_absolute_url(self):
-        """Return url of the profile home page.
-
-        :return: url
-        """
-        return reverse("profile")
-
-    def profile(self):
-        """Return self instance for generic templating purposes.
-
-        It is accessed by 'object.profile' in some templates.
-
-        :return: :class:`Profile`
-        """
-        return self
-
-    @property
-    def name(self):
-        """Return user/profile name made depending on data fields availability.
-
-        :return: str
-        """
-        return (
-            "{} {}".format(self.user.first_name, self.user.last_name).strip()
-            if (self.user.first_name or self.user.last_name)
-            else self.user.username or self.user.email.split("@")[0]
-        )
-
-
 class ContributorManager(models.Manager):
     """ASA Stats contributor's data manager."""
 
@@ -325,6 +283,51 @@ class Contributor(models.Model):
         :rtype: int
         """
         return self.optimized_contribution_data["total_rewards"]
+
+
+class Profile(models.Model):
+    """App's connection to main Django user model and optionally to Contributor."""
+
+    user = models.OneToOneField(User, on_delete=models.CASCADE, null=True)
+    contributor = models.OneToOneField(
+        Contributor, on_delete=models.SET_NULL, null=True, blank=True
+    )
+    github_token = models.CharField(max_length=100, blank=True)
+
+    def __str__(self):
+        """Return string representation of the profile instance
+
+        :return: str
+        """
+        return self.name
+
+    def get_absolute_url(self):
+        """Return url of the profile home page.
+
+        :return: url
+        """
+        return reverse("profile")
+
+    def profile(self):
+        """Return self instance for generic templating purposes.
+
+        It is accessed by 'object.profile' in some templates.
+
+        :return: :class:`Profile`
+        """
+        return self
+
+    @property
+    def name(self):
+        """Return user/profile name made depending on data fields availability.
+
+        :return: str
+        """
+        return (
+            "{} {}".format(self.user.first_name, self.user.last_name).strip()
+            if (self.user.first_name or self.user.last_name)
+            else self.user.username or self.user.email.split("@")[0]
+        )
 
 
 class SocialPlatform(models.Model):

@@ -1,0 +1,21 @@
+{
+  "name": "pera-defly-django-integration",
+  "type": "module",
+  "scripts": {
+    "dev": "vite",
+    "build": "tsc && vite build",
+    "preview": "vite preview"
+  },
+  "devDependencies": {
+    "typescript": "5.8.3",
+    "vite": "6.3.5",
+    "vite-plugin-node-polyfills": "0.24.0"
+  },
+  "dependencies": {
+    "@blockshake/defly-connect": "^1.2.1",
+    "@perawallet/connect": "^1.4.2",
+    "@txnlab/use-wallet": "^4.3.1",
+    "algosdk": "^3.5.2",
+    "lute-connect": "^1.6.3"
+  }
+}

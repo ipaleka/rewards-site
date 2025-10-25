@@ -22,6 +22,7 @@ from core.models import (
     SocialPlatform,
 )
 from utils.constants.core import (
+    GITHUB_ISSUES_EXCLUDED_CONTRIBUTORS,
     GITHUB_ISSUES_START_DATE,
     ISSUE_CREATION_LABEL_CHOICES,
     REWARDS_COLLECTION,
@@ -518,7 +519,12 @@ def _map_open_issues(github_issues):
 
     # Fetch all contributors and create info mapping
     contributors = {
-        contributor.info: contributor.id for contributor in Contributor.objects.all()
+        contributor.info: contributor.id
+        for contributor in Contributor.objects.all()
+        if not any(
+            username in contributor.info
+            for username in GITHUB_ISSUES_EXCLUDED_CONTRIBUTORS
+        )
     }
 
     # Fetch all platforms by name

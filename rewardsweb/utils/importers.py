@@ -16,6 +16,7 @@ from core.models import (
     Contribution,
     Cycle,
     Handle,
+    Profile,
     Reward,
     RewardType,
     SocialPlatform,
@@ -83,15 +84,28 @@ def _create_active_rewards():
 def _create_superusers():
     """Create initial superusers from environment variables."""
     superusers_str = get_env_variable("INITIAL_SUPERUSERS", "")
-    passwords_str = get_env_variable("DEFAULT_USER_PASSWORD", "")
+    passwords_str = get_env_variable("INITIAL_SUPERUSER_PASSWORDS", "")
+    addresses_str = get_env_variable("INITIAL_SUPERUSER_ADDRESSES", "")
 
-    # Filter out empty strings after splitting
     superusers = [user for user in superusers_str.split(",") if user.strip()]
     passwords = [pwd for pwd in passwords_str.split(",") if pwd.strip()]
+    addresses = [adr for adr in addresses_str.split(",") if len(addresses_str) > 50]
 
     assert len(superusers) == len(passwords)
+    assert len(addresses) == 0 or len(addresses) == len(superusers)
+
     for index, superuser in enumerate(superusers):
-        User.objects.create_superuser(superuser, password=passwords[index])
+        user = User.objects.create_superuser(superuser, password=passwords[index])
+        if addresses and addresses[index]:
+            address = addresses[index]
+            contributor = Contributor.objects.filter(address=address).first()
+            if not contributor:
+                contributor = Contributor.objects.create(
+                    name=user.username, address=address
+                )
+
+            user.profile.contributor = contributor
+            user.profile.save()
 
 
 def _dataframe_from_csv(filename, columns=CONTRIBUTION_CSV_COLUMNS):

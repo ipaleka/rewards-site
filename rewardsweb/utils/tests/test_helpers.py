@@ -1,11 +1,15 @@
 """Testing module for :py:mod:`utils.helpers` module."""
 
+import base64
 import os
 import pickle
 from unittest import mock
 
 import pytest
+from algosdk import transaction, account
+from algosdk.encoding import decode_address
 from django.core.exceptions import ImproperlyConfigured
+from nacl.exceptions import BadSignatureError
 
 from utils.constants.core import MISSING_ENVIRONMENT_VARIABLE_ERROR
 from utils.helpers import (
@@ -15,6 +19,7 @@ from utils.helpers import (
     parse_full_handle,
     read_pickle,
     user_display,
+    verify_signed_transaction,
 )
 
 
@@ -352,9 +357,235 @@ class TestUtilsHelpersFunctions:
             assert read_pickle(path) == {}
 
     # # user_display
-    def test_utils_userhelpers_user_display_calls_and_returns_profile_name(
-        self, mocker
-    ):
+    def test_utils_helpers_user_display_calls_and_returns_profile_name(self, mocker):
         user = mocker.MagicMock()
         returned = user_display(user)
         assert returned == user.profile.name
+
+    # verify_signed_transaction
+    def test_verify_signed_transaction_valid_signature(self, mocker):
+        """Test verify_signed_transaction with a valid signature."""
+        # Generate a real address for testing
+        _, address = account.generate_account()
+
+        # Create a mock signed transaction
+        mock_stxn = mocker.MagicMock()
+        mock_stxn.signature = "valid_signature_base64"
+        mock_stxn.transaction = mocker.MagicMock()
+        mock_stxn.transaction.sender = address
+        mock_stxn.authorizing_address = None
+
+        with (
+            mock.patch("utils.helpers.VerifyKey") as mock_verify_key,
+            mock.patch("utils.helpers.encoding.decode_address") as mock_decode_address,
+            mock.patch("utils.helpers.base64.b64decode") as mock_b64decode,
+            mock.patch("utils.helpers.encoding.msgpack_encode") as mock_msgpack_encode,
+        ):
+            # Set up mocks to simulate successful verification
+            mock_verify_key_instance = mock_verify_key.return_value
+            mock_verify_key_instance.verify.return_value = (
+                None  # No exception means success
+            )
+
+            mock_decode_address.return_value = b"mocked_public_key_bytes"
+            mock_b64decode.return_value = b"mocked_decoded_data"
+            mock_msgpack_encode.return_value = "mocked_encoded_transaction"
+
+            result = verify_signed_transaction(mock_stxn)
+
+            assert result is True
+            mock_verify_key.assert_called_once_with(b"mocked_public_key_bytes")
+            mock_verify_key_instance.verify.assert_called_once_with(
+                b"TX" + b"mocked_decoded_data", b"mocked_decoded_data"
+            )
+
+    def test_verify_signed_transaction_invalid_signature(self, mocker):
+        """Test verify_signed_transaction with an invalid signature."""
+        _, address = account.generate_account()
+
+        mock_stxn = mocker.MagicMock()
+        mock_stxn.signature = "invalid_signature_base64"
+        mock_stxn.transaction = mocker.MagicMock()
+        mock_stxn.transaction.sender = address
+        mock_stxn.authorizing_address = None
+
+        with (
+            mock.patch("utils.helpers.VerifyKey") as mock_verify_key,
+            mock.patch("utils.helpers.encoding.decode_address"),
+            mock.patch("utils.helpers.base64.b64decode") as mock_b64decode,
+            mock.patch("utils.helpers.encoding.msgpack_encode"),
+        ):
+            mock_verify_key_instance = mock_verify_key.return_value
+            mock_verify_key_instance.verify.side_effect = BadSignatureError(
+                "Invalid signature"
+            )
+
+            mock_b64decode.return_value = b"mocked_data"
+
+            result = verify_signed_transaction(mock_stxn)
+
+            assert result is False
+            mock_verify_key_instance.verify.assert_called_once()
+
+    def test_verify_signed_transaction_no_signature(self, mocker):
+        """Test verify_signed_transaction with no signature."""
+        mock_stxn = mocker.MagicMock()
+        mock_stxn.signature = None
+        mock_stxn.transaction = mocker.MagicMock()
+        mock_stxn.authorizing_address = None
+
+        result = verify_signed_transaction(mock_stxn)
+
+        assert result is False
+
+    def test_verify_signed_transaction_empty_signature(self, mocker):
+        """Test verify_signed_transaction with empty signature."""
+        mock_stxn = mocker.MagicMock()
+        mock_stxn.signature = ""
+        mock_stxn.transaction = mocker.MagicMock()
+        mock_stxn.authorizing_address = None
+
+        result = verify_signed_transaction(mock_stxn)
+
+        assert result is False
+
+    def test_verify_signed_transaction_with_authorizing_address(self, mocker):
+        """Test verify_signed_transaction with authorizing_address (rekeying case)."""
+        _, address = account.generate_account()
+        _, auth_address = account.generate_account()  # Different address for rekeying
+
+        mock_stxn = mocker.MagicMock()
+        mock_stxn.signature = "valid_signature_base64"
+        mock_stxn.transaction = mocker.MagicMock()
+        mock_stxn.transaction.sender = address
+        mock_stxn.authorizing_address = (
+            auth_address  # This should be used instead of sender
+        )
+
+        with (
+            mock.patch("utils.helpers.VerifyKey") as mock_verify_key,
+            mock.patch("utils.helpers.encoding.decode_address") as mock_decode_address,
+            mock.patch("utils.helpers.base64.b64decode") as mock_b64decode,
+            mock.patch("utils.helpers.encoding.msgpack_encode") as mock_msgpack_encode,
+        ):
+            mock_verify_key_instance = mock_verify_key.return_value
+            mock_verify_key_instance.verify.return_value = None
+
+            mock_decode_address.return_value = b"mocked_auth_public_key_bytes"
+            mock_b64decode.return_value = b"mocked_decoded_data"
+            mock_msgpack_encode.return_value = "mocked_encoded_transaction"
+
+            result = verify_signed_transaction(mock_stxn)
+
+            assert result is True
+            # Verify that authorizing_address was used instead of sender
+            mock_decode_address.assert_called_with(auth_address)
+            mock_verify_key.assert_called_once_with(b"mocked_auth_public_key_bytes")
+
+    @pytest.mark.parametrize(
+        "signature_value,expected",
+        [
+            (None, False),
+            ("", False),
+            ("valid_signature", True),
+        ],
+    )
+    def test_verify_signed_transaction_signature_edge_cases(
+        self, mocker, signature_value, expected
+    ):
+        """Test various edge cases for signature field."""
+        _, address = account.generate_account()
+
+        mock_stxn = mocker.MagicMock()
+        mock_stxn.signature = signature_value
+        mock_stxn.transaction = mocker.MagicMock()
+        mock_stxn.transaction.sender = address
+        mock_stxn.authorizing_address = None
+
+        if signature_value == "valid_signature":
+            # Setup mocks for the case where we expect True
+            with (
+                mock.patch("utils.helpers.VerifyKey") as mock_verify_key,
+                mock.patch("utils.helpers.encoding.decode_address"),
+                mock.patch("utils.helpers.base64.b64decode"),
+                mock.patch("utils.helpers.encoding.msgpack_encode"),
+            ):
+                mock_verify_key_instance = mock_verify_key.return_value
+                mock_verify_key_instance.verify.return_value = None
+
+                result = verify_signed_transaction(mock_stxn)
+                assert result == expected
+        else:
+            result = verify_signed_transaction(mock_stxn)
+            assert result == expected
+
+    def test_verify_signed_transaction_base64_decoding(self, mocker):
+        """Test that base64 decoding is called correctly."""
+        _, address = account.generate_account()
+
+        mock_stxn = mocker.MagicMock()
+        mock_stxn.signature = "signature_base64_data"
+        mock_stxn.transaction = mocker.MagicMock()
+        mock_stxn.transaction.sender = address
+        mock_stxn.authorizing_address = None
+
+        with (
+            mock.patch("utils.helpers.VerifyKey") as mock_verify_key,
+            mock.patch("utils.helpers.encoding.decode_address"),
+            mock.patch("utils.helpers.base64.b64decode") as mock_b64decode,
+            mock.patch("utils.helpers.encoding.msgpack_encode") as mock_msgpack_encode,
+        ):
+            mock_verify_key_instance = mock_verify_key.return_value
+            mock_verify_key_instance.verify.return_value = None
+
+            # Set up different return values for different calls to b64decode
+            def b64decode_side_effect(arg):
+                if arg == "signature_base64_data":
+                    return b"decoded_signature"
+                elif arg == "encoded_transaction_data":
+                    return b"decoded_transaction"
+                return b"default_decoded_data"
+
+            mock_b64decode.side_effect = b64decode_side_effect
+            mock_msgpack_encode.return_value = "encoded_transaction_data"
+
+            verify_signed_transaction(mock_stxn)
+
+            # Verify base64.b64decode was called with the correct arguments
+            assert mock_b64decode.call_count == 2
+            mock_b64decode.assert_any_call("signature_base64_data")
+            mock_b64decode.assert_any_call("encoded_transaction_data")
+
+            # Verify verify was called with the correct prefixed message
+            expected_prefixed_message = b"TX" + b"decoded_transaction"
+            mock_verify_key_instance.verify.assert_called_once_with(
+                expected_prefixed_message, b"decoded_signature"
+            )
+
+    def test_verify_signed_transaction_public_key_decoding(self, mocker):
+        """Test that public key decoding works correctly."""
+        _, address = account.generate_account()
+
+        mock_stxn = mocker.MagicMock()
+        mock_stxn.signature = "signature_base64"
+        mock_stxn.transaction = mocker.MagicMock()
+        mock_stxn.transaction.sender = address
+        mock_stxn.authorizing_address = None
+
+        with (
+            mock.patch("utils.helpers.VerifyKey") as mock_verify_key,
+            mock.patch("utils.helpers.encoding.decode_address") as mock_decode_address,
+            mock.patch("utils.helpers.base64.b64decode"),
+            mock.patch("utils.helpers.encoding.msgpack_encode"),
+        ):
+            mock_verify_key_instance = mock_verify_key.return_value
+            mock_verify_key_instance.verify.return_value = None
+
+            mock_decode_address.return_value = b"decoded_public_key_bytes"
+
+            verify_signed_transaction(mock_stxn)
+
+            # Verify decode_address was called with the correct sender address
+            mock_decode_address.assert_called_once_with(address)
+            # Verify VerifyKey was instantiated with the decoded public key
+            mock_verify_key.assert_called_once_with(b"decoded_public_key_bytes")

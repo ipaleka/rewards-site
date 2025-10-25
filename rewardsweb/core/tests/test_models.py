@@ -30,100 +30,6 @@ from utils.constants.core import HANDLE_EXCEPTIONS
 user_model = get_user_model()
 
 
-class TestCoreProfileModel:
-    """Testing class for :class:`core.models.Profile` model."""
-
-    # # fields characteristics
-    @pytest.mark.parametrize(
-        "name,typ",
-        [
-            ("user", models.OneToOneField),
-            ("github_token", models.CharField),
-        ],
-    )
-    def test_core_profile_model_fields(self, name, typ):
-        assert hasattr(Profile, name)
-        assert isinstance(Profile._meta.get_field(name), typ)
-
-    @pytest.mark.django_db
-    def test_core_profile_model_user_is_not_optional(self):
-        with pytest.raises(ValidationError):
-            Profile().full_clean()
-
-    @pytest.mark.django_db
-    def test_core_profile_model_delete_new_user_delete_its_profile(self):
-        user = user_model.objects.create(username="userrname")
-        profile_id = user.profile.id
-        user.delete()
-        with pytest.raises(Profile.DoesNotExist):
-            Profile.objects.get(pk=profile_id)
-
-    @pytest.mark.django_db
-    def test_core_profile_model_cannot_save_too_long_github_token(self):
-        user = user_model.objects.create(username="username2")
-        profile = Profile(user=user, github_token="a" * 200)
-        with pytest.raises(DataError):
-            profile.save()
-            profile.full_clean()
-
-    # # __str__
-    @pytest.mark.django_db
-    def test_core_profile_model_string_representation_is_profile_name(self):
-        user = user_model.objects.create(
-            first_name="John", last_name="Doe", username="username", email="abs@abc.com"
-        )
-        profile = Profile(user=user)
-        assert str(profile) == profile.name
-
-    # # get_absolute_url
-    @pytest.mark.django_db
-    def test_profile_model_get_absolute_url(self):
-        user = user_model.objects.create(username="usernameurl1")
-        profile = Profile(user=user)
-        assert profile.get_absolute_url() == "/profile/"
-
-    # # profile
-    @pytest.mark.django_db
-    def test_profile_model_profile_returns_self(self):
-        user = user_model.objects.create(username="userrname10")
-        assert user.profile.profile() == user.profile
-
-    # # name
-    @pytest.mark.django_db
-    def test_profile_model_name_is_user_first_name_and_last_name(self):
-        user = user_model.objects.create(
-            first_name="John",
-            last_name="Doe",
-            username="username22",
-            email="abs@abc.com",
-        )
-        assert user.profile.name == "{} {}".format(user.first_name, user.last_name)
-
-    @pytest.mark.django_db
-    def test_profile_model_name_is_user_first_name(self):
-        user = user_model.objects.create(
-            first_name="John", username="username23", email="abs@abc.com"
-        )
-        assert user.profile.name == user.first_name
-
-    @pytest.mark.django_db
-    def test_profile_model_name_is_user_last_name(self):
-        user = user_model.objects.create(
-            last_name="Doe", username="username55", email="abs@abc.com"
-        )
-        assert user.profile.name == user.last_name
-
-    @pytest.mark.django_db
-    def test_profile_model_name_is_user_username(self):
-        user = user_model.objects.create(username="username57", email="abs@abc.com")
-        assert user.profile.name == user.username
-
-    @pytest.mark.django_db
-    def test_profile_model_name_is_user_email_without_domain(self):
-        user = user_model.objects.create(email="abs@abc.com")
-        assert user.profile.name == "abs"
-
-
 class TestCoreContributorManager:
     """Testing class for :class:`core.models.ContributorManager` class."""
 
@@ -697,6 +603,117 @@ class TestCoreContributorModel:
             contributor=contributor2, cycle=cycle2, platform=platform, reward=reward3
         )
         assert contributor.total_rewards == amount1 + amount2 + amount3
+
+
+class TestCoreProfileModel:
+    """Testing class for :class:`core.models.Profile` model."""
+
+    # # fields characteristics
+    @pytest.mark.parametrize(
+        "name,typ",
+        [
+            ("user", models.OneToOneField),
+            ("contributor", models.OneToOneField),
+            ("github_token", models.CharField),
+        ],
+    )
+    def test_core_profile_model_fields(self, name, typ):
+        assert hasattr(Profile, name)
+        assert isinstance(Profile._meta.get_field(name), typ)
+
+    @pytest.mark.django_db
+    def test_core_profile_model_user_is_not_optional(self):
+        with pytest.raises(ValidationError):
+            Profile().full_clean()
+
+    @pytest.mark.django_db
+    def test_core_profile_model_contributor_is_optional(self):
+        user = user_model.objects.create(username="userrnamecontrib")
+        user.profile.contributor = None
+        user.profile.save()
+
+    @pytest.mark.django_db
+    def test_core_profile_model_delete_user_deletes_its_profile(self):
+        user = user_model.objects.create(username="userrname")
+        profile_id = user.profile.id
+        user.delete()
+        with pytest.raises(Profile.DoesNotExist):
+            Profile.objects.get(pk=profile_id)
+
+    @pytest.mark.django_db
+    def test_core_profile_model_delete_contributor_sets_null(self):
+        user = user_model.objects.create(username="userrname")
+        contributor = Contributor.objects.create(name="deltedcontributor")
+        profile = Profile.objects.get(pk=user.profile.id)
+        profile.contributor = contributor
+        profile.save()
+        contributor.delete()
+        assert Profile.objects.get(pk=user.profile.id).contributor is None
+
+    @pytest.mark.django_db
+    def test_core_profile_model_cannot_save_too_long_github_token(self):
+        user = user_model.objects.create(username="username2")
+        profile = Profile(user=user, github_token="a" * 200)
+        with pytest.raises(DataError):
+            profile.save()
+            profile.full_clean()
+
+    # # __str__
+    @pytest.mark.django_db
+    def test_core_profile_model_string_representation_is_profile_name(self):
+        user = user_model.objects.create(
+            first_name="John", last_name="Doe", username="username", email="abs@abc.com"
+        )
+        profile = Profile(user=user)
+        assert str(profile) == profile.name
+
+    # # get_absolute_url
+    @pytest.mark.django_db
+    def test_profile_model_get_absolute_url(self):
+        user = user_model.objects.create(username="usernameurl1")
+        profile = Profile(user=user)
+        assert profile.get_absolute_url() == "/profile/"
+
+    # # profile
+    @pytest.mark.django_db
+    def test_profile_model_profile_returns_self(self):
+        user = user_model.objects.create(username="userrname10")
+        assert user.profile.profile() == user.profile
+
+    # # name
+    @pytest.mark.django_db
+    def test_profile_model_name_is_user_first_name_and_last_name(self):
+        user = user_model.objects.create(
+            first_name="John",
+            last_name="Doe",
+            username="username22",
+            email="abs@abc.com",
+        )
+        assert user.profile.name == "{} {}".format(user.first_name, user.last_name)
+
+    @pytest.mark.django_db
+    def test_profile_model_name_is_user_first_name(self):
+        user = user_model.objects.create(
+            first_name="John", username="username23", email="abs@abc.com"
+        )
+        assert user.profile.name == user.first_name
+
+    @pytest.mark.django_db
+    def test_profile_model_name_is_user_last_name(self):
+        user = user_model.objects.create(
+            last_name="Doe", username="username55", email="abs@abc.com"
+        )
+        assert user.profile.name == user.last_name
+
+    @pytest.mark.django_db
+    def test_profile_model_name_is_user_username(self):
+        user = user_model.objects.create(username="username57", email="abs@abc.com")
+        assert user.profile.name == user.username
+
+    @pytest.mark.django_db
+    def test_profile_model_name_is_user_email_without_domain(self):
+        user = user_model.objects.create(email="abs@abc.com")
+        assert user.profile.name == "abs"
 
 
 class TestCoreSocialPlatformModel:

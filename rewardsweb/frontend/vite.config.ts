@@ -29,7 +29,7 @@ export default defineConfig({
           return 'assets/[name].[ext]'; // Other assets to static/assets/
         },
         manualChunks: undefined // Single bundle for simplicity
-      }
+      },
     }
   }
 })

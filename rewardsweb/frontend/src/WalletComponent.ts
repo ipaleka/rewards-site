@@ -161,7 +161,8 @@ export class WalletComponent {
 
   isMagicLink = () => this.wallet.id === WalletId.MAGIC
 
-  isEmailValid = () => /^[a-zA-Z0-9.!#$%&'*+/=?^_`{|}~-]+@[a-zA-Z0-9](?:[a-zA-Z0-9-]{0,61}[a-zA-Z0-9])?(?:\.[a-zA-Z0-9](?:[a-zA-Z0-9-]{0,61}[a-zA-Z0-9])?)*$/.test(this.magicEmail)
+  // In WalletComponent.ts
+  isEmailValid = () => /^[a-zA-Z0-9!#$%&'*+/=?^_`{|}~-]+@[a-zA-Z0-9](?:[a-zA-Z0-9-]{0,61}[a-zA-Z0-9])?(?:\.[a-zA-Z0-9](?:[a-zA-Z0-9-]{0,61}[a-zA-Z0-9])?)*$/.test(this.magicEmail)
   isConnectDisabled = () => this.wallet.isConnected || (this.isMagicLink() && !this.isEmailValid())
   getConnectArgs = () => (this.isMagicLink() ? { email: this.magicEmail } : undefined)
 

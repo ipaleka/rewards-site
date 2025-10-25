@@ -18,3 +18,4 @@ rewardsweb/.coverage
 rewardsweb/core/static/css/tailwindcss
 rewardsweb/rewardsbot/.env
 rewardsweb/rewardsbot/*.log
+rewardsweb/frontend/coverage

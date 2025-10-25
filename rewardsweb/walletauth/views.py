@@ -1,50 +1,21 @@
+"""Module containing views for wallet authorization and authentication."""
+
+import base64
+import json
+from secrets import token_hex
+
+import msgpack
+from algosdk.encoding import is_valid_address
+from algosdk.transaction import SignedTransaction
 from django.http import JsonResponse
 from django.views import View
 from django.contrib.auth import get_user_model, login
-from algosdk.v2client.algod import AlgodClient
-from algosdk import encoding
-from nacl.signing import VerifyKey
-from nacl.exceptions import BadSignatureError
+
 from core.models import Contributor, Profile
+from utils.helpers import verify_signed_transaction
 from walletauth.models import WalletNonce
-import json
-import secrets
-import algosdk
-import base64
-import msgpack
 
 User = get_user_model()
-
-# Initialize Algod client (for fallback if needed)
-algod_client = AlgodClient(
-    algod_token="",
-    algod_address="https://mainnet-api.algonode.cloud",
-    headers={"User-Agent": "algosdk"},
-)
-
-
-def verify_signed_transaction(stxn):
-    """
-    Verify the signature of a signed transaction.
-    """
-    if stxn.signature is None or len(stxn.signature) == 0:
-        return False
-
-    public_key = stxn.transaction.sender
-    if stxn.authorizing_address is not None:
-        public_key = stxn.authorizing_address
-
-    verify_key = VerifyKey(encoding.decode_address(public_key))
-
-    prefixed_message = b"TX" + base64.b64decode(
-        encoding.msgpack_encode(stxn.transaction)
-    )
-
-    try:
-        verify_key.verify(prefixed_message, base64.b64decode(stxn.signature))
-        return True
-    except BadSignatureError:
-        return False
 
 
 class WalletNonceView(View):
@@ -57,12 +28,12 @@ class WalletNonceView(View):
         except (json.JSONDecodeError, KeyError):
             return JsonResponse({"error": "Invalid JSON"}, status=400)
 
-        if not address or not algosdk.encoding.is_valid_address(address):
+        if not address or not is_valid_address(address):
             return JsonResponse(
                 {"error": f"Invalid or missing address: {address}"}, status=400
             )
 
-        nonce = secrets.token_hex(16)
+        nonce = token_hex(16)
         WalletNonce.objects.create(address=address, nonce=nonce)
         print(f"[WalletNonceView] Generated nonce: {nonce} for address: {address}")
         return JsonResponse({"nonce": nonce})
@@ -85,11 +56,12 @@ class WalletVerifyView(View):
 
         if not address or not signed_transaction_base64 or not nonce_str:
             print(
-                f"[WalletVerifyView] Missing data - address: {address}, signed_tx: {signed_transaction_base64 is not None}, nonce: {nonce_str}"
+                f"[WalletVerifyView] Missing data - address: {address}, signed_tx: "
+                f"{signed_transaction_base64 is not None}, nonce: {nonce_str}"
             )
             return JsonResponse({"success": False, "error": "Missing data"}, status=400)
 
-        if not algosdk.encoding.is_valid_address(address):
+        if not is_valid_address(address):
             print(f"[WalletVerifyView] Invalid address: {address}")
             return JsonResponse(
                 {"success": False, "error": f"Invalid address: {address}"}, status=400
@@ -118,16 +90,23 @@ class WalletVerifyView(View):
             # Decode msgpack to dict
             txn_dict = msgpack.unpackb(signed_tx_bytes)
             # Undictify to SignedTransaction
-            stxn = algosdk.transaction.SignedTransaction.undictify(txn_dict)
+            stxn = SignedTransaction.undictify(txn_dict)
+            note = (
+                stxn.transaction.note.decode("utf-8")
+                if stxn.transaction.note
+                else "No note"
+            )
             print(
-                f"[WalletVerifyView] Decoded signed transaction, sender: {stxn.transaction.sender}, note: {stxn.transaction.note.decode('utf-8') if stxn.transaction.note else 'No note'}"
+                f"[WalletVerifyView] Decoded signed transaction, sender: "
+                f"{stxn.transaction.sender}, note: {note}"
             )
 
             # Verify the signature
             verified = verify_signed_transaction(stxn)
             if not verified:
                 print(
-                    f"[WalletVerifyView] Signature verification failed for address: {address}"
+                    f"[WalletVerifyView] Signature verification failed "
+                    f"for address: {address}"
                 )
                 return JsonResponse(
                     {"success": False, "error": "Invalid signature"}, status=400
@@ -142,7 +121,8 @@ class WalletVerifyView(View):
                 or note_str.split("SIWA:Login to ASA Stats: ")[1] != nonce_str
             ):
                 print(
-                    f"[WalletVerifyView] Note mismatch - expected nonce: {nonce_str}, got note: {note_str}"
+                    f"[WalletVerifyView] Note mismatch - "
+                    f"expected nonce: {nonce_str}, got note: {note_str}"
                 )
                 return JsonResponse(
                     {"success": False, "error": "Invalid nonce in transaction"},
@@ -150,8 +130,10 @@ class WalletVerifyView(View):
                 )
 
             print(
-                f"[WalletVerifyView] Signature and nonce verified for address: {address}"
+                f"[WalletVerifyView] Signature and nonce "
+                f"verified for address: {address}"
             )
+            
         except Exception as e:
             print(f"[WalletVerifyView] Verification error: {e}")
             return JsonResponse(

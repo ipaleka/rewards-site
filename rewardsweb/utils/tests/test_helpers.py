@@ -1,11 +1,15 @@
 """Testing module for :py:mod:`utils.helpers` module."""
 
+import base64
 import os
 import pickle
 from unittest import mock
 
 import pytest
+from algosdk import transaction, account
+from algosdk.encoding import decode_address
 from django.core.exceptions import ImproperlyConfigured
+from nacl.exceptions import BadSignatureError
 
 from utils.constants.core import MISSING_ENVIRONMENT_VARIABLE_ERROR
 from utils.helpers import (
@@ -15,6 +19,7 @@ from utils.helpers import (
     parse_full_handle,
     read_pickle,
     user_display,
+    verify_signed_transaction,
 )
 
 
@@ -352,9 +357,242 @@ class TestUtilsHelpersFunctions:
             assert read_pickle(path) == {}
 
     # # user_display
-    def test_utils_userhelpers_user_display_calls_and_returns_profile_name(
-        self, mocker
-    ):
+    def test_utils_helpers_user_display_calls_and_returns_profile_name(self, mocker):
         user = mocker.MagicMock()
         returned = user_display(user)
         assert returned == user.profile.name
+
+    # verify_signed_transaction
+    def test_utils_helpers_verify_signed_transaction_valid_signature(self, mocker):
+        """Test verify_signed_transaction with a valid signature."""
+        # Create a real transaction and sign it
+        private_key, address = account.generate_account()
+        txn = transaction.PaymentTxn(
+            sender=address,
+            sp=transaction.SuggestedParams(0, 1, 1, "testnet-v1.0"),
+            receiver=address,
+            amt=1000,
+        )
+        signed_txn = txn.sign(private_key)
+
+        # Mock the dependencies to use our real signed transaction
+        with (
+            mock.patch("utils.helpers.VerifyKey") as mock_verify_key,
+            mock.patch("utils.helpers.encoding.decode_address") as mock_decode_address,
+            mock.patch("utils.helpers.base64.b64decode") as mock_b64decode,
+            mock.patch("utils.helpers.encoding.msgpack_encode") as mock_msgpack_encode,
+        ):
+            # Set up mocks to simulate successful verification
+            mock_verify_key_instance = mock_verify_key.return_value
+            mock_verify_key_instance.verify.return_value = (
+                None  # No exception means success
+            )
+
+            mock_decode_address.return_value = decode_address(address)
+            mock_b64decode.side_effect = lambda x: (
+                base64.b64decode(x)
+                if x == signed_txn.signature
+                else b"mocked_transaction_data"
+            )
+            mock_msgpack_encode.return_value = "mocked_encoded_transaction"
+
+            result = verify_signed_transaction(signed_txn)
+
+            assert result is True
+            mock_verify_key.assert_called_once()
+            mock_verify_key_instance.verify.assert_called_once()
+
+    def test_utils_helpers_verify_signed_transaction_invalid_signature(self, mocker):
+        """Test verify_signed_transaction with an invalid signature."""
+        private_key, address = account.generate_account()
+        txn = transaction.PaymentTxn(
+            sender=address,
+            sp=transaction.SuggestedParams(0, 1, 1, "testnet-v1.0"),
+            receiver=address,
+            amt=1000,
+        )
+        signed_txn = txn.sign(private_key)
+
+        with (
+            mock.patch("utils.helpers.VerifyKey") as mock_verify_key,
+            mock.patch("utils.helpers.encoding.decode_address") as mock_decode_address,
+            mock.patch("utils.helpers.base64.b64decode") as mock_b64decode,
+            mock.patch("utils.helpers.encoding.msgpack_encode") as mock_msgpack_encode,
+        ):
+            mock_verify_key_instance = mock_verify_key.return_value
+            mock_verify_key_instance.verify.side_effect = BadSignatureError(
+                "Invalid signature"
+            )
+
+            mock_decode_address.return_value = decode_address(address)
+            mock_b64decode.return_value = b"mocked_data"
+            mock_msgpack_encode.return_value = "mocked_encoded_transaction"
+
+            result = verify_signed_transaction(signed_txn)
+
+            assert result is False
+            mock_verify_key_instance.verify.assert_called_once()
+
+    def test_utils_helpers_verify_signed_transaction_no_signature(self, mocker):
+        """Test verify_signed_transaction with no signature."""
+        # Create a mock signed transaction with no signature
+        mock_stxn = mocker.MagicMock()
+        mock_stxn.signature = None
+        mock_stxn.transaction = mocker.MagicMock()
+        mock_stxn.authorizing_address = None
+
+        result = verify_signed_transaction(mock_stxn)
+
+        assert result is False
+
+    def test_utils_helpers_verify_signed_transaction_empty_signature(self, mocker):
+        """Test verify_signed_transaction with empty signature."""
+        mock_stxn = mocker.MagicMock()
+        mock_stxn.signature = ""
+        mock_stxn.transaction = mocker.MagicMock()
+        mock_stxn.authorizing_address = None
+
+        result = verify_signed_transaction(mock_stxn)
+
+        assert result is False
+
+    def test_utils_helpers_verify_signed_transaction_with_authorizing_address(
+        self, mocker
+    ):
+        """Test verify_signed_transaction with authorizing_address (rekeying case)."""
+        private_key, address = account.generate_account()
+        auth_address = account.generate_account()[1]  # Different address for rekeying
+
+        txn = transaction.PaymentTxn(
+            sender=address,
+            sp=transaction.SuggestedParams(0, 1, 1, "testnet-v1.0"),
+            receiver=address,
+            amt=1000,
+        )
+        signed_txn = txn.sign(private_key)
+
+        # Add authorizing_address to simulate rekeying transaction
+        signed_txn.authorizing_address = auth_address
+
+        with (
+            mock.patch("utils.helpers.VerifyKey") as mock_verify_key,
+            mock.patch("utils.helpers.encoding.decode_address") as mock_decode_address,
+            mock.patch("utils.helpers.base64.b64decode") as mock_b64decode,
+            mock.patch("utils.helpers.encoding.msgpack_encode") as mock_msgpack_encode,
+        ):
+            mock_verify_key_instance = mock_verify_key.return_value
+            mock_verify_key_instance.verify.return_value = None
+
+            # Mock decode_address to return different values based on input
+            def decode_side_effect(addr):
+                if addr == auth_address:
+                    return decode_address(auth_address)
+                return decode_address(address)
+
+            mock_decode_address.side_effect = decode_side_effect
+
+            mock_b64decode.return_value = b"mocked_data"
+            mock_msgpack_encode.return_value = "mocked_encoded_transaction"
+
+            result = verify_signed_transaction(signed_txn)
+
+            assert result is True
+            # Verify that authorizing_address was used instead of sender
+            mock_decode_address.assert_called_with(auth_address)
+            mock_verify_key.assert_called_once()
+
+    def test_utils_helpers_verify_signed_transaction_verification_exception_handling(
+        self, mocker
+    ):
+        """Test that other exceptions during verification are properly handled."""
+        private_key, address = account.generate_account()
+        txn = transaction.PaymentTxn(
+            sender=address,
+            sp=transaction.SuggestedParams(0, 1, 1, "testnet-v1.0"),
+            receiver=address,
+            amt=1000,
+        )
+        signed_txn = txn.sign(private_key)
+
+        with (
+            mock.patch("utils.helpers.VerifyKey") as mock_verify_key,
+            mock.patch("utils.helpers.encoding.decode_address") as mock_decode_address,
+            mock.patch("utils.helpers.base64.b64decode") as mock_b64decode,
+            mock.patch("utils.helpers.encoding.msgpack_encode") as mock_msgpack_encode,
+        ):
+            mock_verify_key_instance = mock_verify_key.return_value
+            # Test with a different exception that should still result in False
+            mock_verify_key_instance.verify.side_effect = Exception("Some other error")
+
+            mock_decode_address.return_value = decode_address(address)
+            mock_b64decode.return_value = b"mocked_data"
+            mock_msgpack_encode.return_value = "mocked_encoded_transaction"
+
+            result = verify_signed_transaction(signed_txn)
+
+            assert result is False
+
+    @pytest.mark.parametrize(
+        "signature_value,expected",
+        [
+            (None, False),
+            ("", False),
+            ("valid_signature", True),  # This will depend on mock setup
+        ],
+    )
+    def test_utils_helpers_verify_signed_transaction_signature_edge_cases(
+        self, mocker, signature_value, expected
+    ):
+        """Test various edge cases for signature field."""
+        mock_stxn = mocker.MagicMock()
+        mock_stxn.signature = signature_value
+        mock_stxn.transaction = mocker.MagicMock()
+        mock_stxn.authorizing_address = None
+
+        if signature_value == "valid_signature":
+            # Setup mocks for the case where we expect True
+            with (
+                mock.patch("utils.helpers.VerifyKey") as mock_verify_key,
+                mock.patch("utils.helpers.encoding.decode_address"),
+                mock.patch("utils.helpers.base64.b64decode"),
+                mock.patch("utils.helpers.encoding.msgpack_encode"),
+            ):
+                mock_verify_key_instance = mock_verify_key.return_value
+                mock_verify_key_instance.verify.return_value = None
+
+                result = verify_signed_transaction(mock_stxn)
+                assert result == expected
+        else:
+            result = verify_signed_transaction(mock_stxn)
+            assert result == expected
+
+    def test_utils_helpers_verify_signed_transaction_base64_decoding(self, mocker):
+        """Test that base64 decoding is called correctly."""
+        private_key, address = account.generate_account()
+        txn = transaction.PaymentTxn(
+            sender=address,
+            sp=transaction.SuggestedParams(0, 1, 1, "testnet-v1.0"),
+            receiver=address,
+            amt=1000,
+        )
+        signed_txn = txn.sign(private_key)
+
+        with (
+            mock.patch("utils.helpers.VerifyKey") as mock_verify_key,
+            mock.patch("utils.helpers.encoding.decode_address"),
+            mock.patch("utils.helpers.base64.b64decode") as mock_b64decode,
+            mock.patch("utils.helpers.encoding.msgpack_encode") as mock_msgpack_encode,
+        ):
+            mock_verify_key_instance = mock_verify_key.return_value
+            mock_verify_key_instance.verify.return_value = None
+
+            mock_msgpack_encode.return_value = "mocked_encoded_transaction"
+
+            verify_signed_transaction(signed_txn)
+
+            # Verify base64.b64decode was called with the signature and transaction data
+            assert mock_b64decode.call_count == 2
+            # First call should be with the signature
+            mock_b64decode.assert_any_call(signed_txn.signature)
+            # Second call should be with the msgpack encoded transaction
+            mock_b64decode.assert_any_call("mocked_encoded_transaction")

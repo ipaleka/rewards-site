@@ -3,7 +3,7 @@ import {
   WalletId,
   WalletManager
 } from '@txnlab/use-wallet'
-import algosdk from 'algosdk'
+import { AtomicTransactionComposer, makePaymentTxnWithSuggestedParamsFromObject, encodeUnsignedTransaction, isValidAddress } from 'algosdk'
 
 export class WalletComponent {
   wallet: BaseWallet
@@ -38,9 +38,9 @@ export class WalletComponent {
         throw new Error('[App] No active account')
       }
 
-      const atc = new algosdk.AtomicTransactionComposer()
+      const atc = new AtomicTransactionComposer()
       const suggestedParams = await this.manager.algodClient.getTransactionParams().do()
-      const transaction = algosdk.makePaymentTxnWithSuggestedParamsFromObject({
+      const transaction = makePaymentTxnWithSuggestedParamsFromObject({
         sender: activeAddress,
         receiver: activeAddress,
         amount: 0,
@@ -68,7 +68,7 @@ export class WalletComponent {
 
   auth = async () => {
     const activeAddress = this.wallet.activeAccount?.address
-    if (!activeAddress || !algosdk.isValidAddress(activeAddress)) {
+    if (!activeAddress || !isValidAddress(activeAddress)) {
       throw new Error(`[App] Invalid or missing address: ${activeAddress || 'undefined'}`)
     }
     console.info(`[App] Authenticating with address: ${activeAddress}`)
@@ -102,14 +102,14 @@ export class WalletComponent {
       const message = `SIWA:Login to ASA Stats: ${nonce}`
       const note = new TextEncoder().encode(message)
       const suggestedParams = await this.manager.algodClient.getTransactionParams().do()
-      const transaction = algosdk.makePaymentTxnWithSuggestedParamsFromObject({
+      const transaction = makePaymentTxnWithSuggestedParamsFromObject({
         sender: activeAddress,
         receiver: activeAddress,
         amount: 0,
         note,
         suggestedParams
       })
-      const encodedTx = algosdk.encodeUnsignedTransaction(transaction)
+      const encodedTx = encodeUnsignedTransaction(transaction)
       console.info('[App] Client encodedTx:', Array.from(encodedTx))
       console.info('[App] Signing transaction with note:', message)
       const signedTxs = await this.wallet.signTransactions([encodedTx])

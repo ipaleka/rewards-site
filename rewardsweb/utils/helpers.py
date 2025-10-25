@@ -1,12 +1,16 @@
 """Module containing projects' helper functions."""
 
+import base64
 import logging
 import os
 import pickle
 from pathlib import Path
 
 import pandas as pd
+from algosdk import encoding
 from django.core.exceptions import ImproperlyConfigured
+from nacl.signing import VerifyKey
+from nacl.exceptions import BadSignatureError
 
 from utils.constants.core import MISSING_ENVIRONMENT_VARIABLE_ERROR
 
@@ -170,3 +174,39 @@ def user_display(user):
     :return: str
     """
     return user.profile.name
+
+
+def verify_signed_transaction(stxn):
+    """Verify the signature of a signed transaction.
+
+    This function checks whether a signed Algorand transaction has a valid signature.
+    It handles both regular transactions and transactions with rekeying by verifying
+    the signature against the appropriate public key (sender or authorizing address).
+
+    :param stxn: signed transaction instance to verify
+    :type stxn: :class:`algosdk.transaction.SignedTransaction`
+    :return: True if the signature is valid, False otherwise
+    :rtype: bool
+
+    :raises: This function catches BadSignatureError internally and returns False,
+             so it doesn't raise any exceptions for invalid signatures.
+    """
+    if stxn.signature is None or len(stxn.signature) == 0:
+        return False
+
+    public_key = stxn.transaction.sender
+    if stxn.authorizing_address is not None:
+        public_key = stxn.authorizing_address
+
+    verify_key = VerifyKey(encoding.decode_address(public_key))
+
+    prefixed_message = b"TX" + base64.b64decode(
+        encoding.msgpack_encode(stxn.transaction)
+    )
+
+    try:
+        verify_key.verify(prefixed_message, base64.b64decode(stxn.signature))
+        return True
+
+    except BadSignatureError:
+        return False

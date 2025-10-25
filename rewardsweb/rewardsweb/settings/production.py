@@ -13,6 +13,22 @@ ALLOWED_HOSTS = [
     "localhost",
 ]
 
+MIDDLEWARE.insert(2, 'django.middleware.gzip.GZipMiddleware')
+"""
+NOTE: nginx setup:
+
+location /static/ {
+    alias /path/to/static/;
+    gzip on;
+    gzip_types text/plain text/css application/json application/javascript text/xml application/xml application/xml+rss text/javascript;
+    gzip_vary on;
+    gzip_proxied any;
+    gzip_comp_level 6;
+    gzip_buffers 16 8k;
+    gzip_http_version 1.1;
+}
+"""
+
 CSRF_TRUSTED_ORIGINS = [
     "https://*.asastats.com",
 ]

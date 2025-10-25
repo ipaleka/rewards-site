@@ -7,9 +7,7 @@ const walletManager = new WalletManager({
   wallets: [
     WalletId.PERA,
     WalletId.DEFLY,
-    WalletId.EXODUS, // Exodus wallet
-    WalletId.LUTE, // Lute wallet
-    WalletId.KIBISIS, // Kibisis wallet
+    WalletId.LUTE
   ],
   defaultNetwork: NetworkId.MAINNET  // Start with Testnet for safety
 })

@@ -13,7 +13,7 @@ ALLOWED_HOSTS = [
     "localhost",
 ]
 
-MIDDLEWARE.insert(2, 'django.middleware.gzip.GZipMiddleware')
+MIDDLEWARE.insert(2, "django.middleware.gzip.GZipMiddleware")
 """
 NOTE: nginx setup:
 

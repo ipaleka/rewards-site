@@ -1,3 +1,5 @@
+"""Module containing walletauth app configuration."""
+
 from django.apps import AppConfig
 
 

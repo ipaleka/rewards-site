@@ -628,8 +628,9 @@ class TestCoreProfileModel:
 
     @pytest.mark.django_db
     def test_core_profile_model_contributor_is_optional(self):
-        user_model.objects.create(username="userrnamecontrib")
-        Profile().full_clean()
+        user = user_model.objects.create(username="userrnamecontrib")
+        user.profile.contributor = None
+        user.profile.save()
 
     @pytest.mark.django_db
     def test_core_profile_model_delete_user_deletes_its_profile(self):

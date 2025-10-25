@@ -23,6 +23,11 @@ class WalletNonceView(View):
     """Generate nonce for wallet authentication."""
 
     def post(self, request, *args, **kwargs):
+        """Return nonce created for the received address.
+
+        :param request: HTTP request object
+        :return: JSON response with success status or error
+        """
         try:
             data = json.loads(request.body)
             address = data.get("address")
@@ -49,6 +54,7 @@ class WalletVerifyView(View):
             address = data.get("address")
             signed_transaction_base64 = data.get("signedTransaction")
             nonce_str = data.get("nonce")
+
         except (json.JSONDecodeError, KeyError) as e:
             print(f"[WalletVerifyView] Request error: {e}")
             return JsonResponse(

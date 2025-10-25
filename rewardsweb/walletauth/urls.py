@@ -1,3 +1,5 @@
+"""Module containing walletauth app's URL configuration."""
+
 from django.urls import path
 
 from walletauth.views import WalletNonceView, WalletVerifyView

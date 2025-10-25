@@ -16,6 +16,11 @@ class TestRewardsWebUrls:
         assert isinstance(url, URLResolver)
         assert url.namespace == "admin"
 
+    def test_rewardsweb_urls_api_wallet(self):
+        url = self._url_from_pattern("api/wallet/")
+        assert isinstance(url, URLResolver)
+        assert "walletauth.urls" in str(url.urlconf_name)
+
     def test_rewardsweb_urls_api(self):
         url = self._url_from_pattern("api/")
         assert isinstance(url, URLResolver)
@@ -32,4 +37,4 @@ class TestRewardsWebUrls:
         assert "core.urls" in str(url.urlconf_name)
 
     def test_rewardsweb_urls_pattern_count(self):
-        assert len(urls.urlpatterns) == 6
+        assert len(urls.urlpatterns) == 7

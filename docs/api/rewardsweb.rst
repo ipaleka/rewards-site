@@ -331,3 +331,66 @@
   :members:
   :undoc-members:
   :show-inheritance:
+
+
+:mod:`walletauth` -- Wallet connecting authentication application
+*****************************************************************
+
+.. automodule:: walletauth
+  :members:
+  :undoc-members:
+  :show-inheritance:
+
+
+:mod:`walletauth.apps` -- Wallet connecting authentication application configuration module
+-------------------------------------------------------------------------------------------
+
+.. automodule:: walletauth.apps
+  :members:
+  :undoc-members:
+  :show-inheritance:
+
+
+:mod:`walletauth.models` -- Wallet connecting authentication application ORM module
+-----------------------------------------------------------------------------------
+
+.. automodule:: walletauth.models
+  :members:
+  :undoc-members:
+  :show-inheritance:
+
+
+:mod:`walletauth.urls` -- Wallet connecting authentication application URL configuration module
+-----------------------------------------------------------------------------------------------
+
+.. automodule:: walletauth.urls
+  :members:
+  :undoc-members:
+  :show-inheritance:
+
+
+:mod:`walletauth.views` -- Wallet connecting authentication application views
+-----------------------------------------------------------------------------
+
+.. automodule:: walletauth.views
+  :members:
+  :undoc-members:
+  :show-inheritance:
+
+
+:mod:`walletauth.migrations` -- Wallet connecting authentication application database migrations package
+--------------------------------------------------------------------------------------------------------
+
+.. automodule:: walletauth.migrations
+  :members:
+  :undoc-members:
+  :show-inheritance:
+
+
+:mod:`walletauth.tests` -- Wallet connecting authentication application unit-tests package
+------------------------------------------------------------------------------------------
+
+.. automodule:: walletauth.tests
+  :members:
+  :undoc-members:
+  :show-inheritance:

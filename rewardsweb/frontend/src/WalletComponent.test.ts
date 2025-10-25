@@ -762,11 +762,16 @@ describe('WalletComponent', () => {
     });
 
     it('should disable email input when connected', () => {
+      mockWallet.id = WalletId.MAGIC; // Ensure mockWallet is Magic (for isMagicLink() to be true)
       mockWallet.isConnected = true;
       walletComponent.render(); // Re-render with connected state
 
       const emailInput = walletComponent.element.querySelector('#magic-email') as HTMLInputElement;
-      expect(emailInput.disabled).toBe(true);
+      expect(emailInput).toBeTruthy(); // Verify input is rendered
+      console.log('Input HTML:', emailInput.outerHTML); // Debug: Check the rendered HTML
+      console.log('isConnected in mock:', mockWallet.isConnected); // Debug: Verify state
+      expect(emailInput.hasAttribute('disabled')).toBe(true); // Check attribute
+      expect(emailInput.disabled).toBe(true); // Also check property for completeness
     });
 
     it('should handle email input updates correctly', () => {

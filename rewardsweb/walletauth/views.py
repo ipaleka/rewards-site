@@ -1,12 +1,11 @@
 from django.http import JsonResponse
 from django.views import View
 from django.contrib.auth import get_user_model, login
-from algosdk.util import verify_bytes
 from algosdk.v2client.algod import AlgodClient
 from algosdk import encoding
-from nacl.signing import SigningKey, VerifyKey
+from nacl.signing import VerifyKey
 from nacl.exceptions import BadSignatureError
-from core.models import Profile
+from core.models import Contributor, Profile
 from walletauth.models import WalletNonce
 import json
 import secrets
@@ -162,12 +161,24 @@ class WalletVerifyView(View):
         nonce_obj.mark_used()
         print(f"[WalletVerifyView] Nonce marked used: {nonce_str}")
 
-        profile = Profile.objects.filter(address=address).first()
-        if profile:
-            user = profile.user
+        # Link or create user via Contributor
+        contributor = Contributor.objects.filter(address=address).first()
+        if contributor:
+            profile = Profile.objects.filter(contributor=contributor).first()
+            if profile:
+                user = profile.user
+            else:
+                user = User.objects.create(username=f"{address[:5]}..{address[-5:]}")
+                user.profile.contributor = contributor
+                user.profile.save()
         else:
-            user = User.objects.create(username=address[:12])
-            profile = Profile.objects.create(user=user, address=address)
+            user = User.objects.create(username=f"{address[:5]}..{address[-5:]}")
+            contributor = Contributor.objects.create(
+                name=user.username, address=address
+            )
+            user.profile.contributor = contributor
+            user.profile.save()
+
         print(f"[WalletVerifyView] Logged in user: {user.username}")
 
         login(request, user)

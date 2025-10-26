@@ -10,12 +10,12 @@
       <div class="space-y-3">
         {% for issue in issue_list %}
         <div class="flex items-center">
-          <a class="link link-accent text-lg" href="{{ issue.get_absolute_url }}">{{ issue }}</a>
+          <a class="link link-accent text-lg" href="{{ issue.get_absolute_url }}">{{ issue.info }}</a>
         </div>
         {% endfor %}
       </div>
       {% else %}
-      <p class="text-base-content/70">There are no issues in database.</p>
+      <p class="text-base-content/70">There are no open issues in database.</p>
       {% endif %}
     </div>
   </div>

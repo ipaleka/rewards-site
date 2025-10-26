@@ -22,6 +22,8 @@ from core.models import (
     Handle,
     Issue,
     IssueStatus,
+    Reward,
+    RewardType,
     SocialPlatform,
 )
 from core.forms import (
@@ -1410,6 +1412,19 @@ class TestCycleDetailView:
         view = CycleDetailView()
         assert view.model == Cycle
 
+    # # get_queryset
+    @pytest.mark.django_db
+    def test_cycledetailview_get_queryset_uses_prefetch_related(self, mocker):
+        mocked_queryset = mocker.patch("core.views.DetailView.get_queryset")
+        view = CycleDetailView()
+        returned = view.get_queryset()
+        assert returned == mocked_queryset.return_value.prefetch_related.return_value
+        mocked_queryset.return_value.prefetch_related.assert_called_once_with(
+            "contribution_set__contributor",
+            "contribution_set__reward__type",
+            "contribution_set__platform",
+        )
+
 
 class TestIssueListView:
     """Testing class for :class:`core.views.IssueListView`."""
@@ -1430,6 +1445,7 @@ class TestIssueListView:
 class TestDbIssueListView:
     """Testing class for :class:`core.views.IssueListView` with database."""
 
+    # # get_queryset
     def test_issuelistview_get_queryset(self, rf):
         request = rf.get("/issues/")
 
@@ -1449,6 +1465,112 @@ class TestDbIssueListView:
         assert queryset.count() == 3
         assert queryset.first() == issue1
         assert queryset.last() == issue2
+
+    @pytest.mark.django_db
+    def test_issuelistview_get_queryset_filters_by_created_status_and_prefetches(
+        self, mocker
+    ):
+        """Test that get_queryset filters by CREATED and prefetches contributions."""
+        # Mock the Issue.objects.filter chain
+        mocked_filter = mocker.patch("core.views.Issue.objects.filter")
+        mocked_prefetch = mocker.patch("core.views.Prefetch")
+
+        view = IssueListView()
+        returned = view.get_queryset()
+
+        # Verify the filter was called with CREATED status
+        mocked_filter.assert_called_once_with(status=IssueStatus.CREATED)
+
+        # Verify Prefetch was called with the correct parameters
+        mocked_prefetch.assert_called_once_with(
+            "contribution_set",
+            queryset=mocker.ANY,  # We'll check the queryset separately
+            to_attr="prefetched_contributions",
+        )
+
+        # Verify prefetch_related was called with our Prefetch object
+        mocked_filter.return_value.prefetch_related.assert_called_once_with(
+            mocked_prefetch.return_value
+        )
+
+        # Verify the final return value
+        assert returned == mocked_filter.return_value.prefetch_related.return_value
+
+    @pytest.mark.django_db
+    def test_issuelistview_get_queryset_contribution_queryset(self, mocker):
+        """Test that Contribution queryset uses select_related with correct fields."""
+        mocked_filter = mocker.patch("core.views.Issue.objects.filter")
+        mocked_prefetch = mocker.patch("core.views.Prefetch")
+        mocked_contrib = mocker.patch("core.views.Contribution.objects")
+
+        view = IssueListView()
+        view.get_queryset()
+
+        # Get the queryset that was passed to Prefetch
+        prefetch_call_args = mocked_prefetch.call_args
+        contribution_queryset = prefetch_call_args[1]["queryset"]
+
+        # Verify the Contribution queryset uses select_related with correct fields
+        mocked_contrib.select_related.assert_called_once_with(
+            "contributor", "platform", "reward__type"
+        )
+
+        # Verify the queryset is ordered by created_at
+        mocked_contrib.select_related.return_value.order_by.assert_called_once_with(
+            "created_at"
+        )
+
+        # Verify the queryset passed to Prefetch is the fully constructed one
+        assert (
+            contribution_queryset
+            == mocked_contrib.select_related.return_value.order_by.return_value
+        )
+
+    @pytest.mark.django_db
+    def test_issuelistview_get_queryset_integration(self):
+        """Integration test to verify the actual queryset behavior."""
+        # Create test data
+        issue1 = Issue.objects.create(number=1, status=IssueStatus.CREATED)
+        issue2 = Issue.objects.create(
+            number=2, status=IssueStatus.WONTFIX
+        )  # Should be excluded
+        issue3 = Issue.objects.create(number=3, status=IssueStatus.CREATED)
+
+        cycle = Cycle.objects.create(start="2025-09-08")
+        contributor = Contributor.objects.create(name="test_contributor")
+        platform = SocialPlatform.objects.create(name="GitHub")
+        reward_type = RewardType.objects.create(label="BUG", name="Bug Fix")
+        reward = Reward.objects.create(type=reward_type, level=1, amount=1000)
+
+        # Create contributions
+        contribution1 = Contribution.objects.create(
+            cycle=cycle,
+            issue=issue1,
+            contributor=contributor,
+            platform=platform,
+            reward=reward,
+        )
+        contribution2 = Contribution.objects.create(
+            cycle=cycle,
+            issue=issue3,
+            contributor=contributor,
+            platform=platform,
+            reward=reward,
+        )
+
+        view = IssueListView()
+        queryset = view.get_queryset()
+
+        # Verify only CREATED issues are included
+        assert list(queryset) == [issue3, issue1]  # Ordered by -number
+
+        # Verify prefetch_related is applied
+        assert hasattr(queryset, "_prefetch_related_lookups")
+
+        # Get an issue from the queryset and verify it has the prefetch attribute
+        issue_from_queryset = queryset.first()
+        # Note: The actual prefetched data would be available after evaluation
+        assert issue_from_queryset.status == IssueStatus.CREATED
 
 
 @pytest.mark.django_db

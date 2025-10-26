@@ -375,6 +375,22 @@ class CycleDetailView(DetailView):
 
     model = Cycle
 
+    def get_queryset(self):
+        """Optimize queryset to reduce database queries.
+
+        :return: QuerySet of this cycle's contributions
+        :rtype: :class:`django.db.models.QuerySet`
+        """
+        return (
+            super()
+            .get_queryset()
+            .prefetch_related(
+                "contribution_set__contributor",
+                "contribution_set__reward__type",
+                "contribution_set__platform",
+            )
+        )
+
 
 class IssueListView(ListView):
     """View for displaying a paginated list of all open issues in reverse order.
@@ -389,12 +405,20 @@ class IssueListView(ListView):
     paginate_by = 20
 
     def get_queryset(self):
-        """Return queryset of all open issues in reverse order.
+        """Return open issues queryset in reverse order with prefetched contributions.
 
         :return: QuerySet of open issues in reverse order
         :rtype: :class:`django.db.models.QuerySet`
         """
-        return Issue.objects.filter(status=IssueStatus.CREATED)
+        return Issue.objects.filter(status=IssueStatus.CREATED).prefetch_related(
+            Prefetch(
+                "contribution_set",
+                queryset=Contribution.objects.select_related(
+                    "contributor", "platform", "reward__type"
+                ).order_by("created_at"),
+                to_attr="prefetched_contributions",
+            )
+        )
 
 
 class IssueDetailView(DetailView):

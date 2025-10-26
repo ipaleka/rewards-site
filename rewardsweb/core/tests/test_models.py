@@ -1,6 +1,6 @@
 """Testing module for :py:mod:`core.models` module."""
 
-from datetime import datetime
+from datetime import datetime, timedelta
 
 import pytest
 from django.contrib.auth import get_user_model
@@ -2374,11 +2374,14 @@ class TestCoreIssueModel:
 
     # # __str__
     @pytest.mark.django_db
-    def test_core_issue_model_string_representation_is_social_platform_name(
-        self,
-    ):
+    def test_core_issue_model_string_representation_for_default_status(self):
         issue = Issue(number=506)
-        assert str(issue) == "506: created"
+        assert str(issue) == "506 [created]"
+
+    @pytest.mark.django_db
+    def test_core_issue_model_string_representation_for_set_status(self):
+        issue = Issue(number=506, status=IssueStatus.ADDRESSED)
+        assert str(issue) == "506 [addressed]"
 
     # # get_absolute_url
     @pytest.mark.django_db
@@ -2386,6 +2389,347 @@ class TestCoreIssueModel:
         issue_number = 506
         issue = Issue.objects.create(number=issue_number)
         assert issue.get_absolute_url() == "/issue/{}".format(issue.id)
+
+    # sorted_contributions
+    @pytest.mark.django_db
+    def test_core_issue_model_sorted_contributions_with_prefetched_data(self):
+        """Test sorted_contributions uses prefetched contributions when available."""
+        issue = Issue.objects.create(number=123, status=IssueStatus.CREATED)
+        cycle = Cycle.objects.create(start="2025-09-08")
+        contributor1 = Contributor.objects.create(name="test_contributor1")
+        contributor2 = Contributor.objects.create(name="test_contributor2")
+        contributor3 = Contributor.objects.create(name="test_contributor3")
+        platform = SocialPlatform.objects.create(name="GitHub")
+        reward_type1 = RewardType.objects.create(label="BUG", name="Bug Fix")
+        reward = Reward.objects.create(type=reward_type1, level=1, amount=1000)
+
+        contribution3 = Contribution.objects.create(
+            cycle=cycle,
+            issue=issue,
+            contributor=contributor3,
+            platform=platform,
+            reward=reward,
+        )
+        contribution1 = Contribution.objects.create(
+            cycle=cycle,
+            issue=issue,
+            contributor=contributor1,
+            platform=platform,
+            reward=reward,
+        )
+        contribution2 = Contribution.objects.create(
+            cycle=cycle,
+            issue=issue,
+            contributor=contributor2,
+            platform=platform,
+            reward=reward,
+        )
+
+        # Simulate prefetched contributions
+        issue.prefetched_contributions = [contribution1, contribution2, contribution3]
+
+        sorted_contributions = issue.sorted_contributions
+
+        # Should be sorted by created_at using prefetched data
+        assert sorted_contributions == [contribution3, contribution1, contribution2]
+
+    @pytest.mark.django_db
+    def test_core_issue_model_sorted_contributions_without_prefetched_data(self):
+        """Test sorted_contributions falls back to database query when no prefetched data."""
+        issue = Issue.objects.create(number=123, status=IssueStatus.CREATED)
+        cycle = Cycle.objects.create(start="2025-09-08")
+        contributor = Contributor.objects.create(name="test_contributor")
+        platform = SocialPlatform.objects.create(name="GitHub")
+        reward_type = RewardType.objects.create(label="BUG", name="Bug Fix")
+        reward = Reward.objects.create(type=reward_type, level=1, amount=1000)
+
+        # Create contributions in non-chronological order
+        Contribution.objects.create(
+            cycle=cycle,
+            issue=issue,
+            contributor=contributor,
+            platform=platform,
+            reward=reward,
+            created_at=timezone.now() + timedelta(hours=2),
+        )
+        Contribution.objects.create(
+            cycle=cycle,
+            issue=issue,
+            contributor=contributor,
+            platform=platform,
+            reward=reward,
+            created_at=timezone.now(),
+        )
+        Contribution.objects.create(
+            cycle=cycle,
+            issue=issue,
+            contributor=contributor,
+            platform=platform,
+            reward=reward,
+            created_at=timezone.now() + timedelta(hours=1),
+        )
+
+        # No prefetched_contributions attribute
+        assert not hasattr(issue, "prefetched_contributions")
+
+        sorted_contributions = issue.sorted_contributions
+
+        # Should fall back to database query and return sorted contributions
+        assert len(sorted_contributions) == 3
+        # Should be sorted by created_at
+        assert sorted_contributions[0].created_at < sorted_contributions[1].created_at
+        assert sorted_contributions[1].created_at < sorted_contributions[2].created_at
+
+    @pytest.mark.django_db
+    def test_core_issue_model_sorted_contributions_empty_with_prefetched(self):
+        """Test sorted_contributions with empty prefetched contributions."""
+        issue = Issue.objects.create(number=123, status=IssueStatus.CREATED)
+
+        # Simulate empty prefetched contributions
+        issue.prefetched_contributions = []
+
+        sorted_contributions = issue.sorted_contributions
+
+        # Should return empty list
+        assert sorted_contributions == []
+
+    @pytest.mark.django_db
+    def test_core_issue_model_sorted_contributions_empty_without_prefetched(self):
+        """Test sorted_contributions with no contributions and no prefetched data."""
+        issue = Issue.objects.create(number=123, status=IssueStatus.CREATED)
+
+        # No contributions created, no prefetched data
+        sorted_contributions = issue.sorted_contributions
+
+        # Should return empty list
+        assert sorted_contributions == []
+
+    @pytest.mark.django_db
+    def test_core_issue_model_sorted_contributions_preserves_prefetched_objects(self):
+        """Test that sorted_contributions preserves the original Contribution objects from prefetched data."""
+        issue = Issue.objects.create(number=123, status=IssueStatus.CREATED)
+        cycle = Cycle.objects.create(start="2025-09-08")
+        contributor = Contributor.objects.create(name="test_contributor")
+        platform = SocialPlatform.objects.create(name="GitHub")
+        reward_type = RewardType.objects.create(label="BUG", name="Bug Fix")
+        reward = Reward.objects.create(type=reward_type, level=1, amount=1000)
+
+        # Create contributions
+        contribution1 = Contribution.objects.create(
+            cycle=cycle,
+            issue=issue,
+            contributor=contributor,
+            platform=platform,
+            reward=reward,
+            created_at=timezone.now(),
+        )
+        contribution2 = Contribution.objects.create(
+            cycle=cycle,
+            issue=issue,
+            contributor=contributor,
+            platform=platform,
+            reward=reward,
+            created_at=timezone.now() + timedelta(hours=1),
+        )
+
+        # Simulate prefetched contributions
+        issue.prefetched_contributions = [contribution2, contribution1]
+
+        sorted_contributions = issue.sorted_contributions
+
+        # Should return the same Contribution objects, just sorted
+        assert sorted_contributions == [contribution1, contribution2]
+        assert sorted_contributions[0] is contribution1  # Same object
+        assert sorted_contributions[1] is contribution2  # Same object
+
+    # info
+    @pytest.mark.django_db
+    def test_core_issue_model_info_single_contribution(self):
+        """Test info with single contribution."""
+        issue = Issue.objects.create(number=123, status=IssueStatus.CREATED)
+        cycle = Cycle.objects.create(start="2025-09-08")
+        contributor = Contributor.objects.create(name="test_contributor")
+        platform = SocialPlatform.objects.create(name="GitHub")
+        reward_type = RewardType.objects.create(label="BUG", name="Bug Fix")
+        reward = Reward.objects.create(type=reward_type, level=1, amount=1000)
+
+        contribution = Contribution.objects.create(
+            cycle=cycle,
+            issue=issue,
+            contributor=contributor,
+            platform=platform,
+            reward=reward,
+        )
+
+        result = issue.info
+
+        # Should include issue number and contribution string
+        expected = f"123 - {str(contribution)}"
+        assert result == expected
+
+    @pytest.mark.django_db
+    def test_core_issue_model_info_multiple_contributions(self):
+        """Test info with multiple contributions."""
+        issue = Issue.objects.create(number=123, status=IssueStatus.CREATED)
+        cycle = Cycle.objects.create(start="2025-09-08")
+        contributor1 = Contributor.objects.create(name="contributor1")
+        contributor2 = Contributor.objects.create(name="contributor2")
+        platform = SocialPlatform.objects.create(name="GitHub")
+        reward_type = RewardType.objects.create(label="BUG", name="Bug Fix")
+        reward = Reward.objects.create(type=reward_type, level=1, amount=1000)
+
+        contribution1 = Contribution.objects.create(
+            cycle=cycle,
+            issue=issue,
+            contributor=contributor1,
+            platform=platform,
+            reward=reward,
+        )
+        contribution2 = Contribution.objects.create(
+            cycle=cycle,
+            issue=issue,
+            contributor=contributor2,
+            platform=platform,
+            reward=reward,
+        )
+
+        result = issue.info
+
+        # Should include issue number and comma-separated contributions
+        expected = f"123 - {str(contribution1)}, {str(contribution2)}"
+        assert result == expected
+
+    @pytest.mark.django_db
+    def test_core_issue_model_info_no_contributions(self):
+        """Test info with no contributions."""
+        issue = Issue.objects.create(number=123, status=IssueStatus.CREATED)
+
+        result = issue.info
+
+        # Should return just the issue number
+        assert result == "123"
+
+    @pytest.mark.django_db
+    def test_core_issue_model_info_contributions_order(self):
+        """Test info maintains contribution order by creation date."""
+        issue = Issue.objects.create(number=123, status=IssueStatus.CREATED)
+        cycle = Cycle.objects.create(start="2025-09-08")
+        contributor = Contributor.objects.create(name="test_contributor")
+        platform = SocialPlatform.objects.create(name="GitHub")
+        reward_type = RewardType.objects.create(label="BUG", name="Bug Fix")
+        reward = Reward.objects.create(type=reward_type, level=1, amount=1000)
+
+        # Create contributions in specific order
+        contribution1 = Contribution.objects.create(
+            cycle=cycle,
+            issue=issue,
+            contributor=contributor,
+            platform=platform,
+            reward=reward,
+            created_at=timezone.now(),
+        )
+        contribution2 = Contribution.objects.create(
+            cycle=cycle,
+            issue=issue,
+            contributor=contributor,
+            platform=platform,
+            reward=reward,
+            created_at=timezone.now() + timedelta(minutes=5),
+        )
+
+        result = issue.info
+
+        # Contributions should appear in creation order
+        expected = f"123 - {str(contribution1)}, {str(contribution2)}"
+        assert result == expected
+
+    @pytest.mark.django_db
+    def test_core_issue_model_info_uses_prefetched_data(self):
+        """Test info uses prefetched contributions when available."""
+        issue = Issue.objects.create(number=125, status=IssueStatus.CREATED)
+        cycle = Cycle.objects.create(start="2025-09-08")
+        contributor = Contributor.objects.create(name="test_contributor")
+        platform = SocialPlatform.objects.create(name="GitHub")
+        reward_type = RewardType.objects.create(label="BUG", name="Bug Fix")
+        reward = Reward.objects.create(type=reward_type, level=1, amount=1000)
+
+        # Create contributions
+        contribution1 = Contribution.objects.create(
+            cycle=cycle,
+            issue=issue,
+            contributor=contributor,
+            platform=platform,
+            reward=reward,
+            created_at=timezone.now(),
+        )
+        contribution2 = Contribution.objects.create(
+            cycle=cycle,
+            issue=issue,
+            contributor=contributor,
+            platform=platform,
+            reward=reward,
+            created_at=timezone.now() + timedelta(hours=1),
+        )
+
+        # Simulate prefetched contributions (out of order)
+        issue.prefetched_contributions = [contribution2, contribution1]
+
+        result = issue.info
+
+        # Should use prefetched data but sort it correctly
+        expected = f"125 - {str(contribution1)}, {str(contribution2)}"
+        assert result == expected
+
+    @pytest.mark.django_db
+    def test_core_issue_model_info_many_contributions(self):
+        """Test info with many contributions."""
+        issue = Issue.objects.create(number=126, status=IssueStatus.CREATED)
+        cycle = Cycle.objects.create(start="2025-09-08")
+        platform = SocialPlatform.objects.create(name="GitHub")
+        reward_type = RewardType.objects.create(label="BUG", name="Bug Fix")
+        reward = Reward.objects.create(type=reward_type, level=1, amount=1000)
+
+        # Create multiple contributions
+        for i in range(5):
+            contributor = Contributor.objects.create(name=f"contributor{i}")
+            Contribution.objects.create(
+                cycle=cycle,
+                issue=issue,
+                contributor=contributor,
+                platform=platform,
+                reward=reward,
+            )
+
+        result = issue.info
+
+        # Should include all contributions comma-separated
+        assert result.startswith("126 ")
+        # Count the commas to verify we have multiple contributions
+        assert result.count(",") == 4  # 5 contributions = 4 commas
+
+    @pytest.mark.django_db
+    def test_core_issue_model_info_special_characters(self):
+        """Test info with special characters in contributor names."""
+        issue = Issue.objects.create(number=127, status=IssueStatus.CREATED)
+        cycle = Cycle.objects.create(start="2025-09-08")
+        contributor = Contributor.objects.create(name="contributor-🎉-test")
+        platform = SocialPlatform.objects.create(name="GitHub")
+        reward_type = RewardType.objects.create(label="BUG", name="Bug Fix")
+        reward = Reward.objects.create(type=reward_type, level=1, amount=1000)
+
+        Contribution.objects.create(
+            cycle=cycle,
+            issue=issue,
+            contributor=contributor,
+            platform=platform,
+            reward=reward,
+        )
+
+        result = issue.info
+
+        # Should handle special characters correctly
+        assert "127" in result
+        assert "contributor-🎉-test" in result
 
 
 class TestCoreContributionModel:

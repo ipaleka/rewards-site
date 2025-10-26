@@ -629,11 +629,45 @@ class Issue(models.Model):
 
         :return: str
         """
-        return str(self.number) + ": " + self.status
+        return str(self.number) + " [" + self.status + "]"
 
     def get_absolute_url(self):
         """Returns the URL to access a detail record for this issue."""
         return reverse("issue-detail", args=[str(self.id)])
+
+    @cached_property
+    def sorted_contributions(self):
+        """Return contributions sorted by date, using prefetched data if available.
+
+        :return: sorted list of contributions
+        :rtype: list
+        """
+        # Check if we have prefetched contributions
+        if hasattr(self, "prefetched_contributions"):
+            return sorted(self.prefetched_contributions, key=lambda c: c.created_at)
+
+        # Fallback to database query if not prefetched
+        return list(self.contribution_set.order_by("created_at"))
+
+    @property
+    def info(self):
+        """Return issue information including contributions.
+
+        :return: issue information string
+        :rtype: str
+        """
+        # Use sorted_contributions which will use prefetched data when available
+        contributions = self.sorted_contributions
+
+        if len(contributions) > 1:
+            formatted_contributions = ", ".join([f"{str(c)}" for c in contributions])
+            return f"{str(self.number)} - {formatted_contributions}"
+
+        return (
+            f"{str(self.number)} - {str(contributions[0])}"
+            if contributions
+            else str(self.number)
+        )
 
 
 class Contribution(models.Model):

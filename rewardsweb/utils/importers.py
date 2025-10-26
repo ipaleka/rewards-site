@@ -16,7 +16,6 @@ from core.models import (
     Contribution,
     Cycle,
     Handle,
-    Profile,
     Reward,
     RewardType,
     SocialPlatform,

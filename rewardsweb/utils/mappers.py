@@ -21,6 +21,7 @@ from core.models import (
     Issue,
     IssueStatus,
     Reward,
+    RewardType,
     SocialPlatform,
 )
 from utils.constants.core import (
@@ -33,6 +34,12 @@ from utils.helpers import read_pickle
 from utils.issues import fetch_issues
 
 URL_EXCEPTIONS = ["discord.com/invite"]
+REWARD_LABELS = [
+    entry[0].split("]")[0].strip("[]")
+    for entry in REWARDS_COLLECTION
+    if entry and isinstance(entry[0], str)
+]
+REWARD_PATTERN = re.compile(rf"^\[({'|'.join(REWARD_LABELS)})(1|2|3)\]")
 
 
 ## HELPERS
@@ -91,66 +98,6 @@ def _build_reward_mapping():
             print(f"Could not extract label code from: {reward_config[0]}")
 
     return reward_mapping
-
-
-def _create_contributor_from_text(text, contributors):
-    """Create a new contributor from text by extracting handle from common patterns.
-
-    :param text: GitHub issue body and comments text
-    :type text: str
-    :param contributors: mapping from contributor info to ID
-    :type contributors: dict of str: int
-    :return: tuple of (contributor_id, updated_contributors_dict) or (None, contributors) if no handle found
-    :rtype: tuple (int or None, dict)
-    """
-    if not text:
-        return None, contributors
-
-    # Single pattern: "By " followed by any string, then "in" or "on" followed by platform with or without brackets
-    pattern = r"By ([\w\s\-_.]+) (?:in|on) \[?(Discord|Twitter|Reddit)\]?"
-
-    handle = None
-    platform_name = None
-
-    matches = re.findall(pattern, text, re.IGNORECASE)
-    if matches:
-        handle_candidate, platform_candidate = matches[0]
-        handle = handle_candidate.strip()
-        platform_name = platform_candidate
-
-    if not handle or not platform_name:
-        return None, contributors
-
-    platform = SocialPlatform.objects.get(name=platform_name)
-
-    # Create new contributor with handle as name
-    contributor_name = handle
-
-    # Check if contributor with this name already exists
-    existing_contributor = Contributor.objects.filter(name=contributor_name).first()
-    if existing_contributor:
-        # Contributor exists, create handle if it doesn't exist
-        Handle.objects.get_or_create(
-            contributor=existing_contributor,
-            platform=platform,
-            defaults={"handle": handle},
-        )
-        # Update contributors mapping
-        contributors[existing_contributor.info] = existing_contributor.id
-        return existing_contributor.id, contributors
-    else:
-        # Create new contributor
-        new_contributor = Contributor.objects.create(name=contributor_name)
-
-        # Create handle for the contributor
-        Handle.objects.create(
-            contributor=new_contributor, platform=platform, handle=handle
-        )
-
-        # Update contributors mapping
-        contributors[new_contributor.info] = new_contributor.id
-
-        return new_contributor.id, contributors
 
 
 def _extract_url_text(body, platform_id):
@@ -359,6 +306,31 @@ def _identify_reward_from_labels(labels, reward_mapping):
     return None
 
 
+def _identify_reward_from_issue_title(title, active=True):
+    """Checks if the provided title text starts with a valid reward pattern like:
+
+    [F(1)], [B(2)], [ER(3)], etc.
+
+    :param title: GitHub issue's title
+    :type title: str
+    :param active: is reward active or not
+    :type active: Boolean
+    return: :class:`core.models.Reward`
+    """
+    if not title:
+        return None
+
+    match = REWARD_PATTERN.match(title.strip())
+    if not match:
+        return None
+
+    label, level = match.groups()
+    level = int(level)
+
+    reward_type = get_object_or_404(RewardType, label=label)
+    return Reward.objects.filter(type=reward_type, level=level, active=active).first()
+
+
 def _is_url_github_issue(url):
     """Check if a URL matches the pattern of a GitHub issue in the configured repository.
 
@@ -415,6 +387,68 @@ def _save_issues(github_issues, timestamp):
 
 
 ## MAPPING
+
+
+def _create_contributor_from_text(text, contributors):
+    """Create a new contributor from text by extracting handle from common patterns.
+
+    :param text: GitHub issue body and comments text
+    :type text: str
+    :param contributors: mapping from contributor info to ID
+    :type contributors: dict of str: int
+    :return: tuple of (contributor_id, updated_contributors_dict) or (None, contributors) if no handle found
+    :rtype: tuple (int or None, dict)
+    """
+    if not text:
+        return None, contributors
+
+    # Single pattern: "By " followed by any string, then "in" or "on" followed by platform with or without brackets
+    pattern = r"By ([\w\s\-_.]+) (?:in|on) \[?(Discord|Twitter|Reddit)\]?"
+
+    handle = None
+    platform_name = None
+
+    matches = re.findall(pattern, text, re.IGNORECASE)
+    if matches:
+        handle_candidate, platform_candidate = matches[0]
+        handle = handle_candidate.strip()
+        platform_name = platform_candidate
+
+    if not handle or not platform_name:
+        return None, contributors
+
+    platform = SocialPlatform.objects.get(name=platform_name)
+
+    # Create new contributor with handle as name
+    contributor_name = handle
+
+    # Check if contributor with this name already exists
+    existing_contributor = Contributor.objects.filter(name=contributor_name).first()
+    if existing_contributor:
+        # Contributor exists, create handle if it doesn't exist
+        Handle.objects.get_or_create(
+            contributor=existing_contributor,
+            platform=platform,
+            defaults={"handle": handle},
+        )
+        # Update contributors mapping
+        contributors[existing_contributor.info] = existing_contributor.id
+        return existing_contributor.id, contributors
+    else:
+        # Create new contributor
+        new_contributor = Contributor.objects.create(name=contributor_name)
+
+        # Create handle for the contributor
+        Handle.objects.create(
+            contributor=new_contributor, platform=platform, handle=handle
+        )
+
+        # Update contributors mapping
+        contributors[new_contributor.info] = new_contributor.id
+
+        return new_contributor.id, contributors
+
+
 def _create_issues_bulk(issue_assignments):
     """Bulk create issues and assign them to contributions in optimized database operations.
 
@@ -565,10 +599,13 @@ def _map_closed_addressed_issues(github_issues):
             # Fallback to GitHub
             platform_id = platforms.get("GitHub")
 
-        # Identify reward based on issue labels
-        reward = _identify_reward_from_labels(github_issue.issue.labels, reward_mapping)
+        reward = _identify_reward_from_issue_title(github_issue.issue.title)
         if not reward:
-            continue  # Skip if no reward identified
+            reward = _identify_reward_from_labels(
+                github_issue.issue.labels, reward_mapping
+            )
+            if not reward:
+                continue  # Skip if no reward identified
 
         # Extract URL from issue body
         url = _extract_url_text(search_text, platform_id)
@@ -799,11 +836,14 @@ def _map_open_issues(github_issues):
                 if platform_name == "GitHub"
             )
 
-        # Identify reward based on issue labels
-        reward = _identify_reward_from_labels(github_issue.issue.labels, reward_mapping)
+        reward = _identify_reward_from_issue_title(github_issue.issue.title)
         if not reward:
-            print("No reward for GitHub issue", number)
-            continue  # Skip if no reward identified
+            reward = _identify_reward_from_labels(
+                github_issue.issue.labels, reward_mapping
+            )
+            if not reward:
+                print("No reward for GitHub issue", number)
+                continue  # Skip if no reward identified
 
         # Extract URL from issue body
         url = _extract_url_text(search_text, platform_id)
@@ -920,11 +960,16 @@ def _map_unprocessed_closed_archived_issues(github_issues):
                 if platform_name == "GitHub"
             )
 
-        # Identify reward based on issue labels
-        reward = _identify_reward_from_labels(github_issue.issue.labels, reward_mapping)
+        reward = _identify_reward_from_issue_title(
+            github_issue.issue.title, active=False
+        )
         if not reward:
-            print(f"No reward for archived GitHub issue {number}")
-            continue  # Skip if no reward identified
+            reward = _identify_reward_from_labels(
+                github_issue.issue.labels, reward_mapping
+            )
+            if not reward:
+                print(f"No reward for archived GitHub issue {number}")
+                continue  # Skip if no reward identified
 
         # Extract URL from issue body
         url = _extract_url_text(search_text, platform_id)

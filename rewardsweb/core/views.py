@@ -378,16 +378,19 @@ class CycleDetailView(DetailView):
     def get_queryset(self):
         """Optimize queryset to reduce database queries.
 
-        :return: QuerySet of this cycle's contributions
+        :return: QuerySet of this cycle's contributions ordered by ID in reverse
         :rtype: :class:`django.db.models.QuerySet`
         """
         return (
             super()
             .get_queryset()
             .prefetch_related(
-                "contribution_set__contributor",
-                "contribution_set__reward__type",
-                "contribution_set__platform",
+                Prefetch(
+                    "contribution_set",
+                    queryset=Contribution.objects.select_related(
+                        "contributor", "reward__type", "platform"
+                    ).order_by("-id"),
+                )
             )
         )
 

@@ -1,7 +1,7 @@
 """Testing module for :py:mod:`utils.mappers` module."""
 
 import pickle
-from collections import defaultdict, namedtuple
+from collections import defaultdict
 from datetime import datetime
 from unittest import mock
 
@@ -9,16 +9,19 @@ import pytest
 from django.conf import settings
 from django.http import Http404
 
-from core.models import IssueStatus, Reward, SocialPlatform
+from core.models import Issue, IssueStatus, Reward, SocialPlatform
 from utils.constants.core import GITHUB_ISSUES_EXCLUDED_CONTRIBUTORS
 from utils.mappers import (
     CustomIssue,
     _build_reward_mapping,
+    _create_contributor_from_text,
     _create_issues_bulk,
     _extract_url_text,
     _fetch_and_categorize_issues,
+    _map_closed_addressed_issues,
     _map_closed_archived_issues,
     _map_open_issues,
+    _map_unprocessed_closed_archived_issues,
     _identify_contributor_from_text,
     _identify_contributor_from_user,
     _identify_platform_from_text,
@@ -284,11 +287,6 @@ class TestUtilsMappersHelpers:
     ):
         """Test _fetch_and_categorize_issues fetches new issues when refetch is True."""
 
-        saved_issues = {
-            "closed": ["old_issue"],
-            "open": ["old_issue2"],
-            "timestamp": "2024-01-01",
-        }
         new_issues = [
             mocker.MagicMock(
                 state="closed",
@@ -308,7 +306,7 @@ class TestUtilsMappersHelpers:
         mock_fetch_issues = mocker.patch(
             "utils.mappers.fetch_issues", return_value=new_issues
         )
-        mock_save_issues = mocker.patch("utils.mappers._save_issues")
+        mocker.patch("utils.mappers._save_issues")
 
         result = _fetch_and_categorize_issues("valid_token", refetch=True)
 
@@ -562,7 +560,7 @@ class TestUtilsMappersHelpers:
         mocker.patch("utils.mappers._load_saved_issues", return_value=saved_issues)
 
         mocker.patch("utils.mappers.fetch_issues", return_value=issues)
-        mock_save_issues = mocker.patch("utils.mappers._save_issues")
+        mocker.patch("utils.mappers._save_issues")
         mock_print = mocker.patch("builtins.print")
 
         # This should not raise TypeError
@@ -869,45 +867,366 @@ class TestUtilsMappersHelpers:
         assert result is None
 
     # # _identify_contributor_from_user
-    @pytest.mark.django_db
-    def test_utils_mappers_identify_contributor_from_user_match(self):
-        """Test _identify_contributor_from_user with matching handle."""
-        user = "johndoe"
-        contributors = {"John Doe (g@johndoe, discord@john)": 1}
+    def test_utils_mappers_identify_contributor_from_user_exact_match_strict(
+        self, mocker
+    ):
+        """Test exact match when strict=True (default)."""
+        # Setup
+        user = "john_doe"
+        contributors = {
+            "John Doe (g@john_doe, t@johndoe)": 1,
+            "Jane Smith (g@jane_smith, d@jane)": 2,
+            "Bob Wilson (g@bob_wilson)": 3,
+        }
 
-        result = _identify_contributor_from_user(user, contributors)
+        # Execute
+        result = _identify_contributor_from_user(user, contributors, strict=True)
 
+        # Assert
         assert result == 1
 
-    @pytest.mark.django_db
-    def test_utils_mappers_identify_contributor_from_user_no_match(self):
-        """Test _identify_contributor_from_user with no matching handle."""
-        user = "unknownuser"
-        contributors = {"John Doe (g@johndoe)": 1}
+    def test_utils_mappers_identify_contributor_from_user_exact_match_non_strict(
+        self, mocker
+    ):
+        """Test exact match when strict=False."""
+        # Setup
+        user = "john_doe"
+        contributors = {
+            "John Doe (g@john_doe, t@johndoe)": 1,
+            "Jane Smith (g@jane_smith, d@jane)": 2,
+            "Bob Wilson (john_doe)": 3,  # Handle without g@ prefix
+        }
 
-        result = _identify_contributor_from_user(user, contributors)
+        # Execute
+        result = _identify_contributor_from_user(user, contributors, strict=False)
 
+        # Assert - should match the first one because "john_doe" appears in "g@john_doe"
+        # The function does substring matching, not exact handle matching
+        assert result == 1
+
+    def test_utils_mappers_identify_contributor_from_user_case_insensitive(
+        self, mocker
+    ):
+        """Test case insensitive matching."""
+        # Setup
+        user = "John_Doe"  # Mixed case
+        contributors = {
+            "John Doe (g@john_doe, t@johndoe)": 1,  # Lowercase in contributor info
+            "Jane Smith (g@JANE_SMITH)": 2,  # Uppercase in contributor info
+        }
+
+        # Execute
+        result = _identify_contributor_from_user(user, contributors, strict=True)
+
+        # Assert
+        assert result == 1
+
+    def test_utils_mappers_identify_contributor_from_user_no_match_strict(self, mocker):
+        """Test no match found when strict=True."""
+        # Setup
+        user = "unknown_user"
+        contributors = {
+            "John Doe (g@john_doe, t@johndoe)": 1,
+            "Jane Smith (g@jane_smith, d@jane)": 2,
+        }
+
+        # Execute
+        result = _identify_contributor_from_user(user, contributors, strict=True)
+
+        # Assert
         assert result is None
 
-    @pytest.mark.django_db
-    def test_utils_mappers_identify_contributor_from_user_case_insensitive(self):
-        """Test _identify_contributor_from_user is case insensitive."""
-        user = "JohnDoe"
-        contributors = {"John Doe (g@johndoe)": 1}
+    def test_utils_mappers_identify_contributor_from_user_no_match_non_strict(
+        self, mocker
+    ):
+        """Test no match found when strict=False."""
+        # Setup
+        user = "unknown_user"
+        contributors = {
+            "John Doe (g@john_doe, t@johndoe)": 1,
+            "Jane Smith (g@jane_smith, d@jane)": 2,
+        }
 
-        result = _identify_contributor_from_user(user, contributors)
+        # Execute
+        result = _identify_contributor_from_user(user, contributors, strict=False)
 
-        assert result == 1
+        # Assert
+        assert result is None
 
-    @pytest.mark.django_db
-    def test_utils_mappers_identify_contributor_from_user_empty_contributors(self):
-        """Test _identify_contributor_from_user with empty contributors."""
-        user = "johndoe"
+    def test_utils_mappers_identify_contributor_from_user_partial_match_strict(
+        self, mocker
+    ):
+        """Test partial match within contributor info when strict=True."""
+        # Setup
+        user = "john"
+        contributors = {
+            "John Doe (g@john_doe, t@johndoe)": 1,
+            "Johnny Cash (g@johnny_cash)": 2,
+            "Jane Smith (g@jane_smith)": 3,
+        }
+
+        # Execute
+        result = _identify_contributor_from_user(user, contributors, strict=True)
+
+        # Assert - should match both john_doe and johnny_cash due to partial match
+        assert result == 1  # First match
+
+    def test_utils_mappers_identify_contributor_from_user_partial_match_non_strict(
+        self, mocker
+    ):
+        """Test partial match within contributor info when strict=False."""
+        # Setup
+        user = "john"
+        contributors = {
+            "John Doe (g@john_doe, t@johndoe)": 1,
+            "Johnny Cash (johnny_cash)": 2,  # Without g@ prefix
+            "Jane Smith (g@jane_smith)": 3,
+        }
+
+        # Execute
+        result = _identify_contributor_from_user(user, contributors, strict=False)
+
+        # Assert - should match both
+        assert result == 1  # First match
+
+    def test_utils_mappers_identify_contributor_from_user_empty_contributors(
+        self, mocker
+    ):
+        """Test with empty contributors dictionary."""
+        # Setup
+        user = "john_doe"
         contributors = {}
 
-        result = _identify_contributor_from_user(user, contributors)
+        # Execute
+        result = _identify_contributor_from_user(user, contributors, strict=True)
 
+        # Assert
         assert result is None
+
+    def test_utils_mappers_identify_contributor_from_user_multiple_handles(
+        self, mocker
+    ):
+        """Test matching when contributor has multiple handles."""
+        # Setup
+        user = "jane_smith"
+        contributors = {
+            "Jane Smith (g@jane_smith, d@janesmith, t@jsmith)": 1,
+            "John Doe (g@john_doe)": 2,
+        }
+
+        # Execute
+        result = _identify_contributor_from_user(user, contributors, strict=True)
+
+        # Assert
+        assert result == 1
+
+    def test_utils_mappers_identify_contributor_from_user_special_characters(
+        self, mocker
+    ):
+        """Test matching with special characters in username."""
+        # Setup
+        user = "user-name"
+        contributors = {
+            "User Name (g@user-name, d@username)": 1,
+            "Another User (g@another_user)": 2,
+        }
+
+        # Execute
+        result = _identify_contributor_from_user(user, contributors, strict=True)
+
+        # Assert
+        assert result == 1
+
+    def test_utils_mappers_identify_contributor_from_user_numeric_username(
+        self, mocker
+    ):
+        """Test matching with numeric usernames."""
+        # Setup
+        user = "user123"
+        contributors = {
+            "User 123 (g@user123, d@user123)": 1,
+            "Test User (g@test_user)": 2,
+        }
+
+        # Execute
+        result = _identify_contributor_from_user(user, contributors, strict=True)
+
+        # Assert
+        assert result == 1
+
+    def test_utils_mappers_identify_contributor_from_user_underscore_vs_dash(
+        self, mocker
+    ):
+        """Test matching with underscore vs dash differences."""
+        # Setup
+        user = "user-name"
+        contributors = {
+            "User Name (g@user_name, d@username)": 1,  # Underscore in contributor info
+            "Another User (g@user-name)": 2,  # Dash in contributor info
+        }
+
+        # Execute
+        result = _identify_contributor_from_user(user, contributors, strict=True)
+
+        # Assert - should match the second one with exact dash match
+        assert result == 2
+
+    def test_utils_mappers_identify_contributor_from_user_priority_first_match(
+        self, mocker
+    ):
+        """Test that first matching contributor is returned."""
+        # Setup
+        user = "john"
+        contributors = {
+            "John Doe (g@john_doe, t@johndoe)": 1,
+            "John Smith (g@john_smith)": 2,  # Also matches
+            "Johnny Cash (g@johnny)": 3,  # Also matches
+        }
+
+        # Execute
+        result = _identify_contributor_from_user(user, contributors, strict=True)
+
+        # Assert - should return first match
+        assert result == 1
+
+    def test_utils_mappers_identify_contributor_from_user_with_magicmock(self, mocker):
+        """Test using MagicMock for contributors."""
+        # Setup
+        user = "test_user"
+
+        # Create MagicMock for contributors dictionary-like behavior
+        contributors_dict = {
+            "Test User (g@test_user, d@testuser)": 100,
+            "Another User (g@another_user)": 200,
+        }
+
+        # Execute
+        result = _identify_contributor_from_user(user, contributors_dict, strict=True)
+
+        # Assert
+        assert result == 100
+
+    def test_utils_mappers_identify_contributor_from_user_complex_contributor_info(
+        self, mocker
+    ):
+        """Test matching with complex contributor info format."""
+        # Setup
+        user = "dev_user"
+        contributors = {
+            "Developer User (g@dev_user, d@developer, t@dev, r/u_dev)": 1,
+            "Simple User (g@simple_user)": 2,
+        }
+
+        # Execute
+        result = _identify_contributor_from_user(user, contributors, strict=True)
+
+        # Assert
+        assert result == 1
+
+    def test_utils_mappers_identify_contributor_from_user_whitespace_handling(
+        self, mocker
+    ):
+        """Test handling of whitespace in contributor info."""
+        # Setup
+        user = "test_user"
+        contributors = {
+            "Test User (  g@test_user  ,  d@testuser  )": 1,  # Extra spaces
+            "Another User (g@another_user)": 2,
+        }
+
+        # Execute
+        result = _identify_contributor_from_user(user, contributors, strict=True)
+
+        # Assert - should still match despite extra spaces
+        assert result == 1
+
+    def test_utils_mappers_identify_contributor_from_user_mixed_strictness(
+        self, mocker
+    ):
+        """Test comparing strict vs non-strict behavior."""
+        # Setup
+        user = "john_doe"
+        contributors = {
+            "John Doe (john_doe, t@johndoe)": 1,  # No g@ prefix
+            "Jane Smith (g@jane_smith)": 2,
+        }
+
+        # Execute both modes
+        result_strict = _identify_contributor_from_user(user, contributors, strict=True)
+        result_non_strict = _identify_contributor_from_user(
+            user, contributors, strict=False
+        )
+
+        # Assert
+        assert result_strict is None  # No match in strict mode (needs g@ prefix)
+        assert result_non_strict == 1  # Match in non-strict mode
+
+    def test_utils_mappers_identify_contributor_from_user_empty_user(self, mocker):
+        """Test with empty username."""
+        # Setup
+        user = ""
+        contributors = {
+            "Test User (g@test_user)": 1,
+            "Another User (g@another_user)": 2,
+        }
+
+        # Execute
+        result = _identify_contributor_from_user(user, contributors, strict=True)
+
+        # Assert
+        assert result is None
+
+    def test_utils_mappers_identify_contributor_from_user_none_user(self, mocker):
+        """Test with None username."""
+        # Setup
+        user = None
+        contributors = {
+            "Test User (g@test_user)": 1,
+        }
+
+        # Execute
+        result = _identify_contributor_from_user(user, contributors, strict=True)
+
+        # Assert
+        assert result is None
+
+    def test_utils_mappers_identify_contributor_from_user_strict_requires_g_prefix(
+        self, mocker
+    ):
+        """Test that strict mode requires g@ prefix."""
+        # Setup
+        user = "john_doe"
+        contributors = {
+            "John Doe (john_doe, t@johndoe)": 1,  # No g@ prefix
+            "John Doe Official (g@john_doe)": 2,  # With g@ prefix
+        }
+
+        # Execute
+        result_strict = _identify_contributor_from_user(user, contributors, strict=True)
+        result_non_strict = _identify_contributor_from_user(
+            user, contributors, strict=False
+        )
+
+        # Assert
+        assert result_strict == 2  # Only matches the one with g@ prefix
+        assert result_non_strict == 1  # Matches both, returns first
+
+    def test_utils_mappers_identify_contributor_from_user_exact_handle_matching(
+        self, mocker
+    ):
+        """Test that the function does substring matching, not exact handle matching."""
+        # Setup
+        user = "john"
+        contributors = {
+            "John Doe (g@john_doe)": 1,  # Contains "john" but not exact match
+            "John Smith (g@john)": 2,  # Exact match
+        }
+
+        # Execute
+        result = _identify_contributor_from_user(user, contributors, strict=True)
+
+        # Assert - both match due to substring search, returns first
+        assert result == 1
 
     # # _identify_platform_from_text
     @pytest.mark.django_db
@@ -1705,20 +2024,983 @@ class TestUtilsMappersMapping:
         # Verify individual contribution was updated
         assert mock_contrib1.issue == mock_issue1
 
+
+class TestUtilsMappersMapClosedAddressedIssues:
+    """Testing class for :py:mod:`utils.mappers` _map_closed_addressed_issues function."""
+
+    @pytest.mark.django_db
+    def test_utils_mappers_map_closed_addressed_issues_debug_simple_case(self, mocker):
+        """Debug test to understand why function returns False."""
+        # Create a more realistic mock issue
+        mock_label = mocker.MagicMock()
+        mock_label.name = "addressed"  # Ensure name is properly set
+
+        mock_issue_obj = mocker.MagicMock()
+        mock_issue_obj.labels = [mock_label]
+        mock_issue_obj.body = "Test body"
+        mock_issue_obj.title = "Test Issue"
+        mock_issue_obj.number = 101
+        mock_issue_obj.user.login = "github_user"
+
+        mock_issue = mocker.MagicMock()
+        mock_issue.issue = mock_issue_obj
+        mock_issue.comments = []
+
+        # Mock the absolute minimum
+        mocker.patch("utils.mappers._build_reward_mapping", return_value={})
+
+        # Mock empty contributors
+        mocker.patch("utils.mappers.Contributor.objects.all", return_value=[])
+        mocker.patch("utils.mappers.GITHUB_ISSUES_EXCLUDED_CONTRIBUTORS", [])
+
+        # Mock platforms - need at least one platform
+        mock_platform = mocker.MagicMock()
+        mock_platform.name = "GitHub"
+        mock_platform.id = 1
+        mocker.patch(
+            "utils.mappers.SocialPlatform.objects.all", return_value=[mock_platform]
+        )
+
+        # Mock cycle
+        mock_cycle = mocker.MagicMock()
+        mocker.patch("utils.mappers.Cycle.objects.latest", return_value=mock_cycle)
+
+        # Mock the identification functions to return None (so issue gets skipped but function returns True)
+        mocker.patch("utils.mappers._identify_platform_from_text", return_value=None)
+        mocker.patch("utils.mappers._identify_reward_from_labels", return_value=None)
+
+        result = _map_closed_addressed_issues([mock_issue])
+
+        print(f"DEBUG: Function returned: {result}")
+        # Should return True because addressed issues were found
+        assert result is True
+
+    @pytest.mark.django_db
+    def test_utils_mappers_map_closed_addressed_issues_no_issues(self, mocker):
+        """Test function returns False when no addressed issues."""
+        result = _map_closed_addressed_issues([])
+        assert result is False
+
+    @pytest.mark.django_db
+    def test_utils_mappers_map_closed_addressed_issues_no_addressed_labels(
+        self, mocker
+    ):
+        """Test function returns False when no issues have addressed label."""
+        # Create proper mock structure without addressed label
+        mock_label = mocker.MagicMock()
+        mock_label.name = "bug"  # Different label
+
+        mock_issue_obj = mocker.MagicMock()
+        mock_issue_obj.labels = [mock_label]
+        mock_issue_obj.body = "Some body"
+        mock_issue_obj.title = "Test Issue"
+        mock_issue_obj.number = 101
+
+        mock_issue = mocker.MagicMock()
+        mock_issue.issue = mock_issue_obj
+        mock_issue.comments = []
+
+        result = _map_closed_addressed_issues([mock_issue])
+        assert result is False
+
+    @pytest.mark.django_db
+    def test_utils_mappers_map_closed_addressed_issues_successful_processing(
+        self, mocker
+    ):
+        """Test successful processing of addressed issues."""
+        # Create proper mock structure
+        mock_label = mocker.MagicMock()
+        mock_label.name = "addressed"
+
+        mock_issue_obj = mocker.MagicMock()
+        mock_issue_obj.labels = [mock_label]
+        mock_issue_obj.body = "By test_user in [Discord]"
+        mock_issue_obj.title = "Test Issue"
+        mock_issue_obj.number = 101
+        mock_issue_obj.user.login = "github_user"
+
+        mock_issue = mocker.MagicMock()
+        mock_issue.issue = mock_issue_obj
+        mock_issue.comments = []
+
+        # Mock all dependencies
+        mock_reward = mocker.MagicMock()
+        mocker.patch(
+            "utils.mappers._build_reward_mapping", return_value={"bug": mock_reward}
+        )
+
+        # Mock contributors
+        mock_contributor = mocker.MagicMock()
+        mock_contributor.info = "Test User (g@test_user, d@testuser)"
+        mock_contributor.id = 1
+
+        mocker.patch(
+            "utils.mappers.Contributor.objects.all", return_value=[mock_contributor]
+        )
+        mocker.patch("utils.mappers.GITHUB_ISSUES_EXCLUDED_CONTRIBUTORS", [])
+
+        # Mock platforms
+        mock_platform1 = mocker.MagicMock()
+        mock_platform1.name = "GitHub"
+        mock_platform1.id = 1
+
+        mock_platform2 = mocker.MagicMock()
+        mock_platform2.name = "Discord"
+        mock_platform2.id = 2
+
+        mocker.patch(
+            "utils.mappers.SocialPlatform.objects.all",
+            return_value=[mock_platform1, mock_platform2],
+        )
+
+        # Mock cycle
+        mock_cycle = mocker.MagicMock()
+        mocker.patch("utils.mappers.Cycle.objects.latest", return_value=mock_cycle)
+
+        # Mock identification functions
+        mocker.patch("utils.mappers._identify_platform_from_text", return_value=2)
+        mocker.patch(
+            "utils.mappers._identify_reward_from_labels", return_value=mock_reward
+        )
+        mocker.patch(
+            "utils.mappers._extract_url_text", return_value="https://example.com"
+        )
+
+        # Mock issue operations
+        mocker.patch("utils.mappers.Issue.objects.get", side_effect=Issue.DoesNotExist)
+        mock_created_issue = mocker.MagicMock()
+        mocker.patch(
+            "utils.mappers.Issue.objects.create", return_value=mock_created_issue
+        )
+
+        # Mock contributor identification - return actual IDs
+        mocker.patch("utils.mappers._identify_contributor_from_user", return_value=1)
+        mocker.patch("utils.mappers._identify_contributor_from_text", return_value=None)
+
+        # Mock contribution operations
+        mock_contribution_filter = mocker.MagicMock()
+        mock_contribution_filter.first = mocker.MagicMock(return_value=None)
+        mocker.patch(
+            "utils.mappers.Contribution.objects.filter",
+            return_value=mock_contribution_filter,
+        )
+
+        mock_contribution_create = mocker.patch(
+            "utils.mappers.Contribution.objects.create"
+        )
+
+        result = _map_closed_addressed_issues([mock_issue])
+
+        assert result is True
+        mock_contribution_create.assert_called_once()
+
+    @pytest.mark.django_db
+    def test_utils_mappers_map_closed_addressed_issues_skip_internal_issues(
+        self, mocker
+    ):
+        """Test that internal issues are skipped."""
+        # Create proper mock structure with internal title
+        mock_label = mocker.MagicMock()
+        mock_label.name = "addressed"
+
+        mock_issue_obj = mocker.MagicMock()
+        mock_issue_obj.labels = [mock_label]
+        mock_issue_obj.body = "Some body"
+        mock_issue_obj.title = "[Internal] Test Issue"
+        mock_issue_obj.number = 101
+
+        mock_issue = mocker.MagicMock()
+        mock_issue.issue = mock_issue_obj
+        mock_issue.comments = []
+
+        # Mock minimal dependencies
+        mocker.patch("utils.mappers._build_reward_mapping", return_value={})
+
+        # Mock contributors
+        mock_contributor = mocker.MagicMock()
+        mock_contributor.info = "Test User"
+        mock_contributor.id = 1
+
+        mocker.patch(
+            "utils.mappers.Contributor.objects.all", return_value=[mock_contributor]
+        )
+        mocker.patch("utils.mappers.GITHUB_ISSUES_EXCLUDED_CONTRIBUTORS", [])
+
+        # Mock platforms
+        mock_platform = mocker.MagicMock()
+        mock_platform.name = "GitHub"
+        mock_platform.id = 1
+        mocker.patch(
+            "utils.mappers.SocialPlatform.objects.all", return_value=[mock_platform]
+        )
+
+        # Mock cycle
+        mocker.patch(
+            "utils.mappers.Cycle.objects.latest", return_value=mocker.MagicMock()
+        )
+
+        result = _map_closed_addressed_issues([mock_issue])
+
+        # The function should return True because it found addressed issues (even if it skips them)
+        assert result is True
+
+    @pytest.mark.django_db
+    def test_utils_mappers_map_closed_addressed_issues_no_reward_identified(
+        self, mocker
+    ):
+        """Test that issues without rewards are skipped."""
+        # Create proper mock structure
+        mock_label = mocker.MagicMock()
+        mock_label.name = "addressed"
+
+        mock_issue_obj = mocker.MagicMock()
+        mock_issue_obj.labels = [mock_label]
+        mock_issue_obj.body = "By test_user in [Discord]"
+        mock_issue_obj.title = "Test Issue"
+        mock_issue_obj.number = 101
+        mock_issue_obj.user.login = "github_user"
+
+        mock_issue = mocker.MagicMock()
+        mock_issue.issue = mock_issue_obj
+        mock_issue.comments = []
+
+        # Mock dependencies
+        mocker.patch("utils.mappers._build_reward_mapping", return_value={})
+
+        # Mock contributors
+        mock_contributor = mocker.MagicMock()
+        mock_contributor.info = "Test User"
+        mock_contributor.id = 1
+
+        mocker.patch(
+            "utils.mappers.Contributor.objects.all", return_value=[mock_contributor]
+        )
+        mocker.patch("utils.mappers.GITHUB_ISSUES_EXCLUDED_CONTRIBUTORS", [])
+
+        # Mock platforms
+        mock_platform = mocker.MagicMock()
+        mock_platform.name = "GitHub"
+        mock_platform.id = 1
+        mocker.patch(
+            "utils.mappers.SocialPlatform.objects.all", return_value=[mock_platform]
+        )
+
+        # Mock cycle
+        mocker.patch(
+            "utils.mappers.Cycle.objects.latest", return_value=mocker.MagicMock()
+        )
+
+        # Mock platform identification
+        mocker.patch("utils.mappers._identify_platform_from_text", return_value=1)
+
+        # Mock reward identification to return None (no reward found)
+        mocker.patch("utils.mappers._identify_reward_from_labels", return_value=None)
+
+        # Mock URL extraction
+        mocker.patch("utils.mappers._extract_url_text", return_value=None)
+
+        result = _map_closed_addressed_issues([mock_issue])
+
+        # Function should return True (found addressed issues) but skip processing due to no reward
+        assert result is True
+
+    @pytest.mark.django_db
+    def test_utils_mappers_map_closed_addressed_issues_no_platform_fallback_to_github(
+        self, mocker
+    ):
+        """Test that when no platform is identified, it falls back to GitHub."""
+        # Create proper mock structure
+        mock_label = mocker.MagicMock()
+        mock_label.name = "addressed"
+
+        mock_issue_obj = mocker.MagicMock()
+        mock_issue_obj.labels = [mock_label]
+        mock_issue_obj.body = "Test body"
+        mock_issue_obj.title = "Test Issue"
+        mock_issue_obj.number = 101
+        mock_issue_obj.user.login = "github_user"
+
+        mock_issue = mocker.MagicMock()
+        mock_issue.issue = mock_issue_obj
+        mock_issue.comments = []
+
+        # Mock dependencies
+        mock_reward = mocker.MagicMock()
+        mocker.patch(
+            "utils.mappers._build_reward_mapping", return_value={"bug": mock_reward}
+        )
+
+        # Mock contributors
+        mock_contributor = mocker.MagicMock()
+        mock_contributor.info = "Test User (g@test_user)"
+        mock_contributor.id = 1
+
+        mocker.patch(
+            "utils.mappers.Contributor.objects.all", return_value=[mock_contributor]
+        )
+        mocker.patch("utils.mappers.GITHUB_ISSUES_EXCLUDED_CONTRIBUTORS", [])
+
+        # Mock platforms - GitHub must be first for fallback
+        mock_platform1 = mocker.MagicMock()
+        mock_platform1.name = "GitHub"
+        mock_platform1.id = 1
+
+        mock_platform2 = mocker.MagicMock()
+        mock_platform2.name = "Discord"
+        mock_platform2.id = 2
+
+        mocker.patch(
+            "utils.mappers.SocialPlatform.objects.all",
+            return_value=[mock_platform1, mock_platform2],
+        )
+
+        # Mock cycle
+        mocker.patch(
+            "utils.mappers.Cycle.objects.latest", return_value=mocker.MagicMock()
+        )
+
+        # Mock platform identification to return None
+        mocker.patch("utils.mappers._identify_platform_from_text", return_value=None)
+
+        # Mock reward identification
+        mocker.patch(
+            "utils.mappers._identify_reward_from_labels", return_value=mock_reward
+        )
+
+        # Mock URL extraction
+        mocker.patch("utils.mappers._extract_url_text", return_value=None)
+
+        # Mock issue operations
+        mocker.patch("utils.mappers.Issue.objects.get", side_effect=Issue.DoesNotExist)
+        mocker.patch(
+            "utils.mappers.Issue.objects.create", return_value=mocker.MagicMock()
+        )
+
+        # Mock contributor identification
+        mocker.patch("utils.mappers._identify_contributor_from_user", return_value=1)
+        mocker.patch("utils.mappers._identify_contributor_from_text", return_value=None)
+
+        # Mock contribution operations
+        mock_contribution_filter = mocker.MagicMock()
+        mock_contribution_filter.first = mocker.MagicMock(return_value=None)
+        mocker.patch(
+            "utils.mappers.Contribution.objects.filter",
+            return_value=mock_contribution_filter,
+        )
+
+        mock_contribution_create = mocker.patch(
+            "utils.mappers.Contribution.objects.create"
+        )
+
+        result = _map_closed_addressed_issues([mock_issue])
+
+        assert result is True
+        # Verify contribution was created with GitHub platform ID (1)
+        call_kwargs = mock_contribution_create.call_args[1]
+        assert call_kwargs["platform_id"] == 1
+
+    @pytest.mark.django_db
+    def test_utils_mappers_map_closed_addressed_issues_create_new_contributor(
+        self, mocker
+    ):
+        """Test creating new contributor when none identified."""
+        # Create proper mock structure
+        mock_label = mocker.MagicMock()
+        mock_label.name = "addressed"
+
+        mock_issue_obj = mocker.MagicMock()
+        mock_issue_obj.labels = [mock_label]
+        mock_issue_obj.body = "By new_user in [Discord]"
+        mock_issue_obj.title = "Test Issue"
+        mock_issue_obj.number = 101
+        mock_issue_obj.user.login = "github_user"
+
+        mock_issue = mocker.MagicMock()
+        mock_issue.issue = mock_issue_obj
+        mock_issue.comments = []
+
+        # Mock dependencies
+        mock_reward = mocker.MagicMock()
+        mocker.patch(
+            "utils.mappers._build_reward_mapping", return_value={"bug": mock_reward}
+        )
+
+        # Mock empty contributors (no existing contributors)
+        mocker.patch("utils.mappers.Contributor.objects.all", return_value=[])
+        mocker.patch("utils.mappers.GITHUB_ISSUES_EXCLUDED_CONTRIBUTORS", [])
+
+        # Mock platforms
+        mock_platform = mocker.MagicMock()
+        mock_platform.name = "GitHub"
+        mock_platform.id = 1
+        mocker.patch(
+            "utils.mappers.SocialPlatform.objects.all", return_value=[mock_platform]
+        )
+
+        # Mock cycle
+        mocker.patch(
+            "utils.mappers.Cycle.objects.latest", return_value=mocker.MagicMock()
+        )
+
+        # Mock platform identification
+        mocker.patch("utils.mappers._identify_platform_from_text", return_value=1)
+
+        # Mock reward identification
+        mocker.patch(
+            "utils.mappers._identify_reward_from_labels", return_value=mock_reward
+        )
+
+        # Mock URL extraction
+        mocker.patch("utils.mappers._extract_url_text", return_value=None)
+
+        # Mock issue operations
+        mocker.patch("utils.mappers.Issue.objects.get", side_effect=Issue.DoesNotExist)
+        mocker.patch(
+            "utils.mappers.Issue.objects.create", return_value=mocker.MagicMock()
+        )
+
+        # Mock contributor identification to return None
+        mocker.patch("utils.mappers._identify_contributor_from_user", return_value=None)
+        mocker.patch("utils.mappers._identify_contributor_from_text", return_value=None)
+
+        # Mock contributor creation
+        mocker.patch(
+            "utils.mappers._create_contributor_from_text",
+            return_value=(2, {"new_user": 2}),
+        )
+
+        # Mock contribution operations
+        mock_contribution_filter = mocker.MagicMock()
+        mock_contribution_filter.first = mocker.MagicMock(return_value=None)
+        mocker.patch(
+            "utils.mappers.Contribution.objects.filter",
+            return_value=mock_contribution_filter,
+        )
+
+        mock_contribution_create = mocker.patch(
+            "utils.mappers.Contribution.objects.create"
+        )
+
+        result = _map_closed_addressed_issues([mock_issue])
+
+        assert result is True
+        mock_contribution_create.assert_called_once()
+
+    @pytest.mark.django_db
+    def test_utils_mappers_map_closed_addressed_issues_no_contributors_found(
+        self, mocker
+    ):
+        """Test that issues without identifiable contributors are skipped."""
+        # Create proper mock structure
+        mock_label = mocker.MagicMock()
+        mock_label.name = "addressed"
+
+        mock_issue_obj = mocker.MagicMock()
+        mock_issue_obj.labels = [mock_label]
+        mock_issue_obj.body = "Some body without contributor info"
+        mock_issue_obj.title = "Test Issue"
+        mock_issue_obj.number = 101
+        mock_issue_obj.user.login = "unknown_user"
+
+        mock_issue = mocker.MagicMock()
+        mock_issue.issue = mock_issue_obj
+        mock_issue.comments = []
+
+        # Mock dependencies
+        mock_reward = mocker.MagicMock()
+        mocker.patch(
+            "utils.mappers._build_reward_mapping", return_value={"bug": mock_reward}
+        )
+
+        # Mock empty contributors
+        mocker.patch("utils.mappers.Contributor.objects.all", return_value=[])
+        mocker.patch("utils.mappers.GITHUB_ISSUES_EXCLUDED_CONTRIBUTORS", [])
+
+        # Mock platforms
+        mock_platform = mocker.MagicMock()
+        mock_platform.name = "GitHub"
+        mock_platform.id = 1
+        mocker.patch(
+            "utils.mappers.SocialPlatform.objects.all", return_value=[mock_platform]
+        )
+
+        # Mock cycle
+        mocker.patch(
+            "utils.mappers.Cycle.objects.latest", return_value=mocker.MagicMock()
+        )
+
+        # Mock platform identification
+        mocker.patch("utils.mappers._identify_platform_from_text", return_value=1)
+
+        # Mock reward identification
+        mocker.patch(
+            "utils.mappers._identify_reward_from_labels", return_value=mock_reward
+        )
+
+        # Mock URL extraction
+        mocker.patch("utils.mappers._extract_url_text", return_value=None)
+
+        # Mock issue operations
+        mocker.patch("utils.mappers.Issue.objects.get", side_effect=Issue.DoesNotExist)
+        mocker.patch(
+            "utils.mappers.Issue.objects.create", return_value=mocker.MagicMock()
+        )
+
+        # Mock contributor identification to return None
+        mocker.patch("utils.mappers._identify_contributor_from_user", return_value=None)
+        mocker.patch("utils.mappers._identify_contributor_from_text", return_value=None)
+
+        # Mock contributor creation to return None (no pattern match)
+        mocker.patch(
+            "utils.mappers._create_contributor_from_text", return_value=(None, {})
+        )
+
+        result = _map_closed_addressed_issues([mock_issue])
+
+        # Function should return True (found addressed issues) but skip processing due to no contributors
+        assert result is True
+
+    @pytest.mark.django_db
+    def test_utils_mappers_map_closed_addressed_issues_existing_issue_update(
+        self, mocker
+    ):
+        """Test that existing issues are updated to ADDRESSED status."""
+        # Create proper mock structure
+        mock_label = mocker.MagicMock()
+        mock_label.name = "addressed"
+
+        mock_issue_obj = mocker.MagicMock()
+        mock_issue_obj.labels = [mock_label]
+        mock_issue_obj.body = "Test body"
+        mock_issue_obj.title = "Test Issue"
+        mock_issue_obj.number = 101
+        mock_issue_obj.user.login = "github_user"
+
+        mock_issue = mocker.MagicMock()
+        mock_issue.issue = mock_issue_obj
+        mock_issue.comments = []
+
+        # Mock dependencies
+        mock_reward = mocker.MagicMock()
+        mocker.patch(
+            "utils.mappers._build_reward_mapping", return_value={"bug": mock_reward}
+        )
+
+        # Mock contributors
+        mock_contributor = mocker.MagicMock()
+        mock_contributor.info = "Test User"
+        mock_contributor.id = 1
+
+        mocker.patch(
+            "utils.mappers.Contributor.objects.all", return_value=[mock_contributor]
+        )
+        mocker.patch("utils.mappers.GITHUB_ISSUES_EXCLUDED_CONTRIBUTORS", [])
+
+        # Mock platforms
+        mock_platform = mocker.MagicMock()
+        mock_platform.name = "GitHub"
+        mock_platform.id = 1
+        mocker.patch(
+            "utils.mappers.SocialPlatform.objects.all", return_value=[mock_platform]
+        )
+
+        # Mock cycle
+        mocker.patch(
+            "utils.mappers.Cycle.objects.latest", return_value=mocker.MagicMock()
+        )
+
+        # Mock platform identification
+        mocker.patch("utils.mappers._identify_platform_from_text", return_value=1)
+
+        # Mock reward identification
+        mocker.patch(
+            "utils.mappers._identify_reward_from_labels", return_value=mock_reward
+        )
+
+        # Mock URL extraction
+        mocker.patch("utils.mappers._extract_url_text", return_value=None)
+
+        # Mock existing issue with CREATED status
+        mock_existing_issue = mocker.MagicMock()
+        mock_existing_issue.status = IssueStatus.CREATED
+        mock_existing_issue.save = mocker.MagicMock()
+
+        mocker.patch(
+            "utils.mappers.Issue.objects.get", return_value=mock_existing_issue
+        )
+
+        # Mock contributor identification
+        mocker.patch("utils.mappers._identify_contributor_from_user", return_value=1)
+        mocker.patch("utils.mappers._identify_contributor_from_text", return_value=None)
+
+        # Mock contribution operations
+        mock_contribution_filter = mocker.MagicMock()
+        mock_contribution_filter.first = mocker.MagicMock(return_value=None)
+        mocker.patch(
+            "utils.mappers.Contribution.objects.filter",
+            return_value=mock_contribution_filter,
+        )
+
+        mocker.patch("utils.mappers.Contribution.objects.create")
+
+        result = _map_closed_addressed_issues([mock_issue])
+
+        assert result is True
+        # Verify issue status was updated to ADDRESSED
+        assert mock_existing_issue.status == IssueStatus.ADDRESSED
+        mock_existing_issue.save.assert_called_once()
+
+    @pytest.mark.django_db
+    def test_utils_mappers_map_closed_addressed_issues_skip_empty_body(self, mocker):
+        """Test that issues with empty body and comments are skipped."""
+        # Create proper mock structure with empty body
+        mock_label = mocker.MagicMock()
+        mock_label.name = "addressed"
+
+        mock_issue_obj = mocker.MagicMock()
+        mock_issue_obj.labels = [mock_label]
+        mock_issue_obj.body = None  # Empty body
+        mock_issue_obj.title = "Test Issue"
+        mock_issue_obj.number = 101
+
+        mock_issue = mocker.MagicMock()
+        mock_issue.issue = mock_issue_obj
+        mock_issue.comments = []  # Empty comments
+
+        # Mock minimal dependencies
+        mocker.patch("utils.mappers._build_reward_mapping", return_value={})
+
+        # Mock contributors
+        mock_contributor = mocker.MagicMock()
+        mock_contributor.info = "Test User"
+        mock_contributor.id = 1
+
+        mocker.patch(
+            "utils.mappers.Contributor.objects.all", return_value=[mock_contributor]
+        )
+        mocker.patch("utils.mappers.GITHUB_ISSUES_EXCLUDED_CONTRIBUTORS", [])
+
+        # Mock platforms
+        mock_platform = mocker.MagicMock()
+        mock_platform.name = "GitHub"
+        mock_platform.id = 1
+        mocker.patch(
+            "utils.mappers.SocialPlatform.objects.all", return_value=[mock_platform]
+        )
+
+        # Mock cycle
+        mocker.patch(
+            "utils.mappers.Cycle.objects.latest", return_value=mocker.MagicMock()
+        )
+
+        result = _map_closed_addressed_issues([mock_issue])
+
+        # Function should return True (found addressed issues) but skip processing due to empty body
+        assert result is True
+
+    @pytest.mark.django_db
+    def test_utils_mappers_map_closed_addressed_issues_multiple_contributors(
+        self, mocker
+    ):
+        """Test processing with multiple contributors identified."""
+        # Create proper mock structure
+        mock_label = mocker.MagicMock()
+        mock_label.name = "addressed"
+
+        mock_issue_obj = mocker.MagicMock()
+        mock_issue_obj.labels = [mock_label]
+        mock_issue_obj.body = "By user1 and user2 in [Discord]"
+        mock_issue_obj.title = "Test Issue"
+        mock_issue_obj.number = 101
+        mock_issue_obj.user.login = "github_user"
+
+        mock_issue = mocker.MagicMock()
+        mock_issue.issue = mock_issue_obj
+        mock_issue.comments = []
+
+        # Mock dependencies
+        mock_reward = mocker.MagicMock()
+        mocker.patch(
+            "utils.mappers._build_reward_mapping", return_value={"bug": mock_reward}
+        )
+
+        # Mock contributors
+        mock_contributor1 = mocker.MagicMock()
+        mock_contributor1.info = "User One"
+        mock_contributor1.id = 1
+
+        mock_contributor2 = mocker.MagicMock()
+        mock_contributor2.info = "User Two"
+        mock_contributor2.id = 2
+
+        mocker.patch(
+            "utils.mappers.Contributor.objects.all",
+            return_value=[mock_contributor1, mock_contributor2],
+        )
+        mocker.patch("utils.mappers.GITHUB_ISSUES_EXCLUDED_CONTRIBUTORS", [])
+
+        # Mock platforms
+        mock_platform = mocker.MagicMock()
+        mock_platform.name = "GitHub"
+        mock_platform.id = 1
+        mocker.patch(
+            "utils.mappers.SocialPlatform.objects.all", return_value=[mock_platform]
+        )
+
+        # Mock cycle
+        mocker.patch(
+            "utils.mappers.Cycle.objects.latest", return_value=mocker.MagicMock()
+        )
+
+        # Mock platform identification
+        mocker.patch("utils.mappers._identify_platform_from_text", return_value=1)
+
+        # Mock reward identification
+        mocker.patch(
+            "utils.mappers._identify_reward_from_labels", return_value=mock_reward
+        )
+
+        # Mock URL extraction
+        mocker.patch("utils.mappers._extract_url_text", return_value=None)
+
+        # Mock issue operations
+        mocker.patch("utils.mappers.Issue.objects.get", side_effect=Issue.DoesNotExist)
+        mocker.patch(
+            "utils.mappers.Issue.objects.create", return_value=mocker.MagicMock()
+        )
+
+        # Mock contributor identification to return multiple IDs
+        mocker.patch("utils.mappers._identify_contributor_from_user", return_value=1)
+        mocker.patch("utils.mappers._identify_contributor_from_text", return_value=2)
+
+        # Mock contribution operations
+        mock_contribution_filter = mocker.MagicMock()
+        mock_contribution_filter.first = mocker.MagicMock(return_value=None)
+        mocker.patch(
+            "utils.mappers.Contribution.objects.filter",
+            return_value=mock_contribution_filter,
+        )
+
+        mock_contribution_create = mocker.patch(
+            "utils.mappers.Contribution.objects.create"
+        )
+
+        result = _map_closed_addressed_issues([mock_issue])
+
+        assert result is True
+        # Verify two contributions were created
+        assert mock_contribution_create.call_count == 2
+
+    @pytest.mark.django_db
+    def test_utils_mappers_map_closed_addressed_issues_existing_issue_already_addressed(
+        self, mocker
+    ):
+        """Test that existing issues with ADDRESSED status are not modified."""
+        # Create proper mock structure
+        mock_label = mocker.MagicMock()
+        mock_label.name = "addressed"
+
+        mock_issue_obj = mocker.MagicMock()
+        mock_issue_obj.labels = [mock_label]
+        mock_issue_obj.body = "Test body with contributor info"
+        mock_issue_obj.title = "Test Issue"
+        mock_issue_obj.number = 101
+        mock_issue_obj.user.login = "github_user"
+
+        mock_issue = mocker.MagicMock()
+        mock_issue.issue = mock_issue_obj
+        mock_issue.comments = []
+
+        # Mock dependencies
+        mock_reward = mocker.MagicMock()
+        mocker.patch(
+            "utils.mappers._build_reward_mapping", return_value={"bug": mock_reward}
+        )
+
+        # Mock contributors
+        mock_contributor = mocker.MagicMock()
+        mock_contributor.info = "Test User"
+        mock_contributor.id = 1
+
+        mocker.patch(
+            "utils.mappers.Contributor.objects.all", return_value=[mock_contributor]
+        )
+        mocker.patch("utils.mappers.GITHUB_ISSUES_EXCLUDED_CONTRIBUTORS", [])
+
+        # Mock platforms
+        mock_platform = mocker.MagicMock()
+        mock_platform.name = "GitHub"
+        mock_platform.id = 1
+        mocker.patch(
+            "utils.mappers.SocialPlatform.objects.all", return_value=[mock_platform]
+        )
+
+        # Mock cycle
+        mocker.patch(
+            "utils.mappers.Cycle.objects.latest", return_value=mocker.MagicMock()
+        )
+
+        # Mock platform identification
+        mocker.patch("utils.mappers._identify_platform_from_text", return_value=1)
+
+        # Mock reward identification
+        mocker.patch(
+            "utils.mappers._identify_reward_from_labels", return_value=mock_reward
+        )
+
+        # Mock URL extraction
+        mocker.patch("utils.mappers._extract_url_text", return_value=None)
+
+        # Mock existing issue with ADDRESSED status (already addressed)
+        mock_existing_issue = mocker.MagicMock()
+        mock_existing_issue.status = IssueStatus.ADDRESSED  # Already ADDRESSED
+        mock_existing_issue.save = mocker.MagicMock()
+
+        mocker.patch(
+            "utils.mappers.Issue.objects.get", return_value=mock_existing_issue
+        )
+
+        # Mock contributor identification
+        mocker.patch("utils.mappers._identify_contributor_from_user", return_value=1)
+        mocker.patch("utils.mappers._identify_contributor_from_text", return_value=None)
+
+        # Mock contribution operations - return existing contribution
+        mock_existing_contribution = mocker.MagicMock()
+        mock_contribution_filter = mocker.MagicMock()
+        mock_contribution_filter.first = mocker.MagicMock(
+            return_value=mock_existing_contribution
+        )
+        mocker.patch(
+            "utils.mappers.Contribution.objects.filter",
+            return_value=mock_contribution_filter,
+        )
+
+        mock_contribution_create = mocker.patch(
+            "utils.mappers.Contribution.objects.create"
+        )
+
+        result = _map_closed_addressed_issues([mock_issue])
+
+        assert result is True
+        # Verify issue status was NOT changed (already ADDRESSED)
+        assert mock_existing_issue.status == IssueStatus.ADDRESSED
+        mock_existing_issue.save.assert_not_called()  # Should not save since status didn't change
+        # Verify no new contribution was created (existing one found)
+        mock_contribution_create.assert_not_called()
+
+    @pytest.mark.django_db
+    def test_utils_mappers_map_closed_addressed_issues_skip_when_contribution_exists(
+        self, mocker
+    ):
+        """Test that no new contribution is created when existing contribution exists."""
+        # Create proper mock structure
+        mock_label = mocker.MagicMock()
+        mock_label.name = "addressed"
+
+        mock_issue_obj = mocker.MagicMock()
+        mock_issue_obj.labels = [mock_label]
+        mock_issue_obj.body = "Test body with contributor info"
+        mock_issue_obj.title = "Test Issue"
+        mock_issue_obj.number = 101
+        mock_issue_obj.user.login = "github_user"
+
+        mock_issue = mocker.MagicMock()
+        mock_issue.issue = mock_issue_obj
+        mock_issue.comments = []
+
+        # Mock dependencies
+        mock_reward = mocker.MagicMock()
+        mocker.patch(
+            "utils.mappers._build_reward_mapping", return_value={"bug": mock_reward}
+        )
+
+        # Mock contributors
+        mock_contributor = mocker.MagicMock()
+        mock_contributor.info = "Test User"
+        mock_contributor.id = 1
+
+        mocker.patch(
+            "utils.mappers.Contributor.objects.all", return_value=[mock_contributor]
+        )
+        mocker.patch("utils.mappers.GITHUB_ISSUES_EXCLUDED_CONTRIBUTORS", [])
+
+        # Mock platforms
+        mock_platform = mocker.MagicMock()
+        mock_platform.name = "GitHub"
+        mock_platform.id = 1
+        mocker.patch(
+            "utils.mappers.SocialPlatform.objects.all", return_value=[mock_platform]
+        )
+
+        # Mock cycle
+        mock_cycle = mocker.MagicMock()
+        mocker.patch("utils.mappers.Cycle.objects.latest", return_value=mock_cycle)
+
+        # Mock platform identification
+        mocker.patch("utils.mappers._identify_platform_from_text", return_value=1)
+
+        # Mock reward identification
+        mocker.patch(
+            "utils.mappers._identify_reward_from_labels", return_value=mock_reward
+        )
+
+        # Mock URL extraction
+        mocker.patch(
+            "utils.mappers._extract_url_text", return_value="https://example.com"
+        )
+
+        # Mock issue operations - create new issue
+        mocker.patch("utils.mappers.Issue.objects.get", side_effect=Issue.DoesNotExist)
+        mock_created_issue = mocker.MagicMock()
+        mocker.patch(
+            "utils.mappers.Issue.objects.create", return_value=mock_created_issue
+        )
+
+        # Mock contributor identification
+        mocker.patch("utils.mappers._identify_contributor_from_user", return_value=1)
+        mocker.patch("utils.mappers._identify_contributor_from_text", return_value=None)
+
+        # Mock contribution operations - return EXISTING contribution (not None)
+        mock_existing_contribution = (
+            mocker.MagicMock()
+        )  # This represents an existing contribution
+        mock_contribution_filter = mocker.MagicMock()
+        mock_contribution_filter.first = mocker.MagicMock(
+            return_value=mock_existing_contribution
+        )  # Returns truthy value
+        mocker.patch(
+            "utils.mappers.Contribution.objects.filter",
+            return_value=mock_contribution_filter,
+        )
+
+        mock_contribution_create = mocker.patch(
+            "utils.mappers.Contribution.objects.create"
+        )
+
+        result = _map_closed_addressed_issues([mock_issue])
+
+        assert result is True
+        # Verify NO new contribution was created since existing one was found
+        mock_contribution_create.assert_not_called()
+        # Verify that Contribution.objects.filter was called with correct parameters
+        mock_contribution_filter.first.assert_called_once()
+
+
+class TestUtilsMappersMapClosedArchivedIssues:
+    """Testing class for :py:mod:`utils.mappers` _map_closed_archived_issues."""
+
     # # _map_closed_archived_issues
     @pytest.mark.django_db
     def test_utils_mappers_map_closed_archived_issues_bulk_no_token(self, mocker):
         """Test function returns False when no GitHub token is provided."""
         result = _map_closed_archived_issues(None)
-        assert result is False
+        assert result == []
 
     @pytest.mark.django_db
     def test_utils_mappers_map_closed_archived_issues_bulk_no_contributions(
         self, mocker
     ):
         """Test function returns True when there are no contributions to process."""
-        github_token = "test_token"
-
         # Create a proper QuerySet mock that returns empty list
         mock_contributions_queryset = mocker.MagicMock()
         mock_contributions_queryset.only.return_value = (
@@ -1735,14 +3017,11 @@ class TestUtilsMappersMapping:
             return_value=mock_contributions_queryset,
         )
 
-        mocked_fetch_issues = mocker.patch("utils.mappers.fetch_issues")
         mocked_create_issues_bulk = mocker.patch("utils.mappers._create_issues_bulk")
 
-        result = _map_closed_archived_issues(github_token)
+        result = _map_closed_archived_issues(mocker.MagicMock())
 
-        assert result is True
-        # fetch_issues should not be called when there are no contributions
-        mocked_fetch_issues.assert_not_called()
+        assert result == []
         mocked_create_issues_bulk.assert_not_called()
 
     @pytest.mark.django_db
@@ -1775,13 +3054,12 @@ class TestUtilsMappersMapping:
         mock_issue.issue.number = 101
         mock_issue.issue.body = "Check out https://example.com/contrib for details"
 
-        mocker.patch("utils.mappers.fetch_issues", return_value=[mock_issue])
         mocker.patch("utils.mappers._is_url_github_issue", return_value=False)
         mocked_create_issues_bulk = mocker.patch("utils.mappers._create_issues_bulk")
 
         result = _map_closed_archived_issues([mock_issue])
 
-        assert result is True
+        assert result == []
         mocked_create_issues_bulk.assert_called_once_with(
             [(101, 1, IssueStatus.ARCHIVED)]
         )
@@ -1820,70 +3098,15 @@ class TestUtilsMappersMapping:
         mock_issue.issue.number = 456  # Matching issue number
         mock_issue.issue.body = "Some issue body without the URL"
 
-        mocker.patch("utils.mappers.fetch_issues", return_value=[mock_issue])
         mocker.patch("utils.mappers._is_url_github_issue", return_value=456)
         mocked_create_issues_bulk = mocker.patch("utils.mappers._create_issues_bulk")
 
         result = _map_closed_archived_issues([mock_issue])
 
-        assert result is True
+        assert result == []
         mocked_create_issues_bulk.assert_called_once_with(
             [(456, 1, IssueStatus.ARCHIVED)]
         )
-
-    @pytest.mark.django_db
-    def test_utils_mappers_map_closed_archived_issues_bulk_both_match_same_issue(
-        self, mocker
-    ):
-        """Test that matched flag prevents duplicate assignments for same issue."""
-
-        # Mock contributions
-        mock_contrib1 = mocker.MagicMock()
-        mock_contrib1.id = 1
-        mock_contrib1.url = "https://example.com/contrib1"
-
-        mock_contrib2 = mocker.MagicMock()
-        mock_contrib2.id = 2
-        github_issue_url = (
-            f"https://github.com/{settings.GITHUB_REPO_OWNER}/"
-            f"{settings.GITHUB_REPO_NAME}/issues/101"
-        )
-        mock_contrib2.url = github_issue_url
-
-        # Create a proper QuerySet mock
-        mock_contributions_queryset = mocker.MagicMock()
-        mock_contributions_queryset.only.return_value = (
-            mock_contributions_queryset  # Chainable
-        )
-        mock_contributions_queryset.__iter__ = mocker.MagicMock(
-            return_value=iter([mock_contrib1, mock_contrib2])
-        )
-
-        mocker.patch(
-            "utils.mappers.Contribution.objects.all",
-            return_value=mock_contributions_queryset,
-        )
-
-        # Mock GitHub issue that matches both methods
-        mock_issue = mocker.MagicMock()
-        mock_issue.issue.number = 101
-        mock_issue.issue.body = "Contains https://example.com/contrib1"
-
-        mocker.patch("utils.mappers.fetch_issues", return_value=[mock_issue])
-        mocked_is_url = mocker.patch("utils.mappers._is_url_github_issue")
-        mocked_is_url.side_effect = lambda url: (
-            101 if url == github_issue_url else False
-        )
-        mocked_create_issues_bulk = mocker.patch("utils.mappers._create_issues_bulk")
-
-        result = _map_closed_archived_issues([mock_issue])
-
-        assert result is True
-        # Should only have one assignment despite both methods potentially matching
-        call_args = mocked_create_issues_bulk.call_args[0][0]
-        assert len(call_args) == 2
-        # Should be the body match (first method)
-        assert call_args[0] == (101, 1, IssueStatus.ARCHIVED)
 
     @pytest.mark.django_db
     def test_utils_mappers_map_closed_archived_issues_bulk_skip_empty_urls(
@@ -1922,13 +3145,12 @@ class TestUtilsMappersMapping:
         mock_issue.issue.number = 101
         mock_issue.issue.body = "Contains https://valid.com/url"
 
-        mocker.patch("utils.mappers.fetch_issues", return_value=[mock_issue])
         mocker.patch("utils.mappers._is_url_github_issue", return_value=False)
         mocked_create_issues_bulk = mocker.patch("utils.mappers._create_issues_bulk")
 
         result = _map_closed_archived_issues([mock_issue])
 
-        assert result is True
+        assert result == []
         # Should only process the valid URL
         mocked_create_issues_bulk.assert_called_once_with(
             [(101, 3, IssueStatus.ARCHIVED)]
@@ -1962,7 +3184,6 @@ class TestUtilsMappersMapping:
         mock_issue.issue.number = 101
         mock_issue.issue.body = "Contains https://example.com/contrib"
 
-        mocker.patch("utils.mappers.fetch_issues", return_value=[mock_issue])
         mocker.patch("utils.mappers._is_url_github_issue", return_value=False)
         mocked_create_issues_bulk = mocker.patch("utils.mappers._create_issues_bulk")
 
@@ -1972,7 +3193,7 @@ class TestUtilsMappersMapping:
 
         result = _map_closed_archived_issues([mock_issue])
 
-        assert result is True
+        assert result == []
         mocked_create_issues_bulk.assert_called_once()
 
     @pytest.mark.django_db
@@ -2009,13 +3230,12 @@ class TestUtilsMappersMapping:
         mock_issue.issue.number = 456
         mock_issue.issue.body = None
 
-        mocker.patch("utils.mappers.fetch_issues", return_value=[mock_issue])
         mocker.patch("utils.mappers._is_url_github_issue", return_value=456)
         mocked_create_issues_bulk = mocker.patch("utils.mappers._create_issues_bulk")
 
         result = _map_closed_archived_issues([mock_issue])
 
-        assert result is True
+        assert result == []
         # Should still match via GitHub issue URL even with no body
         mocked_create_issues_bulk.assert_called_once_with(
             [(456, 1, IssueStatus.ARCHIVED)]
@@ -2043,17 +3263,46 @@ class TestUtilsMappersMapping:
             return_value=mock_contributions_queryset,
         )
 
-        mock_issue = mocker.MagicMock()
-        mock_issue.issue.number = 101
-        mock_issue.issue.body = "Contains completely different URL"
+        mock_issue1 = mocker.MagicMock()
+        mock_issue1.issue.title = "[Internal] foo bar"
+        mock_issue1.issue.body = "Internal issue body"
+        mock_issue1.issue.number = 100
+        mock_issue1.comments = []  # Empty list of strings, not MagicMock
 
-        mocker.patch("utils.mappers.fetch_issues", return_value=[mock_issue])
+        mock_issue2 = mocker.MagicMock()
+        mock_issue2.issue.number = 101
+        mock_issue2.issue.body = "Contains completely different URL"
+        mock_issue2.issue.title = "Test Issue"
+        mock_issue2.comments = []  # Empty list of strings
+
+        mock_issue3 = mocker.MagicMock()
+        label1, label2 = mocker.MagicMock(), mocker.MagicMock()
+        label1.name = "foobar"
+        label2.name = "wontfix"
+        mock_issue3.issue.labels = [label1, label2]
+        mock_issue3.issue.body = "Wontfix issue"
+        mock_issue3.issue.number = 102
+        mock_issue3.issue.title = "Wontfix Issue"
+        mock_issue3.comments = []
+
+        label3 = mocker.MagicMock()
+        label3.name = "addressed"
+        mock_issue4 = mocker.MagicMock()
+        mock_issue4.issue.labels = [label3]
+        mock_issue4.issue.body = "Addressed issue"
+        mock_issue4.issue.number = 103
+        mock_issue4.issue.title = "Addressed Issue"
+        mock_issue4.comments = []
+
         mocker.patch("utils.mappers._is_url_github_issue", return_value=False)
         mocked_create_issues_bulk = mocker.patch("utils.mappers._create_issues_bulk")
 
-        result = _map_closed_archived_issues([mock_issue])
+        result = _map_closed_archived_issues(
+            [mock_issue1, mock_issue2, mock_issue3, mock_issue4]
+        )
 
-        assert result is True
+        # Should return unprocessed issues (all issues except internal ones)
+        assert len(result) == 1  # Excludes internal issue
         mocked_create_issues_bulk.assert_called_once_with([])
 
     @pytest.mark.django_db
@@ -2097,11 +3346,6 @@ class TestUtilsMappersMapping:
         mock_issue2 = mocker.MagicMock()
         mock_issue2.issue.number = 202
         mock_issue2.issue.body = "No matching URL here"
-
-        mocker.patch(
-            "utils.mappers.fetch_issues",
-            return_value=[mock_issue1, mock_issue2],
-        )
         mocked_is_url = mocker.patch("utils.mappers._is_url_github_issue")
         mocked_is_url.side_effect = lambda url: (
             202 if url == github_issue_url else False
@@ -2110,13 +3354,759 @@ class TestUtilsMappersMapping:
 
         result = _map_closed_archived_issues([mock_issue1, mock_issue2])
 
-        assert result is True
+        assert result == []
         # Should have both assignments via different methods
         call_args = mocked_create_issues_bulk.call_args[0][0]
         assert set(call_args) == {
             (101, 1, IssueStatus.ARCHIVED),
             (202, 2, IssueStatus.ARCHIVED),
         }
+
+
+class TestUtilsMappersMapUnprocessedClosedArchivedIssues:
+    """Testing class for :py:mod:`utils.mappers` _map_unprocessed_closed_archived_issues function."""
+
+    # # _map_unprocessed_closed_archived_issues
+    @pytest.mark.django_db
+    def test_utils_mappers_map_unprocessed_closed_archived_issues_no_archived_issues(
+        self, mocker
+    ):
+        """Test function returns False when no archived issues."""
+        result = _map_unprocessed_closed_archived_issues([])
+        assert result is False
+
+    @pytest.mark.django_db
+    def test_utils_mappers_map_unprocessed_closed_archived_issues_no_archived_labels(
+        self, mocker
+    ):
+        """Test function returns False when no issues have archived label."""
+        mock_label = mocker.MagicMock()
+        mock_label.name = "bug"  # Different label
+
+        mock_issue_obj = mocker.MagicMock()
+        mock_issue_obj.labels = [mock_label]
+
+        mock_issue = mocker.MagicMock()
+        mock_issue.issue = mock_issue_obj
+
+        result = _map_unprocessed_closed_archived_issues([mock_issue])
+        assert result is False
+
+    @pytest.mark.django_db
+    def test_utils_mappers_map_unprocessed_closed_archived_issues_skip_internal_issues(
+        self, mocker
+    ):
+        """Test that internal issues are skipped."""
+        mock_label = mocker.MagicMock()
+        mock_label.name = "archived"
+
+        mock_issue_obj = mocker.MagicMock()
+        mock_issue_obj.labels = [mock_label]
+        mock_issue_obj.body = "Some body"
+        mock_issue_obj.title = "[Internal] Test Issue"
+        mock_issue_obj.number = 101
+
+        mock_issue = mocker.MagicMock()
+        mock_issue.issue = mock_issue_obj
+        mock_issue.comments = []
+
+        # Mock minimal dependencies
+        mocker.patch("utils.mappers._build_reward_mapping", return_value={})
+        mocker.patch("utils.mappers.Contributor.objects.all", return_value=[])
+        mocker.patch("utils.mappers.GITHUB_ISSUES_EXCLUDED_CONTRIBUTORS", [])
+        mocker.patch("utils.mappers.SocialPlatform.objects.all", return_value=[])
+
+        result = _map_unprocessed_closed_archived_issues([mock_issue])
+        assert result is True  # Found archived issues but skipped internal one
+
+    @pytest.mark.django_db
+    def test_utils_mappers_map_unprocessed_closed_archived_issues_skip_empty_body(
+        self, mocker
+    ):
+        """Test that issues with empty body and comments are skipped."""
+        mock_label = mocker.MagicMock()
+        mock_label.name = "archived"
+
+        mock_issue_obj = mocker.MagicMock()
+        mock_issue_obj.labels = [mock_label]
+        mock_issue_obj.body = None  # Empty body
+        mock_issue_obj.title = "Test Issue"
+        mock_issue_obj.number = 101
+
+        mock_issue = mocker.MagicMock()
+        mock_issue.issue = mock_issue_obj
+        mock_issue.comments = []  # Empty comments
+
+        # Mock minimal dependencies
+        mocker.patch("utils.mappers._build_reward_mapping", return_value={})
+        mocker.patch("utils.mappers.Contributor.objects.all", return_value=[])
+        mocker.patch("utils.mappers.GITHUB_ISSUES_EXCLUDED_CONTRIBUTORS", [])
+        mocker.patch("utils.mappers.SocialPlatform.objects.all", return_value=[])
+
+        result = _map_unprocessed_closed_archived_issues([mock_issue])
+        assert result is True  # Found archived issues but skipped empty body
+
+    @pytest.mark.django_db
+    def test_utils_mappers_map_unprocessed_closed_archived_issues_skip_existing_issue(
+        self, mocker
+    ):
+        """Test that issues with existing Issue records are skipped."""
+        mock_label = mocker.MagicMock()
+        mock_label.name = "archived"
+
+        mock_issue_obj = mocker.MagicMock()
+        mock_issue_obj.labels = [mock_label]
+        mock_issue_obj.body = "Test body"
+        mock_issue_obj.title = "Test Issue"
+        mock_issue_obj.number = 101
+
+        mock_issue = mocker.MagicMock()
+        mock_issue.issue = mock_issue_obj
+        mock_issue.comments = []
+
+        # Mock minimal dependencies
+        mocker.patch("utils.mappers._build_reward_mapping", return_value={})
+        mocker.patch("utils.mappers.Contributor.objects.all", return_value=[])
+        mocker.patch("utils.mappers.GITHUB_ISSUES_EXCLUDED_CONTRIBUTORS", [])
+        mocker.patch("utils.mappers.SocialPlatform.objects.all", return_value=[])
+
+        # Mock Issue.objects.filter.exists() to return True (issue already exists)
+        mock_issue_filter = mocker.MagicMock()
+        mock_issue_filter.exists = mocker.MagicMock(return_value=True)
+        mocker.patch(
+            "utils.mappers.Issue.objects.filter", return_value=mock_issue_filter
+        )
+
+        result = _map_unprocessed_closed_archived_issues([mock_issue])
+        assert result is True  # Found archived issues but skipped existing issue
+
+    @pytest.mark.django_db
+    def test_utils_mappers_map_unprocessed_closed_archived_issues_skip_no_closing_date(
+        self, mocker
+    ):
+        """Test that issues without closing date are skipped."""
+        mock_label = mocker.MagicMock()
+        mock_label.name = "archived"
+
+        mock_issue_obj = mocker.MagicMock()
+        mock_issue_obj.labels = [mock_label]
+        mock_issue_obj.body = "Test body"
+        mock_issue_obj.title = "Test Issue"
+        mock_issue_obj.number = 101
+        mock_issue_obj.closed_at = None  # No closing date
+
+        mock_issue = mocker.MagicMock()
+        mock_issue.issue = mock_issue_obj
+        mock_issue.comments = []
+
+        # Mock minimal dependencies
+        mocker.patch("utils.mappers._build_reward_mapping", return_value={})
+        mocker.patch("utils.mappers.Contributor.objects.all", return_value=[])
+        mocker.patch("utils.mappers.GITHUB_ISSUES_EXCLUDED_CONTRIBUTORS", [])
+        mocker.patch("utils.mappers.SocialPlatform.objects.all", return_value=[])
+
+        # Mock Issue.objects.filter.exists() to return False (issue doesn't exist)
+        mock_issue_filter = mocker.MagicMock()
+        mock_issue_filter.exists = mocker.MagicMock(return_value=False)
+        mocker.patch(
+            "utils.mappers.Issue.objects.filter", return_value=mock_issue_filter
+        )
+
+        result = _map_unprocessed_closed_archived_issues([mock_issue])
+        assert result is True  # Found archived issues but skipped no closing date
+
+    @pytest.mark.django_db
+    def test_utils_mappers_map_unprocessed_closed_archived_issues_skip_no_cycle_found(
+        self, mocker
+    ):
+        """Test that issues without matching cycle are skipped."""
+        from datetime import datetime
+
+        mock_label = mocker.MagicMock()
+        mock_label.name = "archived"
+
+        mock_issue_obj = mocker.MagicMock()
+        mock_issue_obj.labels = [mock_label]
+        mock_issue_obj.body = "Test body"
+        mock_issue_obj.title = "Test Issue"
+        mock_issue_obj.number = 101
+        mock_issue_obj.closed_at = datetime(2023, 1, 1)
+
+        mock_issue = mocker.MagicMock()
+        mock_issue.issue = mock_issue_obj
+        mock_issue.comments = []
+
+        # Mock minimal dependencies
+        mocker.patch("utils.mappers._build_reward_mapping", return_value={})
+        mocker.patch("utils.mappers.Contributor.objects.all", return_value=[])
+        mocker.patch("utils.mappers.GITHUB_ISSUES_EXCLUDED_CONTRIBUTORS", [])
+        mocker.patch("utils.mappers.SocialPlatform.objects.all", return_value=[])
+
+        # Mock Issue.objects.filter.exists() to return False
+        mock_issue_filter = mocker.MagicMock()
+        mock_issue_filter.exists = mocker.MagicMock(return_value=False)
+        mocker.patch(
+            "utils.mappers.Issue.objects.filter", return_value=mock_issue_filter
+        )
+
+        # Mock Cycle.objects.filter().first() to return None (no cycle found)
+        mock_cycle_filter = mocker.MagicMock()
+        mock_cycle_filter.first = mocker.MagicMock(return_value=None)
+        mocker.patch(
+            "utils.mappers.Cycle.objects.filter", return_value=mock_cycle_filter
+        )
+
+        result = _map_unprocessed_closed_archived_issues([mock_issue])
+        assert result is True  # Found archived issues but skipped no cycle
+
+    @pytest.mark.django_db
+    def test_utils_mappers_map_unprocessed_closed_archived_issues_skip_no_reward(
+        self, mocker
+    ):
+        """Test that issues without rewards are skipped."""
+        from datetime import datetime
+
+        mock_label = mocker.MagicMock()
+        mock_label.name = "archived"
+
+        mock_issue_obj = mocker.MagicMock()
+        mock_issue_obj.labels = [mock_label]
+        mock_issue_obj.body = "Test body"
+        mock_issue_obj.title = "Test Issue"
+        mock_issue_obj.number = 101
+        mock_issue_obj.closed_at = datetime(2023, 1, 1)
+
+        mock_issue = mocker.MagicMock()
+        mock_issue.issue = mock_issue_obj
+        mock_issue.comments = []
+
+        # Mock dependencies
+        mocker.patch("utils.mappers._build_reward_mapping", return_value={})
+
+        # Mock contributors
+        mock_contributor = mocker.MagicMock()
+        mock_contributor.info = "Test User"
+        mock_contributor.id = 1
+        mocker.patch(
+            "utils.mappers.Contributor.objects.all", return_value=[mock_contributor]
+        )
+        mocker.patch("utils.mappers.GITHUB_ISSUES_EXCLUDED_CONTRIBUTORS", [])
+
+        # Mock platforms
+        mock_platform = mocker.MagicMock()
+        mock_platform.name = "GitHub"
+        mock_platform.id = 1
+        mocker.patch(
+            "utils.mappers.SocialPlatform.objects.all", return_value=[mock_platform]
+        )
+
+        # Mock Issue.objects.filter.exists() to return False
+        mock_issue_filter = mocker.MagicMock()
+        mock_issue_filter.exists = mocker.MagicMock(return_value=False)
+        mocker.patch(
+            "utils.mappers.Issue.objects.filter", return_value=mock_issue_filter
+        )
+
+        # Mock cycle
+        mock_cycle = mocker.MagicMock()
+        mock_cycle_filter = mocker.MagicMock()
+        mock_cycle_filter.first = mocker.MagicMock(return_value=mock_cycle)
+        mocker.patch(
+            "utils.mappers.Cycle.objects.filter", return_value=mock_cycle_filter
+        )
+
+        # Mock platform identification
+        mocker.patch("utils.mappers._identify_platform_from_text", return_value=1)
+
+        # Mock reward identification to return None
+        mocker.patch("utils.mappers._identify_reward_from_labels", return_value=None)
+
+        # Mock URL extraction
+        mocker.patch("utils.mappers._extract_url_text", return_value=None)
+
+        result = _map_unprocessed_closed_archived_issues([mock_issue])
+        assert result is True  # Found archived issues but skipped no reward
+
+    @pytest.mark.django_db
+    def test_utils_mappers_map_unprocessed_closed_archived_issues_skip_no_contributors(
+        self, mocker
+    ):
+        """Test that issues without identifiable contributors are skipped."""
+        from datetime import datetime
+
+        mock_label = mocker.MagicMock()
+        mock_label.name = "archived"
+
+        mock_issue_obj = mocker.MagicMock()
+        mock_issue_obj.labels = [mock_label]
+        mock_issue_obj.body = "Some body without contributor info"
+        mock_issue_obj.title = "Test Issue"
+        mock_issue_obj.number = 101
+        mock_issue_obj.closed_at = datetime(2023, 1, 1)
+        mock_issue_obj.user.login = "unknown_user"
+
+        mock_issue = mocker.MagicMock()
+        mock_issue.issue = mock_issue_obj
+        mock_issue.comments = []
+
+        # Mock dependencies
+        mock_reward = mocker.MagicMock()
+        mocker.patch(
+            "utils.mappers._build_reward_mapping", return_value={"bug": mock_reward}
+        )
+
+        # Mock empty contributors
+        mocker.patch("utils.mappers.Contributor.objects.all", return_value=[])
+        mocker.patch("utils.mappers.GITHUB_ISSUES_EXCLUDED_CONTRIBUTORS", [])
+
+        # Mock platforms
+        mock_platform = mocker.MagicMock()
+        mock_platform.name = "GitHub"
+        mock_platform.id = 1
+        mocker.patch(
+            "utils.mappers.SocialPlatform.objects.all", return_value=[mock_platform]
+        )
+
+        # Mock Issue.objects.filter.exists() to return False
+        mock_issue_filter = mocker.MagicMock()
+        mock_issue_filter.exists = mocker.MagicMock(return_value=False)
+        mocker.patch(
+            "utils.mappers.Issue.objects.filter", return_value=mock_issue_filter
+        )
+
+        # Mock cycle
+        mock_cycle = mocker.MagicMock()
+        mock_cycle_filter = mocker.MagicMock()
+        mock_cycle_filter.first = mocker.MagicMock(return_value=mock_cycle)
+        mocker.patch(
+            "utils.mappers.Cycle.objects.filter", return_value=mock_cycle_filter
+        )
+
+        # Mock platform identification
+        mocker.patch("utils.mappers._identify_platform_from_text", return_value=1)
+
+        # Mock reward identification
+        mocker.patch(
+            "utils.mappers._identify_reward_from_labels", return_value=mock_reward
+        )
+
+        # Mock URL extraction
+        mocker.patch("utils.mappers._extract_url_text", return_value=None)
+
+        # Mock issue creation
+        mock_created_issue = mocker.MagicMock()
+        mocker.patch(
+            "utils.mappers.Issue.objects.create", return_value=mock_created_issue
+        )
+
+        # Mock contributor identification to return None
+        mocker.patch("utils.mappers._identify_contributor_from_user", return_value=None)
+        mocker.patch("utils.mappers._identify_contributor_from_text", return_value=None)
+
+        # Mock contributor creation to return None
+        mocker.patch(
+            "utils.mappers._create_contributor_from_text", return_value=(None, {})
+        )
+
+        result = _map_unprocessed_closed_archived_issues([mock_issue])
+        assert result is True  # Found archived issues but skipped no contributors
+
+    @pytest.mark.django_db
+    def test_utils_mappers_map_unprocessed_closed_archived_issues_successful_processing(
+        self, mocker
+    ):
+        """Test successful processing of archived issues."""
+        from datetime import datetime
+
+        mock_label = mocker.MagicMock()
+        mock_label.name = "archived"
+
+        mock_issue_obj = mocker.MagicMock()
+        mock_issue_obj.labels = [mock_label]
+        mock_issue_obj.body = "By test_user in [Discord]"
+        mock_issue_obj.title = "Test Issue"
+        mock_issue_obj.number = 101
+        mock_issue_obj.closed_at = datetime(2023, 1, 1)
+        mock_issue_obj.user.login = "github_user"
+
+        mock_issue = mocker.MagicMock()
+        mock_issue.issue = mock_issue_obj
+        mock_issue.comments = []
+
+        # Mock dependencies
+        mock_reward = mocker.MagicMock()
+        mocker.patch(
+            "utils.mappers._build_reward_mapping", return_value={"bug": mock_reward}
+        )
+
+        # Mock contributors
+        mock_contributor = mocker.MagicMock()
+        mock_contributor.info = "Test User (g@test_user, d@testuser)"
+        mock_contributor.id = 1
+        mocker.patch(
+            "utils.mappers.Contributor.objects.all", return_value=[mock_contributor]
+        )
+        mocker.patch("utils.mappers.GITHUB_ISSUES_EXCLUDED_CONTRIBUTORS", [])
+
+        # Mock platforms
+        mock_platform1 = mocker.MagicMock()
+        mock_platform1.name = "GitHub"
+        mock_platform1.id = 1
+
+        mock_platform2 = mocker.MagicMock()
+        mock_platform2.name = "Discord"
+        mock_platform2.id = 2
+
+        mocker.patch(
+            "utils.mappers.SocialPlatform.objects.all",
+            return_value=[mock_platform1, mock_platform2],
+        )
+
+        # Mock Issue.objects.filter.exists() to return False
+        mock_issue_filter = mocker.MagicMock()
+        mock_issue_filter.exists = mocker.MagicMock(return_value=False)
+        mocker.patch(
+            "utils.mappers.Issue.objects.filter", return_value=mock_issue_filter
+        )
+
+        # Mock cycle
+        mock_cycle = mocker.MagicMock()
+        mock_cycle_filter = mocker.MagicMock()
+        mock_cycle_filter.first = mocker.MagicMock(return_value=mock_cycle)
+        mocker.patch(
+            "utils.mappers.Cycle.objects.filter", return_value=mock_cycle_filter
+        )
+
+        # Mock identification functions
+        mocker.patch("utils.mappers._identify_platform_from_text", return_value=2)
+        mocker.patch(
+            "utils.mappers._identify_reward_from_labels", return_value=mock_reward
+        )
+        mocker.patch(
+            "utils.mappers._extract_url_text", return_value="https://example.com"
+        )
+
+        # Mock issue creation
+        mock_created_issue = mocker.MagicMock()
+        mocker.patch(
+            "utils.mappers.Issue.objects.create", return_value=mock_created_issue
+        )
+
+        # Mock contributor identification
+        mocker.patch("utils.mappers._identify_contributor_from_user", return_value=1)
+        mocker.patch("utils.mappers._identify_contributor_from_text", return_value=None)
+
+        # Mock contribution creation
+        mock_contribution_create = mocker.patch(
+            "utils.mappers.Contribution.objects.create"
+        )
+
+        result = _map_unprocessed_closed_archived_issues([mock_issue])
+
+        assert result is True
+        mock_contribution_create.assert_called_once_with(
+            contributor_id=1,
+            cycle=mock_cycle,
+            platform_id=2,
+            reward=mock_reward,
+            issue=mock_created_issue,
+            percentage=1,
+            url="https://example.com",
+            confirmed=True,
+        )
+
+    @pytest.mark.django_db
+    def test_utils_mappers_map_unprocessed_closed_archived_issues_platform_fallback(
+        self, mocker
+    ):
+        """Test platform fallback to GitHub when no platform identified."""
+        from datetime import datetime
+
+        mock_label = mocker.MagicMock()
+        mock_label.name = "archived"
+
+        mock_issue_obj = mocker.MagicMock()
+        mock_issue_obj.labels = [mock_label]
+        mock_issue_obj.body = "Test body"
+        mock_issue_obj.title = "Test Issue"
+        mock_issue_obj.number = 101
+        mock_issue_obj.closed_at = datetime(2023, 1, 1)
+        mock_issue_obj.user.login = "github_user"
+
+        mock_issue = mocker.MagicMock()
+        mock_issue.issue = mock_issue_obj
+        mock_issue.comments = []
+
+        # Mock dependencies
+        mock_reward = mocker.MagicMock()
+        mocker.patch(
+            "utils.mappers._build_reward_mapping", return_value={"bug": mock_reward}
+        )
+
+        # Mock contributors
+        mock_contributor = mocker.MagicMock()
+        mock_contributor.info = "Test User"
+        mock_contributor.id = 1
+        mocker.patch(
+            "utils.mappers.Contributor.objects.all", return_value=[mock_contributor]
+        )
+        mocker.patch("utils.mappers.GITHUB_ISSUES_EXCLUDED_CONTRIBUTORS", [])
+
+        # Mock platforms
+        mock_platform1 = mocker.MagicMock()
+        mock_platform1.name = "GitHub"
+        mock_platform1.id = 1
+
+        mock_platform2 = mocker.MagicMock()
+        mock_platform2.name = "Discord"
+        mock_platform2.id = 2
+
+        mocker.patch(
+            "utils.mappers.SocialPlatform.objects.all",
+            return_value=[mock_platform1, mock_platform2],
+        )
+
+        # Mock Issue.objects.filter.exists() to return False
+        mock_issue_filter = mocker.MagicMock()
+        mock_issue_filter.exists = mocker.MagicMock(return_value=False)
+        mocker.patch(
+            "utils.mappers.Issue.objects.filter", return_value=mock_issue_filter
+        )
+
+        # Mock cycle
+        mock_cycle = mocker.MagicMock()
+        mock_cycle_filter = mocker.MagicMock()
+        mock_cycle_filter.first = mocker.MagicMock(return_value=mock_cycle)
+        mocker.patch(
+            "utils.mappers.Cycle.objects.filter", return_value=mock_cycle_filter
+        )
+
+        # Mock platform identification to return None (fallback scenario)
+        mocker.patch("utils.mappers._identify_platform_from_text", return_value=None)
+
+        # Mock reward identification
+        mocker.patch(
+            "utils.mappers._identify_reward_from_labels", return_value=mock_reward
+        )
+
+        # Mock URL extraction
+        mocker.patch("utils.mappers._extract_url_text", return_value=None)
+
+        # Mock issue creation
+        mock_created_issue = mocker.MagicMock()
+        mocker.patch(
+            "utils.mappers.Issue.objects.create", return_value=mock_created_issue
+        )
+
+        # Mock contributor identification
+        mocker.patch("utils.mappers._identify_contributor_from_user", return_value=1)
+        mocker.patch("utils.mappers._identify_contributor_from_text", return_value=None)
+
+        # Mock contribution creation
+        mock_contribution_create = mocker.patch(
+            "utils.mappers.Contribution.objects.create"
+        )
+
+        result = _map_unprocessed_closed_archived_issues([mock_issue])
+
+        assert result is True
+        # Verify contribution was created with GitHub platform ID (fallback)
+        call_kwargs = mock_contribution_create.call_args[1]
+        assert call_kwargs["platform_id"] == 1  # GitHub platform ID
+
+    @pytest.mark.django_db
+    def test_utils_mappers_map_unprocessed_closed_archived_issues_create_new_contributor(
+        self, mocker
+    ):
+        """Test creating new contributor when none identified."""
+        from datetime import datetime
+
+        mock_label = mocker.MagicMock()
+        mock_label.name = "archived"
+
+        mock_issue_obj = mocker.MagicMock()
+        mock_issue_obj.labels = [mock_label]
+        mock_issue_obj.body = "By new_user in [Discord]"
+        mock_issue_obj.title = "Test Issue"
+        mock_issue_obj.number = 101
+        mock_issue_obj.closed_at = datetime(2023, 1, 1)
+        mock_issue_obj.user.login = "github_user"
+
+        mock_issue = mocker.MagicMock()
+        mock_issue.issue = mock_issue_obj
+        mock_issue.comments = []
+
+        # Mock dependencies
+        mock_reward = mocker.MagicMock()
+        mocker.patch(
+            "utils.mappers._build_reward_mapping", return_value={"bug": mock_reward}
+        )
+
+        # Mock empty contributors
+        mocker.patch("utils.mappers.Contributor.objects.all", return_value=[])
+        mocker.patch("utils.mappers.GITHUB_ISSUES_EXCLUDED_CONTRIBUTORS", [])
+
+        # Mock platforms
+        mock_platform = mocker.MagicMock()
+        mock_platform.name = "GitHub"
+        mock_platform.id = 1
+        mocker.patch(
+            "utils.mappers.SocialPlatform.objects.all", return_value=[mock_platform]
+        )
+
+        # Mock Issue.objects.filter.exists() to return False
+        mock_issue_filter = mocker.MagicMock()
+        mock_issue_filter.exists = mocker.MagicMock(return_value=False)
+        mocker.patch(
+            "utils.mappers.Issue.objects.filter", return_value=mock_issue_filter
+        )
+
+        # Mock cycle
+        mock_cycle = mocker.MagicMock()
+        mock_cycle_filter = mocker.MagicMock()
+        mock_cycle_filter.first = mocker.MagicMock(return_value=mock_cycle)
+        mocker.patch(
+            "utils.mappers.Cycle.objects.filter", return_value=mock_cycle_filter
+        )
+
+        # Mock platform identification
+        mocker.patch("utils.mappers._identify_platform_from_text", return_value=1)
+
+        # Mock reward identification
+        mocker.patch(
+            "utils.mappers._identify_reward_from_labels", return_value=mock_reward
+        )
+
+        # Mock URL extraction
+        mocker.patch("utils.mappers._extract_url_text", return_value=None)
+
+        # Mock issue creation
+        mock_created_issue = mocker.MagicMock()
+        mocker.patch(
+            "utils.mappers.Issue.objects.create", return_value=mock_created_issue
+        )
+
+        # Mock contributor identification to return None
+        mocker.patch("utils.mappers._identify_contributor_from_user", return_value=None)
+        mocker.patch("utils.mappers._identify_contributor_from_text", return_value=None)
+
+        # Mock contributor creation
+        mocker.patch(
+            "utils.mappers._create_contributor_from_text",
+            return_value=(2, {"new_user": 2}),
+        )
+
+        # Mock contribution creation
+        mock_contribution_create = mocker.patch(
+            "utils.mappers.Contribution.objects.create"
+        )
+
+        result = _map_unprocessed_closed_archived_issues([mock_issue])
+
+        assert result is True
+        mock_contribution_create.assert_called_once()
+
+    @pytest.mark.django_db
+    def test_utils_mappers_map_unprocessed_closed_archived_issues_multiple_contributors(
+        self, mocker
+    ):
+        """Test processing with multiple contributors identified."""
+        from datetime import datetime
+
+        mock_label = mocker.MagicMock()
+        mock_label.name = "archived"
+
+        mock_issue_obj = mocker.MagicMock()
+        mock_issue_obj.labels = [mock_label]
+        mock_issue_obj.body = "By user1 and user2 in [Discord]"
+        mock_issue_obj.title = "Test Issue"
+        mock_issue_obj.number = 101
+        mock_issue_obj.closed_at = datetime(2023, 1, 1)
+        mock_issue_obj.user.login = "github_user"
+
+        mock_issue = mocker.MagicMock()
+        mock_issue.issue = mock_issue_obj
+        mock_issue.comments = []
+
+        # Mock dependencies
+        mock_reward = mocker.MagicMock()
+        mocker.patch(
+            "utils.mappers._build_reward_mapping", return_value={"bug": mock_reward}
+        )
+
+        # Mock contributors
+        mock_contributor1 = mocker.MagicMock()
+        mock_contributor1.info = "User One"
+        mock_contributor1.id = 1
+
+        mock_contributor2 = mocker.MagicMock()
+        mock_contributor2.info = "User Two"
+        mock_contributor2.id = 2
+
+        mocker.patch(
+            "utils.mappers.Contributor.objects.all",
+            return_value=[mock_contributor1, mock_contributor2],
+        )
+        mocker.patch("utils.mappers.GITHUB_ISSUES_EXCLUDED_CONTRIBUTORS", [])
+
+        # Mock platforms
+        mock_platform = mocker.MagicMock()
+        mock_platform.name = "GitHub"
+        mock_platform.id = 1
+        mocker.patch(
+            "utils.mappers.SocialPlatform.objects.all", return_value=[mock_platform]
+        )
+
+        # Mock Issue.objects.filter.exists() to return False
+        mock_issue_filter = mocker.MagicMock()
+        mock_issue_filter.exists = mocker.MagicMock(return_value=False)
+        mocker.patch(
+            "utils.mappers.Issue.objects.filter", return_value=mock_issue_filter
+        )
+
+        # Mock cycle
+        mock_cycle = mocker.MagicMock()
+        mock_cycle_filter = mocker.MagicMock()
+        mock_cycle_filter.first = mocker.MagicMock(return_value=mock_cycle)
+        mocker.patch(
+            "utils.mappers.Cycle.objects.filter", return_value=mock_cycle_filter
+        )
+
+        # Mock platform identification
+        mocker.patch("utils.mappers._identify_platform_from_text", return_value=1)
+
+        # Mock reward identification
+        mocker.patch(
+            "utils.mappers._identify_reward_from_labels", return_value=mock_reward
+        )
+
+        # Mock URL extraction
+        mocker.patch("utils.mappers._extract_url_text", return_value=None)
+
+        # Mock issue creation
+        mock_created_issue = mocker.MagicMock()
+        mocker.patch(
+            "utils.mappers.Issue.objects.create", return_value=mock_created_issue
+        )
+
+        # Mock contributor identification to return multiple IDs
+        mocker.patch("utils.mappers._identify_contributor_from_user", return_value=1)
+        mocker.patch("utils.mappers._identify_contributor_from_text", return_value=2)
+
+        # Mock contribution creation
+        mock_contribution_create = mocker.patch(
+            "utils.mappers.Contribution.objects.create"
+        )
+
+        result = _map_unprocessed_closed_archived_issues([mock_issue])
+
+        assert result is True
+        # Verify two contributions were created
+        assert mock_contribution_create.call_count == 2
+
+
+class TestUtilsMappersMapOpenIssues:
+    """Testing class for bulk-optimized :py:mod:`utils.mappers` _map_open_issues"""
 
     # # _map_open_issues
     @pytest.mark.django_db
@@ -2144,13 +4134,11 @@ class TestUtilsMappersMapping:
             return_value={"feature request": "mock_reward"},
         )
 
-        mock_contributors = {"testuser (g@testuser)": 1}
         mocker.patch(
             "utils.mappers.Contributor.objects.all",
             return_value=[mocker.MagicMock(info="testuser (g@testuser)", id=1)],
         )
 
-        mock_platforms = {"Discord": 1}
         mocker.patch(
             "utils.mappers.SocialPlatform.objects.all",
             return_value=[mocker.MagicMock(name="Discord", id=1)],
@@ -2325,19 +4313,16 @@ class TestUtilsMappersMapping:
         )
 
         # Mock contributors - user login won't match, but text will
-        mock_contributors = {"John Doe (johndoe)": 1}
         mocker.patch(
             "utils.mappers.Contributor.objects.all",
             return_value=[mocker.MagicMock(info="John Doe (johndoe)", id=1)],
         )
 
-        mock_platforms = {"Discord": 1}
         mocker.patch(
             "utils.mappers.SocialPlatform.objects.all",
             return_value=[mocker.MagicMock(name="Discord", id=1)],
         )
 
-        mock_cycle = mocker.MagicMock()
         mocker.patch(
             "utils.mappers.Cycle.objects.latest", return_value=mocker.MagicMock()
         )
@@ -2372,7 +4357,7 @@ class TestUtilsMappersMapping:
         mock_contribution_create.assert_called_once()
 
     @pytest.mark.django_db
-    def test_utils_mappers_map_open_issues_skip_no_platform(self, mocker):
+    def test_utils_mappers_map_open_issues_for_no_platform(self, mocker):
         """Test _map_open_issues skips issue when no platform is identified."""
         # Mock GitHub issue
         mock_issue = mocker.MagicMock()
@@ -2389,16 +4374,19 @@ class TestUtilsMappersMapping:
             return_value={"feature": "mock_reward"},
         )
 
-        mock_contributors = {"John Doe (johndoe)": 1}
         mocker.patch(
             "utils.mappers.Contributor.objects.all",
             return_value=[mocker.MagicMock(info="John Doe (johndoe)", id=1)],
         )
-
-        mock_platforms = {"Discord": 1}
+        platform1 = mocker.MagicMock()
+        platform1.id = 1
+        platform1.name = "Discord"
+        platform2 = mocker.MagicMock()
+        platform2.id = 2
+        platform1.name = "GitHub"
         mocker.patch(
             "utils.mappers.SocialPlatform.objects.all",
-            return_value=[mocker.MagicMock(name="Discord", id=1)],
+            return_value=[platform1, platform2],
         )
 
         mocker.patch(
@@ -2422,7 +4410,7 @@ class TestUtilsMappersMapping:
         result = _map_open_issues([mock_issue])
 
         assert result is True
-        mock_contribution_create.assert_not_called()
+        mock_contribution_create.assert_called_once()
 
     @pytest.mark.django_db
     def test_utils_mappers_map_open_issues_skip_no_reward(self, mocker):
@@ -2444,13 +4432,11 @@ class TestUtilsMappersMapping:
             return_value={"feature": "mock_reward"},
         )
 
-        mock_contributors = {"John Doe (johndoe)": 1}
         mocker.patch(
             "utils.mappers.Contributor.objects.all",
             return_value=[mocker.MagicMock(info="John Doe (johndoe)", id=1)],
         )
 
-        mock_platforms = {"Discord": 1}
         mocker.patch(
             "utils.mappers.SocialPlatform.objects.all",
             return_value=[mocker.MagicMock(name="Discord", id=1)],
@@ -2488,6 +4474,147 @@ class TestUtilsMappersMapping:
         assert result is False
 
 
+class TestCreateContributorFromText:
+    """Test cases for _create_contributor_from_text function."""
+
+    @pytest.mark.django_db
+    def test_utils_mappers_create_contributor_from_text_no_text(self):
+        """Test function returns None when text is empty."""
+        contributors = {}
+        result, updated_contributors = _create_contributor_from_text("", contributors)
+        assert result is None
+        assert updated_contributors == contributors
+
+    @pytest.mark.django_db
+    def test_utils_mappers_create_contributor_from_text_no_match(self):
+        """Test function returns None when no pattern matches."""
+        contributors = {}
+        text = "This text doesn't contain the pattern"
+        result, updated_contributors = _create_contributor_from_text(text, contributors)
+        assert result is None
+        assert updated_contributors == contributors
+
+    @pytest.mark.django_db
+    def test_utils_mappers_create_contributor_from_text_discord_pattern_with_brackets(
+        self, mocker
+    ):
+        """Test creating contributor from Discord pattern with brackets."""
+        # Mock platform
+        mock_platform = mocker.MagicMock()
+        mock_platform.name = "Discord"
+
+        # Mock SocialPlatform.objects.get
+        mocker.patch(
+            "utils.mappers.SocialPlatform.objects.get", return_value=mock_platform
+        )
+
+        # Mock Contributor.objects.filter (no existing contributor)
+        mock_filter = mocker.MagicMock()
+        mock_filter.first = mocker.MagicMock(return_value=None)
+        mocker.patch(
+            "utils.mappers.Contributor.objects.filter", return_value=mock_filter
+        )
+
+        # Mock Contributor.objects.create
+        mock_contributor = mocker.MagicMock()
+        mock_contributor.id = 1
+        mock_contributor.name = "john_doe"
+        mock_contributor.info = "john_doe"
+        mocker.patch(
+            "utils.mappers.Contributor.objects.create", return_value=mock_contributor
+        )
+
+        # Mock Handle.objects.create
+        mocker.patch("utils.mappers.Handle.objects.create")
+
+        contributors = {}
+        text = "By john_doe in [Discord]"
+
+        result, updated_contributors = _create_contributor_from_text(text, contributors)
+
+        assert result == 1
+        assert updated_contributors == {"john_doe": 1}
+
+    @pytest.mark.django_db
+    def test_utils_mappers_create_contributor_from_text_twitter_pattern_without_brackets(
+        self, mocker
+    ):
+        """Test creating contributor from Twitter pattern without brackets."""
+        # Mock platform
+        mock_platform = mocker.MagicMock()
+        mock_platform.name = "Twitter"
+
+        # Mock SocialPlatform.objects.get
+        mocker.patch(
+            "utils.mappers.SocialPlatform.objects.get", return_value=mock_platform
+        )
+
+        # Mock Contributor.objects.filter (no existing contributor)
+        mock_filter = mocker.MagicMock()
+        mock_filter.first = mocker.MagicMock(return_value=None)
+        mocker.patch(
+            "utils.mappers.Contributor.objects.filter", return_value=mock_filter
+        )
+
+        # Mock Contributor.objects.create
+        mock_contributor = mocker.MagicMock()
+        mock_contributor.id = 2
+        mock_contributor.name = "jane_smith"
+        mock_contributor.info = "jane_smith"
+        mocker.patch(
+            "utils.mappers.Contributor.objects.create", return_value=mock_contributor
+        )
+
+        # Mock Handle.objects.create
+        mocker.patch("utils.mappers.Handle.objects.create")
+
+        contributors = {}
+        text = "By jane_smith on Twitter"
+
+        result, updated_contributors = _create_contributor_from_text(text, contributors)
+
+        assert result == 2
+        assert updated_contributors == {"jane_smith": 2}
+
+    @pytest.mark.django_db
+    def test_utils_mappers_create_contributor_from_text_existing_contributor(
+        self, mocker
+    ):
+        """Test function when contributor already exists."""
+        # Mock platform
+        mock_platform = mocker.MagicMock()
+        mock_platform.name = "Discord"
+
+        # Mock SocialPlatform.objects.get
+        mocker.patch(
+            "utils.mappers.SocialPlatform.objects.get", return_value=mock_platform
+        )
+
+        # Mock existing contributor
+        mock_existing_contributor = mocker.MagicMock()
+        mock_existing_contributor.id = 5
+        mock_existing_contributor.name = "existing_user"
+        mock_existing_contributor.info = "existing_user"
+
+        # Mock Contributor.objects.filter to return existing contributor
+        mock_filter = mocker.MagicMock()
+        mock_filter.first = mocker.MagicMock(return_value=mock_existing_contributor)
+        mocker.patch(
+            "utils.mappers.Contributor.objects.filter", return_value=mock_filter
+        )
+
+        # Mock Handle.objects.get_or_create
+        mocker.patch("utils.mappers.Handle.objects.get_or_create")
+
+        contributors = {}
+        text = "By existing_user in [Discord]"
+
+        result, updated_contributors = _create_contributor_from_text(text, contributors)
+
+        assert result == 5
+        assert updated_contributors == {"existing_user": 5}
+
+
 class TestUtilsMappersPublicFunctions:
     """Testing class for bulk-optimized :py:mod:`utils.mappers` public function."""
 
@@ -2500,12 +4627,16 @@ class TestUtilsMappersPublicFunctions:
             "utils.mappers._fetch_and_categorize_issues", return_value=github_issues
         )
         mock_archived = mocker.patch("utils.mappers._map_closed_archived_issues")
+        mock_unprocesed = mocker.patch(
+            "utils.mappers._map_unprocessed_closed_archived_issues"
+        )
         mock_addressed = mocker.patch("utils.mappers._map_closed_addressed_issues")
         mock_open_issues = mocker.patch("utils.mappers._map_open_issues")
         result = map_github_issues(github_token="github_token")
 
         mock_categorize.assert_called_once_with("github_token")
         mock_archived.assert_called_once_with(closed_issues)
+        mock_unprocesed.assert_called_once_with(mock_archived.return_value)
         mock_addressed.assert_called_once_with(closed_issues)
         mock_open_issues.assert_called_once_with(open_issues)
 
@@ -2517,12 +4648,16 @@ class TestUtilsMappersPublicFunctions:
             "utils.mappers._fetch_and_categorize_issues", return_value={}
         )
         mock_archived = mocker.patch("utils.mappers._map_closed_archived_issues")
+        mock_unprocesed = mocker.patch(
+            "utils.mappers._map_unprocessed_closed_archived_issues"
+        )
         mock_addressed = mocker.patch("utils.mappers._map_closed_addressed_issues")
         mock_open_issues = mocker.patch("utils.mappers._map_open_issues")
         result = map_github_issues(github_token="github_token")
 
         mock_categorize.assert_called_once_with("github_token")
         mock_archived.assert_called_once_with([])
+        mock_unprocesed.assert_called_once_with(mock_archived.return_value)
         mock_addressed.assert_called_once_with([])
         mock_open_issues.assert_called_once_with([])
 

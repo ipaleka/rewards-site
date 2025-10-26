@@ -39,6 +39,62 @@ CONTRIBUTION_CSV_COLUMNS = [
 ]
 
 
+def _append_gaps_to_cycles_dataframe(df):
+    """Append gap periods to cycles dataframe and return sorted by start date.
+
+    Identifies periods between existing cycles that are not covered and adds them
+    as additional rows to the dataframe. The resulting dataframe contains both
+    original cycles and the identified gaps, sorted by cycle_start date.
+
+    :param df: DataFrame with cycle_start and cycle_end columns in 'yyyy-mm-dd' format
+    :type df: pandas.DataFrame
+    :return: DataFrame with original cycles and gap periods appended
+    :rtype: pandas.DataFrame
+    """
+    # Create a working copy with datetime columns
+    df_working = df.copy()
+    df_working["cycle_start_dt"] = pd.to_datetime(df_working["cycle_start"])
+    df_working["cycle_end_dt"] = pd.to_datetime(df_working["cycle_end"])
+
+    # Sort by start date
+    df_working.sort_values(by="cycle_start_dt", inplace=True)
+    df_working.reset_index(drop=True, inplace=True)
+
+    # Find the gaps
+    gaps = []
+
+    # Find gaps between periods
+    for i in range(1, len(df_working)):
+        prev_end = df_working.loc[i - 1, "cycle_end_dt"]
+        curr_start = df_working.loc[i, "cycle_start_dt"]
+
+        # If there's a gap between the end of previous and start of current
+        if prev_end < curr_start - pd.Timedelta(days=1):
+            gap_start = prev_end + pd.Timedelta(days=1)
+            gap_end = curr_start - pd.Timedelta(days=1)
+            gaps.append(
+                {
+                    "cycle_start": gap_start.strftime("%Y-%m-%d"),
+                    "cycle_end": gap_end.strftime("%Y-%m-%d"),
+                }
+            )
+
+    # Append gaps to original dataframe
+    if gaps:
+        gaps_df = pd.DataFrame(gaps)
+        result_df = pd.concat([df, gaps_df], ignore_index=True)
+    else:
+        result_df = df.copy()
+
+    # Convert back to datetime for sorting, then back to string
+    result_df["cycle_start_dt"] = pd.to_datetime(result_df["cycle_start"])
+    result_df.sort_values(by="cycle_start_dt", inplace=True)
+    result_df.reset_index(drop=True, inplace=True)
+    result_df = result_df[["cycle_start", "cycle_end"]]  # Keep only original columns
+
+    return result_df
+
+
 def _check_current_cycle(cycle_instance):
     """Check if current cycle has ended and create new cycle if needed.
 
@@ -355,8 +411,8 @@ def import_from_csv(contributions_path, legacy_contributions_path):
 
     cycles_data = data[["cycle_start", "cycle_end"]].drop_duplicates()
     legacy_cycles_data = legacy_data[["cycle_start", "cycle_end"]].drop_duplicates()
-    all_cycles_data = pd.concat([cycles_data, legacy_cycles_data]).sort_values(
-        by=["cycle_start"]
+    all_cycles_data = _append_gaps_to_cycles_dataframe(
+        pd.concat([cycles_data, legacy_cycles_data]).sort_values(by=["cycle_start"])
     )
     Cycle.objects.bulk_create(
         Cycle(start=start, end=end) for start, end in all_cycles_data.values.tolist()

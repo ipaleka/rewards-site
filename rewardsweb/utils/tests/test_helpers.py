@@ -1,13 +1,11 @@
 """Testing module for :py:mod:`utils.helpers` module."""
 
-import base64
 import os
 import pickle
 from unittest import mock
 
 import pytest
-from algosdk import transaction, account
-from algosdk.encoding import decode_address
+from algosdk import account
 from django.core.exceptions import ImproperlyConfigured
 from nacl.exceptions import BadSignatureError
 

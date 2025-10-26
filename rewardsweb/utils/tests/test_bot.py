@@ -232,7 +232,7 @@ class TestUtilsBotFunctions:
             returned = message_from_url(url)
             assert returned == {
                 "success": False,
-                "error": f"API Error: 505",
+                "error": "API Error: 505",
                 "response_text": "error text",
             }
             mocked_get.assert_called_once_with(api_url, headers=headers)

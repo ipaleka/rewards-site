@@ -1415,15 +1415,71 @@ class TestCycleDetailView:
     # # get_queryset
     @pytest.mark.django_db
     def test_cycledetailview_get_queryset_uses_prefetch_related(self, mocker):
+        # Mock the dependencies
         mocked_queryset = mocker.patch("core.views.DetailView.get_queryset")
+        mocked_prefetch = mocker.patch("core.views.Prefetch")
+        mocked_contribution_objects = mocker.patch("core.views.Contribution.objects")
+
         view = CycleDetailView()
         returned = view.get_queryset()
+
+        # Verify the final return value
         assert returned == mocked_queryset.return_value.prefetch_related.return_value
-        mocked_queryset.return_value.prefetch_related.assert_called_once_with(
-            "contribution_set__contributor",
-            "contribution_set__reward__type",
-            "contribution_set__platform",
+
+        # Verify Prefetch was called with correct parameters
+        mocked_prefetch.assert_called_once_with(
+            "contribution_set",
+            queryset=mocker.ANY,  # We'll check the queryset separately
         )
+
+        # Verify prefetch_related was called with our Prefetch object
+        mocked_queryset.return_value.prefetch_related.assert_called_once_with(
+            mocked_prefetch.return_value
+        )
+
+        # Verify the Contribution queryset uses select_related and order_by
+        mocked_contribution_objects.select_related.assert_called_once_with(
+            "contributor", "reward__type", "platform"
+        )
+        mocked_contribution_objects.select_related.return_value.order_by.assert_called_once_with(
+            "-id"
+        )
+
+    @pytest.mark.django_db
+    def test_cycledetailview_get_queryset_integration(self):
+        """Integration test to verify the actual queryset behavior with reverse ordering."""
+        # Create test data
+        cycle = Cycle.objects.create(start="2025-09-08")
+        contributor = Contributor.objects.create(name="test_contributor")
+        platform = SocialPlatform.objects.create(name="GitHub")
+        reward_type = RewardType.objects.create(label="BUG", name="Bug Fix")
+        reward = Reward.objects.create(type=reward_type, level=1, amount=1000)
+
+        # Create contributions with different IDs (created in order)
+        contribution1 = Contribution.objects.create(
+            cycle=cycle, contributor=contributor, platform=platform, reward=reward
+        )
+        contribution2 = Contribution.objects.create(
+            cycle=cycle, contributor=contributor, platform=platform, reward=reward
+        )
+        contribution3 = Contribution.objects.create(
+            cycle=cycle, contributor=contributor, platform=platform, reward=reward
+        )
+
+        view = CycleDetailView()
+        queryset = view.get_queryset()
+
+        # Get the cycle from the queryset
+        cycle_from_queryset = queryset.first()
+
+        # Verify prefetch_related is applied
+        assert hasattr(queryset, "_prefetch_related_lookups")
+
+        # When we access the contributions, they should be in reverse ID order
+        contributions = list(cycle_from_queryset.contribution_set.all())
+
+        # Should be in reverse ID order: newest/largest ID first
+        assert contributions == [contribution3, contribution2, contribution1]
 
 
 class TestIssueListView:

@@ -1,7 +1,6 @@
 """Testing module for :py:mod:`utils.importers` module."""
 
 from datetime import datetime, timedelta
-from unittest import mock
 
 import pandas as pd
 import pytest
@@ -13,6 +12,7 @@ from core.models import RewardType
 from utils.importers import (
     CONTRIBUTION_CSV_COLUMNS,
     REWARDS_COLLECTION,
+    _append_gaps_to_cycles_dataframe,
     _check_current_cycle,
     _create_active_rewards,
     _create_superusers,
@@ -31,6 +31,205 @@ from utils.importers import (
 
 class TestUtilsImportersHelperFunctions:
     """Testing class for :py:mod:`utils.importers` helper functions."""
+
+    def test_utils_importers_append_gaps_to_cycles_dataframe_no_gaps(self):
+        """Test when there are no gaps between cycles."""
+        df = pd.DataFrame(
+            {
+                "cycle_start": ["2023-01-01", "2023-01-11", "2023-01-21"],
+                "cycle_end": ["2023-01-10", "2023-01-20", "2023-01-30"],
+            }
+        )
+
+        result = _append_gaps_to_cycles_dataframe(df)
+
+        # Should return the same dataframe (no gaps added)
+        expected = pd.DataFrame(
+            {
+                "cycle_start": ["2023-01-01", "2023-01-11", "2023-01-21"],
+                "cycle_end": ["2023-01-10", "2023-01-20", "2023-01-30"],
+            }
+        )
+        pd.testing.assert_frame_equal(result, expected)
+
+    def test_utils_importers_append_gaps_to_cycles_dataframe_with_gaps(self):
+        """Test when there are gaps between cycles."""
+        df = pd.DataFrame(
+            {
+                "cycle_start": ["2023-01-01", "2023-01-15"],
+                "cycle_end": ["2023-01-10", "2023-01-25"],
+            }
+        )
+
+        result = _append_gaps_to_cycles_dataframe(df)
+
+        # Should add one gap period between Jan 11-14
+        expected = pd.DataFrame(
+            {
+                "cycle_start": ["2023-01-01", "2023-01-11", "2023-01-15"],
+                "cycle_end": ["2023-01-10", "2023-01-14", "2023-01-25"],
+            }
+        )
+        pd.testing.assert_frame_equal(result, expected)
+
+    def test_utils_importers_append_gaps_to_cycles_dataframe_multiple_gaps(self):
+        """Test when there are multiple gaps between cycles."""
+        df = pd.DataFrame(
+            {
+                "cycle_start": ["2023-01-01", "2023-01-11", "2023-01-21"],
+                "cycle_end": ["2023-01-05", "2023-01-15", "2023-01-25"],
+            }
+        )
+
+        result = _append_gaps_to_cycles_dataframe(df)
+
+        # Should add two gap periods: Jan 6-10 and Jan 16-20
+        expected = pd.DataFrame(
+            {
+                "cycle_start": [
+                    "2023-01-01",
+                    "2023-01-06",
+                    "2023-01-11",
+                    "2023-01-16",
+                    "2023-01-21",
+                ],
+                "cycle_end": [
+                    "2023-01-05",
+                    "2023-01-10",
+                    "2023-01-15",
+                    "2023-01-20",
+                    "2023-01-25",
+                ],
+            }
+        )
+        pd.testing.assert_frame_equal(result, expected)
+
+    def test_utils_importers_append_gaps_to_cycles_dataframe_single_row(self):
+        """Test with single row dataframe (no gaps possible)."""
+        df = pd.DataFrame({"cycle_start": ["2023-01-01"], "cycle_end": ["2023-01-10"]})
+
+        result = _append_gaps_to_cycles_dataframe(df)
+
+        # Should return the same single row
+        expected = pd.DataFrame(
+            {"cycle_start": ["2023-01-01"], "cycle_end": ["2023-01-10"]}
+        )
+        pd.testing.assert_frame_equal(result, expected)
+
+    def test_utils_importers_append_gaps_to_cycles_dataframe_empty_dataframe(self):
+        """Test with empty dataframe."""
+        df = pd.DataFrame(columns=["cycle_start", "cycle_end"])
+
+        result = _append_gaps_to_cycles_dataframe(df)
+
+        # Should return empty dataframe
+        expected = pd.DataFrame(columns=["cycle_start", "cycle_end"])
+        pd.testing.assert_frame_equal(result, expected)
+
+    def test_utils_importers_append_gaps_to_cycles_dataframe_overlapping_cycles(self):
+        """Test with overlapping cycles (should not create gaps)."""
+        df = pd.DataFrame(
+            {
+                "cycle_start": ["2023-01-01", "2023-01-05"],
+                "cycle_end": ["2023-01-10", "2023-01-15"],
+            }
+        )
+
+        result = _append_gaps_to_cycles_dataframe(df)
+
+        # Should return original cycles (no gaps due to overlap)
+        expected = pd.DataFrame(
+            {
+                "cycle_start": ["2023-01-01", "2023-01-05"],
+                "cycle_end": ["2023-01-10", "2023-01-15"],
+            }
+        )
+        pd.testing.assert_frame_equal(result, expected)
+
+    def test_utils_importers_append_gaps_to_cycles_dataframe_consecutive_dates(self):
+        """Test with cycles ending and starting on consecutive dates (no gap)."""
+        df = pd.DataFrame(
+            {
+                "cycle_start": ["2023-01-01", "2023-01-11"],
+                "cycle_end": ["2023-01-10", "2023-01-20"],
+            }
+        )
+
+        result = _append_gaps_to_cycles_dataframe(df)
+
+        # Should return original cycles (no gap since dates are consecutive)
+        expected = pd.DataFrame(
+            {
+                "cycle_start": ["2023-01-01", "2023-01-11"],
+                "cycle_end": ["2023-01-10", "2023-01-20"],
+            }
+        )
+        pd.testing.assert_frame_equal(result, expected)
+
+    def test_utils_importers_append_gaps_to_cycles_dataframe_unsorted_input(self):
+        """Test that function sorts unsorted input correctly."""
+        df = pd.DataFrame(
+            {
+                "cycle_start": ["2023-02-01", "2023-01-01", "2023-03-01"],
+                "cycle_end": ["2023-02-10", "2023-01-10", "2023-03-10"],
+            }
+        )
+
+        result = _append_gaps_to_cycles_dataframe(df)
+
+        # Should sort by cycle_start and identify gaps
+        expected = pd.DataFrame(
+            {
+                "cycle_start": [
+                    "2023-01-01",
+                    "2023-01-11",
+                    "2023-02-01",
+                    "2023-02-11",
+                    "2023-03-01",
+                ],
+                "cycle_end": [
+                    "2023-01-10",
+                    "2023-01-31",
+                    "2023-02-10",
+                    "2023-02-28",
+                    "2023-03-10",
+                ],
+            }
+        )
+        pd.testing.assert_frame_equal(result, expected)
+
+    def test_utils_importers_append_gaps_to_cycles_dataframe_preserves_original_data(
+        self,
+    ):
+        """Test that original cycle data is preserved in the result."""
+        df = pd.DataFrame(
+            {
+                "cycle_start": ["2023-01-01", "2023-01-20"],
+                "cycle_end": ["2023-01-10", "2023-01-30"],
+            }
+        )
+
+        result = _append_gaps_to_cycles_dataframe(df)
+
+        # Check that original cycles are present
+        original_cycle_1 = result[
+            (result["cycle_start"] == "2023-01-01")
+            & (result["cycle_end"] == "2023-01-10")
+        ]
+        original_cycle_2 = result[
+            (result["cycle_start"] == "2023-01-20")
+            & (result["cycle_end"] == "2023-01-30")
+        ]
+
+        assert len(original_cycle_1) == 1
+        assert len(original_cycle_2) == 1
+
+        # Check that gap is present
+        gap = result[
+            (result["cycle_start"] == "2023-01-11")
+            & (result["cycle_end"] == "2023-01-19")
+        ]
+        assert len(gap) == 1
 
     # # _check_current_cycle
     def test_utils_importers_check_current_cycle_creates_new_cycle(self, mocker):

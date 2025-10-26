@@ -377,7 +377,7 @@ def _create_issues_bulk(issue_assignments):
         return
 
     # Get unique issue numbers
-    unique_issue_numbers = {number for number, _ in issue_assignments}
+    unique_issue_numbers = {number: status for number, _, status in issue_assignments}
 
     # Get existing issues
     existing_issues = Issue.objects.filter(number__in=unique_issue_numbers)
@@ -385,8 +385,8 @@ def _create_issues_bulk(issue_assignments):
 
     # Create missing issues
     issues_to_create = [
-        Issue(number=number, status=IssueStatus.ARCHIVED)
-        for number in unique_issue_numbers
+        Issue(number=number, status=status)
+        for number, status in unique_issue_numbers.items()
         if number not in existing_issue_numbers
     ]
 
@@ -401,7 +401,7 @@ def _create_issues_bulk(issue_assignments):
 
     # Prepare contribution updates
     contribution_updates = []
-    for issue_number, contribution_id in issue_assignments:
+    for issue_number, contribution_id, _ in issue_assignments:
         if issue_number in fetch_issues_dict:
             contribution_updates.append(
                 (contribution_id, fetch_issues_dict[issue_number])
@@ -425,10 +425,139 @@ def _create_issues_bulk(issue_assignments):
 
 
 @transaction.atomic
-def _map_closed_issues(github_issues):
+def _map_closed_addressed_issues(github_issues):
+    """Fetch GitHub issues with "addressed" label and create contributions.
+
+    This function processes GitHub issues labeled as "addressed" and:
+    1. Creates Issue objects with ADDRESSED status
+    2. Identifies contributors from issue text and user
+    3. Identifies platforms from issue text
+    4. Determines rewards based on issue labels
+    5. Extracts URLs from issue bodies
+    6. Creates contributions for each identified contributor
+
+    :param github_issues: collection of GitHub issue instances
+    :type github_issues: list
+    :return: True if operation completed successfully, False if no issues found
+    :rtype: bool
+    """
+    # Filter issues with "addressed" label
+    addressed_issues = [
+        issue
+        for issue in github_issues
+        if any(label.name.lower() == "addressed" for label in issue.issue.labels)
+    ]
+
+    if not addressed_issues:
+        return False
+
+    # Fetch existing rewards mapping
+    reward_mapping = _build_reward_mapping()
+
+    # Fetch all contributors and create info mapping
+    contributors = {
+        contributor.info: contributor.id
+        for contributor in Contributor.objects.all()
+        if not any(
+            username in contributor.info
+            for username in GITHUB_ISSUES_EXCLUDED_CONTRIBUTORS
+        )
+    }
+
+    # Fetch all platforms by name
+    platforms = {
+        platform.name: platform.id for platform in SocialPlatform.objects.all()
+    }
+
+    # Define current cycle (using latest end date as specified)
+    cycle = Cycle.objects.latest("end")
+
+    # Process each addressed issue
+    for github_issue in addressed_issues:
+        if (
+            not (github_issue.issue.body or github_issue.comments)
+            or "[Internal]" in github_issue.issue.title
+        ):
+            continue
+
+        number = github_issue.issue.number
+
+        # Combine body and comments for text analysis
+        search_text = github_issue.issue.body or ""
+        search_text += "\n".join(github_issue.comments)
+
+        # Identify platform from issue body
+        platform_id = _identify_platform_from_text(search_text, platforms)
+        if not platform_id:
+            print(f"No platform for addressed GitHub issue {number}")
+            continue  # Skip if no platform identified
+
+        # Identify reward based on issue labels
+        reward = _identify_reward_from_labels(github_issue.issue.labels, reward_mapping)
+        if not reward:
+            print(f"No reward for addressed GitHub issue {number}")
+            continue  # Skip if no reward identified
+
+        # Extract URL from issue body
+        url = _extract_url_text(search_text, platform_id)
+
+        # Get or create issue with ADDRESSED status
+        try:
+            issue = Issue.objects.get(number=number)
+            # Update status to ADDRESSED if it was previously CREATED
+            if issue.status == IssueStatus.CREATED:
+                issue.status = IssueStatus.ADDRESSED
+                issue.save()
+        except Issue.DoesNotExist:
+            issue = Issue.objects.create(number=number, status=IssueStatus.ADDRESSED)
+
+        # Identify contributors - try multiple methods
+        contributor_ids = set()
+
+        # Method 1: Identify from issue user
+        user_contributor_id = _identify_contributor_from_user(
+            github_issue.issue.user.login, contributors
+        )
+        if user_contributor_id:
+            contributor_ids.add(user_contributor_id)
+
+        # Method 2: Identify from issue text
+        text_contributor_id = _identify_contributor_from_text(search_text, contributors)
+        if text_contributor_id:
+            contributor_ids.add(text_contributor_id)
+
+        # If no contributors found, skip creating contributions but keep the issue
+        if not contributor_ids:
+            print(f"No contributors found for addressed GitHub issue {number}")
+            continue
+
+        # Create contributions for each identified contributor
+        for contributor_id in contributor_ids:
+            # Check if contribution already exists for this issue and contributor
+            existing_contribution = Contribution.objects.filter(
+                issue=issue, contributor_id=contributor_id
+            ).first()
+
+            if not existing_contribution:
+                Contribution.objects.create(
+                    contributor_id=contributor_id,
+                    cycle=cycle,
+                    platform_id=platform_id,
+                    reward=reward,
+                    issue=issue,
+                    percentage=1,  # Default as specified
+                    url=url,
+                    confirmed=True,  # As specified
+                )
+
+    return True
+
+
+@transaction.atomic
+def _map_closed_archived_issues(github_issues):
     """Fetch GitHub issues and assign them to contributions based on URL matching.
 
-    This function retrieves all closed GitHub issues and attempts to match them with
+    This function traverses all closed GitHub issues and attempts to match them with
     existing contributions by searching for contribution URLs in the issue bodies.
     When a match is found, creates an Issue record and assigns it to the contribution.
 
@@ -468,7 +597,7 @@ def _map_closed_issues(github_issues):
         issue_number = _is_url_github_issue(contribution.url)
         if issue_number and issue_number in github_issues_by_number:
             # This contribution URL points directly to a GitHub issue
-            issue_assignments.add((issue_number, contribution.id))
+            issue_assignments.add((issue_number, contribution.id, IssueStatus.ARCHIVED))
             continue  # Skip body matching if we found a direct GitHub issue match
 
         # Method 2: Search through issues for this contribution's URL in their bodies
@@ -478,7 +607,9 @@ def _map_closed_issues(github_issues):
                 and contribution.url in github_issue.issue.body
                 or "" + "\n".join(github_issue.comments)
             ):
-                issue_assignments.add((github_issue.issue.number, contribution.id))
+                issue_assignments.add(
+                    (github_issue.issue.number, contribution.id, IssueStatus.ARCHIVED)
+                )
                 break  # One issue per contribution (first match found)
 
     # Process all assignments in bulk
@@ -611,7 +742,8 @@ def map_github_issues(github_token=""):
     github_issues = _fetch_and_categorize_issues(github_token)
 
     print("Fetched closed issues size: ", len(github_issues.get("closed", [])))
-    _map_closed_issues(github_issues.get("closed", []))
+    _map_closed_archived_issues(github_issues.get("closed", []))
+    _map_closed_addressed_issues(github_issues.get("closed", []))
     closed_size = len(Issue.objects.all())
     print("Issues created from closed GitHub issues: ", closed_size)
 

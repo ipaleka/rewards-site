@@ -17,7 +17,7 @@ from utils.mappers import (
     _create_issues_bulk,
     _extract_url_text,
     _fetch_and_categorize_issues,
-    _map_closed_issues,
+    _map_closed_archived_issues,
     _map_open_issues,
     _identify_contributor_from_text,
     _identify_contributor_from_user,
@@ -1344,7 +1344,11 @@ class TestUtilsMappersMapping:
     @pytest.mark.django_db
     def test_utils_mappers_create_issues_bulk_all_new_issues(self, mocker):
         """Test bulk creation when all issues are new."""
-        issue_assignments = [(101, 1), (102, 2), (103, 3)]
+        issue_assignments = [
+            (101, 1, IssueStatus.ARCHIVED),
+            (102, 2, IssueStatus.ARCHIVED),
+            (103, 3, IssueStatus.ARCHIVED),
+        ]
 
         # Create proper QuerySet-like mock for existing issues
         mock_existing_issues = mocker.MagicMock()
@@ -1418,7 +1422,10 @@ class TestUtilsMappersMapping:
     @pytest.mark.django_db
     def test_utils_mappers_create_issues_bulk_mixed_existing_issues(self, mocker):
         """Test bulk creation when some issues exist and some are new."""
-        issue_assignments = [(101, 1), (102, 2)]
+        issue_assignments = [
+            (101, 1, IssueStatus.ARCHIVED),
+            (102, 2, IssueStatus.ARCHIVED),
+        ]
 
         # Mock existing issues (only 101 exists)
         mock_existing_issues = mocker.MagicMock()
@@ -1482,7 +1489,10 @@ class TestUtilsMappersMapping:
     @pytest.mark.django_db
     def test_utils_mappers_create_issues_bulk_all_existing_issues(self, mocker):
         """Test bulk creation when all issues already exist."""
-        issue_assignments = [(101, 1), (102, 2)]
+        issue_assignments = [
+            (101, 1, IssueStatus.ARCHIVED),
+            (102, 2, IssueStatus.ARCHIVED),
+        ]
 
         # Mock existing issues (both exist)
         mock_existing_issues = mocker.MagicMock()
@@ -1542,7 +1552,11 @@ class TestUtilsMappersMapping:
     @pytest.mark.django_db
     def test_utils_mappers_create_issues_bulk_duplicate_assignments(self, mocker):
         """Test bulk creation handles duplicate assignments gracefully."""
-        issue_assignments = [(101, 1), (101, 1), (102, 2)]  # Duplicate (101, 1)
+        issue_assignments = [
+            (101, 1, IssueStatus.ARCHIVED),
+            (101, 1, IssueStatus.ARCHIVED),
+            (102, 2, IssueStatus.ARCHIVED),
+        ]  # Duplicate (101, 1)
 
         # Mock existing issues
         mock_existing_issues = mocker.MagicMock()
@@ -1603,7 +1617,7 @@ class TestUtilsMappersMapping:
         self, mocker
     ):
         """Test handling when issue is missing after bulk creation."""
-        issue_assignments = [(101, 1)]
+        issue_assignments = [(101, 1, IssueStatus.ARCHIVED)]
 
         # Mock existing issues (none exist)
         mock_existing_issues = mocker.MagicMock()
@@ -1639,7 +1653,10 @@ class TestUtilsMappersMapping:
     @pytest.mark.django_db
     def test_utils_mappers_create_issues_bulk_no_contributions_found(self, mocker):
         """Test handling when no contributions are found for update."""
-        issue_assignments = [(101, 1), (102, 999)]  # 999 doesn't exist
+        issue_assignments = [
+            (101, 1, IssueStatus.ARCHIVED),
+            (102, 999, IssueStatus.ARCHIVED),
+        ]  # 999 doesn't exist
 
         # Mock existing issues
         mock_existing_issues = mocker.MagicMock()
@@ -1688,15 +1705,17 @@ class TestUtilsMappersMapping:
         # Verify individual contribution was updated
         assert mock_contrib1.issue == mock_issue1
 
-    # # _map_closed_issues
+    # # _map_closed_archived_issues
     @pytest.mark.django_db
-    def test_utils_mappers_map_closed_issues_bulk_no_token(self, mocker):
+    def test_utils_mappers_map_closed_archived_issues_bulk_no_token(self, mocker):
         """Test function returns False when no GitHub token is provided."""
-        result = _map_closed_issues(None)
+        result = _map_closed_archived_issues(None)
         assert result is False
 
     @pytest.mark.django_db
-    def test_utils_mappers_map_closed_issues_bulk_no_contributions(self, mocker):
+    def test_utils_mappers_map_closed_archived_issues_bulk_no_contributions(
+        self, mocker
+    ):
         """Test function returns True when there are no contributions to process."""
         github_token = "test_token"
 
@@ -1719,7 +1738,7 @@ class TestUtilsMappersMapping:
         mocked_fetch_issues = mocker.patch("utils.mappers.fetch_issues")
         mocked_create_issues_bulk = mocker.patch("utils.mappers._create_issues_bulk")
 
-        result = _map_closed_issues(github_token)
+        result = _map_closed_archived_issues(github_token)
 
         assert result is True
         # fetch_issues should not be called when there are no contributions
@@ -1727,7 +1746,9 @@ class TestUtilsMappersMapping:
         mocked_create_issues_bulk.assert_not_called()
 
     @pytest.mark.django_db
-    def test_utils_mappers_map_closed_issues_bulk_url_in_body_matching(self, mocker):
+    def test_utils_mappers_map_closed_archived_issues_bulk_url_in_body_matching(
+        self, mocker
+    ):
         """Test successful matching when URL appears in issue body."""
 
         # Mock contributions
@@ -1758,13 +1779,17 @@ class TestUtilsMappersMapping:
         mocker.patch("utils.mappers._is_url_github_issue", return_value=False)
         mocked_create_issues_bulk = mocker.patch("utils.mappers._create_issues_bulk")
 
-        result = _map_closed_issues([mock_issue])
+        result = _map_closed_archived_issues([mock_issue])
 
         assert result is True
-        mocked_create_issues_bulk.assert_called_once_with([(101, 1)])
+        mocked_create_issues_bulk.assert_called_once_with(
+            [(101, 1, IssueStatus.ARCHIVED)]
+        )
 
     @pytest.mark.django_db
-    def test_utils_mappers_map_closed_issues_bulk_github_issue_url_match(self, mocker):
+    def test_utils_mappers_map_closed_archived_issues_bulk_github_issue_url_match(
+        self, mocker
+    ):
         """Test successful matching when contribution URL is a GitHub issue URL."""
 
         # Mock contribution with GitHub issue URL
@@ -1799,13 +1824,17 @@ class TestUtilsMappersMapping:
         mocker.patch("utils.mappers._is_url_github_issue", return_value=456)
         mocked_create_issues_bulk = mocker.patch("utils.mappers._create_issues_bulk")
 
-        result = _map_closed_issues([mock_issue])
+        result = _map_closed_archived_issues([mock_issue])
 
         assert result is True
-        mocked_create_issues_bulk.assert_called_once_with([(456, 1)])
+        mocked_create_issues_bulk.assert_called_once_with(
+            [(456, 1, IssueStatus.ARCHIVED)]
+        )
 
     @pytest.mark.django_db
-    def test_utils_mappers_map_closed_issues_bulk_both_match_same_issue(self, mocker):
+    def test_utils_mappers_map_closed_archived_issues_bulk_both_match_same_issue(
+        self, mocker
+    ):
         """Test that matched flag prevents duplicate assignments for same issue."""
 
         # Mock contributions
@@ -1847,17 +1876,19 @@ class TestUtilsMappersMapping:
         )
         mocked_create_issues_bulk = mocker.patch("utils.mappers._create_issues_bulk")
 
-        result = _map_closed_issues([mock_issue])
+        result = _map_closed_archived_issues([mock_issue])
 
         assert result is True
         # Should only have one assignment despite both methods potentially matching
         call_args = mocked_create_issues_bulk.call_args[0][0]
         assert len(call_args) == 2
         # Should be the body match (first method)
-        assert call_args[0] == (101, 1)
+        assert call_args[0] == (101, 1, IssueStatus.ARCHIVED)
 
     @pytest.mark.django_db
-    def test_utils_mappers_map_closed_issues_bulk_skip_empty_urls(self, mocker):
+    def test_utils_mappers_map_closed_archived_issues_bulk_skip_empty_urls(
+        self, mocker
+    ):
         """Test that contributions with empty URLs are skipped."""
 
         # Mock contributions with various URL states
@@ -1895,14 +1926,18 @@ class TestUtilsMappersMapping:
         mocker.patch("utils.mappers._is_url_github_issue", return_value=False)
         mocked_create_issues_bulk = mocker.patch("utils.mappers._create_issues_bulk")
 
-        result = _map_closed_issues([mock_issue])
+        result = _map_closed_archived_issues([mock_issue])
 
         assert result is True
         # Should only process the valid URL
-        mocked_create_issues_bulk.assert_called_once_with([(101, 3)])
+        mocked_create_issues_bulk.assert_called_once_with(
+            [(101, 3, IssueStatus.ARCHIVED)]
+        )
 
     @pytest.mark.django_db
-    def test_utils_mappers_map_closed_issues_bulk_transaction_decorator(self, mocker):
+    def test_utils_mappers_map_closed_archived_issues_bulk_transaction_decorator(
+        self, mocker
+    ):
         """Test that function has transaction.atomic decorator."""
 
         mock_contrib = mocker.MagicMock()
@@ -1933,15 +1968,17 @@ class TestUtilsMappersMapping:
 
         # Check that function is decorated with transaction.atomic
         # by checking if it's wrapped
-        assert _map_closed_issues.__name__ == "_map_closed_issues"
+        assert _map_closed_archived_issues.__name__ == "_map_closed_archived_issues"
 
-        result = _map_closed_issues([mock_issue])
+        result = _map_closed_archived_issues([mock_issue])
 
         assert result is True
         mocked_create_issues_bulk.assert_called_once()
 
     @pytest.mark.django_db
-    def test_utils_mappers_map_closed_issues_bulk_issue_no_body_url_match(self, mocker):
+    def test_utils_mappers_map_closed_archived_issues_bulk_issue_no_body_url_match(
+        self, mocker
+    ):
         """Test that issues without body are still checked for issue URL matching."""
 
         # Mock contribution with GitHub issue URL
@@ -1976,14 +2013,16 @@ class TestUtilsMappersMapping:
         mocker.patch("utils.mappers._is_url_github_issue", return_value=456)
         mocked_create_issues_bulk = mocker.patch("utils.mappers._create_issues_bulk")
 
-        result = _map_closed_issues([mock_issue])
+        result = _map_closed_archived_issues([mock_issue])
 
         assert result is True
         # Should still match via GitHub issue URL even with no body
-        mocked_create_issues_bulk.assert_called_once_with([(456, 1)])
+        mocked_create_issues_bulk.assert_called_once_with(
+            [(456, 1, IssueStatus.ARCHIVED)]
+        )
 
     @pytest.mark.django_db
-    def test_utils_mappers_map_closed_issues_bulk_no_matches(self, mocker):
+    def test_utils_mappers_map_closed_archived_issues_bulk_no_matches(self, mocker):
         """Test function when no URLs match any issue bodies or GitHub issue URLs."""
 
         mock_contrib = mocker.MagicMock()
@@ -2012,13 +2051,15 @@ class TestUtilsMappersMapping:
         mocker.patch("utils.mappers._is_url_github_issue", return_value=False)
         mocked_create_issues_bulk = mocker.patch("utils.mappers._create_issues_bulk")
 
-        result = _map_closed_issues([mock_issue])
+        result = _map_closed_archived_issues([mock_issue])
 
         assert result is True
         mocked_create_issues_bulk.assert_called_once_with([])
 
     @pytest.mark.django_db
-    def test_utils_mappers_map_closed_issues_bulk_multiple_issues(self, mocker):
+    def test_utils_mappers_map_closed_archived_issues_bulk_multiple_issues(
+        self, mocker
+    ):
         """Test processing multiple issues with different matching methods."""
 
         # Mock contributions
@@ -2067,12 +2108,15 @@ class TestUtilsMappersMapping:
         )
         mocked_create_issues_bulk = mocker.patch("utils.mappers._create_issues_bulk")
 
-        result = _map_closed_issues([mock_issue1, mock_issue2])
+        result = _map_closed_archived_issues([mock_issue1, mock_issue2])
 
         assert result is True
         # Should have both assignments via different methods
         call_args = mocked_create_issues_bulk.call_args[0][0]
-        assert set(call_args) == {(101, 1), (202, 2)}
+        assert set(call_args) == {
+            (101, 1, IssueStatus.ARCHIVED),
+            (202, 2, IssueStatus.ARCHIVED),
+        }
 
     # # _map_open_issues
     @pytest.mark.django_db
@@ -2455,12 +2499,14 @@ class TestUtilsMappersPublicFunctions:
         mock_categorize = mocker.patch(
             "utils.mappers._fetch_and_categorize_issues", return_value=github_issues
         )
-        mock_closed_issues = mocker.patch("utils.mappers._map_closed_issues")
+        mock_archived = mocker.patch("utils.mappers._map_closed_archived_issues")
+        mock_addressed = mocker.patch("utils.mappers._map_closed_addressed_issues")
         mock_open_issues = mocker.patch("utils.mappers._map_open_issues")
         result = map_github_issues(github_token="github_token")
 
         mock_categorize.assert_called_once_with("github_token")
-        mock_closed_issues.assert_called_once_with(closed_issues)
+        mock_archived.assert_called_once_with(closed_issues)
+        mock_addressed.assert_called_once_with(closed_issues)
         mock_open_issues.assert_called_once_with(open_issues)
 
         assert result is False
@@ -2470,12 +2516,14 @@ class TestUtilsMappersPublicFunctions:
         mock_categorize = mocker.patch(
             "utils.mappers._fetch_and_categorize_issues", return_value={}
         )
-        mock_closed_issues = mocker.patch("utils.mappers._map_closed_issues")
+        mock_archived = mocker.patch("utils.mappers._map_closed_archived_issues")
+        mock_addressed = mocker.patch("utils.mappers._map_closed_addressed_issues")
         mock_open_issues = mocker.patch("utils.mappers._map_open_issues")
         result = map_github_issues(github_token="github_token")
 
         mock_categorize.assert_called_once_with("github_token")
-        mock_closed_issues.assert_called_once_with([])
+        mock_archived.assert_called_once_with([])
+        mock_addressed.assert_called_once_with([])
         mock_open_issues.assert_called_once_with([])
 
         assert result is False

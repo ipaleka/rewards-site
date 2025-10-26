@@ -8,6 +8,7 @@ from django.core.exceptions import ObjectDoesNotExist
 from django.db.utils import IntegrityError
 from django.http import Http404
 
+import utils.importers
 from core.models import RewardType
 from utils.importers import (
     CONTRIBUTION_CSV_COLUMNS,
@@ -27,6 +28,34 @@ from utils.importers import (
     _social_platforms,
     import_from_csv,
 )
+
+
+class TestUtilsImportersConstants:
+    """Testing class for :class:`utils.importers` constants."""
+
+    @pytest.mark.parametrize(
+        "constant,value",
+        [
+            ("ADDRESSES_CSV_COLUMNS", ["handle", "address"]),
+            (
+                "CONTRIBUTION_CSV_COLUMNS",
+                [
+                    "contributor",
+                    "cycle_start",
+                    "cycle_end",
+                    "platform",
+                    "url",
+                    "type",
+                    "level",
+                    "percentage",
+                    "reward",
+                    "comment",
+                ],
+            ),
+        ],
+    )
+    def test_utils_importers_module_constants(self, constant, value):
+        assert getattr(utils.importers, constant) == value
 
 
 class TestUtilsImportersHelperFunctions:

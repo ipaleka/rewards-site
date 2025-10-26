@@ -15,7 +15,9 @@
           <p><strong>Contributor:</strong> <a class="link link-accent" href="{{ contribution.contributor.get_absolute_url }}">{{ contribution.contributor }}</a></p>
           <p><strong>Cycle:</strong> {{ contribution.cycle }}</p>
           <p><strong>Platform:</strong> {{ contribution.platform }}</p>
+          {% if contribution.url %}
           <p><strong>URL:</strong> <a href="{{ contribution.url }}" class="link link-accent" target="_blank">{{ contribution.url|urlizetrunc:50 }}</a></p>
+          {% endif %}
           <p><strong>Created at:</strong> {{ contribution.created_at }}</p>
           <p><strong>Updated at:</strong> {{ contribution.updated_at }}</p>
           {% if contribution.issue %}

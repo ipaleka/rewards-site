@@ -589,8 +589,11 @@ def _map_closed_archived_issues(github_issues):
     issue_assignments = set()
 
     # Process each contribution and try to find matching GitHub issues
+    without_url = []
+    missed_assignments = []
     for contribution in contributions:
         if not contribution.url:
+            without_url.append(contribution.id)
             continue
 
         # Method 1: Check if contribution URL is a GitHub issue URL
@@ -602,15 +605,23 @@ def _map_closed_archived_issues(github_issues):
 
         # Method 2: Search through issues for this contribution's URL in their bodies
         for github_issue in github_issues:
-            if (
-                contribution.url
-                and contribution.url in github_issue.issue.body
-                or "" + "\n".join(github_issue.comments)
-            ):
+            search_text = "\n".join(
+                [github_issue.issue.body or "", *github_issue.comments]
+            )
+            if contribution.url in search_text:
                 issue_assignments.add(
                     (github_issue.issue.number, contribution.id, IssueStatus.ARCHIVED)
                 )
                 break  # One issue per contribution (first match found)
+
+        else:
+            missed_assignments.append(contribution.id)
+
+    if without_url:
+        print("MISSING URL:", without_url)
+
+    if without_url:
+        print("MISSED ASSIGNMENTS:", missed_assignments)
 
     # Process all assignments in bulk
     _create_issues_bulk(list(issue_assignments))
@@ -676,8 +687,7 @@ def _map_open_issues(github_issues):
 
         number = github_issue.issue.number
 
-        search_text = github_issue.issue.body or ""
-        search_text += "\n".join(github_issue.comments)
+        search_text = "\n".join([github_issue.issue.body or "", *github_issue.comments])
 
         # Identify contributor from issue user or text
         contributor_id = _identify_contributor_from_user(

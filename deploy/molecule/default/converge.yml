@@ -9,11 +9,16 @@
       loop: "{{ lookup('file', '../../.env.testing').splitlines() }}"
       when: item is search('=')
 
-- name: Converge Testing Environment
+- name: Converge testing environment
   hosts: all
   gather_facts: true
   vars_files:
     - ../../group_vars/testing/vars.yml
   roles:
-    - createuser
+    - setuphost
+    - redis
+    - postgresql
+    - projectsetup
     - gunicorn
+    - nginx
+    - hardening

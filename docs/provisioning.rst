@@ -41,23 +41,24 @@ Virtual machine
 Local network setup
 """""""""""""""""""
 
-Configuration for Ubuntu 20.04 server:
+Configuration for Ubuntu 24.04.3 server:
 
 .. code-block:: bash
-  :caption: /etc/netplan/00-installer-config.yaml
+  :caption: /etc/netplan/50-cloud-init.yaml
 
   network:
+    version: 2
     ethernets:
       enp0s3:
+        dhcp4: false
         addresses:
-        - 192.168.1.82/24
-        gateway4: 192.168.1.1
+          - 192.168.1.82/24
+        routes:
+          - to: default
+            via: 192.168.1.1
         nameservers:
-          addresses:
-          - 8.8.8.8
-          - 4.4.4.4
-          search: []
-    version: 2
+          addresses: [8.8.8.8, 4.4.4.4]
+
 
 Configuration from above is activated by `sudo netplan apply`.
 
@@ -65,7 +66,7 @@ Configuration from above is activated by `sudo netplan apply`.
 SSH access
 """"""""""
 
-Server should have ``openssh-server`` installed and running. Many GNU/Linux have Python 2 preinstalled, but on Ubuntu 16.04 it should be manually installed. Regularly Python 2 is only needed on the local machine, but for some jobs Ansible needs it on the servers too.
+Server should have ``openssh-server`` installed and running. Many GNU/Linux have Python 3 preinstalled.
 
 .. code-block:: bash
 
@@ -128,15 +129,3 @@ After code has changed, issue the following command to apply those changes:
 .. code-block:: bash
 
   ansible-playbook -i hosts --limit=production --tags=update-project-code site_playbook.yml
-
-
-Sync cache and web severs
-^^^^^^^^^^^^^^^^^^^^^^^^^
-
-Sync web and cache server with:
-
-.. code-block:: bash
-
-  cd opt
-  rsync -av --exclude "archive/*" --exclude "logs/*" --rsync-path="sudo rsync" asastats@167.114.67.118:/var/www/asastats.com/data/ ./data && sudo rsync -av -og --chown=whenmoon:webapps ./data/ /var/www/asastats.com/data
-  rsync -av --rsync-path="sudo rsync" asastats@167.114.67.118:/var/www/asastats.com/static/thumbnails/ ./thumbnails && sudo rsync -av -og --chown=whenmoon:webapps ./thumbnails/ /var/www/asastats.com/static/thumbnails

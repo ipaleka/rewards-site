@@ -1,11 +1,11 @@
 ---
 # project variables
 project_name: rewards.asastats.com
-logo_name: asastats
 app_name: rewardsweb
 site_name: rewards.asastats.com
 django_settings: "rewardsweb.settings.{{ host_alias }}"
 env_name: "{{ host_alias }}_rewardsweb"
+logo_name: asastats
 
 # repository
 repository_url:  github.com/asastats/rewards-site.git

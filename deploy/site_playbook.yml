@@ -1,113 +1,70 @@
-- name: Load environment file dynamically
-  hosts: localhost
+- name: Load multiple .env files
+  vars:
+    env_files:
+      - "{{ env_file }}"
+      - "{{ shared_env_file }}"
+      - "{{ bot_env_file }}"
+  block:
+    - name: Validate env files exist
+      ansible.builtin.stat:
+        path: "{{ item }}"
+      loop: "{{ env_files }}"
+      register: env_files_check
+
+    - name: Fail if any env file is missing
+      ansible.builtin.fail:
+        msg: "Environment file {{ item.item }} not found!"
+      loop: "{{ env_files_check.results }}"
+      when: not item.stat.exists
+
+    - name: Merge all environment files
+      ansible.builtin.set_fact:
+        env_vars: "{{ env_vars | default({}) | combine(parsed_env) }}"
+      vars:
+        parsed_env: >-
+          {{
+            dict(lookup('file', item)
+            .splitlines()
+            | reject('match', '^#')
+            | reject('match', '^$')
+            | map('split', '=', 1))
+          }}
+      loop: "{{ env_files }}"
+- name: Check if admin_user can connect
+  hosts: all
   gather_facts: false
   vars:
-    env_name: "{{ ansible_limit | default('testing') }}"
-    env_file: ".env.{{ env_name }}"
-    shared_env_file: "{{ playbook_dir }}/../rewardsweb/.env.{{ env_name }}"
-    bot_env_file: "{{ playbook_dir }}/../rewardsweb/rewardsbot/.env"
+    ansible_user: "{{ admin_user }}"
   tasks:
-    - name: Fail if environment file is missing
-      ansible.builtin.stat:
-        path: "{{ env_file }}"
-      register: env_file_check
+    - name: Try connecting as admin_user
+      ansible.builtin.ping:
+      register: admin_user_ping
+      ignore_unreachable: true
+      ignore_errors: true
+      changed_when: false
 
-    - name: Abort if env file not found
-      ansible.builtin.fail:
-        msg: "Environment file {{ env_file }} not found!"
-      when: not env_file_check.stat.exists
+    - name: Set fallback user if admin_user unreachable
+      ansible.builtin.set_fact:
+        ansible_user: "{{ superuser | default('root') }}"
+      when: admin_user_ping.unreachable is defined
 
-    - name: Load env vars from {{ env_file }}
-      set_fact:
-        env_vars: "{{ env_vars | default({}) | combine({item.split('=')[0]: item.split('=')[1]}) }}"
-      loop: "{{ lookup('file', env_file).splitlines() }}"
-      when: item is search('=')
-
-    - name: Fail if shared env file is missing
-      ansible.builtin.stat:
-        path: "{{ shared_env_file }}"
-      register: shared_env_file_check
-
-    - name: Abort if shared env file not found
-      ansible.builtin.fail:
-        msg: "Environment file {{ shared_env_file }} not found!"
-      when: not shared_env_file_check.stat.exists
-
-    - name: Load shared .env
-      set_fact:
-        env_vars: "{{ env_vars | default({}) | combine({item.split('=')[0]: item.split('=')[1]}) }}"
-      loop: "{{ lookup('file', shared_env_file).splitlines() }}"
-      when: item is search('=')
-
-    - name: Fail if bot env file is missing
-      ansible.builtin.stat:
-        path: "{{ bot_env_file }}"
-      register: bot_env_file_check
-
-    - name: Abort if bot env file not found
-      ansible.builtin.fail:
-        msg: "Environment file {{ bot_env_file }} not found!"
-      when: not bot_env_file_check.stat.exists
-
-    - name: Load bot .env
-      set_fact:
-        env_vars: "{{ env_vars | default({}) | combine({item.split('=')[0]: item.split('=')[1]}) }}"
-      loop: "{{ lookup('file', bot_env_file).splitlines() }}"
-      when: item is search('=')
-
-- name: Deploy to selected environment
-  hosts: "{{ ansible_limit | default('testing') }}"
-  gather_facts: false
+- name: Create admin_user if missing
+  hosts: all
+  remote_user: "{{ superuser | default('root') }}"
   tasks:
-    - name: Debug environment info
-      debug:
-        msg: "Deploying to {{ inventory_hostname }} at {{ ansible_host }}"
+    - name: Include createuser role
+      include_role:
+        name: createuser
+      when: admin_user_ping.unreachable is defined
 
-# ---
-# # - name: Check if admin_user can connect
-# #   hosts: all
-# #   gather_facts: false
-# #   vars:
-# #     ansible_user: "{{ admin_user }}"
-# #   tasks:
-# #     - name: ping as admin_user
-# #       ping:
-# #       ignore_unreachable: true
-# #       ignore_errors: true
-# #       changed_when: false
-# #       register: admin_user_ping
-
-# #     - name: Change user to superuser if admin_user can't connect
-# #       when: admin_user_ping.unreachable is defined
-# #       connection: local
-# #       set_fact:
-# #         ansible_user: "{{ superuser if superuser is defined else 'root' }}"
-
-# # - name: Create admin_user
-# #   hosts: all
-# #   remote_user: "{{ superuser if superuser is defined else 'root' }}"
-# #   roles:
-# #     - role: createuser
-# #       when: admin_user_ping.unreachable is defined
-
-# - name: provisioning of rewards.asastats.com project
-#   hosts: all
-#   remote_user: "{{ admin_user }}"
-#   roles:
-#     - role: nodeinstall
-#     - role: dockernodeinstall
-#       when: inventory_hostname != "cacheserver"
-#     - role: setuphost
-#     - role: redis
-#     - role: postgresql
-#       when: inventory_hostname == "liveserver"
-#     - role: projectsetup
-#     # - role: barman
-#     #   when: inventory_hostname == "cacheserver"
-#     - role: gunicorn
-#       when: inventory_hostname != "cacheserver"
-#     - role: channels
-#       when: inventory_hostname != "cacheserver"
-#     - role: nginx
-#       when: inventory_hostname != "cacheserver"
-#     - role: hardening
+- name: "Provisioning of {{ project_name }} project"
+  hosts: all
+  remote_user: "{{ admin_user }}"
+  roles:
+    - role: setuphost
+    - role: redis
+    - role: postgresql
+    - role: projectsetup
+    - role: gunicorn
+    - role: nginx
+    - role: hardening

@@ -40,7 +40,7 @@ LOGGING = {
         "file": {
             "level": "WARNING",
             "class": "logging.FileHandler",
-            "filename": BASE_DIR.parent / "logs" / "django-warning.log",
+            "filename": BASE_DIR.parent.parent.parent / "logs" / "django-warning.log",
         },
     },
     "loggers": {

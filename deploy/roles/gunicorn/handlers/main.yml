@@ -1,0 +1,9 @@
+---
+- name: Enable and restart gunicorn
+  ansible.builtin.systemd:
+    name: "gunicorn-{{ env_name }}"
+    state: restarted
+    daemon_reload: true
+    enabled: true
+  become: true
+  listen: "Enable and restart gunicorn"

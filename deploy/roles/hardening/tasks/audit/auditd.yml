@@ -1,0 +1,18 @@
+---
+- name: Ensure auditd is installed
+  ansible.builtin.apt:
+    name: auditd
+    state: present
+  become: true
+  tags: [audit, auditd]
+
+- name: Deploy auditd rules configuration
+  ansible.builtin.template:
+    src: audit.rules
+    dest: /etc/audit/rules.d/audit.rules
+    owner: root
+    group: root
+    mode: '0640'
+  become: true
+  notify: Restart auditd
+  tags: [audit, auditd]

@@ -1,0 +1,25 @@
+---
+dependency:
+  name: galaxy
+
+driver:
+  name: docker
+
+platforms:
+  - name: production-instance
+    image: ubuntu:22.04
+    ansible.builtin.command: /sbin/init
+    privileged: true
+    pre_build_image: true
+
+provisioner:
+  name: ansible
+  playbooks:
+    converge: converge.yml
+  inventory:
+    host_vars:
+      production-instance:
+        ansible_connection: docker
+
+verifier:
+  name: ansible

@@ -1,0 +1,24 @@
+# Lines starting with "#" are comments
+# Skip a test (one per line)
+
+# Ignore password on GRUB bootloader
+skip-test=BOOT-5122
+
+# This will ignore separation of partitions test
+skip-test=FILE-6310
+
+# Ignore arpwatch,arpon
+skip-test=NETW-3032
+
+# We don't need password for redis
+skip-test=DBS-1884
+
+# Certificates: We have set a certbot cron job
+skip-test=CRYP-7902
+
+# If a test id includes more than one test use this form to ignore a particular test
+# docker needs ipv4 forwarding
+skip-test=KRNL-6000:net.ipv4.conf.all.forwarding
+
+# pip run by admin user user needs compilers
+skip-test=HRDN-7222

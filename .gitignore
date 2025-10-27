@@ -10,6 +10,9 @@ db.sqlite3
 .coverage
 coverage.xml
 rewardsweb/.env
+rewardsweb/.env.testing
+rewardsweb/.env.production
+rewardsweb/.env.ci
 rewardsweb/*.log
 rewardsweb/fixtures/*.csv
 rewardsweb/fixtures/*.xlsx
@@ -19,3 +22,5 @@ rewardsweb/core/static/css/tailwindcss
 rewardsweb/rewardsbot/.env
 rewardsweb/rewardsbot/*.log
 rewardsweb/frontend/coverage
+deploy/.env.*
+deploy/.ansible/

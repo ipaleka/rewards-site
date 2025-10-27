@@ -1,0 +1,22 @@
+---
+- name: Create app's environment file
+  ansible.builtin.template:
+    src: environment_file
+    dest: "{{ site_path }}/source/{{ app_name }}/.env"
+    owner: "{{ webapp_user }}"
+    group: "{{ webapp_group }}"
+    mode: '0600'
+  become: true
+  become_user: "{{ webapp_user }}"
+  tags: [repository, update-project-code]
+
+- name: Create bot's environment file
+  ansible.builtin.template:
+    src: environment_file_bot
+    dest: "{{ site_path }}/source/{{ app_name }}/rewardsbot/.env"
+    owner: "{{ webapp_user }}"
+    group: "{{ webapp_group }}"
+    mode: '0600'
+  become: true
+  become_user: "{{ webapp_user }}"
+  tags: [repository, update-project-code]

@@ -1,0 +1,10 @@
+---
+- name: Verify production environment
+  hosts: all
+  gather_facts: false
+  tasks:
+    - name: Verify user creation role worked
+      ansible.builtin.command: id deploy
+      register: user_check
+      failed_when: user_check.rc != 0
+      changed_when: false

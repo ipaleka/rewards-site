@@ -1,0 +1,27 @@
+---
+- name: "Ensure opt folder exists for {{ admin_user }}"
+  ansible.builtin.file:
+    path: "{{ opt_folder }}"
+    state: directory
+    mode: "0755"
+  become: true
+  become_user: "{{ admin_user }}"
+  tags: [rebootrequired]
+
+- name: Deploy email reboot-required notification script
+  ansible.builtin.template:
+    src: reboot_required.sh
+    dest: "{{ opt_folder }}emailrebootrequired.sh"
+    mode: "0755"
+  become: true
+  tags: [rebootrequired]
+
+- name: Configure daily email reboot-required cron job
+  ansible.builtin.cron:
+    name: "email reboot required"
+    hour: "8"
+    minute: "34"
+    user: root
+    job: ": email reboot required ; {{ opt_folder }}emailrebootrequired.sh"
+  become: true
+  tags: [rebootrequired, cronjobs]

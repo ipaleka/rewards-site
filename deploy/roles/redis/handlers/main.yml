@@ -1,0 +1,13 @@
+---
+- name: Restart redis
+  systemd:
+    name: redis
+    state: restarted
+  become: true
+  listen: "Restart redis"
+
+- name: Reboot machine
+  ansible.builtin.reboot:
+    reboot_timeout: 3600
+  become: true
+  listen: "Reboot machine"

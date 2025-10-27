@@ -1,0 +1,24 @@
+---
+- name: Load .env.testing for Molecule
+  hosts: localhost
+  gather_facts: false
+  tasks:
+    - name: Load environment variables from .env.testing
+      ansible.builtin.set_fact:
+        env_vars: "{{ env_vars | default({}) | combine({item.split('=')[0]: item.split('=')[1]}) }}"
+      loop: "{{ lookup('file', '../../.env.testing').splitlines() }}"
+      when: item is search('=')
+
+- name: Converge testing environment
+  hosts: all
+  gather_facts: true
+  vars_files:
+    - ../../group_vars/testing/vars.yml
+  roles:
+    - setuphost
+    - redis
+    - postgresql
+    - projectsetup
+    - gunicorn
+    - nginx
+    - hardening

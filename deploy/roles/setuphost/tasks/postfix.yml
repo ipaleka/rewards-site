@@ -1,0 +1,61 @@
+---
+- name: Ensure Postfix is installed
+  ansible.builtin.apt:
+    name: postfix
+    state: present
+  become: true
+  tags: [postfix]
+
+- name: Create private key (RSA, 2048 bits)
+  community.crypto.openssl_privatekey:
+    path: /etc/ssl/private/ssl-cert-smtpd.key
+    size: 2048
+    group: ssl-cert
+    mode: '0640'
+  become: true
+  tags: [postfix]
+
+- name: Generate public key from private key
+  community.crypto.openssl_publickey:
+    path: /etc/ssl/certs/ssl-cert-smtpd.pem
+    privatekey_path: /etc/ssl/private/ssl-cert-smtpd.key
+    mode: '0644'
+  become: true
+  tags: [postfix]
+
+- name: Configure Postfix master.cf
+  ansible.builtin.lineinfile:
+    path: /etc/postfix/master.cf
+    regexp: "{{ item.regex }}"
+    line: "{{ item.value }}"
+    firstmatch: true
+    insertbefore: '^#submissions[ \t]+inet[ \t]+n'
+    state: present
+  loop:
+    - { regex: '^submission[ \t]+inet', value: 'submission inet n       -       y       -       -       smtpd' }
+    - { regex: '^-o syslog_name=postfix/submission', value: '  -o syslog_name=postfix/submission' }
+    - { regex: '^-o smtpd_tls_security_level=encrypt', value: '  -o smtpd_tls_security_level=encrypt' }
+    - { regex: '^-o smtpd_sasl_auth_enable=yes', value: '  -o smtpd_sasl_auth_enable=yes' }
+    - { regex: '^-o smtpd_tls_auth_only=yes', value: '  -o smtpd_tls_auth_only=yes' }
+    - { regex: '^-o smtpd_client_restrictions=', value: '  -o smtpd_client_restrictions=permit_sasl_authenticated,reject' }
+    - { regex: '^-o smtpd_relay_restrictions=', value: '  -o smtpd_relay_restrictions=permit_mynetworks,permit_sasl_authenticated,reject_unauth_destination' }
+    - { regex: '^-o smtpd_recipient_restrictions=', value: '  -o smtpd_recipient_restrictions=permit_sasl_authenticated,reject' }
+  notify: Restart postfix
+  become: true
+  tags: [postfix]
+
+- name: Configure Postfix main.cf
+  ansible.builtin.lineinfile:
+    path: /etc/postfix/main.cf
+    regexp: "{{ item.regex }}"
+    line: "{{ item.value }}"
+    backrefs: true
+    state: present
+  loop:
+    - { regex: '^smtpd_tls_cert_file=', value: 'smtpd_tls_cert_file=/etc/ssl/certs/ssl-cert-smtpd.pem' }
+    - { regex: '^smtpd_tls_key_file=', value: 'smtpd_tls_key_file=/etc/ssl/private/ssl-cert-smtpd.key' }
+    - { regex: '^myhostname[ \t]*=', value: 'myhostname = {{ inventory_hostname }}' }
+    - { regex: '^mydestination[ \t]*=', value: 'mydestination = $myhostname, localhost.localdomain, , localhost' }
+  notify: Restart postfix
+  become: true
+  tags: [postfix]

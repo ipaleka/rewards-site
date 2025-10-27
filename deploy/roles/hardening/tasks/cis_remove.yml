@@ -1,0 +1,32 @@
+---
+- name: Ensure insecure or unnecessary packages are absent (CIS hardening)
+  ansible.builtin.apt:
+    name: "{{ item.name }}"
+    state: absent
+    purge: "{{ item.purge | default(false) }}"
+  become: true
+  loop:
+    - { name: telnet-server, purge: true }
+    - { name: telnet, purge: true }
+    - { name: nis }
+    - { name: Rsh }
+    - { name: chargen }
+    - { name: xinetd }
+    - { name: tftp }
+    - { name: tftpd }
+    - { name: xserver-xorg, purge: true }
+    - { name: avahi-daemon }
+    - { name: cups }
+    - { name: Isc-dhcp-server }
+    - { name: slapd }
+    - { name: nfs-kernel-server }
+    - { name: biosdevname }
+    - { name: bind9 }
+    - { name: vsftpd }
+    - { name: dovecot-imapd }
+    - { name: dovecot-pop3d }
+    - { name: samba }
+    - { name: squid3 }
+    - { name: snmp }
+    - { name: snmpd }
+  tags: [cis_remove]

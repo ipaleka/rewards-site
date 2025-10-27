@@ -1,0 +1,4 @@
+---
+# Here are variables related to the production installation
+host_alias: production
+log_level: info

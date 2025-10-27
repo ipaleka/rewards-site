@@ -1,0 +1,14 @@
+---
+- name: Ensure miscellaneous auditing tools are installed
+  ansible.builtin.apt:
+    name: "{{ item }}"
+    state: present
+  become: true
+  loop:
+    - chkrootkit          # Rootkit detection
+    - rsyslog             # System logging daemon
+    - debsums             # Verify package file checksums
+    - apt-show-versions   # List installed package versions
+    - acct                # Enable process accounting
+    - locate              # File locating utility
+  tags: [audit, audit-misc]

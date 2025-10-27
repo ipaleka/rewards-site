@@ -1,0 +1,17 @@
+# yaml-language-server: $schema=none
+---
+- name: Ensure Tiger security auditing tool is installed
+  ansible.builtin.apt:
+    name: tiger
+    state: present
+  become: true
+  tags: [audit, audittiger]
+
+- name: Prevent 'nsfs' invalid filesystem warning in Tiger reports
+  ansible.builtin.lineinfile:
+    path: /etc/tiger/tigerrc
+    regexp: "^Tiger_FSScan_Local='"
+    line: "Tiger_FSScan_Local='nsfs'           # Filesystems considered to be local to the system, pipe-separated"
+    state: present
+  become: true
+  tags: [audit, audittiger]

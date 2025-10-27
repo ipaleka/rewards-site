@@ -1,0 +1,23 @@
+---
+- name: Tune PostgreSQL
+  ansible.builtin.lineinfile:
+    path: "/etc/postgresql/{{ postgresql_version }}/main/postgresql.conf"
+    regexp: "{{ item.regex }}"
+    line: "{{ item.value }}"
+    backrefs: true
+    state: present
+  become: true
+  notify: Restart postgresql
+  loop:
+    - regex: "^shared_buffers = 128MB"
+      value: "shared_buffers = 8GB"
+
+    - regex: "^#effective_cache_size = 4GB"
+      value: "effective_cache_size = 12GB"
+
+    - regex: "^#work_mem = 4MB"
+      value: "work_mem = 32MB"
+
+    - regex: "^#maintenance_work_mem = 64MB"
+      value: "maintenance_work_mem = 1GB"
+  tags: [postgresql, postgresql-tuning]

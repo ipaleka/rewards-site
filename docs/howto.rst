@@ -24,7 +24,7 @@ Then build the pdf with:
   make latexpdf
 
 
-Run Dicord bot
+Run Discord bot
 --------------
 
 .. code-block:: bash

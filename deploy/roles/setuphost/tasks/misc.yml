@@ -1,0 +1,27 @@
+---
+- name: Ensure grc package is installed
+  ansible.builtin.apt:
+    name: grc
+    state: present
+  become: true
+  tags: [misc-tools]
+
+- name: Ensure .grc directory exists for admin user
+  ansible.builtin.file:
+    path: "/home/{{ admin_user }}/.grc"
+    owner: "{{ admin_user }}"
+    group: "{{ admin_user }}"
+    state: directory
+    mode: '0750'
+  become: true
+  tags: [misc-tools]
+
+- name: Deploy grc configuration file
+  ansible.builtin.copy:
+    src: grc.conf
+    dest: "/home/{{ admin_user }}/.grc/grc.conf"
+    owner: "{{ admin_user }}"
+    group: "{{ admin_user }}"
+    mode: '0640'
+  become: true
+  tags: [misc-tools]

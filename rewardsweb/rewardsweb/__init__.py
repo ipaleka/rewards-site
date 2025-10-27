@@ -1,3 +1,3 @@
-"""Initialization module for rewards.asastats.com project."""
+"""Initialization module for rewardsweb project."""
 
 __version__ = "0.4.0"

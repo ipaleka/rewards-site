@@ -1,0 +1,4 @@
+DISCORD_BOT_TOKEN="{{ global_env_vars['DISCORD_BOT_TOKEN'] }}"
+DISCORD_CLIENT_ID="{{ global_env_vars['DISCORD_CLIENT_ID'] }}"
+DISCORD_GUILD_IDS="{{ global_env_vars['DISCORD_GUILD_IDS'] }}"
+REWARDS_API_BASE_URL="{{ global_env_vars['REWARDS_API_BASE_URL'] }}"

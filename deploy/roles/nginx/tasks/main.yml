@@ -1,0 +1,18 @@
+---
+- name: Import Nginx installation tasks
+  ansible.builtin.import_tasks: install_nginx.yml
+
+- name: Import Certbot setup tasks
+  ansible.builtin.import_tasks: certbot.yml
+
+- name: Import Nginx configuration tasks
+  ansible.builtin.import_tasks: setup_nginx.yml
+
+- name: Import site setup tasks
+  ansible.builtin.import_tasks: setup_site.yml
+
+- name: Import SSL certificates setup tasks
+  ansible.builtin.import_tasks: setup_certs.yml
+
+- name: Import certificate renewal setup tasks
+  ansible.builtin.import_tasks: setup_renewal.yml

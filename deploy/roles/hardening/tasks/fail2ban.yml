@@ -1,0 +1,45 @@
+---
+- name: Ensure Fail2Ban is installed
+  ansible.builtin.apt:
+    name: Fail2ban
+    state: present
+  become: true
+  tags: [fail2ban]
+
+- name: Create Fail2Ban filters
+  ansible.builtin.template:
+    src: "{{ item.src }}"
+    dest: "/etc/fail2ban/filter.d/{{ item.dest }}.conf"
+    owner: root
+    ansible.builtin.group: root
+    mode: '0644'
+  become: true
+  loop:
+    - { src: nginx-noscript.jinja, dest: nginx-noscript }
+    - { src: nginx-badbots.jinja, dest: nginx-badbots }
+    - { src: nginx-nohome.jinja, dest: nginx-nohome }
+    - { src: nginx-noproxy.jinja, dest: nginx-noproxy }
+    - { src: nginx-urlscanners.jinja, dest: nginx-urlscanners }
+  tags: [fail2ban]
+
+- name: Copy Fail2Ban default config (non-cache servers)
+  ansible.builtin.template:
+    src: fail2ban.jinja
+    dest: /etc/fail2ban/jail.local
+    owner: root
+    ansible.builtin.group: root
+    mode: '0644'
+  become: true
+  notify: Restart fail2ban
+  tags: [fail2ban]
+
+- name: Copy Fail2Ban cache server config
+  ansible.builtin.template:
+    src: fail2ban-cacheserver.jinja
+    dest: /etc/fail2ban/jail.local
+    owner: root
+    ansible.builtin.group: root
+    mode: '0644'
+  become: true
+  notify: Restart fail2ban
+  tags: [fail2ban]

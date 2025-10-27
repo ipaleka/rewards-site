@@ -1,0 +1,18 @@
+---
+- name: Import PostgreSQL installation tasks
+  ansible.builtin.import_tasks: install.yml
+
+- name: Import PostgreSQL database creation tasks
+  ansible.builtin.import_tasks: create.yml
+
+- name: Import PostgreSQL tuning tasks
+  ansible.builtin.import_tasks: tuning.yml
+
+- name: Import PgBouncer configuration tasks
+  ansible.builtin.import_tasks: pgbouncer.yml
+
+- name: Import PostgreSQL backup configuration tasks
+  ansible.builtin.import_tasks: backupconfig.yml
+
+- name: Import PostgreSQL access configuration tasks
+  ansible.builtin.import_tasks: access.yml

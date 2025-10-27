@@ -1,0 +1,20 @@
+---
+- name: Ensure Logwatch is installed
+  ansible.builtin.apt:
+    name: Logwatch
+    state: present
+  become: true
+  tags: [audit, logwatch]
+
+- name: Configure daily Logwatch email summary
+  ansible.builtin.lineinfile:
+    path: /etc/cron.daily/00logwatch
+    regexp: "^/usr/sbin/logwatch"
+    line: "/usr/sbin/logwatch --output mail --mailto {{ admin_email }} --detail high"
+    state: present
+    create: true
+    owner: root
+    group: root
+    mode: '0644'
+  become: true
+  tags: [audit, logwatch]

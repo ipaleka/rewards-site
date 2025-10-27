@@ -4,6 +4,9 @@ django-template-partials>=25.2
 ## database
 psycopg[binary]
 python-dotenv>=1.0.1
+# Excel import
+openpyxl>=3.1.5
+pandas>=2.2.3
 ## API
 adrf>=0.1.10
 djangorestframework>=3.16.1

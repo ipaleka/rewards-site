@@ -1,13 +1,12 @@
 ---
-- name: Load .env.testing for Molecule
+- name: Load environment variables for Molecule
   hosts: localhost
+  connection: local
   gather_facts: false
+  run_once: true
   tasks:
-    - name: Load environment variables from .env.testing
-      ansible.builtin.set_fact:
-        env_vars: "{{ env_vars | default({}) | combine({item.split('=')[0]: item.split('=')[1]}) }}"
-      loop: "{{ lookup('file', '../../.env.testing').splitlines() }}"
-      when: item is search('=')
+    - name: Include shared env loader
+      ansible.builtin.include_tasks: "../../load_env.yml"
 
 - name: Converge testing environment
   hosts: all

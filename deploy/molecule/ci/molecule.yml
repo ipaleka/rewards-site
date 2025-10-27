@@ -6,14 +6,17 @@ driver:
   name: docker
 
 platforms:
-  - name: Ci-instance
-    image: ubuntu:22.04
+  - name: ci-instance
+    image: geerlingguy/docker-ubuntu2404-ansible:latest
     ansible.builtin.command: /sbin/init
     privileged: true
     pre_build_image: true
 
 provisioner:
   name: ansible
+  env:
+    ANSIBLE_ROLES_PATH: "../../roles"
+    ANSIBLE_COLLECTIONS_PATHS: "../../collections"
   playbooks:
     converge: converge.yml
   inventory:

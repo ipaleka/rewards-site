@@ -1,0 +1,46 @@
+---
+- name: Define env_name from limit or default to testing
+  ansible.builtin.set_fact:
+    env_name: "{{ ansible_limit | default('testing') }}"
+
+- name: Define list of .env files to load
+  ansible.builtin.set_fact:
+    env_files:
+      - ".env.{{ env_name }}"
+      - "{{ playbook_dir }}/../rewardsweb/.env.{{ env_name }}"
+      - "{{ playbook_dir }}/../rewardsweb/rewardsbot/.env"
+
+- name: Check which .env files exist
+  ansible.builtin.stat:
+    path: "{{ item }}"
+  loop: "{{ env_files }}"
+  register: env_file_check
+
+- name: Merge variables from all existing .env files
+  ansible.builtin.set_fact:
+    env_vars: "{{ env_vars | default({}) | combine(parsed_env, recursive=True) }}"
+  vars:
+    parsed_env: >-
+      {{
+        dict(
+          lookup('file', item.item)
+          .splitlines()
+          | reject('match', '^#')
+          | reject('match', '^$')
+          | map('regex_replace', '^[ \t]*', '')
+          | map('regex_replace', '[ \t]*$', '')
+          | map('split', '=', 1)
+        )
+      }}
+  loop: "{{ env_file_check.results }}"
+  when: item.stat.exists
+
+- name: Export env_vars globally via add_host  # noqa run-once[task]
+  ansible.builtin.add_host:
+    name: "{{ item }}"
+    global_env_vars: "{{ env_vars }}"
+  loop: "{{ groups['all'] | default([]) }}"
+  delegate_to: localhost
+  run_once: true
+  failed_when: false
+  tags: always

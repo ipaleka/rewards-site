@@ -6,6 +6,12 @@
         <div class="card-body">
             <h1 class="card-title text-2xl mb-6">Profile Settings</h1>
 
+            {% if user.profile.contributor %}
+            <p><span>Your contributions: </span><a class="link link-accent text-lg" href="{{ user.profile.contributor.get_absolute_url }}">
+              {{ user.profile.contributor.info }}
+            </a><br><br></p>
+            {% endif %}
+
             <form method="POST" enctype="multipart/form-data" action="." id="id_form">
                 {% csrf_token %}
 

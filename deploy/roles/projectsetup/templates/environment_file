@@ -1,4 +1,4 @@
-SECRET_KEY="{{ hostvars['localhost'].env_vars.SECRET_KEY }}"
+SECRET_KEY="{{ global_env_vars['SECRET_KEY'] }}"
 DATABASE_NAME="{{ global_env_vars['DATABASE_NAME'] }}"
 DATABASE_USER="{{ global_env_vars['DATABASE_USER'] }}"
 DATABASE_PASSWORD="{{ global_env_vars['DATABASE_PASSWORD'] }}"

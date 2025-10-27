@@ -28,7 +28,7 @@
   ansible.builtin.lineinfile:
     path: "{{ admin_home_directory }}/.ssh/known_hosts"
     regexp: "^{{ hostvars[inventory_hostname].ansible_host }} ssh-rsa "
-    line: "{{ admin_user_rsa_key.stdout }}"
+    line: "{{ projectsetup_admin_user_rsa_key.stdout }}"
     state: present
     create: true
     mode: "0600"

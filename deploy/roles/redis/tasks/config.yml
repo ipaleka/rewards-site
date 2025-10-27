@@ -15,9 +15,9 @@
     - regexp: "^protected-mode yes"
       line: "protected-mode no"
     - regexp: "^# masterauth <master-password>"
-      line: "masterauth {{ hostvars['localhost'].env_vars.REDIS_PASSWORD }}"
+      line: "masterauth {{ global_env_vars['REDIS_PASSWORD'] }}"
     - regexp: "^# requirepass foobared"
-      line: "requirepass {{ hostvars['localhost'].env_vars.REDIS_PASSWORD }}"
+      line: "requirepass {{ global_env_vars['REDIS_PASSWORD'] }}"
   tags: [redis-config]
 
 - name: Enable Redis service

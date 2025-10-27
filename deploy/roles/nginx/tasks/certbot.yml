@@ -1,0 +1,28 @@
+---
+- name: Create virtualenv for Certbot
+  ansible.builtin.command: python3 -m venv /opt/certbot/
+  args:
+    creates: /opt/certbot/
+  become: true
+  tags: [certbot]
+
+- name: Install Certbot and Certbot-Nginx
+  ansible.builtin.pip:
+    name: "{{ item }}"
+    executable: /opt/certbot/bin/pip
+    state: present
+  become: true
+  loop:
+    - certbot
+    - certbot-nginx
+  tags: [certbot]
+
+- name: Create symbolic link for Certbot
+  ansible.builtin.file:
+    src: /opt/certbot/bin/certbot
+    dest: /usr/bin/certbot
+    owner: root
+    group: root
+    state: link
+  become: true
+  tags: [certbot]

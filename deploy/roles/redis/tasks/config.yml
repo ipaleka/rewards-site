@@ -1,0 +1,29 @@
+---
+- name: Setup Redis server
+  ansible.builtin.lineinfile:
+    path: /etc/redis/redis.conf
+    regexp: "{{ item.regexp }}"
+    line: "{{ item.line }}"
+    state: present
+  become: true
+  notify: Restart redis
+  loop:
+    - regexp: "^bind 127.0.0.1 ::1"
+      line: "bind 127.0.0.1 {{ hostvars['localhost'].env_vars.WEB_IP }}"
+    - regexp: "^daemonize yes"
+      line: "# daemonize yes"
+    - regexp: "^protected-mode yes"
+      line: "protected-mode no"
+    - regexp: "^# masterauth <master-password>"
+      line: "masterauth {{ hostvars['localhost'].env_vars.REDIS_PASSWORD }}"
+    - regexp: "^# requirepass foobared"
+      line: "requirepass {{ hostvars['localhost'].env_vars.REDIS_PASSWORD }}"
+  tags: [redis-config]
+
+- name: Enable Redis service
+  ansible.builtin.systemd:
+    name: redis-server.service
+    state: started
+    enabled: true
+  become: true
+  tags: [redis-config]

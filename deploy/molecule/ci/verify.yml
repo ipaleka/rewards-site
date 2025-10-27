@@ -1,0 +1,22 @@
+---
+- name: Verify CI environment
+  hosts: all
+  gather_facts: false
+  tasks:
+    - name: Verify Gunicorn service file exists
+      ansible.builtin.stat:
+        path: /etc/systemd/system/gunicorn.service
+      register: gunicorn_file
+
+    - name: Assert Gunicorn systemd unit present
+      ansible.builtin.assert:
+        that:
+          - gunicorn_file.stat.exists
+        fail_msg: "Gunicorn service file not found at /etc/systemd/system/gunicorn.service"
+        success_msg: "Gunicorn service file found ✅"
+
+    - name: Verify deploy user exists (created by createuser role)
+      ansible.builtin.command: id deploy
+      register: deploy_user_check
+      changed_when: false
+      failed_when: deploy_user_check.rc != 0

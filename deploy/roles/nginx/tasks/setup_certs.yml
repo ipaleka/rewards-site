@@ -1,0 +1,103 @@
+---
+- name: Check if we already have a certificate
+  ansible.builtin.stat:
+    path: "/etc/letsencrypt/live/{{ site_name }}/fullchain.pem"
+  become: true
+  register: cert_stat
+  tags: [nginx, letsencrypt]
+
+- name: Set variable indicating whether we need certificate creation
+  ansible.builtin.set_fact:
+    need_certs: "{{ inventory_hostname in groups['production'] and not cert_stat.stat.exists }}"
+  tags: [nginx, letsencrypt]
+
+- name: "Add {{ site_name }} httponly config to nginx sites-available"
+  ansible.builtin.template:
+    src: nginx.httponly.conf
+    dest: "/etc/nginx/sites-available/{{ site_name }}"
+    owner: root
+    group: root
+    mode: '0640'
+    force: no
+  become: true
+  when: need_certs
+  tags: [nginx, letsencrypt]
+
+- name: "Add {{ site_name }} http-only config to nginx sites-available"
+  ansible.builtin.template:
+    src: nginx.http-only.conf
+    dest: "/etc/nginx/sites-available/{{ site_name }}"
+    owner: root
+    group: root
+    mode: '0640'
+  become: true
+  when: inventory_hostname in groups['testing']
+  tags: [nginx, letsencrypt]
+
+- name: "Add {{ site_name }} symlink to nginx sites-enabled"
+  ansible.builtin.file:
+    src: "/etc/nginx/sites-available/{{ site_name }}"
+    dest: "/etc/nginx/sites-enabled/{{ site_name }}"
+    state: link
+    owner: root
+    group: root
+    mode: '0640'
+  become: true
+  when: need_certs or
+        inventory_hostname in groups['testing'] or
+        inventory_hostname in groups['ci']
+  notify: Restart nginx
+  tags: [nginx, letsencrypt]
+
+- name: "Generate Let's Encrypt certificate"
+  ansible.builtin.command: >
+    certbot certonly --non-interactive --agree-tos --no-eff-email
+    --email {{ admin_email }}
+    -a webroot --webroot-path /var/www/letsencrypt
+    -d {{ site_name }}
+  become: true
+  when:
+    - need_certs
+    - test is not defined
+  tags: [nginx, letsencrypt]
+
+- name: "Remove {{ site_name }} httponly config from sites-enabled"
+  ansible.builtin.file:
+    path: "/etc/nginx/sites-enabled/{{ site_name }}"
+    state: absent
+  become: true
+  when: need_certs
+  notify: Restart nginx
+  tags: [nginx, letsencrypt]
+
+- name: "Remove {{ site_name }} httponly config from sites-available"
+  ansible.builtin.file:
+    path: "/etc/nginx/sites-available/{{ site_name }}"
+    state: absent
+  become: true
+  when: need_certs
+  notify: Restart nginx
+  tags: [nginx, letsencrypt]
+
+- name: "Add {{ site_name }} ssl config to nginx sites-available"
+  ansible.builtin.template:
+    src: nginx.ssl.conf
+    dest: "/etc/nginx/sites-available/{{ site_name }}"
+    owner: root
+    group: root
+    mode: '0640'
+  become: true
+  when: inventory_hostname in groups['production']
+  tags: [nginx, nginx-snippets, letsencrypt]
+
+- name: "Add {{ site_name }} symlink to nginx sites-enabled (SSL)"
+  ansible.builtin.file:
+    src: "/etc/nginx/sites-available/{{ site_name }}"
+    dest: "/etc/nginx/sites-enabled/{{ site_name }}"
+    state: link
+    owner: root
+    group: root
+    mode: '0640'
+  become: true
+  notify: Restart nginx
+  tags: [nginx, letsencrypt]

@@ -1,0 +1,119 @@
+---
+- name: Disallow password authentication
+  ansible.builtin.replace:
+    path: /etc/ssh/sshd_config
+    regexp: "^#PasswordAuthentication yes"
+    replace: "PasswordAuthentication no"
+  become: true
+  notify: Restart ssh
+  tags: [hardening_ssh]
+
+- name: Disallow root SSH access
+  ansible.builtin.lineinfile:
+    path: /etc/ssh/sshd_config
+    regexp: "^PermitRootLogin"
+    line: "PermitRootLogin no"
+    state: present
+  become: true
+  notify: Restart ssh
+  tags: [hardening_ssh]
+
+- name: Disallow TCP forwarding
+  ansible.builtin.lineinfile:
+    path: /etc/ssh/sshd_config
+    regexp: "^AllowTcpForwarding"
+    line: "AllowTcpForwarding no"
+    state: present
+  become: true
+  notify: Restart ssh
+  tags: [hardening_ssh]
+
+- name: Disallow compression
+  ansible.builtin.lineinfile:
+    path: /etc/ssh/sshd_config
+    regexp: "^Compression"
+    line: "Compression no"
+    state: present
+  become: true
+  notify: Restart ssh
+  tags: [hardening_ssh]
+
+- name: Set LogLevel to VERBOSE
+  ansible.builtin.lineinfile:
+    path: /etc/ssh/sshd_config
+    regexp: "^LogLevel"
+    line: "LogLevel VERBOSE"
+    state: present
+  become: true
+  notify: Restart ssh
+  tags: [hardening_ssh]
+
+- name: Limit authorization attempts to 3
+  ansible.builtin.lineinfile:
+    path: /etc/ssh/sshd_config
+    regexp: "^MaxAuthTries"
+    line: "MaxAuthTries 3"
+    state: present
+  become: true
+  notify: Restart ssh
+  tags: [hardening_ssh]
+
+- name: Limit SSH sessions to 10
+  ansible.builtin.lineinfile:
+    path: /etc/ssh/sshd_config
+    regexp: "^MaxSessions"
+    line: "MaxSessions 10"
+    state: present
+  become: true
+  notify: Restart ssh
+  tags: [hardening_ssh]
+
+- name: Disable TCP keepalive
+  ansible.builtin.lineinfile:
+    path: /etc/ssh/sshd_config
+    regexp: "^TCPKeepAlive"
+    line: "TCPKeepAlive no"
+    state: present
+  become: true
+  notify: Restart ssh
+  tags: [hardening_ssh]
+
+- name: Disable X11 forwarding
+  ansible.builtin.lineinfile:
+    path: /etc/ssh/sshd_config
+    regexp: "^X11Forwarding"
+    line: "X11Forwarding no"
+    state: present
+  become: true
+  notify: Restart ssh
+  tags: [hardening_ssh]
+
+- name: Disable agent forwarding
+  ansible.builtin.lineinfile:
+    path: /etc/ssh/sshd_config
+    regexp: "^AllowAgentForwarding"
+    line: "AllowAgentForwarding no"
+    state: present
+  become: true
+  notify: Restart ssh
+  tags: [hardening_ssh]
+
+- name: Disable UseDNS
+  ansible.builtin.lineinfile:
+    path: /etc/ssh/sshd_config
+    regexp: "^UseDNS"
+    line: "UseDNS no"
+    state: present
+  become: true
+  notify: Restart ssh
+  tags: [hardening_ssh]
+
+- name: Allow SSH only for admin user
+  ansible.builtin.lineinfile:
+    path: /etc/ssh/sshd_config
+    regexp: "^AllowUsers"
+    line: "AllowUsers {{ admin_user }}"
+    state: present
+  become: true
+  notify: Restart ssh
+  tags: [hardening_ssh]

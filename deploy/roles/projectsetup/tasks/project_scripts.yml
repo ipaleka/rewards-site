@@ -1,0 +1,112 @@
+---
+- name: Create project management command scripts
+  ansible.builtin.template:
+    src: managementcommand.sh
+    dest: "{{ site_path }}/scripts/{{ item }}.sh"
+    owner: "{{ webapp_user }}"
+    group: "{{ webapp_group }}"
+    mode: "0700"
+  loop:
+    - collectstatic
+    - clearsessions
+    - migrate
+  become: true
+  become_user: "{{ webapp_user }}"
+  tags: [project-setup, create-scripts]
+
+- name: Create management command cron scripts with output
+  ansible.builtin.template:
+    src: managementcommandoutputcron.sh
+    dest: "{{ site_path }}/scripts/{{ item.name }}cron.sh"
+    owner: "{{ webapp_user }}"
+    group: "{{ webapp_group }}"
+    mode: "0700"
+  loop:
+    - {
+        name: "deletedeactivated",
+        output: '$output == "0 deactivated accounts deleted!"',
+      }
+  become: true
+  become_user: "{{ webapp_user }}"
+  tags: [project-setup, cronjobs]
+
+- name: Run collectstatic management command
+  ansible.builtin.shell: |
+    set -o pipefail
+    echo "yes" | ./collectstatic.sh
+  args:
+    chdir: "{{ site_path }}/scripts/"
+    executable: /bin/bash
+  become: true
+  become_user: "{{ webapp_user }}"
+  register: collectstatic_command
+  changed_when: "'0 static files copied to' not in collectstatic_command.stdout"
+  tags: [project-setup, run-project-scripts, update-project-code]
+
+- name: Create weekly clearsessions cron job
+  ansible.builtin.cron:
+    weekday: "2"
+    hour: "5"
+    minute: "47"
+    name: "{{ project_name }} clearsessions (weekly)"
+    user: "{{ webapp_user }}"
+    job: ": Clear sessions weekly ; /usr/bin/nice -n 10 {{ site_path }}/scripts/clearsessionscron.sh"
+  become: true
+  tags: [project-setup, cronjobs]
+
+- name: Run migrate management command
+  ansible.builtin.shell: |
+    set -o pipefail
+    echo "yes" | ./migrate.sh
+  args:
+    chdir: "{{ site_path }}/scripts/"
+    executable: /bin/bash
+  become: true
+  become_user: "{{ webapp_user }}"
+  register: migrate_command
+  changed_when: "'No migrations to apply' not in migrate_command.stdout"
+  tags:
+    [project-setup, postgresql-create, run-project-scripts, update-project-code]
+
+- name: Create weekly delete deactivated accounts cron job
+  ansible.builtin.cron:
+    weekday: "3"
+    hour: "23"
+    minute: "20"
+    name: "{{ project_name }} delete deactivated accounts (weekly)"
+    user: "{{ webapp_user }}"
+    job: ": Delete deactivated accounts weekly ; {{ site_path }}/scripts/deletedeactivatedcron.sh"
+  become: true
+  tags: [project-setup, cronjobs]
+
+- name: Update site record in django_site table
+  ansible.builtin.command: >
+    su -c "psql -d {{ env_name }} -c
+    \"UPDATE django_site SET domain='{{ site_name }}', name='{{ project_name }}' WHERE id = 1;\""
+    postgres
+  become: true
+  when:
+    - database_created is defined
+    - database_created is changed
+    - "'No migrations to apply' not in migrate_command.stdout"
+  tags: [project-setup, postgresql-create]
+
+- name: Create backup helper script to delete obsolete files
+  ansible.builtin.template:
+    src: delete_but_last.py
+    dest: "{{ site_path }}/scripts/delete_but_last.py"
+    owner: "{{ webapp_user }}"
+    group: "{{ webapp_group }}"
+    mode: "0700"
+  become: true
+  become_user: "{{ webapp_user }}"
+  tags: [project-setup, cronjobs, backup-collect-data-liveserver]
+
+- name: Ensure SHELL variable is present in crontab
+  ansible.builtin.cron:
+    name: SHELL
+    env: yes
+    value: /bin/bash
+  become: true
+  become_user: "{{ webapp_user }}"
+  tags: [project-setup, cronjobs]

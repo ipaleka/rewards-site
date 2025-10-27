@@ -1,0 +1,7 @@
+---
+- import_tasks: prepare.yml
+- import_tasks: reboot_required.yml
+- import_tasks: auto_updates.yml
+- import_tasks: hosts.yml
+- import_tasks: postfix.yml
+- import_tasks: misc.yml

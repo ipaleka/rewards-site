@@ -1,0 +1,7 @@
+---
+- name: Install arpwatch
+  apt:
+    name: arpwatch
+    state: present
+  become: true
+  tags: [audit, audit-arpwatch]

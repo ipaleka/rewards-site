@@ -1,0 +1,45 @@
+---
+- name: Ensure UFW is installed
+  ansible.builtin.apt:
+    name: ufw
+    state: present
+  become: true
+  tags: [hardening_ufw]
+
+- name: Configure UFW default policies
+  community.general.ufw:
+    direction: "{{ item.direction }}"
+    policy: "{{ item.policy }}"
+  become: true
+  loop:
+    - { direction: 'incoming', policy: 'deny' }
+    - { direction: 'outgoing', policy: 'allow' }
+  notify: Restart ufw
+  tags: [hardening_ufw]
+
+- name: Configure UFW rules for HTTP(S), SSH, and SMTP
+  community.general.ufw:
+    rule: "{{ item.rule }}"
+    port: "{{ item.port }}"
+    proto: "{{ item.proto }}"
+  become: true
+  loop:
+    - { rule: 'allow', port: '80', proto: 'tcp' }
+    - { rule: 'allow', port: '443', proto: 'tcp' }
+    - { rule: 'allow', port: '22', proto: 'tcp' }
+    - { rule: 'allow', port: '587', proto: 'tcp' }
+  notify: Restart ufw
+  tags: [hardening_ufw]
+
+- name: Enable UFW logging
+  community.general.ufw:
+    logging: on
+  become: true
+  notify: Restart ufw
+  tags: [hardening_ufw]
+
+- name: Enable UFW
+  community.general.ufw:
+    state: enabled
+  become: true
+  tags: [hardening_ufw]

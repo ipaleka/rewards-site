@@ -1,0 +1,4 @@
+---
+# Here are variables related to the ci installation
+host_alias: ci
+log_level: info

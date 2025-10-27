@@ -1,0 +1,17 @@
+plugin: yaml
+all:
+  # vars:
+  #   ansible_python_interpreter: /usr/bin/python3
+  children:
+    testing:
+      hosts:
+        webserver:
+          ansible_host: "{{ lookup('env', 'WEB_IP') }}"
+    production:
+      hosts:
+        webserver:
+          ansible_host: "{{ lookup('env', 'WEB_IP') }}"
+    ci:
+      hosts:
+        webserver:
+          ansible_host: "{{ lookup('env', 'WEB_IP') }}"

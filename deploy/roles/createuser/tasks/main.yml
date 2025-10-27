@@ -1,0 +1,50 @@
+---
+- name: Ensure group for admin_user exists
+  group:
+    name: "{{ admin_user_group }}"
+    state: present
+  become: true
+  tags: [create-user]
+
+- name: Create admin_user
+  user:
+    name: "{{ admin_user }}"
+    group: "{{ admin_user_group }}"
+    state: present
+    createhome: yes
+    shell: /bin/bash
+  become: true
+  tags: [create-user]
+
+- name: allow user to have passwordless sudo
+  lineinfile:
+    dest: /etc/sudoers
+    line: '{{ admin_user }} ALL=(ALL) NOPASSWD: ALL'
+    validate: 'visudo -cf %s'
+  become: true
+  tags: [create-user]
+
+- name: Check if Ansible temporary user directory exists
+  file:
+    path: "{{ admin_home_directory }}.ansible/tmp"
+    state: directory
+    mode: 0700
+    owner: "{{ admin_user }}"
+    group: "{{ admin_user_group }}"
+  become: true
+  tags: [create-user]
+
+- name: Set up authorized keys for the user
+  authorized_key:
+    user: "{{ admin_user }}"
+    key: "{{ item }}"
+  become: true
+  become_user: "{{ admin_user }}"
+  with_file:
+    - "{{ local_path_to_public_key }}"
+  tags: [create-user]
+
+- name: Set created admin_user as ansible_user
+  set_fact:
+    ansible_user: "{{ admin_user }}"
+  tags: [create-user]

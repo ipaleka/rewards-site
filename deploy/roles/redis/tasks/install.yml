@@ -1,0 +1,7 @@
+---
+- name: Install redis-server package
+  apt:
+    name: redis-server
+    state: present
+  become: true
+  tags: [redis-install]

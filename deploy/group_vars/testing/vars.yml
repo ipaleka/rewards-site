@@ -1,0 +1,5 @@
+---
+# Here are variables related to the testing installation
+host_alias: testing
+gunicorn_workers: 4  # cpu_count() * 2 + 1 is suggestion
+channels_workers: 2  # cpu_count() is suggestion

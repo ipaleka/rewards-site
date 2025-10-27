@@ -1,0 +1,24 @@
+---
+- name: Ensure RKHunter is installed
+  ansible.builtin.apt:
+    name: rkhunter
+    state: present
+  become: true
+  notify: RKHunter installed
+  tags: [audit, rkhunter]
+
+- name: Enable RKHunter automatic database updates after software installs
+  ansible.builtin.replace:
+    path: /etc/default/rkhunter
+    regexp: '^APT_AUTOGEN="false"'
+    replace: 'APT_AUTOGEN="true"'
+  become: true
+  tags: [audit, rkhunter]
+
+- name: Set RKHunter report email destination
+  ansible.builtin.replace:
+    path: /etc/default/rkhunter
+    regexp: '^REPORT_EMAIL="root"'
+    replace: 'REPORT_EMAIL="{{ admin_email }}"'
+  become: true
+  tags: [audit, rkhunter]

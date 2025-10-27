@@ -1,0 +1,34 @@
+---
+- name: Install sysfsutils package
+  apt:
+    name: sysfsutils
+    state: present
+  become: true
+  tags: [redis-tuning]
+
+- name: Disable THP
+  lineinfile:
+    dest: /etc/sysfs.conf
+    regexp: "^kernel/mm/transparent_hugepage/enabled = never"
+    line: "kernel/mm/transparent_hugepage/enabled = never"
+    state: present
+  become: true
+  tags: [redis-tuning]
+
+- name: Set vm.overcommit_memory=1
+  lineinfile:
+    dest: /etc/sysctl.conf
+    regexp: "^vm.overcommit_memory=1"
+    line: "vm.overcommit_memory=1"
+    state: present
+  become: true
+  tags: [redis-tuning]
+
+- name: Raise somaxconn to 65535
+  lineinfile:
+    dest: /etc/sysctl.conf
+    regexp: "^net.core.somaxconn=65535"
+    line: "net.core.somaxconn=65535"
+    state: present
+  become: true
+  tags: [redis-tuning]

@@ -1,0 +1,44 @@
+---
+- name: Ensure {{ admin_user }} opt/archives folder exists
+  ansible.builtin.file:
+    path: "{{ opt_folder }}archives"
+    state: directory
+    mode: '0755'
+  tags: [audit, lynis]
+
+- name: Get username running the playbook
+  ansible.builtin.command: whoami
+  delegate_to: localhost
+  register: host_username_lynis
+  changed_when: false
+  tags: [audit, lynis]
+
+- name: Copy Lynis archive from local host
+  ansible.builtin.copy:
+    src: "/home/{{ host_username_lynis.stdout_lines[0] }}/opt/archives/lynis-{{ lynis_version }}.tar.gz"
+    dest: "{{ opt_folder }}archives/lynis-{{ lynis_version }}.tar.gz"
+    owner: "{{ admin_user }}"
+    group: "{{ admin_user }}"
+  become: true
+  notify: Lynis downloaded
+  tags: [audit, lynis]
+
+- name: Deploy Lynis cron job script
+  ansible.builtin.template:
+    src: lyniscron.sh
+    dest: "{{ opt_folder }}lyniscron.sh"
+    owner: "{{ admin_user }}"
+    group: "{{ admin_user_group }}"
+    mode: '0755'
+  tags: [audit, lynis]
+
+- name: Create weekly Lynis cron job
+  ansible.builtin.cron:
+    name: "lynis-weekly"
+    day: '4'
+    hour: '5'
+    minute: '20'
+    user: root
+    job: ": Lynis weekly ; {{ opt_folder }}lyniscron.sh"
+  become: true
+  tags: [audit, lynis, cronjobs]

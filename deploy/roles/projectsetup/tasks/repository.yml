@@ -1,0 +1,19 @@
+---
+- name: "Clone {{ project_name }} repository"
+  git:
+    repo: "https://{{ repository_user | urlencode }}:{{ repository_token | urlencode }}@{{ repository_url }}"
+    dest: "{{ site_path }}/source"
+    version: main
+    umask: "027"
+  become: true
+  become_user: "{{ webapp_user }}"
+  notify: "Reload web server"
+  tags: [repository, update-project-code]
+
+- name: "Install Python requirements for {{ project_name }}"
+  ansible.builtin.pip:
+    requirements: "{{ site_path }}/source/{{ app_name }}/requirements/{{ host_alias }}.txt"
+    executable: "{{ site_path }}/venv/bin/pip"
+  become: true
+  become_user: "{{ webapp_user }}"
+  tags: [requirements, update-project-code]

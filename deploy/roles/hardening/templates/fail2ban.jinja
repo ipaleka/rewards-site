@@ -1,0 +1,71 @@
+# Fail2Ban configuration file.
+
+[DEFAULT]
+
+# ignoreip = 127.0.0.1/8
+ignoreip = 127.0.0.1 192.168.1.0/24 8.8.8.8
+
+bantime = 120m
+maxretry = 3
+destemail = {{ admin_email }}
+sendername = fail2ban.{{ ansible_hostname }}
+mta = sendmail
+protocol = tcp
+
+# ACTIONS
+action = %(action_mw)s
+
+[ssh]
+
+enabled  = true
+port = 22
+filter   = sshd
+
+[ssh-ddos]
+
+enabled = true
+port = 22
+filter = sshd[mode=ddos]
+maxretry = 2
+
+[nginx-http-auth]
+
+enabled  = true
+filter   = nginx-http-auth
+port     = http,https
+logpath  = /var/log/nginx/error.log
+
+[nginx-noscript]
+enabled  = true
+port     = http,https
+filter   = nginx-noscript
+maxretry = 2
+logpath  = /var/log/nginx/*access.log
+
+[nginx-badbots]
+enabled  = true
+port     = http,https
+filter   = nginx-badbots
+maxretry = 2
+logpath  = /var/log/nginx/*access.log
+
+[nginx-nohome]
+enabled  = true
+port     = http,https
+filter   = nginx-nohome
+maxretry = 2
+logpath  = /var/log/nginx/*access.log
+
+[nginx-noproxy]
+enabled  = true
+port     = http,https
+filter   = nginx-noproxy
+maxretry = 2
+logpath  = /var/log/nginx/*access.log
+
+[nginx-urlscanners]
+enabled  = true
+port     = http,https
+filter   = nginx-urlscanners
+logpath  = /var/log/nginx/*access.log
+maxretry = 1

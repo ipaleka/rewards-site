@@ -1,0 +1,7 @@
+---
+- import_tasks: install.yml
+- import_tasks: create.yml
+- import_tasks: tuning.yml
+- import_tasks: pgbouncer.yml
+- import_tasks: backupconfig.yml
+- import_tasks: access.yml

@@ -1,0 +1,43 @@
+---
+- name: Get username running the playbook
+  ansible.builtin.command: whoami
+  delegate_to: localhost
+  register: ssh_sync_host_username
+  changed_when: false
+  tags: [ssh-sync-setup]
+
+- name: Set up authorized key for admin_user
+  ansible.posix.authorized_key:
+    user: "{{ admin_user }}"
+    key: "{{ lookup('file', local_path_to_public_key) }}"
+  become: true
+  tags: [ssh-sync-setup]
+
+- name: Gather admin_user RSA key from web server
+  ansible.builtin.command: "ssh-keyscan -t rsa {{ hostvars['localhost'].env_vars.WEB_IP }}"
+  become: true
+  become_user: "{{ admin_user }}"
+  register: admin_user_rsa_key
+  changed_when: false
+  tags: [ssh-sync-setup]
+
+- name: Ensure known_hosts file exists for admin_user
+  ansible.builtin.file:
+    path: "{{ admin_home_directory }}/.ssh/known_hosts"
+    state: touch
+    owner: "{{ admin_user }}"
+    group: "{{ admin_user_group | default(admin_user) }}"
+    mode: '0644'
+  become: true
+  tags: [ssh-sync-setup]
+
+- name: Add admin_user RSA key to known_hosts
+  ansible.builtin.lineinfile:
+    path: "{{ admin_home_directory }}/.ssh/known_hosts"
+    regexp: "^{{ hostvars['localhost'].env_vars.WEB_IP }} ssh-rsa "
+    line: "{{ admin_user_rsa_key.stdout }}"
+    state: present
+    create: yes
+  become: true
+  become_user: "{{ admin_user }}"
+  tags: [ssh-sync-setup]

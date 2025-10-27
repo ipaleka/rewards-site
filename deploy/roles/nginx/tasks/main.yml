@@ -1,0 +1,7 @@
+---
+- import_tasks: install_nginx.yml
+- import_tasks: certbot.yml
+- import_tasks: setup_nginx.yml
+- import_tasks: setup_site.yml
+- import_tasks: setup_certs.yml
+- import_tasks: setup_renewal.yml

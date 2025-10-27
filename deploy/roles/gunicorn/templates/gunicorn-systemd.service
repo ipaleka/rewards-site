@@ -1,0 +1,24 @@
+[Unit]
+Description=Gunicorn server for {{ site_name }}
+Wants=network-online.target
+After=network.target network-online.target
+
+[Service]
+User={{ webapp_user }}
+Group={{ webapp_group }}
+Nice=-15
+Restart=on-failure
+WorkingDirectory={{ site_path }}/source/{{ app_name }}
+ExecStart={{ site_path }}/venv/bin/gunicorn \
+        --env DJANGO_SETTINGS_MODULE={{ django_settings }} \
+        --env SECRET_KEY={{ hostvars['localhost'].env_vars.SECRET_KEY }} \
+        --workers {{ gunicorn_workers }} \
+        --bind unix:{{ site_path }}/run/{{ site_name }}.socket \
+        --log-level={{ log_level }} \
+        --capture-output \
+        --log-file=- \
+        {{ app_name }}.wsgi:application
+ExecReload=/bin/kill -s HUP $MAINPID
+
+[Install]
+WantedBy=multi-user.target

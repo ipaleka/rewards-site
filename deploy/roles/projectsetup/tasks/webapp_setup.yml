@@ -1,0 +1,85 @@
+---
+- name: Ensure group for web app exists
+  ansible.builtin.group:
+    name: "{{ webapp_group }}"
+    system: true
+  become: true
+  tags: [webappsetup]
+
+- name: Ensure web app base folder exists
+  ansible.builtin.file:
+    path: "{{ site_path }}"
+    state: directory
+    mode: '0755'
+  become: true
+  tags: [webappsetup]
+
+- name: Ensure user for web app exists
+  ansible.builtin.user:
+    name: "{{ webapp_user }}"
+    system: true
+    group: "{{ webapp_group }}"
+    shell: /bin/bash
+    home: "{{ site_path }}"
+  become: true
+  tags: [webappsetup]
+
+- name: Ensure web app folder ownership is correct
+  ansible.builtin.file:
+    path: "{{ site_path }}"
+    state: directory
+    owner: "{{ webapp_user }}"
+    group: "{{ webapp_group }}"
+    mode: '0755'
+  become: true
+  tags: [webappsetup]
+
+- name: Ensure scripts directory exists
+  ansible.builtin.file:
+    path: "{{ site_path }}/scripts"
+    state: directory
+    owner: "{{ webapp_user }}"
+    group: "{{ webapp_group }}"
+    mode: '0700'
+  become: true
+  tags: [webappsetup]
+
+- name: Ensure static directory exists
+  ansible.builtin.file:
+    path: "{{ site_path }}/static"
+    state: directory
+    owner: "{{ webapp_user }}"
+    group: "{{ webapp_group }}"
+    mode: '0755'
+  become: true
+  tags: [webappsetup]
+
+- name: Ensure logs directory exists
+  ansible.builtin.file:
+    path: "{{ site_path }}/logs"
+    state: directory
+    owner: "{{ webapp_user }}"
+    group: "{{ webapp_group }}"
+    mode: '0755'
+  become: true
+  tags: [webappsetup]
+
+- name: Ensure run directory for unix socket exists
+  ansible.builtin.file:
+    path: "{{ site_path }}/run"
+    state: directory
+    owner: "{{ webapp_user }}"
+    group: "{{ webapp_group }}"
+    mode: '0755'
+  become: true
+  tags: [webappsetup]
+
+- name: Ensure temporary Ansible working directory exists
+  ansible.builtin.file:
+    path: "{{ site_path }}/.ansible/tmp"
+    state: directory
+    owner: "{{ webapp_user }}"
+    group: "{{ webapp_group }}"
+    mode: '0700'
+  become: true
+  tags: [webappsetup]

@@ -1,0 +1,7 @@
+---
+- import_tasks: webapp_setup.yml
+- import_tasks: virtualenv.yml
+- import_tasks: repository.yml
+- import_tasks: environment.yml
+- import_tasks: ssh_setup.yml
+- import_tasks: project_scripts.yml

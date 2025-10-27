@@ -1,0 +1,44 @@
+---
+- name: Make sure pgbouncer package is installed
+  apt:
+    name:
+      - pgbouncer
+    state: present
+  become: true
+  tags: [postgresql, pgbouncer]
+
+- name: Set pgbouncer users
+  ansible.builtin.lineinfile:
+    path: /etc/pgbouncer/userlist.txt
+    line: '"{{ hostvars["localhost"].env_vars.DATABASE_NAME }}" "{{ hostvars["localhost"].env_vars.DATABASE_PASSWORD }}"'
+    state: present
+  become: true
+  tags: [postgresql, pgbouncer]
+
+- name: Tune pgbouncer
+  ansible.builtin.lineinfile:
+    path: /etc/pgbouncer/pgbouncer.ini
+    regexp: "{{ item.regex }}"
+    line: "{{ item.value }}"
+    backrefs: yes
+    state: present
+  become: true
+  loop:
+    - regex: "^(;)?foodb ="
+      value: >-
+        {{ hostvars["localhost"].env_vars.DATABASE_NAME }}
+        = host=localhost port=5432
+        dbname={{ hostvars["localhost"].env_vars.DATABASE_NAME }}
+        user={{ hostvars["localhost"].env_vars.DATABASE_USER }}
+        password={{ hostvars["localhost"].env_vars.DATABASE_PASSWORD }}
+
+    - regex: "^(;)?admin_users = user2, someadmin, otheradmin"
+      value: >-
+        admin_users = postgres, {{ hostvars["localhost"].env_vars.ADMIN_USER }}
+
+    - regex: "^(;)?stats_users = stats, root"
+      value: >-
+        stats_users = {{ hostvars["localhost"].env_vars.WEBAPP_USER }}, root
+  notify: Restart pgbouncer
+  tags: [postgresql, pgbouncer]
+

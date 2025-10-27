@@ -1,0 +1,9 @@
+---
+- name: "Create virtualenv for {{ project_name }}"
+  command: python3 -m venv venv
+  args:
+    chdir: "{{ site_path }}"
+    creates: "{{ site_path }}/venv"
+  become: true
+  become_user: "{{ webapp_user }}"
+  tags: [virtualenv]

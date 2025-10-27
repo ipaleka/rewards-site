@@ -1,0 +1,7 @@
+---
+- name: Restart postfix
+  systemd:
+    name: postfix
+    state: restarted
+  become: true
+  listen: "Restart postfix"

@@ -1,0 +1,179 @@
+---
+- name: reload gunicorn
+  systemd:
+    name: "gunicorn-{{ env_name }}"
+    state: reloaded
+  when: inventory_hostname != "cacheserver"
+  become: true
+  listen: "Reload web server"
+
+- name: reload nginx
+  systemd:
+    name: openresty
+    state: reloaded
+  when: inventory_hostname != "cacheserver"
+  become: true
+  listen: "Reload web server"
+
+- name: restart daphne
+  community.general.supervisorctl:
+    name: all
+    state: restarted
+  when: inventory_hostname != "cacheserver"
+  become: true
+  listen: "Reload web server"
+
+- name: load initial data
+  command: ./loadinitialdata.sh
+  args:
+    chdir: "{{ site_path }}/scripts/"
+  become: true
+  become_user: "{{ webapp_user }}"
+  listen: "load initial data"
+
+- name: Extract chromedriver
+  unarchive:
+    src: "{{ opt_folder }}archives/{{ chromedriver_archivename }}"
+    dest: "{{ opt_folder }}archives/"
+    keep_newer: yes
+    remote_src: yes
+  listen: "chromedriver updated"
+
+- name: Copy chromedriver
+  copy:
+    src: "{{ opt_folder }}archives/{{ chromedriver_name }}/chromedriver"
+    dest: "/usr/bin/chromedriver"
+    remote_src: yes
+    mode: 0755
+    force: yes
+  become: true
+  listen: "chromedriver updated"
+
+- name: remove extracted directory
+  file:
+    path: "{{ opt_folder }}archives/{{ chromedriver_name }}/"
+    state: absent
+  listen: "chromedriver updated"
+
+- name: install Chrome 64bit
+  apt:
+    deb: "{{ opt_folder }}archives/{{ chrome_deb }}"
+  become: true
+  listen: "chrome updated"
+
+- name: upgrade selenium
+  pip:
+   name: selenium
+   state: latest
+   executable: "{{ site_path }}/venv/bin/pip"
+  become: true
+  become_user: "{{ webapp_user }}"
+  listen: "chrome updated"
+
+- name: Enable and restart collector
+  systemd:
+    name: "collector-{{ env_name }}"
+    state: restarted
+    daemon_reload: yes
+    enabled: yes
+  become: true
+  listen: "enable and restart collector"
+
+- name: Enable and restart transmitter
+  systemd:
+    name: "transmitter-{{ env_name }}"
+    state: restarted
+    daemon_reload: yes
+    enabled: yes
+  become: true
+  listen: "enable and restart transmitter"
+
+- name: Enable and restart updaternft
+  systemd:
+    name: "updaternft-{{ env_name }}"
+    state: restarted
+    daemon_reload: yes
+    enabled: yes
+  become: true
+  listen: "enable and restart updaternft"
+
+- name: Enable and restart apiupdaternft
+  systemd:
+    name: "apiupdaternft-{{ env_name }}"
+    state: restarted
+    daemon_reload: yes
+    enabled: yes
+  become: true
+  listen: "enable and restart apiupdaternft"
+
+- name: Enable and restart liquidity update
+  systemd:
+    name: "liquidity-{{ env_name }}"
+    state: restarted
+    daemon_reload: yes
+    enabled: yes
+  become: true
+  listen: "enable and restart liquidity update"
+
+- name: Enable and restart predictor
+  systemd:
+    name: "predictor-{{ env_name }}"
+    state: restarted
+    daemon_reload: yes
+    enabled: yes
+  become: true
+  listen: "enable and restart predictor"
+
+- name: Enable and restart syncthumbnails
+  systemd:
+    name: "syncthumbnails-{{ env_name }}"
+    state: restarted
+    daemon_reload: yes
+    enabled: yes
+  become: true
+  listen: "enable and restart syncthumbnails"
+
+- name: Enable and restart synctaxdata
+  systemd:
+    name: "synctaxdata-{{ env_name }}"
+    state: restarted
+    daemon_reload: yes
+    enabled: yes
+  become: true
+  listen: "enable and restart synctaxdata"
+
+- name: Enable and restart huey
+  systemd:
+    name: "huey-{{ env_name }}"
+    state: restarted
+    daemon_reload: yes
+    enabled: yes
+  become: true
+  listen: "enable and restart huey"
+
+- name: Enable and restart dockerizednode
+  systemd:
+    name: "dockerizednode-{{ env_name }}"
+    state: restarted
+    daemon_reload: yes
+    enabled: yes
+  become: true
+  listen: "enable and restart dockerizednode"
+
+- name: Enable and restart appstransmitter
+  systemd:
+    name: "appstransmitter-{{ env_name }}"
+    state: restarted
+    daemon_reload: yes
+    enabled: yes
+  become: true
+  listen: "enable and restart appstransmitter"
+
+- name: Enable and restart permissiondappupdater
+  systemd:
+    name: "permissiondappupdater-{{ env_name }}"
+    state: restarted
+    daemon_reload: yes
+    enabled: yes
+  become: true
+  listen: "enable and restart permissiondappupdater"

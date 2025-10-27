@@ -1,0 +1,41 @@
+---
+# project variables
+project_name: rewards.asastats.com
+logo_name: asastats
+app_name: rewardsweb
+site_name: rewards.asastats.com
+django_settings: "rewardsweb.settings.{{ host_alias }}"
+env_name: "{{ host_alias }}_rewardsweb"
+
+# repository
+repository_url:  github.com/asastats/rewards-site.git
+repository_user: "{{ hostvars['localhost'].env_vars.GITHUB_USER }}"
+repository_token: "{{ hostvars['localhost'].env_vars.GITHUB_TOKEN }}"
+
+# default administrator user on the host machine
+admin_user: "{{ hostvars['localhost'].env_vars.ADMIN_USER }}"
+admin_user_group: "{{ admin_user }}"
+admin_home_directory: "/home/{{ admin_user }}/"
+admin_email: "{{ hostvars['localhost'].env_vars.ADMIN_EMAIL }}"
+
+# identity used to connect to host machine(s)
+local_path_to_public_key: "{{ hostvars['localhost'].env_vars.PUBLIC_KEY_LOCAL_PATH | default('~/.ssh/id_rsa.pub') }}"
+
+# Django application variables
+webapp_user: "{{ hostvars['localhost'].env_vars.WEBAPP_USER }}"
+webapp_group: "{{ hostvars['localhost'].env_vars.WEBAPP_GROUP | default('webapps') }}"
+
+projects_path: /var/www/
+site_path: "{{ projects_path }}{{ site_name }}"
+
+gunicorn_workers: 9  # cpu_count() * 2 + 1 is suggestion
+
+log_level: debug
+
+opt_folder: "/home/{{ admin_user }}/opt/"
+
+postgresql_version: 16
+database_backup_folder: "/home/{{ admin_user }}/backups/"
+
+lynis_version: 3.1.6
+

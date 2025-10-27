@@ -1,0 +1,45 @@
+---
+- name: Ensure PAM password strength module is installed
+  ansible.builtin.apt:
+    name: libpam-passwdqc
+    state: present
+  become: true
+  tags: [audit, audit-usersrestrict]
+
+- name: Set maximum password age to 1825 days
+  ansible.builtin.lineinfile:
+    path: /etc/login.defs
+    regexp: "^PASS_MAX_DAYS"
+    line: "PASS_MAX_DAYS   1825"
+    state: present
+  become: true
+  tags: [audit, audit-usersrestrict]
+
+- name: Set minimum password age to 1 day
+  ansible.builtin.lineinfile:
+    path: /etc/login.defs
+    regexp: "^PASS_MIN_DAYS"
+    line: "PASS_MIN_DAYS   1"
+    state: present
+  become: true
+  tags: [audit, audit-usersrestrict]
+
+- name: Set password expiration warning to 100 days
+  ansible.builtin.lineinfile:
+    path: /etc/login.defs
+    regexp: "^PASS_WARN_AGE"
+    line: "PASS_WARN_AGE   100"
+    state: present
+  become: true
+  tags: [audit, audit-usersrestrict]
+
+# NOTE set to 022 for testing purposes, 027 for production
+#      default umask is 022
+- name: Change login UNASK tp more restricted 027 value
+  lineinfile:
+    dest: /etc/login.defs
+    regexp: "^UMASK"
+    line: "UMASK           022"
+    state: present
+  become: true
+  tags: [audit, audit-usersrestrict]

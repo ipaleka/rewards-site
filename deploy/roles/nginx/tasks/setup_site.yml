@@ -1,0 +1,63 @@
+---
+- name: Delete existing initial configuration
+  ansible.builtin.file:
+    path: /etc/nginx/sites-enabled/default
+    state: absent
+  become: true
+  tags: [nginx]
+
+- name: Delete existing initial available configuration
+  ansible.builtin.file:
+    path: /etc/nginx/sites-available/default
+    state: absent
+  become: true
+  tags: [nginx]
+
+- name: Ensure Let's Encrypt challenge folders exist
+  ansible.builtin.file:
+    path: "{{ item }}"
+    owner: "{{ webapp_user }}"
+    group: "{{ webapp_group }}"
+    state: directory
+    mode: '0750'
+  become: true
+  loop:
+    - /var/www/letsencrypt/
+    - /var/www/letsencrypt/.well-known/
+    - /var/www/letsencrypt/.well-known/acme-challenge/
+  tags: [letsencrypt, make-folders-letsencrypt]
+
+- name: Ensure nginx snippets folder exists
+  ansible.builtin.file:
+    path: /etc/nginx/snippets
+    owner: root
+    group: root
+    state: directory
+    mode: '0755'
+  become: true
+  tags: [nginx, nginx-snippets, make-folders-letsencrypt]
+
+- name: Copy nginx snippets to snippets directory
+  ansible.builtin.template:
+    src: "{{ item }}"
+    dest: "/etc/nginx/snippets/{{ item }}"
+    owner: root
+    group: root
+    mode: '0644'
+  become: true
+  loop:
+    - site_http_block.conf
+    - site_server_block.conf
+    - letsencrypt.conf
+    - ssl.conf
+    - favicon.conf
+  notify: Restart nginx
+  tags: [nginx, nginx-snippets, letsencrypt]
+
+- name: Generate strong DHE parameter (https://weakdh.org/)
+  ansible.builtin.command: "openssl dhparam -out /etc/ssl/dhparam.pem 2048"
+  args:
+    creates: /etc/ssl/dhparam.pem
+  become: true
+  when: inventory_hostname in groups['production']
+  tags: [nginx, letsencrypt]

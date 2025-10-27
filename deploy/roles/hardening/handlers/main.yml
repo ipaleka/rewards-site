@@ -1,0 +1,75 @@
+---
+- name: Restart UFW
+  ansible.builtin.systemd:
+    name: ufw
+    state: restarted
+  become: true
+  listen: Restart ufw
+
+- name: Restart SSH
+  ansible.builtin.systemd:
+    name: ssh
+    state: restarted
+  become: true
+  listen: Restart ssh
+
+- name: Restart Fail2Ban
+  ansible.builtin.systemd:
+    name: fail2ban
+    state: restarted
+  become: true
+  listen: Restart fail2ban
+
+- name: Restart sysstat
+  ansible.builtin.systemd:
+    name: sysstat
+    state: restarted
+  become: true
+  listen: Restart sysstat
+
+- name: Restart auditd
+  ansible.builtin.systemd:
+    name: auditd
+    state: restarted
+  become: true
+  listen: Restart auditd
+
+- name: Remove previous Lynis version folder if it exists
+  ansible.builtin.file:
+    path: "{{ opt_folder }}lynis/"
+    state: absent
+  become: true
+  listen: Lynis downloaded
+
+- name: Extract Lynis archive
+  ansible.builtin.unarchive:
+    src: "{{ opt_folder }}archives/lynis-{{ lynis_version }}.tar.gz"
+    dest: "{{ opt_folder }}"
+    remote_src: true
+  become: true
+  listen: Lynis downloaded
+
+- name: Deploy custom Lynis configuration file for test skipping
+  ansible.builtin.template:
+    src: lynis_custom.prf
+    dest: "{{ opt_folder }}lynis/custom.prf"
+    owner: root
+    group: root
+    mode: '0644'
+  become: true
+  listen: Lynis downloaded
+
+- name: Ensure Lynis include files have correct permissions
+  ansible.builtin.file:
+    path: "{{ opt_folder }}lynis/"
+    owner: root
+    group: root
+    recurse: true
+  become: true
+  listen: Lynis downloaded
+
+- name: Update RKHunter file properties database
+  ansible.builtin.command: rkhunter --propupd
+  become: true
+  changed_when: false
+  listen: RKHunter installed

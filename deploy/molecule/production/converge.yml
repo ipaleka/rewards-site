@@ -1,0 +1,19 @@
+---
+- name: Load .env.production for Molecule
+  hosts: localhost
+  gather_facts: false
+  tasks:
+    - name: Load environment variables from .env.production
+      set_fact:
+        env_vars: "{{ env_vars | default({}) | combine({item.split('=')[0]: item.split('=')[1]}) }}"
+      loop: "{{ lookup('file', '../../.env.production').splitlines() }}"
+      when: item is search('=')
+
+- name: Converge Production Environment
+  hosts: all
+  gather_facts: true
+  vars_files:
+    - ../../group_vars/production/vars.yml
+  roles:
+    - createuser
+    - gunicorn

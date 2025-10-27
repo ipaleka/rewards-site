@@ -1,0 +1,7 @@
+# Fail2Ban filter for suppressing home access
+
+[Definition]
+
+failregex = ^<HOST> -.*GET http.*
+
+ignoreregex =

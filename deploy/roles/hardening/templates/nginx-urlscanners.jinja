@@ -1,0 +1,7 @@
+# Fail2Ban filter for suppressing cgi-bin and other port scanners
+
+[Definition]
+
+failregex = ^<HOST> -.*(GET|POST) .*/cgi-bin/.*
+
+ignoreregex =

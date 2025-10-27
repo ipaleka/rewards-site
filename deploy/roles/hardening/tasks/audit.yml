@@ -1,0 +1,14 @@
+---
+- import_tasks: audit/logwatch.yml
+- import_tasks: audit/auditd.yml
+- import_tasks: audit/lynis.yml
+- import_tasks: audit/tiger.yml
+- import_tasks: audit/nmap.yml
+- import_tasks: audit/sysstat.yml
+- import_tasks: audit/usersrestrict.yml
+- import_tasks: audit/banners.yml
+- import_tasks: audit/motd.yml
+- import_tasks: audit/misc.yml
+- import_tasks: audit/arpon.yml
+- import_tasks: audit/arpwatch.yml
+- import_tasks: audit/rkhunter.yml

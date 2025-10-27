@@ -1,0 +1,23 @@
+---
+- name: Ensure ArpON is installed
+  ansible.builtin.apt:
+    name: arpon
+    state: present
+  become: true
+  tags: [audit, audit-arpon]
+
+- name: Enable DARPI anti-ARP spoofing technique in ArpON options
+  ansible.builtin.replace:
+    path: /etc/default/arpon
+    regexp: '^# DAEMON_OPTS="-q -f /var/log/arpon/arpon.log -g -d"'
+    replace: 'DAEMON_OPTS="-q -f /var/log/arpon/arpon.log -g -D"'
+  become: true
+  tags: [audit, audit-arpon]
+
+- name: Enable ArpON service at startup
+  ansible.builtin.replace:
+    path: /etc/default/arpon
+    regexp: '^RUN="no"'
+    replace: 'RUN="yes"'
+  become: true
+  tags: [audit, audit-arpon]

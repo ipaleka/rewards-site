@@ -1,13 +1,49 @@
 ---
-- name: Load environment variables
+- name: Load multiple .env files
   hosts: localhost
   connection: local
   gather_facts: false
   run_once: true
   tags: always
+  vars:
+    env_name: "{{ ansible_limit | default('testing') }}"
+    env_files:
+      - ".env.{{ env_name }}"
+      - "{{ playbook_dir }}/../rewardsweb/.env.{{ env_name }}"
+      - "{{ playbook_dir }}/../rewardsweb/rewardsbot/.env"
   tasks:
-    - name: Include shared environment loader
-      ansible.builtin.import_tasks: load_env.yml
+    - name: Verify env files exist (ignore missing optional ones)
+      stat:
+        path: "{{ item }}"
+      loop: "{{ env_files }}"
+      register: env_file_check
+
+    - name: Load variables from all existing .env files
+      set_fact:
+        env_vars: "{{ env_vars | default({}) | combine(parsed_env, recursive=True) }}"
+      vars:
+        parsed_env: >-
+          {{
+            dict(
+              lookup('file', item.item)
+              .splitlines()
+              | reject('match', '^#')
+              | reject('match', '^$')
+              | map('regex_replace', '^[ \t]*', '')
+              | map('regex_replace', '[ \t]*$', '')
+              | map('split', '=', 1)
+            )
+          }}
+      loop: "{{ env_file_check.results }}"
+      when: item.stat.exists
+
+    - name: Export env_vars globally via add_host
+      add_host:
+        name: "{{ item }}"
+        global_env_vars: "{{ env_vars }}"
+      loop: "{{ groups['all'] }}"
+      delegate_to: localhost
+      run_once: true
 
 - name: Check if admin_user can connect
   hosts: all

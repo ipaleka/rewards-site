@@ -16,14 +16,14 @@ It provides a preview for all historic and latest contributions, hot tasks, cont
 Environment variables shouldn't reside in repository, so `.env` file with the following content has to be created in the `rewards-site/rewardsweb` directory:
 
 ```
-SECRET_KEY="mysecretkey"
-DATABASE_NAME="rewards_db"
-DATABASE_USER="rewards_user"
-DATABASE_PASSWORD="mypassword"
-PGPASSFILE="/home/{username}/.pgpass"
-INITIAL_SUPERUSERS="username1,username2"
-INITIAL_SUPERUSER_ADDRESSES="SUPERUSER1ADDRESS,SUPERUSER2ADDRESS"
-INITIAL_SUPERUSER_PASSWORDS="password1,password2"
+SECRET_KEY=mysecretkey
+DATABASE_NAME=rewards_db
+DATABASE_USER=rewards_user
+DATABASE_PASSWORD=mypassword
+PGPASSFILE=/home/{username}/.pgpass
+INITIAL_SUPERUSERS=username1,username2
+INITIAL_SUPERUSER_ADDRESSES=SUPERUSER1ADDRESS,SUPERUSER2ADDRESS
+INITIAL_SUPERUSER_PASSWORDS=password1,password2
 ```
 
 ## Goals

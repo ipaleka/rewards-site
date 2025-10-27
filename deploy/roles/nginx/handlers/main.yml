@@ -1,6 +1,6 @@
 ---
 - name: Restart nginx
-  systemd:
+  ansible.builtin.systemd:
     name: openresty
     state: restarted
   become: true

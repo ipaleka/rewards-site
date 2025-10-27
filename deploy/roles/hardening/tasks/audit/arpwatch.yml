@@ -1,6 +1,6 @@
 ---
 - name: Install arpwatch
-  apt:
+  ansible.builtin.apt:
     name: arpwatch
     state: present
   become: true

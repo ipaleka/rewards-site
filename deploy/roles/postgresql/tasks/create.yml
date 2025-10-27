@@ -1,22 +1,22 @@
 ---
 - name: Create postgresql user
-  postgresql_user:
+  community.postgresql.postgresql_user:
     name: "{{ hostvars['localhost'].env_vars.DATABASE_USER }}"
     password: "{{ hostvars['localhost'].env_vars.DATABASE_PASSWORD }}"
     role_attr_flags: "CREATEDB,NOSUPERUSER"
     state: present
-    encrypted: yes
+    encrypted: true
   become: true
   become_user: postgres
   tags: [postgresql, postgresql-create]
 
 - name: Create postgresql database
-  postgresql_db:
+  community.postgresql.postgresql_db:
     name: "{{ hostvars['localhost'].env_vars.DATABASE_NAME }}"
     owner: "{{ hostvars['localhost'].env_vars.DATABASE_USER }}"
     encoding: 'UTF-8'
     state: present
-  register: database_created
+  register: postgresql_database_created
   become: true
   become_user: postgres
   tags: [postgresql, postgresql-create]

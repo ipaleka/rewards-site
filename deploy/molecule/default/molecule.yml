@@ -8,7 +8,7 @@ driver:
 platforms:
   - name: testing-instance
     image: ubuntu:22.04
-    command: /sbin/init
+    ansible.builtin.command: /sbin/init
     privileged: true
     pre_build_image: true
 

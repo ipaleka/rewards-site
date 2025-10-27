@@ -1,33 +1,33 @@
 ---
-- name: Check if {{ database_backup_folder }} folder exists
-  file:
+- name: "Check if directory exists: {{ database_backup_folder }}"
+  ansible.builtin.file:
     path: "{{ database_backup_folder }}"
     state: directory
     owner: "{{ admin_user }}"
     group: "{{ admin_user }}"
-    mode: 0755
+    mode: "0755"
   tags: [postgresql, postgresql-install, postgresql-backup-config]
 
 - name: Copy pg_backup configuration file to backups folder
-  template:
+  ansible.builtin.template:
     src: pg_backup.config
     dest: "{{ database_backup_folder }}pg_backup.config"
     owner: "{{ admin_user }}"
     group: "{{ admin_user }}"
-    mode: 0644
+    mode: "0644"
   tags: [postgresql, postgresql-install, postgresql-backup-config]
 
 - name: Copy pg_backup_rotated script to backups folder
-  template:
+  ansible.builtin.template:
     src: pg_backup_rotated.sh
     dest: "{{ database_backup_folder }}pg_backup_rotated.sh"
     owner: "{{ admin_user }}"
     group: "{{ admin_user }}"
-    mode: 0755
+    mode: "0755"
   tags: [postgresql, postgresql-install, postgresql-backup-config]
 
 - name: Create hourly database backup cronjob
-  cron:
+  ansible.builtin.cron:
     hour: "*"
     minute: "30"
     name: "{{ project_name }} database backup (hourly schedule)"
@@ -35,4 +35,3 @@
     job: ": Database hourly backup ; {{ database_backup_folder }}pg_backup_rotated.sh"
   become: true
   tags: [postgresql, postgresql-install, postgresql-backup-config, cronjobs]
-

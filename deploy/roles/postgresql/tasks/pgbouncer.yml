@@ -1,6 +1,6 @@
 ---
 - name: Make sure pgbouncer package is installed
-  apt:
+  ansible.builtin.apt:
     name:
       - pgbouncer
     state: present
@@ -20,7 +20,7 @@
     path: /etc/pgbouncer/pgbouncer.ini
     regexp: "{{ item.regex }}"
     line: "{{ item.value }}"
-    backrefs: yes
+    backrefs: true
     state: present
   become: true
   loop:
@@ -41,4 +41,3 @@
         stats_users = {{ hostvars["localhost"].env_vars.WEBAPP_USER }}, root
   notify: Restart pgbouncer
   tags: [postgresql, pgbouncer]
-

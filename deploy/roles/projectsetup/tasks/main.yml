@@ -1,7 +1,18 @@
 ---
-- import_tasks: webapp_setup.yml
-- import_tasks: virtualenv.yml
-- import_tasks: repository.yml
-- import_tasks: environment.yml
-- import_tasks: ssh_setup.yml
-- import_tasks: project_scripts.yml
+- name: Import web application setup tasks
+  ansible.builtin.import_tasks: webapp_setup.yml
+
+- name: Import Python virtual environment setup tasks
+  ansible.builtin.import_tasks: virtualenv.yml
+
+- name: Import project repository setup tasks
+  ansible.builtin.import_tasks: repository.yml
+
+- name: Import project environment configuration tasks
+  ansible.builtin.import_tasks: environment.yml
+
+- name: Import SSH setup tasks
+  ansible.builtin.import_tasks: ssh_setup.yml
+
+- name: Import project management scripts setup tasks
+  ansible.builtin.import_tasks: project_scripts.yml

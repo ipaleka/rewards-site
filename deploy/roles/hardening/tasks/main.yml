@@ -1,7 +1,18 @@
 ---
-- import_tasks: ufw.yml
-- import_tasks: ssh.yml
-- import_tasks: kernel.yml
-- import_tasks: cis_remove.yml
-- import_tasks: fail2ban.yml
-- import_tasks: audit.yml
+- name: Import UFW hardening tasks
+  ansible.builtin.import_tasks: ufw.yml
+
+- name: Import SSH hardening tasks
+  ansible.builtin.import_tasks: ssh.yml
+
+- name: Import kernel hardening tasks
+  ansible.builtin.import_tasks: kernel.yml
+
+- name: Import CIS removal tasks
+  ansible.builtin.import_tasks: cis_remove.yml
+
+- name: Import Fail2Ban configuration tasks
+  ansible.builtin.import_tasks: fail2ban.yml
+
+- name: Import audit tasks
+  ansible.builtin.import_tasks: audit.yml

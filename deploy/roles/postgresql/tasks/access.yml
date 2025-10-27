@@ -4,7 +4,7 @@
     path: /etc/postgresql/{{ postgresql_version }}/main/postgresql.conf
     regexp: "{{ item.regex }}"
     line: "{{ item.value }}"
-    backrefs: yes
+    backrefs: true
     state: present
   become: true
   notify: Restart postgresql
@@ -15,15 +15,18 @@
 
 - name: Set access rule in pg_hba.conf for webserver
   ansible.builtin.lineinfile:
-    path: /etc/postgresql/{{ postgresql_version }}/main/pg_hba.conf
-    regexp: "{{ item.regex }}"
-    line: "{{ item.value }}"
+    path: "/etc/postgresql/{{ postgresql_version }}/main/pg_hba.conf"
+    regexp: >
+      host\s+{{ hostvars['localhost'].env_vars.DATABASE_NAME }}
+      \s+{{ hostvars['localhost'].env_vars.DATABASE_USER }}
+      \s+{{ hostvars['localhost'].env_vars.WEB_IP }}/32.*trust
+    line: >
+      host    {{ hostvars['localhost'].env_vars.DATABASE_NAME }}
+              {{ hostvars['localhost'].env_vars.DATABASE_USER }}
+              {{ hostvars['localhost'].env_vars.WEB_IP }}/32        trust
     state: present
   become: true
   notify: Restart postgresql
-  loop:
-    - regex: "host\\s+{{ hostvars['localhost'].env_vars.DATABASE_NAME }}\\s+{{ hostvars['localhost'].env_vars.DATABASE_USER }}\\s+{{ hostvars['localhost'].env_vars.WEB_IP }}/32.*trust"
-      value: "host    {{ hostvars['localhost'].env_vars.DATABASE_NAME }}             {{ hostvars['localhost'].env_vars.DATABASE_USER }}        {{ hostvars['localhost'].env_vars.WEB_IP }}/32        trust"
   tags: [postgresql, postgresql-access, postgresql-allow-webserver-ip]
 
 - name: Configure UFW rule for PostgreSQL

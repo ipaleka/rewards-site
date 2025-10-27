@@ -1,6 +1,6 @@
 ---
 - name: Make sure nginx is installed
-  apt:
+  ansible.builtin.apt:
     name: nginx
     state: present
   become: true

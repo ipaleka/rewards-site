@@ -1,6 +1,6 @@
 ---
 - name: Setup user in nginx.conf
-  replace:
+  ansible.builtin.replace:
     dest: /etc/nginx/nginx.conf
     regexp: "user www-data;"
     replace: "user {{ webapp_user }} {{ webapp_group }};"
@@ -8,7 +8,7 @@
   tags: [nginx-conf]
 
 - name: Setup use epoll main context directives
-  lineinfile:
+  ansible.builtin.lineinfile:
     path: /etc/nginx/nginx.conf
     regexp: "use epoll"
     insertafter: "^events {"
@@ -18,7 +18,7 @@
   tags: [nginx-conf]
 
 - name: Setup worker_connections main context directives
-  lineinfile:
+  ansible.builtin.lineinfile:
     path: /etc/nginx/nginx.conf
     regexp: "worker_connections "
     insertafter: "^        use epoll;"
@@ -28,7 +28,7 @@
   tags: [nginx-conf]
 
 - name: Setup multi_accept on main context directives
-  replace:
+  ansible.builtin.replace:
     dest: /etc/nginx/nginx.conf
     regexp: "# multi_accept on;"
     replace: "multi_accept on;"
@@ -36,7 +36,7 @@
   tags: [nginx-conf]
 
 - name: Ensure gzip_disable msie6
-  lineinfile:
+  ansible.builtin.lineinfile:
     path: /etc/nginx/nginx.conf
     regexp: 'gzip_disable "msie6";'
     insertbefore: "# gzip_vary on;"
@@ -46,7 +46,7 @@
   tags: [nginx-conf]
 
 - name: Ensure gzip http context directive
-  lineinfile:
+  ansible.builtin.lineinfile:
     path: /etc/nginx/nginx.conf
     regexp: "gzip on;"
     insertbefore: '^        gzip_disable "msie6";'
@@ -56,7 +56,7 @@
   tags: [nginx-conf]
 
 - name: Hide nginx version number from headers
-  replace:
+  ansible.builtin.replace:
     dest: /etc/nginx/nginx.conf
     regexp: "# server_tokens off;"
     replace: "server_tokens off;"
@@ -64,7 +64,7 @@
   tags: [nginx-conf]
 
 - name: Add woff2 to nginx mime.types
-  lineinfile:
+  ansible.builtin.lineinfile:
     path: /etc/nginx/mime.types
     regexp: "font/woff2 "
     insertafter: "^    application/font-woff                 woff;"
@@ -74,8 +74,8 @@
   tags: [nginx-conf]
 
 - name: Enable nginx
-  systemd:
+  ansible.builtin.systemd:
     name: nginx
-    enabled: yes
+    enabled: true
   become: true
   tags: [nginx-conf]

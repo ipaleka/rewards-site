@@ -1,13 +1,13 @@
 ---
 - name: Install sysstat
-  apt:
+  ansible.builtin.apt:
     name: sysstat
     state: present
   become: true
   tags: [audit, audit-sysstat]
 
 - name: Enable stat collection
-  lineinfile:
+  ansible.builtin.lineinfile:
     dest: /etc/default/sysstat
     regexp: "^ENABLED="
     line: 'ENABLED="true"'

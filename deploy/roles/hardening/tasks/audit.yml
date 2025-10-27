@@ -1,14 +1,39 @@
 ---
-- import_tasks: audit/logwatch.yml
-- import_tasks: audit/auditd.yml
-- import_tasks: audit/lynis.yml
-- import_tasks: audit/tiger.yml
-- import_tasks: audit/nmap.yml
-- import_tasks: audit/sysstat.yml
-- import_tasks: audit/usersrestrict.yml
-- import_tasks: audit/banners.yml
-- import_tasks: audit/motd.yml
-- import_tasks: audit/misc.yml
-- import_tasks: audit/arpon.yml
-- import_tasks: audit/arpwatch.yml
-- import_tasks: audit/rkhunter.yml
+- name: Import Logwatch audit tasks
+  ansible.builtin.import_tasks: audit/logwatch.yml
+
+- name: Import Auditd audit tasks
+  ansible.builtin.import_tasks: audit/auditd.yml
+
+- name: Import Lynis audit tasks
+  ansible.builtin.import_tasks: audit/lynis.yml
+
+- name: Import Tiger audit tasks
+  ansible.builtin.import_tasks: audit/tiger.yml
+
+- name: Import Nmap audit tasks
+  ansible.builtin.import_tasks: audit/nmap.yml
+
+- name: Import Sysstat audit tasks
+  ansible.builtin.import_tasks: audit/sysstat.yml
+
+- name: Import Users restriction audit tasks
+  ansible.builtin.import_tasks: audit/usersrestrict.yml
+
+- name: Import Login banners audit tasks
+  ansible.builtin.import_tasks: audit/banners.yml
+
+- name: Import MOTD audit tasks
+  ansible.builtin.import_tasks: audit/motd.yml
+
+- name: Import Miscellaneous audit tasks
+  ansible.builtin.import_tasks: audit/misc.yml
+
+- name: Import ArpON audit tasks
+  ansible.builtin.import_tasks: audit/arpon.yml
+
+- name: Import Arpwatch audit tasks
+  ansible.builtin.import_tasks: audit/arpwatch.yml
+
+- name: Import Rootkit Hunter audit tasks
+  ansible.builtin.import_tasks: audit/rkhunter.yml

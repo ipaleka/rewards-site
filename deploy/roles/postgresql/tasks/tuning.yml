@@ -4,7 +4,7 @@
     path: "/etc/postgresql/{{ postgresql_version }}/main/postgresql.conf"
     regexp: "{{ item.regex }}"
     line: "{{ item.value }}"
-    backrefs: yes
+    backrefs: true
     state: present
   become: true
   notify: Restart postgresql

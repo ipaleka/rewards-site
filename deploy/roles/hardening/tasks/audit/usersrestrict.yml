@@ -1,7 +1,7 @@
 ---
 - name: Ensure PAM password strength module is installed
   ansible.builtin.apt:
-    name: libpam-passwdqc
+    name: Libpam-passwdqc
     state: present
   become: true
   tags: [audit, audit-usersrestrict]
@@ -36,7 +36,7 @@
 # NOTE set to 022 for testing purposes, 027 for production
 #      default umask is 022
 - name: Change login UNASK tp more restricted 027 value
-  lineinfile:
+  ansible.builtin.lineinfile:
     dest: /etc/login.defs
     regexp: "^UMASK"
     line: "UMASK           022"

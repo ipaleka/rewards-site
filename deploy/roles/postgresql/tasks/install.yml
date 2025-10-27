@@ -1,6 +1,6 @@
 ---
-- name: make sure postgresql packages are installed
-  apt:
+- name: Make sure postgresql packages are installed
+  ansible.builtin.apt:
     name:
       - libpq-dev
       - postgresql
@@ -11,21 +11,21 @@
   tags: [postgresql, postgresql-install]
 
 - name: Copy pg_service configuration file
-  template:
+  ansible.builtin.template:
     src: pg_service.conf
     dest: "{{ site_path }}/.pg_service.conf"
     owner: "{{ webapp_user }}"
     group: "{{ webapp_group }}"
-    mode: 0600
+    mode: "0600"
   become: true
   tags: [postgresql, postgresql-install]
 
 - name: Copy pgpass configuration file
-  template:
+  ansible.builtin.template:
     src: pgpass.conf
     dest: "{{ site_path }}/.pgpass"
     owner: "{{ webapp_user }}"
     group: "{{ webapp_group }}"
-    mode: 0600
+    mode: "0600"
   become: true
   tags: [postgresql, postgresql-install]

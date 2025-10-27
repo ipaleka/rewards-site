@@ -1,6 +1,6 @@
 ---
 - name: "Create virtualenv for {{ project_name }}"
-  command: python3 -m venv venv
+  ansible.builtin.command: python3 -m venv venv
   args:
     chdir: "{{ site_path }}"
     creates: "{{ site_path }}/venv"

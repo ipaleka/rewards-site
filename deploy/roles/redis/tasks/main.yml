@@ -1,4 +1,9 @@
 ---
-- import_tasks: install.yml
-- import_tasks: tuning.yml
-- import_tasks: config.yml
+- name: Import Redis installing tasks
+  ansible.builtin.import_tasks: install.yml
+
+- name: Import Redis tuning tasks
+  ansible.builtin.import_tasks: tuning.yml
+
+- name: Import Redis configuration tasks
+  ansible.builtin.import_tasks: config.yml

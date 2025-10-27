@@ -1,11 +1,4 @@
 ---
-- name: Get username running the playbook
-  ansible.builtin.command: whoami
-  delegate_to: localhost
-  register: ssh_sync_host_username
-  changed_when: false
-  tags: [ssh-sync-setup]
-
 - name: Set up authorized key for admin_user
   ansible.posix.authorized_key:
     user: "{{ admin_user }}"
@@ -17,7 +10,7 @@
   ansible.builtin.command: "ssh-keyscan -t rsa {{ hostvars['localhost'].env_vars.WEB_IP }}"
   become: true
   become_user: "{{ admin_user }}"
-  register: admin_user_rsa_key
+  register: projectsetup_admin_user_rsa_key
   changed_when: false
   tags: [ssh-sync-setup]
 
@@ -37,7 +30,8 @@
     regexp: "^{{ hostvars['localhost'].env_vars.WEB_IP }} ssh-rsa "
     line: "{{ admin_user_rsa_key.stdout }}"
     state: present
-    create: yes
+    create: true
+    mode: "0600"
   become: true
   become_user: "{{ admin_user }}"
   tags: [ssh-sync-setup]

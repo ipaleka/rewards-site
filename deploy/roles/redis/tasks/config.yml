@@ -22,7 +22,7 @@
 
 - name: Enable Redis service
   ansible.builtin.systemd:
-    name: redis-server.service
+    name: Redis-server.service
     state: started
     enabled: true
   become: true

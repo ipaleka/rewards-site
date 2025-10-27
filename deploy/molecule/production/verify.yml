@@ -7,3 +7,4 @@
       ansible.builtin.command: id deploy
       register: user_check
       failed_when: user_check.rc != 0
+      changed_when: false

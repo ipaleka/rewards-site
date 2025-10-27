@@ -1,11 +1,11 @@
 ---
-- name: write systemd gunicorn init script
-  template:
+- name: Write systemd gunicorn init script
+  ansible.builtin.template:
     src: gunicorn-systemd.service
     dest: "/etc/systemd/system/gunicorn-{{ env_name }}.service"
     owner: root
     group: root
-    mode: 0644
+    mode: "0644"
   become: true
   notify: "Enable and restart gunicorn"
   tags: [gunicorn]

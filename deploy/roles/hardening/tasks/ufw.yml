@@ -33,7 +33,7 @@
 
 - name: Enable UFW logging
   community.general.ufw:
-    logging: on
+    logging: true
   become: true
   notify: Restart ufw
   tags: [hardening_ufw]

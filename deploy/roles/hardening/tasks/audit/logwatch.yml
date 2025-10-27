@@ -1,7 +1,7 @@
 ---
 - name: Ensure Logwatch is installed
   ansible.builtin.apt:
-    name: logwatch
+    name: Logwatch
     state: present
   become: true
   tags: [audit, logwatch]

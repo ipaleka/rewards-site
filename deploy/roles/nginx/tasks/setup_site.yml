@@ -19,7 +19,7 @@
     owner: "{{ webapp_user }}"
     group: "{{ webapp_group }}"
     state: directory
-    mode: '0750'
+    mode: "0750"
   become: true
   loop:
     - /var/www/letsencrypt/
@@ -33,7 +33,7 @@
     owner: root
     group: root
     state: directory
-    mode: '0755'
+    mode: "0755"
   become: true
   tags: [nginx, nginx-snippets, make-folders-letsencrypt]
 
@@ -43,7 +43,7 @@
     dest: "/etc/nginx/snippets/{{ item }}"
     owner: root
     group: root
-    mode: '0644'
+    mode: "0644"
   become: true
   loop:
     - site_http_block.conf

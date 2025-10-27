@@ -22,10 +22,8 @@
     group: "{{ webapp_group }}"
     mode: "0700"
   loop:
-    - {
-        name: "deletedeactivated",
-        output: '$output == "0 deactivated accounts deleted!"',
-      }
+    - name: "deletedeactivated"
+      output: '$output == "0 deactivated accounts deleted!"'
   become: true
   become_user: "{{ webapp_user }}"
   tags: [project-setup, cronjobs]
@@ -39,8 +37,8 @@
     executable: /bin/bash
   become: true
   become_user: "{{ webapp_user }}"
-  register: collectstatic_command
-  changed_when: "'0 static files copied to' not in collectstatic_command.stdout"
+  register: projectsetup_collectstatic_command
+  changed_when: "'0 static files copied to' not in projectsetup_collectstatic_command.stdout"
   tags: [project-setup, run-project-scripts, update-project-code]
 
 - name: Create weekly clearsessions cron job
@@ -63,8 +61,8 @@
     executable: /bin/bash
   become: true
   become_user: "{{ webapp_user }}"
-  register: migrate_command
-  changed_when: "'No migrations to apply' not in migrate_command.stdout"
+  register: projectsetup_migrate_command
+  changed_when: "'No migrations to apply' not in projectsetup_migrate_command.stdout"
   tags:
     [project-setup, postgresql-create, run-project-scripts, update-project-code]
 
@@ -78,7 +76,6 @@
     job: ": Delete deactivated accounts weekly ; {{ site_path }}/scripts/deletedeactivatedcron.sh"
   become: true
   tags: [project-setup, cronjobs]
-
 - name: Update site record in django_site table
   ansible.builtin.command: >
     su -c "psql -d {{ env_name }} -c
@@ -86,9 +83,10 @@
     postgres
   become: true
   when:
-    - database_created is defined
-    - database_created is changed
-    - "'No migrations to apply' not in migrate_command.stdout"
+    - postgresql_database_created is defined
+    - postgresql_database_created is changed
+    - "'No migrations to apply' not in projectsetup_migrate_command.stdout"
+  changed_when: false
   tags: [project-setup, postgresql-create]
 
 - name: Create backup helper script to delete obsolete files
@@ -105,7 +103,7 @@
 - name: Ensure SHELL variable is present in crontab
   ansible.builtin.cron:
     name: SHELL
-    env: yes
+    env: true
     value: /bin/bash
   become: true
   become_user: "{{ webapp_user }}"

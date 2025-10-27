@@ -11,7 +11,7 @@
     src: "{{ item.src }}"
     dest: "/etc/fail2ban/filter.d/{{ item.dest }}.conf"
     owner: root
-    group: root
+    ansible.builtin.group: root
     mode: '0644'
   become: true
   loop:
@@ -27,7 +27,7 @@
     src: fail2ban.jinja
     dest: /etc/fail2ban/jail.local
     owner: root
-    group: root
+    ansible.builtin.group: root
     mode: '0644'
   become: true
   notify: Restart fail2ban
@@ -38,7 +38,7 @@
     src: fail2ban-cacheserver.jinja
     dest: /etc/fail2ban/jail.local
     owner: root
-    group: root
+    ansible.builtin.group: root
     mode: '0644'
   become: true
   notify: Restart fail2ban

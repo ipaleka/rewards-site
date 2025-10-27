@@ -9,7 +9,7 @@
     - { name: telnet-server, purge: true }
     - { name: telnet, purge: true }
     - { name: nis }
-    - { name: rsh }
+    - { name: Rsh }
     - { name: chargen }
     - { name: xinetd }
     - { name: tftp }
@@ -17,7 +17,7 @@
     - { name: xserver-xorg, purge: true }
     - { name: avahi-daemon }
     - { name: cups }
-    - { name: isc-dhcp-server }
+    - { name: Isc-dhcp-server }
     - { name: slapd }
     - { name: nfs-kernel-server }
     - { name: biosdevname }

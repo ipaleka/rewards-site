@@ -1,13 +1,13 @@
 ---
 - name: Install sysfsutils package
-  apt:
+  ansible.builtin.apt:
     name: sysfsutils
     state: present
   become: true
   tags: [redis-tuning]
 
 - name: Disable THP
-  lineinfile:
+  ansible.builtin.lineinfile:
     dest: /etc/sysfs.conf
     regexp: "^kernel/mm/transparent_hugepage/enabled = never"
     line: "kernel/mm/transparent_hugepage/enabled = never"
@@ -16,7 +16,7 @@
   tags: [redis-tuning]
 
 - name: Set vm.overcommit_memory=1
-  lineinfile:
+  ansible.builtin.lineinfile:
     dest: /etc/sysctl.conf
     regexp: "^vm.overcommit_memory=1"
     line: "vm.overcommit_memory=1"
@@ -25,7 +25,7 @@
   tags: [redis-tuning]
 
 - name: Raise somaxconn to 65535
-  lineinfile:
+  ansible.builtin.lineinfile:
     dest: /etc/sysctl.conf
     regexp: "^net.core.somaxconn=65535"
     line: "net.core.somaxconn=65535"

@@ -31,10 +31,10 @@
   become: true
   tags: [repository]
 
-- name: Ensure {{ admin_user }} opt folder exists
+- name: "Ensure opt folder exists for {{ admin_user }}"
   ansible.builtin.file:
     path: "{{ opt_folder }}"
     state: directory
-    mode: '0755'
+    mode: "0755"
   become: true
   tags: [audit, lynis]

@@ -1,7 +1,7 @@
 ---
 - name: Ensure RKHunter is installed
   ansible.builtin.apt:
-    name: rkhunter
+    name: Rkhunter
     state: present
   become: true
   notify: RKHunter installed

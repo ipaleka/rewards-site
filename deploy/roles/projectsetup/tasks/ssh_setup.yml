@@ -7,7 +7,7 @@
   tags: [ssh-sync-setup]
 
 - name: Gather admin_user RSA key from web server
-  ansible.builtin.command: "ssh-keyscan -t rsa {{ hostvars['localhost'].env_vars.WEB_IP }}"
+  ansible.builtin.command: "ssh-keyscan -t rsa {{ hostvars[inventory_hostname].ansible_host }}"
   become: true
   become_user: "{{ admin_user }}"
   register: projectsetup_admin_user_rsa_key
@@ -27,7 +27,7 @@
 - name: Add admin_user RSA key to known_hosts
   ansible.builtin.lineinfile:
     path: "{{ admin_home_directory }}/.ssh/known_hosts"
-    regexp: "^{{ hostvars['localhost'].env_vars.WEB_IP }} ssh-rsa "
+    regexp: "^{{ hostvars[inventory_hostname].ansible_host }} ssh-rsa "
     line: "{{ admin_user_rsa_key.stdout }}"
     state: present
     create: true

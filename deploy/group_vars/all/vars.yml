@@ -1,8 +1,8 @@
 ---
 # project variables
-project_name: Rewards.asastats.com
-app_name: Rewardsweb
-site_name: Rewards.asastats.com
+project_name: rewards.asastats.com
+app_name: rewardsweb
+site_name: rewards.asastats.com
 django_settings: "rewardsweb.settings.{{ host_alias }}"
 env_name: "{{ host_alias }}_rewardsweb"
 logo_name: asastats

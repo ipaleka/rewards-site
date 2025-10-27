@@ -1,7 +1,7 @@
 ---
 - name: Install redis-server package
   ansible.builtin.apt:
-    name: Redis-server
+    name: redis-server
     state: present
   become: true
   tags: [redis-install]

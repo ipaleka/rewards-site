@@ -8,16 +8,12 @@ all:
         webserver_testing:
           ansible_host: 192.168.1.99
 
-    production:
-      hosts:
-        webserver_production:
-          ansible_host: 192.168.1.98
+    # production:
+    #   hosts:
+    #     webserver_production:
+    #       ansible_host: 192.168.1.98
 
-    ci:
-      hosts:
-        webserver_ci:
-          ansible_host:  192.168.1.97
-
-  hosts:
-    localhost:
-      ansible_connection: local
+    # ci:
+    #   hosts:
+    #     webserver_ci:
+    #       ansible_host:  192.168.1.97

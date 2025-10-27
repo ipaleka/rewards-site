@@ -1,39 +1,49 @@
+---
 - name: Load multiple .env files
   hosts: localhost
+  connection: local
   gather_facts: false
+  run_once: true
+  tags: always
   vars:
+    env_name: "{{ ansible_limit | default('testing') }}"
     env_files:
-      - "{{ env_file }}"
-      - "{{ shared_env_file }}"
-      - "{{ bot_env_file }}"
+      - ".env.{{ env_name }}"
+      - "{{ playbook_dir }}/../rewardsweb/.env.{{ env_name }}"
+      - "{{ playbook_dir }}/../rewardsweb/rewardsbot/.env"
   tasks:
-    - name: Load environment files
-      block:
-        - name: Validate env files exist
-          ansible.builtin.stat:
-            path: "{{ item }}"
-          loop: "{{ env_files }}"
-          register: env_files_check
+    - name: Verify env files exist (ignore missing optional ones)
+      stat:
+        path: "{{ item }}"
+      loop: "{{ env_files }}"
+      register: env_file_check
 
-        - name: Fail if any env file is missing
-          ansible.builtin.fail:
-            msg: "Environment file {{ item.item }} not found!"
-          loop: "{{ env_files_check.results }}"
-          when: not item.stat.exists
+    - name: Load variables from all existing .env files
+      set_fact:
+        env_vars: "{{ env_vars | default({}) | combine(parsed_env, recursive=True) }}"
+      vars:
+        parsed_env: >-
+          {{
+            dict(
+              lookup('file', item.item)
+              .splitlines()
+              | reject('match', '^#')
+              | reject('match', '^$')
+              | map('regex_replace', '^[ \t]*', '')
+              | map('regex_replace', '[ \t]*$', '')
+              | map('split', '=', 1)
+            )
+          }}
+      loop: "{{ env_file_check.results }}"
+      when: item.stat.exists
 
-        - name: Merge all environment files
-          ansible.builtin.set_fact:
-            env_vars: "{{ env_vars | default({}) | combine(parsed_env) }}"
-          vars:
-            parsed_env: >-
-              {{
-                dict(lookup('file', item)
-                .splitlines()
-                | reject('match', '^#')
-                | reject('match', '^$')
-                | map('split', '=', 1))
-              }}
-          loop: "{{ env_files }}"
+    - name: Export env_vars globally via add_host
+      add_host:
+        name: "{{ item }}"
+        global_env_vars: "{{ env_vars }}"
+      loop: "{{ groups['all'] }}"
+      delegate_to: localhost
+      run_once: true
 
 - name: Check if admin_user can connect
   hosts: all
@@ -67,9 +77,9 @@
   remote_user: "{{ admin_user }}"
   roles:
     - role: setuphost
+    - role: projectsetup
     - role: redis
     - role: postgresql
-    - role: projectsetup
     - role: gunicorn
     - role: nginx
     - role: hardening

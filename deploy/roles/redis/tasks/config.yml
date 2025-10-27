@@ -9,7 +9,7 @@
   notify: Restart redis
   loop:
     - regexp: "^bind 127.0.0.1 ::1"
-      line: "bind 127.0.0.1 {{ hostvars['localhost'].env_vars.WEB_IP }}"
+      line: "bind 127.0.0.1 {{ hostvars[inventory_hostname].ansible_host }}"
     - regexp: "^daemonize yes"
       line: "# daemonize yes"
     - regexp: "^protected-mode yes"
@@ -22,7 +22,7 @@
 
 - name: Enable Redis service
   ansible.builtin.systemd:
-    name: Redis-server.service
+    name: redis-server.service
     state: started
     enabled: true
   become: true

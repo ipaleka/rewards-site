@@ -51,7 +51,7 @@ Initial packages installation:
   (rewards) ipaleka@debian:~/dev/rewards_site/rewardsweb$ pip install -r requirements/development.txt
 
 
-Run developemnt server
+Run development server
 ----------------------
 
 .. code-block:: bash

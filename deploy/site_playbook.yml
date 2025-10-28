@@ -18,41 +18,39 @@
       loop: "{{ env_files }}"
       register: env_file_check
 
-    - name: Load variables from all existing .env files
-      ansible.builtin.set_fact:
-        env_vars: "{{ env_vars | default({}) | combine(parsed_env, recursive=True) }}"
-      vars:
-        parsed_env: >-
-          {{
-            dict(
-              lookup('file', item.item)
-              .splitlines()
-              | reject('match', '^#')
-              | reject('match', '^$')
-              | map('regex_replace', '^[ \t]*', '')
-              | map('regex_replace', '[ \t]*$', '')
-              | map('split', '=', 1)
-            )
-          }}
+    - name: Verify env files exist
+      ansible.builtin.stat:
+        path: "{{ item }}"
+      loop: "{{ env_files }}"
+      register: env_file_check
+
+    - name: Read contents of .env files
+      ansible.builtin.slurp:
+        path: "{{ item.item }}"
       loop: "{{ env_file_check.results }}"
       when: item.stat.exists
+      register: env_slurped
 
-    - name: Export env_vars globally via add_host  # noqa run-once[task]
-      ansible.builtin.add_host:
-        name: "{{ item }}"
-        global_env_vars: "{{ env_vars }}"
-      loop: "{{ groups['all'] }}"
-      delegate_to: localhost
-      run_once: true
-      failed_when: false
-      changed_when: false
-      tags: always
+    - name: Convert .env to dict safely (supports quotes and # comments)
+      ansible.builtin.set_fact:
+        env_vars: "{{ env_vars | default({}) | combine(parsed_one, recursive=True) }}"
+      vars:
+        decoded: "{{ item.content | b64decode }}"
+        yaml_style: |
+          {% for line in decoded.splitlines() %}
+          {%   if line.strip() and not line.strip().startswith('#') %}
+          {%     set parts = line.split('=', 1) %}
+          {{ parts[0] }}: {{ parts[1] | default('') | to_json }}
+          {%   endif %}
+          {% endfor %}
+        parsed_one: "{{ yaml_style | from_yaml }}"
+      loop: "{{ env_slurped.results }}"
 
 - name: Check if admin_user can connect
   hosts: all
   gather_facts: false
   vars:
-    ansible_user: "{{ admin_user }}"
+    ansible_user: "{{ hostvars['localhost'].env_vars.ADMIN_USER }}"
   tasks:
     - name: Try connecting as admin_user
       ansible.builtin.ping:
@@ -77,7 +75,7 @@
 
 - name: Provisioning of rewardsweb project
   hosts: all
-  remote_user: "{{ admin_user }}"
+  remote_user: "{{ hostvars['localhost'].env_vars.ADMIN_USER }}"
   roles:
     - role: setuphost
     - role: redis

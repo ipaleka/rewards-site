@@ -52,7 +52,7 @@ if [ ! $USERNAME ]; then
 	USERNAME="postgres"
 fi;
 
-export PGPASSWORD="{{ global_env_vars['DATABASE_PASSWORD'] }}"
+export PGPASSWORD="{{ hostvars['localhost'].env_vars.DATABASE_PASSWORD }}"
 
 ###########################
 #### START THE BACKUPS ####

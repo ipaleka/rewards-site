@@ -9,7 +9,7 @@
     - { name: telnet-server, purge: true }
     - { name: telnet, purge: true }
     - { name: nis }
-    - { name: Rsh }
+    - { name: rsh }
     - { name: chargen }
     - { name: xinetd }
     - { name: tftp }
@@ -26,7 +26,7 @@
     - { name: dovecot-imapd }
     - { name: dovecot-pop3d }
     - { name: samba }
-    - { name: squid3 }
+    - { name: squid }
     - { name: snmp }
     - { name: snmpd }
   tags: [cis_remove]

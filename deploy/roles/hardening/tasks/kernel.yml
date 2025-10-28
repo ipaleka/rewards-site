@@ -116,9 +116,11 @@
 
 - name: Restrict core dumps
   ansible.posix.sysctl:
-    name: Fs.suid_dumpable
+    name: "fs.suid_dumpable"
     value: "0"
     state: present
+    sysctl_set: true
+    reload: false
     ignoreerrors: true
   become: true
   tags: [hardening_kernel]

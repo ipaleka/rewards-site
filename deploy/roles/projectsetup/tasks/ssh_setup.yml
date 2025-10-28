@@ -22,6 +22,7 @@
     group: "{{ admin_user_group | default(admin_user) }}"
     mode: '0644'
   become: true
+  changed_when: false
   tags: [ssh-sync-setup]
 
 - name: Add admin_user RSA key to known_hosts

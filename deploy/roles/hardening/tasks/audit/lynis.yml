@@ -3,7 +3,11 @@
   ansible.builtin.file:
     path: "{{ opt_folder }}archives"
     state: directory
+    owner: "{{ admin_user }}"
+    group: "{{ admin_user_group }}"
     mode: "0755"
+  become: true
+  become_user: "{{ admin_user }}"
   tags: [audit, lynis]
 
 - name: Get username running the playbook
@@ -18,7 +22,7 @@
     src: "/home/{{ host_username_lynis.stdout_lines[0] }}/opt/archives/lynis-{{ lynis_version }}.tar.gz"
     dest: "{{ opt_folder }}archives/lynis-{{ lynis_version }}.tar.gz"
     owner: "{{ admin_user }}"
-    group: "{{ admin_user }}"
+    group: "{{ admin_user_group }}"
     mode: "0640"
   become: true
   notify: Lynis downloaded

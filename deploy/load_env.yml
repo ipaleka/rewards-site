@@ -6,9 +6,9 @@
 - name: Define list of .env files to load
   ansible.builtin.set_fact:
     env_files:
-      - ".env.{{ env_name }}"
-      - "{{ playbook_dir }}/../rewardsweb/.env.{{ env_name }}"
-      - "{{ playbook_dir }}/../rewardsweb/rewardsbot/.env"
+      - "{{ playbook_dir }}/../../.env.{{ env_name }}"
+      - "{{ playbook_dir }}/../../../rewardsweb/.env.{{ env_name }}"
+      - "{{ playbook_dir }}/../../../rewardsweb/rewardsbot/.env"
 
 - name: Verify env files exist (ignore missing optional ones)
   ansible.legacy.stat:

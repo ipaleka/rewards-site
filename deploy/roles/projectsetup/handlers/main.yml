@@ -12,3 +12,16 @@
     state: reloaded
   become: true
   listen: "Reload web server"
+
+- name: Run excel2db management command
+  ansible.builtin.shell: |
+    set -o pipefail
+    echo "yes" | ./excel2db.sh {{ hostvars['localhost'].env_vars.GITHUB_TOKEN | default('') }}
+  args:
+    chdir: "{{ site_path }}/scripts/"
+    executable: /bin/bash
+  become: true
+  become_user: "{{ webapp_user }}"
+  register: projectsetup_excel2db_output
+  changed_when: "'Database is not empty!' not in projectsetup_excel2db_output.stdout"
+  tags: [project-setup, excel2db]

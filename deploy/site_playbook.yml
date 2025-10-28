@@ -1,9 +1,13 @@
 ---
-- name: Load multiple .env files
-  hosts: localhost
+# ──────────────────────────────────────────────
+# PLAY 1: Load .env variables (always executed)
+# ──────────────────────────────────────────────
+- name: Load environment from .env files
+  hosts: all
   connection: local
   gather_facts: false
   run_once: true
+  any_errors_fatal: true
   tags: always
   vars:
     env_name: "{{ ansible_limit | default('testing') }}"
@@ -11,6 +15,7 @@
       - ".env.{{ env_name }}"
       - "{{ playbook_dir }}/../rewardsweb/.env.{{ env_name }}"
       - "{{ playbook_dir }}/../rewardsweb/rewardsbot/.env"
+
   tasks:
     - name: Verify env files exist (ignore missing optional ones)
       ansible.legacy.stat:
@@ -31,7 +36,7 @@
       when: item.stat.exists
       register: env_slurped
 
-    - name: Convert .env to dict safely (supports quotes and # comments)
+    - name: Convert .env to dict
       ansible.builtin.set_fact:
         env_vars: "{{ env_vars | default({}) | combine(parsed_one, recursive=True) }}"
       vars:
@@ -46,12 +51,25 @@
         parsed_one: "{{ yaml_style | from_yaml }}"
       loop: "{{ env_slurped.results }}"
 
-- name: Check if admin_user can connect
-  hosts: all
+    - name: Export env_vars to localhost hostvars
+      ansible.builtin.add_host:
+        name: localhost
+        env_vars: "{{ env_vars }}"
+      delegate_to: localhost
+      changed_when: false
+
+# ──────────────────────────────────────────────
+# PLAY 2: Determine SSH user (always executed)
+# ──────────────────────────────────────────────
+- name: Decide SSH connection user
+  hosts: "{{ ansible_limit | default('all') }}"
   gather_facts: false
-  vars:
-    ansible_user: "{{ hostvars['localhost'].env_vars.ADMIN_USER }}"
+  tags: always
   tasks:
+    - name: Set connection user from env_vars
+      ansible.builtin.set_fact:
+        ansible_user: "{{ hostvars['localhost'].env_vars.ADMIN_USER }}"
+
     - name: Try connecting as admin_user
       ansible.builtin.ping:
       register: admin_user_ping
@@ -64,6 +82,9 @@
         ansible_user: "{{ superuser | default('root') }}"
       when: admin_user_ping.unreachable is defined
 
+# ────────────────────────────────────────
+# PLAY 3: Bootstrap admin user (if needed)
+# ────────────────────────────────────────
 - name: Create admin_user if missing
   hosts: all
   remote_user: "{{ superuser | default('root') }}"
@@ -73,9 +94,13 @@
         name: createuser
       when: admin_user_ping.unreachable is defined
 
+# ──────────────────────────────────────────────
+# PLAY 4: Provision host (roles)
+# ──────────────────────────────────────────────
 - name: Provisioning of rewardsweb project
   hosts: all
-  remote_user: "{{ hostvars['localhost'].env_vars.ADMIN_USER }}"
+  vars:
+    ansible_user: "{{ hostvars['localhost'].env_vars.ADMIN_USER }}"  
   roles:
     - role: setuphost
     - role: redis

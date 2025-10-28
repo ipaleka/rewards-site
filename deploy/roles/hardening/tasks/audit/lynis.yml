@@ -13,8 +13,12 @@
 - name: Get username running the playbook
   ansible.builtin.command: whoami
   delegate_to: localhost
+  delegate_facts: false
+  run_once: true
   register: host_username_lynis
   changed_when: false
+  vars:
+    ansible_connection: local
   tags: [audit, lynis]
 
 - name: Copy Lynis archive from local host

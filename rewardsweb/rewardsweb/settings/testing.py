@@ -19,7 +19,7 @@ DATABASES = {
     "default": {
         "ENGINE": "django.db.backends.postgresql",
         "OPTIONS": {
-            "service": "rewards_service",
+            "service": "rewardsweb_service",
             "passfile": get_env_variable("PGPASSFILE", "test"),
         },
     }

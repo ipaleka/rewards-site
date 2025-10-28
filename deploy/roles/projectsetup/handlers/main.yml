@@ -3,14 +3,12 @@
   ansible.builtin.systemd:
     name: "gunicorn-{{ env_name }}"
     state: reloaded
-  when: inventory_hostname != "cacheserver"
   become: true
   listen: "Reload web server"
 
 - name: Reload nginx
   ansible.builtin.systemd:
-    name: openresty
+    name: nginx
     state: reloaded
-  when: inventory_hostname != "cacheserver"
   become: true
   listen: "Reload web server"

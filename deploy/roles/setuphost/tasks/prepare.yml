@@ -35,6 +35,8 @@
   ansible.builtin.file:
     path: "{{ opt_folder }}"
     state: directory
+    owner: "{{ admin_user }}"
+    group: "{{ admin_user_group }}"
     mode: "0755"
   become: true
   tags: [audit, lynis]

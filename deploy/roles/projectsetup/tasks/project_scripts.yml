@@ -76,18 +76,6 @@
     job: ": Delete deactivated accounts weekly ; {{ site_path }}/scripts/deletedeactivatedcron.sh"
   become: true
   tags: [project-setup, cronjobs]
-- name: Update site record in django_site table
-  ansible.builtin.command: >
-    su -c "psql -d {{ env_name }} -c
-    \"UPDATE django_site SET domain='{{ site_name }}', name='{{ project_name }}' WHERE id = 1;\""
-    postgres
-  become: true
-  when:
-    - postgresql_database_created is defined
-    - postgresql_database_created is changed
-    - "'No migrations to apply' not in projectsetup_migrate_command.stdout"
-  changed_when: false
-  tags: [project-setup, postgresql-create]
 
 - name: Create backup helper script to delete obsolete files
   ansible.builtin.template:

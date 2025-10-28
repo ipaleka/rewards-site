@@ -34,46 +34,6 @@
   become: true
   tags: [webappsetup]
 
-- name: Ensure scripts directory exists
-  ansible.builtin.file:
-    path: "{{ site_path }}/scripts"
-    state: directory
-    owner: "{{ webapp_user }}"
-    group: "{{ webapp_group }}"
-    mode: '0700'
-  become: true
-  tags: [webappsetup]
-
-- name: Ensure static directory exists
-  ansible.builtin.file:
-    path: "{{ site_path }}/static"
-    state: directory
-    owner: "{{ webapp_user }}"
-    group: "{{ webapp_group }}"
-    mode: '0755'
-  become: true
-  tags: [webappsetup]
-
-- name: Ensure logs directory exists
-  ansible.builtin.file:
-    path: "{{ site_path }}/logs"
-    state: directory
-    owner: "{{ webapp_user }}"
-    group: "{{ webapp_group }}"
-    mode: '0755'
-  become: true
-  tags: [webappsetup]
-
-- name: Ensure run directory for unix socket exists
-  ansible.builtin.file:
-    path: "{{ site_path }}/run"
-    state: directory
-    owner: "{{ webapp_user }}"
-    group: "{{ webapp_group }}"
-    mode: '0755'
-  become: true
-  tags: [webappsetup]
-
 - name: Ensure temporary Ansible working directory exists
   ansible.builtin.file:
     path: "{{ site_path }}/.ansible/tmp"

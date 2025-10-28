@@ -1,6 +1,6 @@
 ---
-- name: Import web application setup tasks
-  ansible.builtin.import_tasks: webapp_setup.yml
+- name: Import web app directories setup tasks
+  ansible.builtin.import_tasks: webapp_directories.yml
 
 - name: Import Python virtual environment setup tasks
   ansible.builtin.import_tasks: virtualenv.yml

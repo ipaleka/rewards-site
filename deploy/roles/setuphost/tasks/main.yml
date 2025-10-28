@@ -17,5 +17,8 @@
 - name: Import miscellaneous setup tasks
   ansible.builtin.import_tasks: misc.yml
 
+- name: Import UFW setup tasks
+  ansible.builtin.import_tasks: ufw.yml
+
 - name: Import web app user setup tasks
   ansible.builtin.import_tasks: webapp_user.yml

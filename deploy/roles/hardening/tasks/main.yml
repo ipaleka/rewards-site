@@ -1,7 +1,4 @@
 ---
-- name: Import UFW hardening tasks
-  ansible.builtin.import_tasks: ufw.yml
-
 - name: Import SSH hardening tasks
   ansible.builtin.import_tasks: ssh.yml
 

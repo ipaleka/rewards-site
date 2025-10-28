@@ -8,10 +8,7 @@ ADMINS = [
     ("Ivica Paleka", "ipaleka@asastats.com"),
 ]
 
-ALLOWED_HOSTS = [
-    "127.0.0.1",
-    "localhost",
-]
+ALLOWED_HOSTS = ["*"]
 
 MIDDLEWARE.insert(2, "django.middleware.gzip.GZipMiddleware")
 

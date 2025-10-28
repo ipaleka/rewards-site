@@ -48,7 +48,7 @@
   notify: Restart ssh
   tags: [hardening_ssh]
 
-- name: Limit authorization attempts to 3
+- name: Limit authorization attempts to 5
   ansible.builtin.lineinfile:
     path: /etc/ssh/sshd_config
     regexp: "^MaxAuthTries"

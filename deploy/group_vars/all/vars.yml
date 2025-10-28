@@ -34,6 +34,8 @@ gunicorn_workers: 9  # cpu_count() * 2 + 1 is suggestion
 
 log_level: debug
 
+contributions_google_sheet_id: "1UJ9ZyvV0fdcXAfpUNOsRa1aCmJko-QhF-BU4Wcu6Xog"
+
 # System variables
 opt_folder: "/home/{{ admin_user }}/opt/"
 

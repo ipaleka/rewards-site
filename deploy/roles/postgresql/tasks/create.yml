@@ -20,3 +20,12 @@
   become: true
   become_user: postgres
   tags: [postgresql, postgresql-create]
+
+- name: Ensure pg_trgm extension is enabled
+  community.postgresql.postgresql_ext:
+    name: pg_trgm
+    login_db: "{{ hostvars['localhost'].env_vars.DATABASE_NAME }}"
+    state: present
+  become: true
+  become_user: postgres
+  tags: [postgresql, postgresql-create]

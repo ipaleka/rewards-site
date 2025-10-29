@@ -1,0 +1,83 @@
+name: molecule
+
+on:
+  push:
+    branches: [ "main" ]
+  pull_request:
+
+jobs:
+  ansible-lint:
+    name: Run ansible-lint
+    runs-on: ubuntu-latest
+    steps:
+      - name: Checkout
+        uses: actions/checkout@v4
+
+      - name: Install Python
+        uses: actions/setup-python@v5
+        with:
+          python-version: "3.12"
+
+      - name: Install ansible + lint
+        run: |
+          pip install ansible ansible-lint
+
+      - name: Run ansible-lint
+        run: ansible-lint
+        working-directory: deploy
+
+  molecule:
+    name: Run Molecule tests
+    runs-on: ubuntu-latest
+    #needs: ansible-lint       # optional: remove if you want both to run fully parallel
+    defaults:
+      run:
+        working-directory: deploy
+
+    steps:
+      - name: Checkout
+        uses: actions/checkout@v4
+
+      - name: Install Python
+        uses: actions/setup-python@v5
+        with:
+          python-version: "3.12"
+
+      - name: Cache Ansible Galaxy + Molecule artifacts
+        id: cache-molecule
+        uses: actions/cache@v4
+        with:
+          path: |
+            ~/.cache/ansible-compat
+            ~/.ansible/collections
+            ~/.ansible/roles
+          key: ansible-galaxy-${{ hashFiles('deploy/collections/requirements.yml') }}
+
+      - name: Install Molecule + plugins
+        run: |
+          pip install molecule molecule-docker ansible ansible-compat
+
+      - name: Patch molecule-docker playbooks
+        run: |
+          set -e
+          MOLECULE_DOCKER_PLAYBOOKS_DIR=$(python -c "import os; import molecule_docker; print(os.path.join(os.path.dirname(molecule_docker.__file__), 'playbooks'))")
+
+          PLAYBOOKS_TO_PATCH=("destroy.yml" "create.yml")
+
+          for PLAYBOOK_FILE in "${PLAYBOOKS_TO_PATCH[@]}"; do
+            PLAYBOOK_PATH="${MOLECULE_DOCKER_PLAYBOOKS_DIR}/${PLAYBOOK_FILE}"
+            if [ -f "$PLAYBOOK_PATH" ]; then
+              echo "Patching ${PLAYBOOK_PATH}"
+              sed -i "s/when: (lookup('env', 'HOME'))/when: lookup('env', 'HOME') | string | length > 0/" "${PLAYBOOK_PATH}"
+            else
+              echo "Playbook not found at ${PLAYBOOK_PATH}"
+              exit 1
+            fi
+          done
+
+      - name: Run Molecule
+        env:
+          HOME: ${{ runner.temp }}
+        run: |
+          echo "HOME is set to: $HOME"
+          molecule test --scenario-name ci

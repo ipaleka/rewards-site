@@ -4,6 +4,8 @@ dependency:
 
 driver:
   name: docker
+  options:
+    managed: true
 
 platforms:
   - name: ci-instance
@@ -23,6 +25,10 @@ provisioner:
     host_vars:
       ci-instance:
         ansible_connection: docker
+
+  config_options:
+    defaults:
+      roles_path: ../../roles
 
 verifier:
   name: ansible

@@ -16,20 +16,20 @@
 
   tasks:
     - name: Stat env files
-      stat:
+      ansible.builtin.stat:
         path: "{{ item }}"
       loop: "{{ env_files }}"
       register: env_file_check
 
     - name: Slurp existing env files
-      slurp:
+      ansible.builtin.slurp:
         path: "{{ item.item }}"
       when: item.stat.exists
       loop: "{{ env_file_check.results }}"
       register: env_slurped
 
     - name: Convert dotenv to dict
-      set_fact:
+      ansible.builtin.set_fact:
         env_vars: "{{ env_vars | default({}) | combine(parsed_one, recursive=True) }}"
       loop: "{{ env_slurped.results }}"
       vars:
@@ -44,13 +44,13 @@
         parsed_one: "{{ yaml_style | from_yaml }}"
 
     - name: Export env_vars to localhost
-      add_host:
+      ansible.builtin.add_host:
         name: localhost
         env_vars: "{{ env_vars }}"
       changed_when: false
 
     - name: Set remote hosts SSH user (skip localhost)
-      add_host:
+      ansible.builtin.add_host:
         name: "{{ item }}"
         ansible_user: "{{ hostvars['localhost'].env_vars.ADMIN_USER }}"
       loop: "{{ groups['all'] }}"
@@ -58,7 +58,7 @@
       changed_when: false
 
     - name: Fix localhost connection — prevent SSH attempts
-      add_host:
+      ansible.builtin.add_host:
         name: localhost
         ansible_connection: local
 

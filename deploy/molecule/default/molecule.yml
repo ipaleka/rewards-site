@@ -4,6 +4,8 @@ dependency:
 
 driver:
   name: docker
+  options:
+    managed: true
 
 platforms:
   - name: testing-instance

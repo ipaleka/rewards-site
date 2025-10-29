@@ -58,49 +58,48 @@
       delegate_to: localhost
       changed_when: false
 
-# ──────────────────────────────────────────────
-# PLAY 2: Determine SSH user (always executed)
-# ──────────────────────────────────────────────
-- name: Decide SSH connection user
-  hosts: "{{ ansible_limit | default('all') }}"
-  gather_facts: false
-  tags: always
-  tasks:
-    - name: Set connection user from env_vars
-      ansible.builtin.set_fact:
-        ansible_user: "{{ hostvars['localhost'].env_vars.ADMIN_USER }}"
-
-    - name: Try connecting as admin_user
-      ansible.builtin.ping:
-      register: admin_user_ping
-      ignore_unreachable: true
-      ignore_errors: true
-      changed_when: false
-
-    - name: Set fallback user if admin_user unreachable
-      ansible.builtin.set_fact:
-        ansible_user: "{{ superuser | default('root') }}"
-      when: admin_user_ping.unreachable is defined
-
 # ────────────────────────────────────────
-# PLAY 3: Bootstrap admin user (if needed)
+# PLAY 2: Bootstrap admin user (if needed)
 # ────────────────────────────────────────
 - name: Create admin_user if missing
   hosts: all
-  remote_user: "{{ superuser | default('root') }}"
+  gather_facts: false
+  vars:
+    ansible_user: "{{ superuser | default('root') }}"
+    ansible_ssh_common_args: "-o IdentitiesOnly=yes"
   tasks:
+    - name: Check if root can connect (quietly)
+      ansible.builtin.ping:
+      register: root_connection_check
+      ignore_unreachable: true
+      ignore_errors: true
+      changed_when: false
+      no_log: true
+
+    - name: Skip role when root cannot connect
+      ansible.builtin.debug:
+        msg: "Root login not allowed — skipping admin_user bootstrap."
+      when:
+        - inventory_hostname == ansible_play_hosts_all[0]
+        - root_connection_check.unreachable is defined or root_connection_check.failed
+      delegate_to: localhost
+      tags: skip_condition
+
+    - name: Stop processing this play if root is not reachable
+      ansible.builtin.meta: end_play
+      when: root_connection_check.unreachable is defined or root_connection_check.failed
+
     - name: Include createuser role
       ansible.builtin.include_role:
         name: createuser
-      when: admin_user_ping.unreachable is defined
 
 # ──────────────────────────────────────────────
-# PLAY 4: Provision host (roles)
+# PLAY 3: Provision host (roles)
 # ──────────────────────────────────────────────
 - name: Provisioning of rewardsweb project
   hosts: all
   vars:
-    ansible_user: "{{ hostvars['localhost'].env_vars.ADMIN_USER }}"  
+    ansible_user: "{{ hostvars['localhost'].env_vars.ADMIN_USER }}"
   roles:
     - role: setuphost
     - role: redis

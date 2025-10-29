@@ -819,7 +819,7 @@ def _map_open_issues(github_issues):
 
         # Identify contributor from issue user or text
         contributor_id = _identify_contributor_from_user(
-            github_issue.issue.user.login, contributors
+            github_issue.issue.user.login, contributors, strict=False
         )
         if not contributor_id:
             contributor_id = _identify_contributor_from_text(search_text, contributors)

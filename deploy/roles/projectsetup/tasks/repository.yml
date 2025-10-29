@@ -10,10 +10,23 @@
   notify: "Reload web server"
   tags: [repository, update-project-code]
 
-- name: "Install Python requirements for {{ project_name }}"
+- name: "Install Python requirements (no upgrades) for {{ project_name }}"
   ansible.builtin.pip:
     requirements: "{{ site_path }}/source/{{ app_name }}/requirements/{{ host_alias }}.txt"
     executable: "{{ site_path }}/venv/bin/pip"
+    state: present
   become: true
   become_user: "{{ webapp_user }}"
+  when: "'upgrade' not in ansible_run_tags"
   tags: [requirements, update-project-code]
+
+- name: "Upgrade Python packages based on requirements (pip --upgrade)"
+  ansible.builtin.pip:
+    requirements: "{{ site_path }}/source/{{ app_name }}/requirements/{{ host_alias }}.txt"
+    executable: "{{ site_path }}/venv/bin/pip"
+    state: forcereinstall
+    extra_args: "--upgrade"
+  become: true
+  become_user: "{{ webapp_user }}"
+  when: "'upgrade' in ansible_run_tags"
+  tags: [requirements, update-project-code, upgrade]

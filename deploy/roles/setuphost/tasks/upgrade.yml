@@ -1,0 +1,26 @@
+---
+- name: Update APT cache (force if tag "upgrade" is used)
+  ansible.builtin.apt:
+    update_cache: true
+    cache_valid_time: "{{ ('upgrade' in ansible_run_tags) | ternary(0, 86400) }}"
+  become: true
+  register: setuphost_apt_update
+  changed_when: setuphost_apt_update.cache_updated is defined and setuphost_apt_update.cache_updated
+  tags: [setup-host, uptodate, upgrade]
+
+- name: Upgrade system packages (only when tag "update" is used)
+  ansible.builtin.apt:
+    upgrade: dist
+  become: true
+  when: "'upgrade' in ansible_run_tags"
+  register: setuphost_apt_upgrade
+  tags: [setup-host, upgrade]
+
+- name: Autoremove old packages (only when tag "update" is used)
+  ansible.builtin.apt:
+    autoremove: true
+  become: true
+  when: "'upgrade' in ansible_run_tags"
+  register: setuphost_apt_autoremove
+  changed_when: setuphost_apt_autoremove.changed
+  tags: [setup-host, upgrade]

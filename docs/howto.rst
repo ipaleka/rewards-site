@@ -25,7 +25,7 @@ Then build the pdf with:
 
 
 Run Discord bot
---------------
+---------------
 
 .. code-block:: bash
 

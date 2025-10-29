@@ -121,6 +121,16 @@ For debugging purpose, add `-vv` or `-vvvv` for more verbose output:
   ansible-playbook -vv -i hosts --limit=testing site_playbook.yml
 
 
+Upgrade system and project
+^^^^^^^^^^^^^^^^^^^^^^^^^^
+
+Issue the following command if you want to fully upgrade system and Python packages to the latest versions:
+
+.. code-block:: bash
+
+  ansible-playbook -i hosts --limit=production --tags=upgrade site_playbook.yml
+
+
 Update project code
 ^^^^^^^^^^^^^^^^^^^
 

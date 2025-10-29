@@ -2,6 +2,9 @@
 - name: Import prepare host tasks
   ansible.builtin.import_tasks: prepare.yml
 
+- name: Import upgrade host tasks
+  ansible.builtin.import_tasks: upgrade.yml
+
 - name: Import reboot required tasks
   ansible.builtin.import_tasks: reboot_required.yml
 

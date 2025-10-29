@@ -4,14 +4,14 @@
     update_cache: true
   become: true
   changed_when: false
-  tags: [prepare-host, uptodate]
+  tags: [setup-host, uptodate]
 
 - name: Ensure setfacl tool (ACL management) is installed
   ansible.builtin.apt:
     name: acl
     state: present
   become: true
-  tags: [prepare-host, setfacl]
+  tags: [setup-host, setfacl]
 
 - name: Ensure required Python 3 packages are installed
   ansible.builtin.apt:
@@ -22,14 +22,14 @@
       - python3-venv
     state: present
   become: true
-  tags: [prepare-host, python3-install]
+  tags: [setup-host, python3-install]
 
 - name: Ensure Git is installed
   ansible.builtin.apt:
     name: git
     state: present
   become: true
-  tags: [repository]
+  tags: [setup-host, repository]
 
 - name: "Ensure opt folder exists for {{ admin_user }}"
   ansible.builtin.file:
@@ -39,4 +39,4 @@
     group: "{{ admin_user_group }}"
     mode: "0755"
   become: true
-  tags: [audit, lynis]
+  tags: [setup-host, audit, lynis]

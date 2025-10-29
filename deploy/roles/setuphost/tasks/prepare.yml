@@ -31,6 +31,13 @@
   become: true
   tags: [setup-host, repository]
 
+- name: Ensure cron package is installed
+  ansible.builtin.package:
+    name: cron
+    state: present
+  become: true
+  tags: [setup-host]
+
 - name: "Ensure opt folder exists for {{ admin_user }}"
   ansible.builtin.file:
     path: "{{ opt_folder }}"

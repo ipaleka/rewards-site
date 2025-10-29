@@ -1126,9 +1126,10 @@ class TestUtilsMappersHelpers:
         result_non_strict = _identify_contributor_from_user(
             user, contributors, strict=False
         )
-
+        result_default_strict = _identify_contributor_from_user(user, contributors)
         # Assert
         assert result_strict is None  # No match in strict mode (needs g@ prefix)
+        assert result_default_strict is None  # default is True
         assert result_non_strict == 1  # Match in non-strict mode
 
     def test_utils_mappers_identify_contributor_from_user_empty_user(self):

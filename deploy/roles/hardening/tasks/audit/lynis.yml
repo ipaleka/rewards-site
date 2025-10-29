@@ -15,7 +15,7 @@
   delegate_to: localhost
   delegate_facts: false
   run_once: true
-  register: host_username_lynis
+  register: hardening_host_username_lynis
   changed_when: false
   vars:
     ansible_connection: local
@@ -23,7 +23,7 @@
 
 - name: Copy Lynis archive from local host
   ansible.builtin.copy:
-    src: "/home/{{ host_username_lynis.stdout_lines[0] }}/opt/archives/lynis-{{ lynis_version }}.tar.gz"
+    src: "/home/{{ hardening_host_username_lynis.stdout_lines[0] }}/opt/archives/lynis-{{ lynis_version }}.tar.gz"
     dest: "{{ opt_folder }}archives/lynis-{{ lynis_version }}.tar.gz"
     owner: "{{ admin_user }}"
     group: "{{ admin_user_group }}"

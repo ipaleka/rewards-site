@@ -79,8 +79,9 @@
     - name: Skip role when root cannot connect
       ansible.builtin.debug:
         msg: "Root login not allowed — skipping admin_user bootstrap."
-      when: root_connection_check.unreachable is defined or root_connection_check.failed
-      run_once: true
+      when:
+        - inventory_hostname == ansible_play_hosts_all[0]
+        - root_connection_check.unreachable is defined or root_connection_check.failed
       delegate_to: localhost
       tags: skip_condition
 
@@ -98,7 +99,7 @@
 - name: Provisioning of rewardsweb project
   hosts: all
   vars:
-    ansible_user: "{{ hostvars['localhost'].env_vars.ADMIN_USER }}"  
+    ansible_user: "{{ hostvars['localhost'].env_vars.ADMIN_USER }}"
   roles:
     - role: setuphost
     - role: redis

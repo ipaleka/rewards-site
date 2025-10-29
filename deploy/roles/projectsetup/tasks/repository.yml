@@ -1,7 +1,7 @@
 ---
 - name: "Clone repository {{ project_name }}"
   ansible.builtin.git:
-    repo: "https://{{ repository_user | urlencode }}:{{ repository_token | urlencode }}@{{ repository_url }}"
+    repo: "{{ repository_url }}"
     dest: "{{ site_path }}/source"
     version: main
     umask: "027"

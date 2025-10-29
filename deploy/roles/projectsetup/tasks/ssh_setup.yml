@@ -35,4 +35,5 @@
     mode: "0600"
   become: true
   become_user: "{{ admin_user }}"
+  changed_when: false
   tags: [ssh-sync-setup]

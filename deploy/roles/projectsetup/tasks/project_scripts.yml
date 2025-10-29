@@ -10,6 +10,7 @@
     - collectstatic
     - clearsessions
     - migrate
+    - excel2db
   become: true
   become_user: "{{ webapp_user }}"
   tags: [project-setup, create-scripts]
@@ -96,3 +97,25 @@
   become: true
   become_user: "{{ webapp_user }}"
   tags: [project-setup, cronjobs]
+
+- name: Check if XLSX file already exists
+  ansible.builtin.stat:
+    path: "{{ site_path }}/source/{{ app_name }}/fixtures/contributions.xlsx"
+  register: projectsetup_sheet_stat
+  become: true
+  tags: [project-setup, excel2db]
+
+- name: Download Google Sheet as XLSX (only if missing)
+  ansible.builtin.get_url:
+    url: "https://docs.google.com/spreadsheets/d/{{ contributions_google_sheet_id }}/export?format=xlsx"
+    dest: "{{ site_path }}/source/{{ app_name }}/fixtures/contributions.xlsx"
+    owner: "{{ webapp_user }}"
+    group: "{{ webapp_group }}"
+    mode: "0755"
+    force: true
+  become: true
+  when:
+    - contributions_google_sheet_id is defined
+    - not projectsetup_sheet_stat.stat.exists
+  notify: Run excel2db management command
+  tags: [project-setup, excel2db]

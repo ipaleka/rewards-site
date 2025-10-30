@@ -9,9 +9,9 @@
       ansible.builtin.service_facts:
 
     - name: Check user exists
-      ansible.builtin.command: id "{{ admin_user }}"
-      register: usercheck
-      failed_when: usercheck.rc != 0
+      ansible.builtin.getent:
+        database: passwd
+        key: "{{ admin_user }}"
 
     - name: Check SSH authorized_keys exists
       ansible.builtin.stat:
@@ -38,6 +38,26 @@
           - "ansible_facts.services['redis-server.service'].status == 'enabled'"
         fail_msg: "Redis service is not running or not enabled"
         success_msg: "Redis service is running and enabled"
+
+    - name: Verify PostgreSQL user exists
+      ansible.builtin.command: "psql -U postgres -tAc \"SELECT 1 FROM pg_roles WHERE rolname='{{ hostvars['localhost'].env_vars.DATABASE_USER }}'\""
+      register: user_exists
+      changed_when: false
+      failed_when: user_exists.stdout.strip() != "1"
+
+    - name: Verify PostgreSQL database exists
+      ansible.builtin.command: "psql -U postgres -tAc \"SELECT 1 FROM pg_database WHERE datname='{{ hostvars['localhost'].env_vars.DATABASE_NAME }}'\""
+      register: db_exists
+      changed_when: false
+      failed_when: db_exists.stdout.strip() != "1"
+
+    - name: Verify pg_trgm extension enabled
+      ansible.builtin.command: >
+        psql -U postgres -d {{ hostvars['localhost'].env_vars.DATABASE_NAME }}
+        -tAc "SELECT 1 FROM pg_extension WHERE extname='pg_trgm'"
+      register: ext_exists
+      changed_when: false
+      failed_when: ext_exists.stdout.strip() != "1"
 
     - name: Verify Gunicorn service file exists
       ansible.builtin.stat:

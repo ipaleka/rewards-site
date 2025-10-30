@@ -62,8 +62,6 @@ jobs:
           pip install "molecule-plugins[docker]"
 
       - name: Generate temporary SSH key for Molecule
-        # env:
-        #   HOME: ${{ runner.temp }}
         run: |
           mkdir -p ~/.ssh
           ssh-keygen -t rsa -b 4096 -f ~/.ssh/id_rwds_rsa -N ""

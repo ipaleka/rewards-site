@@ -1,4 +1,8 @@
 ---
+- name: Apply PostgreSQL environment when testing under Molecule
+  ansible.builtin.set_fact:
+    postgresql_pg_env: "{{ pg_env | default({}) }}"
+
 - name: Create postgresql user
   community.postgresql.postgresql_user:
     name: "{{ hostvars['localhost'].env_vars.DATABASE_USER }}"
@@ -8,6 +12,7 @@
     encrypted: true
   become: true
   become_user: postgres
+  environment: "{{ postgresql_pg_env | default({}) }}"
   tags: [postgresql, postgresql-create]
 
 - name: Create postgresql database
@@ -19,6 +24,7 @@
   register: postgresql_database_created
   become: true
   become_user: postgres
+  environment: "{{ postgresql_pg_env | default({}) }}"
   tags: [postgresql, postgresql-create]
 
 - name: Ensure pg_trgm extension is enabled
@@ -28,4 +34,5 @@
     state: present
   become: true
   become_user: postgres
+  environment: "{{ postgresql_pg_env | default({}) }}"
   tags: [postgresql, postgresql-create]

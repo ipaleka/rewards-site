@@ -26,6 +26,8 @@ provisioner:
     ANSIBLE_COLLECTIONS_PATHS: "../../collections"
   playbooks:
     prepare: prepare.yml
+    converge: converge.yml
+    verify: verify.yml
   inventory:
     host_vars:
       ubuntu2404:

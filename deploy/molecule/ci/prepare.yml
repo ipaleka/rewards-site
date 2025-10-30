@@ -1,36 +1,94 @@
 ---
 - name: Prepare test instance
   hosts: all
+  become: true
   gather_facts: false
+
   tasks:
-
-    # ✅ Create tmp dirs WITHOUT using a module (no tmp needed)
     - name: Force-create remote tmp folder
-      ansible.builtin.raw: |
-        mkdir -p /tmp/.ansible/tmp && chmod -R 777 /tmp/.ansible
-      changed_when: true
+      ansible.builtin.file:
+        path: /tmp/.ansible/tmp
+        state: directory
+        mode: "0777"
+      changed_when: false
 
-# ---
-# - name: Prepare
-#   hosts: all
-#   become: true
-#   gather_facts: false
+    - name: Update apt cache
+      ansible.builtin.apt:
+        update_cache: true
+      changed_when: false
 
-#   tasks:
-#     - name: Update apt cache
-#       ansible.builtin.apt:
-#         update_cache: true
-#       changed_when: false
+    - name: Install PostgreSQL and psycopg2
+      ansible.builtin.apt:
+        name:
+          - postgresql
+          - postgresql-contrib
+          - python3-psycopg2
+        state: present
 
-#     - name: Install build dependencies for psycopg2
-#       ansible.builtin.apt:
-#         name:
-#           - python3-pip
-#           - libpq-dev
-#           - build-essential
-#         state: present
+    - name: Install build dependencies for psycopg2
+      ansible.builtin.apt:
+        name:
+          - python3-pip
+          - libpq-dev
+          - build-essential
+        state: present
 
-#     - name: Install psycopg2 with pip
-#       ansible.builtin.pip:
-#         name: psycopg2-binary
-#         state: present
+    - name: Install psycopg2 with pip
+      ansible.builtin.pip:
+        name: psycopg2-binary
+        state: present
+
+    - name: Ensure PostgreSQL service is started
+      ansible.builtin.systemd:
+        name: postgresql
+        state: started
+        enabled: true
+
+    - name: Detect PostgreSQL version
+      ansible.builtin.command: "pg_config --version"
+      register: pg_version_cmd
+      changed_when: false
+
+    - name: Extract PostgreSQL version
+      ansible.builtin.set_fact:
+        pg_major_version: "{{ pg_version_cmd.stdout | regex_search('([0-9]+)') }}"
+
+    - name: Detect if PostgreSQL cluster directory exists
+      ansible.builtin.stat:
+        path: "/etc/postgresql/{{ pg_major_version }}/main"
+      register: pg_cluster
+
+    - name: Ensure cluster exists (idempotent)
+      ansible.builtin.shell: "pg_createcluster {{ pg_major_version }} main --start"
+      args:
+        executable: /bin/bash
+      register: cluster_created
+      changed_when: "'Creating new cluster' in cluster_created.stdout"
+      become: true
+      when: not pg_cluster.stat.exists
+
+    - name: Allow postgres local connections via trust (Molecule only)
+      ansible.builtin.lineinfile:
+        path: "/etc/postgresql/{{ pg_major_version }}/main/pg_hba.conf"
+        regexp: '^local\s+all\s+postgres\s+'
+        line: 'local   all             postgres                                trust'
+        insertafter: '^# TYPE'
+      notify: Restart PostgreSQL
+
+    - name: Apply PostgreSQL handler immediately
+      ansible.builtin.meta: flush_handlers
+
+    - name: Wait until PostgreSQL accepts connections
+      ansible.builtin.command: "psql -U postgres -tAc 'SELECT 1'"
+      register: pg_ready
+      retries: 10
+      delay: 2
+      until: pg_ready.rc == 0
+      changed_when: false
+
+  handlers:
+    - name: Restart PostgreSQL
+      ansible.builtin.systemd:
+        name: "postgresql@{{ pg_major_version }}-main"
+        state: restarted
+        daemon_reload: true

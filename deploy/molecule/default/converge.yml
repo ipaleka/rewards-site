@@ -66,8 +66,9 @@
 # PLAY 2: Bootstrap admin user inside Molecule instance
 # ──────────────────────────────────────────────
 - name: Ensure admin user exists (Molecule only)
-  hosts: all
+  hosts: all:!localhost
   gather_facts: false
+  become: true
   roles:
     - createuser
 

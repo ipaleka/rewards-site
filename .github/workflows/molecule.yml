@@ -40,6 +40,21 @@ jobs:
         with:
           python-version: "3.12"
 
+      - name: Cache Molecule + Galaxy
+        uses: actions/cache@v4
+        with:
+          path: |
+            ~/.cache/ansible-compat
+            ~/.ansible/collections
+            ~/.ansible/roles
+          key: galaxy-${{ hashFiles('deploy/collections/requirements.yml') }}
+
+      - name: Cache pip
+        uses: actions/cache@v4
+        with:
+          path: ~/.cache/pip
+          key: pip-${{ hashFiles('deploy/**/requirements*.txt') }}
+
       - name: Install Molecule + Docker plugin
         run: |
           pip install --upgrade pip
@@ -55,9 +70,7 @@ jobs:
 
       - name: Run Molecule tests
         env:
-          HOME: ${{ runner.temp }}
           ANSIBLE_DEPRECATION_WARNINGS: "False"
-          ANSIBLE_CONFIG: deploy/ansible.cfg
         run: |
           PATH="$HOME/.local/bin:/snap/bin:$PATH"
           molecule test --scenario-name ci

@@ -4,27 +4,25 @@ dependency:
 
 driver:
   name: docker
-  options:
-    managed: true
 
 platforms:
-  - name: testing-instance
-    image: geerlingguy/docker-ubuntu2404-ansible:latest
-    ansible.builtin.command: /sbin/init
-    privileged: true
+  - name: ubuntu2404
+    image: trfore/docker-ubuntu2404-systemd:latest
+    privileged: true        # required for systemd boot
+    command: "/sbin/init"   # required for systemd boot
     pre_build_image: true
 
 provisioner:
   name: ansible
+  log: true
   env:
     ANSIBLE_ROLES_PATH: "../../roles"
     ANSIBLE_COLLECTIONS_PATHS: "../../collections"
-  playbooks:
-    converge: converge.yml
   inventory:
     host_vars:
-      testing-instance:
+      ubuntu2404:
         ansible_connection: docker
+        ansible_user: root
 
 verifier:
   name: ansible

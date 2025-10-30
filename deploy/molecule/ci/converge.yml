@@ -66,10 +66,8 @@
 # PLAY 2: Bootstrap admin user inside Molecule instance
 # ──────────────────────────────────────────────
 - name: Ensure admin user exists (Molecule only)
-  hosts: all
-  gather_facts: false
-  vars:
-    ansible_user: root
+  hosts: all:!localhost
+  gather_facts: true
   roles:
     - createuser
 
@@ -81,7 +79,7 @@
   gather_facts: true
   roles:
     - setuphost
-    # - redis
+    - redis
     - postgresql
     - projectsetup
     - gunicorn

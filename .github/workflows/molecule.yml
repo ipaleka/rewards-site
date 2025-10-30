@@ -29,52 +29,22 @@ jobs:
   molecule:
     name: Run Molecule tests
     runs-on: ubuntu-latest
-    #needs: ansible-lint       # optional: remove if you want both to run fully parallel
     defaults:
       run:
         working-directory: deploy
 
     steps:
-      - name: Checkout
-        uses: actions/checkout@v4
+      - uses: actions/checkout@v4
 
-      - name: Install Python
-        uses: actions/setup-python@v5
+      - uses: actions/setup-python@v5
         with:
           python-version: "3.12"
 
-      - name: Cache Ansible Galaxy + Molecule artifacts
-        id: cache-molecule
-        uses: actions/cache@v4
-        with:
-          path: |
-            ~/.cache/ansible-compat
-            ~/.ansible/collections
-            ~/.ansible/roles
-          key: ansible-galaxy-${{ hashFiles('deploy/collections/requirements.yml') }}
-
-      - name: Install Molecule + plugins
+      - name: Install Molecule + Docker plugin
         run: |
-          pip install molecule molecule-docker ansible ansible-compat
           pip install --upgrade pip
-
-      - name: Patch molecule-docker playbooks
-        run: |
-          set -e
-          MOLECULE_DOCKER_PLAYBOOKS_DIR=$(python -c "import os; import molecule_docker; print(os.path.join(os.path.dirname(molecule_docker.__file__), 'playbooks'))")
-
-          PLAYBOOKS_TO_PATCH=("destroy.yml" "create.yml")
-
-          for PLAYBOOK_FILE in "${PLAYBOOKS_TO_PATCH[@]}"; do
-            PLAYBOOK_PATH="${MOLECULE_DOCKER_PLAYBOOKS_DIR}/${PLAYBOOK_FILE}"
-            if [ -f "$PLAYBOOK_PATH" ]; then
-              echo "Patching ${PLAYBOOK_PATH}"
-              sed -i "s/when: (lookup('env', 'HOME'))/when: lookup('env', 'HOME') | string | length > 0/" "${PLAYBOOK_PATH}"
-            else
-              echo "Playbook not found at ${PLAYBOOK_PATH}"
-              exit 1
-            fi
-          done
+          pip install molecule ansible ansible-compat
+          pip install "molecule-plugins[docker]"
 
       - name: Generate temporary SSH key for Molecule
         env:
@@ -83,10 +53,11 @@ jobs:
           mkdir -p ~/.ssh
           ssh-keygen -t rsa -b 4096 -f ~/.ssh/id_rwds_rsa -N ""
 
-      - name: Run Molecule
+      - name: Run Molecule tests
         env:
           HOME: ${{ runner.temp }}
-          ANSIBLE_DEPRECATION_WARNINGS: False
+          ANSIBLE_DEPRECATION_WARNINGS: "False"
+          ANSIBLE_CONFIG: deploy/ansible.cfg
         run: |
-          echo "HOME is set to: $HOME"
+          PATH="$HOME/.local/bin:/snap/bin:$PATH"
           molecule test --scenario-name ci

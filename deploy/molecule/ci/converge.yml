@@ -10,9 +10,9 @@
 
   vars:
     env_files:
-      - "{{ playbook_dir }}/../../.env.ci"
-      - "{{ playbook_dir }}/../../../rewardsweb/.env.ci"
-      - "{{ playbook_dir }}/../../../rewardsweb/rewardsbot/.env"
+      - "{{ playbook_dir }}/../../.env-example"
+      - "{{ playbook_dir }}/../../../rewardsweb/.env-example"
+      - "{{ playbook_dir }}/../../../rewardsweb/rewardsbot/.env-example"
 
   tasks:
     - name: Stat env files

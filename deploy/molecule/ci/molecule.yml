@@ -26,3 +26,8 @@ provisioner:
     ANSIBLE_COLLECTIONS_PATHS: "../../collections"
   playbooks:
     prepare: prepare.yml
+  inventory:
+    host_vars:
+      ubuntu2404:
+        ansible_connection: docker
+        ansible_user: root

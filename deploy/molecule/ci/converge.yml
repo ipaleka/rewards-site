@@ -68,6 +68,7 @@
 - name: Ensure admin user exists (Molecule only)
   hosts: all:!localhost
   gather_facts: false
+  become: true
   roles:
     - createuser
 

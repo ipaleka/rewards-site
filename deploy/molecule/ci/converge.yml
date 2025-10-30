@@ -73,16 +73,15 @@
   roles:
     - createuser
 
-
 # ──────────────────────────────────────────────
 # PLAY 3: Provision roles
 # ──────────────────────────────────────────────
 - name: Provisioning of rewardsweb project
-  hosts: all
+  hosts: all:!localhost
   gather_facts: true
   roles:
     - setuphost
-    - redis
+    # - redis
     - postgresql
     - projectsetup
     - gunicorn

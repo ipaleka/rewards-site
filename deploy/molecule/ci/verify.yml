@@ -1,8 +1,27 @@
 ---
 - name: Verify CI environment
-  hosts: all
+  hosts: all:!localhost
+  become: true
   gather_facts: false
+
   tasks:
+    - name: Gather service facts
+      ansible.builtin.service_facts:
+
+    - name: Verify admin user user exists (created by createuser role)
+      ansible.builtin.command: "id {{ admin_user }}"
+      register: admin_user_check
+      changed_when: false
+      failed_when: admin_user_check.rc != 0
+
+    - name: Assert that the Redis service is running and enabled
+      ansible.builtin.assert:
+        that:
+          - "ansible_facts.services['redis-server.service'].state == 'running'"
+          - "ansible_facts.services['redis-server.service'].status == 'enabled'"
+        fail_msg: "Redis service is not running or not enabled"
+        success_msg: "Redis service is running and enabled"
+
     - name: Verify Gunicorn service file exists
       ansible.builtin.stat:
         path: /etc/systemd/system/gunicorn.service
@@ -14,9 +33,3 @@
           - gunicorn_file.stat.exists
         fail_msg: "Gunicorn service file not found at /etc/systemd/system/gunicorn.service"
         success_msg: "Gunicorn service file found ✅"
-
-    - name: Verify deploy user exists (created by createuser role)
-      ansible.builtin.command: id deploy
-      register: deploy_user_check
-      changed_when: false
-      failed_when: deploy_user_check.rc != 0

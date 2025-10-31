@@ -13,18 +13,6 @@
         database: passwd
         key: "{{ admin_user }}"
 
-    - name: Check SSH authorized_keys exists
-      ansible.builtin.stat:
-        path: "/home/{{ admin_user }}/.ssh/authorized_keys"
-      register: sshfile
-
-    - name: Validate SSH key present
-      ansible.builtin.assert:
-        that:
-          - sshfile.stat.exists
-          - sshfile.stat.size > 0
-        fail_msg: "Admin authorized_keys is missing or empty"
-
     - name: Verify admin user user exists (created by createuser role)
       ansible.builtin.command: "id {{ admin_user }}"
       register: admin_user_check

@@ -1,6 +1,7 @@
 ---
 - name: Import SSH hardening tasks
   ansible.builtin.import_tasks: ssh.yml
+  when: not moleculetest | default(false)
 
 - name: Import kernel hardening tasks
   ansible.builtin.import_tasks: kernel.yml

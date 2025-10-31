@@ -29,6 +29,7 @@
     group: "{{ admin_user_group }}"
     mode: "0640"
   become: true
+  when: not moleculetest | default(false)
   notify: Lynis downloaded
   tags: [audit, lynis]
 

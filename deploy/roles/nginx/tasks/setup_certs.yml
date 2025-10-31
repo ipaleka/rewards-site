@@ -8,7 +8,12 @@
 
 - name: Set variable indicating whether we need certificate creation
   ansible.builtin.set_fact:
-    nginx_need_certs: "{{ inventory_hostname in groups['production'] and not nginx_cert_stat.stat.exists }}"
+    nginx_need_certs: >-
+      {{
+        not moleculetest | default(false)
+        and inventory_hostname in groups['production']
+        and not nginx_cert_stat.stat.exists
+      }}
   tags: [nginx, letsencrypt]
 
 - name: "Add httponly config to nginx sites-available for {{ site_name }}"
@@ -31,7 +36,7 @@
     group: root
     mode: '0640'
   become: true
-  when: inventory_hostname in groups['testing']
+  when: moleculetest | default(false) or inventory_hostname in groups['testing']
   tags: [nginx, letsencrypt]
 
 - name: "Add symlink to nginx sites-enabled for {{ site_name }}"
@@ -44,8 +49,8 @@
     mode: '0640'
   become: true
   when: nginx_need_certs or
-        inventory_hostname in groups['testing'] or
-        inventory_hostname in groups['ci']
+        moleculetest | default(false) or
+        inventory_hostname in groups['testing']
   notify: Restart nginx
   tags: [nginx, letsencrypt]
 
@@ -88,7 +93,7 @@
     group: root
     mode: '0640'
   become: true
-  when: inventory_hostname in groups['production']
+  when: not moleculetest | default(false) and inventory_hostname in groups['production']
   tags: [nginx, nginx-snippets, letsencrypt]
 
 - name: "Add symlink to nginx sites-enabled (SSL) for {{ site_name }}"

@@ -17,5 +17,5 @@
     user: root
     job: ": certbot renew daily ; /usr/bin/certbot renew --quiet --noninteractive --renew-hook /var/www/cron_letsencrypt.sh"
   become: true
-  when: inventory_hostname in groups['production']
+  when: not moleculetest | default(false) and inventory_hostname in groups['production']
   tags: [nginx, letsencrypt, cronjobs]

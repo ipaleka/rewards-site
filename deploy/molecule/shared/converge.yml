@@ -61,6 +61,7 @@
       ansible.builtin.add_host:
         name: localhost
         ansible_connection: local
+      when: inventory_hostname != "localhost"
 
 # ──────────────────────────────────────────────
 # PLAY 2: Bootstrap admin user inside Molecule instance

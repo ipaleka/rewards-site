@@ -8,16 +8,28 @@
     state: present
   become: true
   notify: Restart postgresql
+  when: not moleculetest | default(false)
   loop:
     - regex: "^#listen_addresses = 'localhost'"
       value: "listen_addresses = 'localhost, {{ inventory_hostname if moleculetest | default(false) else hostvars[inventory_hostname].ansible_host }}'"
   tags: [postgresql, postgresql-access, postgresql-allow-webserver-ip]
+
+- name: FORCE TCP listener after tuning (Molecule fix)
+  ansible.builtin.lineinfile:
+    path: "/etc/postgresql/{{ postgresql_version }}/main/postgresql.conf"
+    regexp: '^listen_addresses ='
+    line: "listen_addresses = '*'"
+  when: moleculetest | default(false)
+  become: true
+  notify: Restart postgresql
+  tags: [postgresql, postgresql-access]
 
 - name: Define connection vars for pg_hba.conf
   ansible.builtin.set_fact:
     postgresql_db_name: "{{ hostvars['localhost'].env_vars.DATABASE_NAME }}"
     postgresql_db_user: "{{ hostvars['localhost'].env_vars.DATABASE_USER }}"
     postgresql_db_host: "{{ inventory_hostname if moleculetest | default(false) else hostvars[inventory_hostname].ansible_host }}"
+  when: not moleculetest | default(false)
 
 - name: Set access rule in pg_hba.conf for webserver
   ansible.builtin.lineinfile:
@@ -27,4 +39,17 @@
     state: present
   become: true
   notify: Restart postgresql
+  when: not moleculetest | default(false)
   tags: [postgresql, postgresql-access, postgresql-allow-webserver-ip]
+
+- name: Force trust for localhost TCP during Molecule test
+  ansible.builtin.blockinfile:
+    path: "/etc/postgresql/{{ postgresql_version }}/main/pg_hba.conf"
+    marker: "# {mark} MOLECULE TCP TRUST"
+    block: |
+      host    all             all             127.0.0.1/32            trust
+      host    all             all             ::1/128                 trust
+  when: moleculetest | default(false)
+  become: true
+  notify: Restart postgresql
+  tags: [postgresql, postgresql-access]

@@ -1,18 +1,11 @@
 ---
-- name: Restart PostgreSQL service (Molecule only)
-  ansible.builtin.service:
-    name: postgresql
-    state: restarted
-  when: moleculetest | default(false)
-  become: true
-
-- name: Wait for PostgreSQL to start (Molecule only)
-  ansible.builtin.wait_for:
-    path: /var/run/postgresql/.s.PGSQL.5432
-    state: present
-    delay: 5
-    timeout: 60
-  when: moleculetest | default(false)
+# - name: Wait for PostgreSQL to start (Molecule only)
+#   ansible.builtin.wait_for:
+#     path: /var/run/postgresql/.s.PGSQL.5432
+#     state: present
+#     delay: 5
+#     timeout: 60
+#   when: moleculetest | default(false)
 
 - name: Create postgresql user (Molecule only)
   ansible.builtin.command:

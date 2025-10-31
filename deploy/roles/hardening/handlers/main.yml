@@ -11,6 +11,7 @@
     name: ssh
     state: restarted
   become: true
+  when: not moleculetest | default(false)
   listen: Restart ssh
 
 - name: Restart Fail2Ban
@@ -32,6 +33,7 @@
     name: auditd
     state: restarted
   become: true
+  when: not moleculetest | default(false)
   listen: Restart auditd
 
 - name: Remove previous Lynis version folder if it exists

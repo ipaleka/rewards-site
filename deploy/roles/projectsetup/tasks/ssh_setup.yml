@@ -12,6 +12,7 @@
   become_user: "{{ admin_user }}"
   register: projectsetup_admin_user_rsa_key
   changed_when: false
+  when: not (moleculetest | default(false))
   tags: [ssh-sync-setup]
 
 - name: Ensure known_hosts file exists for admin_user
@@ -23,6 +24,7 @@
     mode: '0644'
   become: true
   changed_when: false
+  when: not (moleculetest | default(false))
   tags: [ssh-sync-setup]
 
 - name: Add admin_user RSA key to known_hosts
@@ -36,4 +38,5 @@
   become: true
   become_user: "{{ admin_user }}"
   changed_when: false
+  when: not (moleculetest | default(false))
   tags: [ssh-sync-setup]

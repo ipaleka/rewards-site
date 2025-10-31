@@ -17,12 +17,12 @@
 
 - name: Read excel2db.sh content
   ansible.builtin.command: cat {{ site_path }}/scripts/excel2db.sh
-  register: excel2db_script_content
+  register: projectsetup_excel2db_script_content
   changed_when: false
 
 - name: Display excel2db.sh content
   ansible.builtin.debug:
-    var: excel2db_script_content.stdout_lines
+    var: projectsetup_excel2db_script_content.stdout_lines
 
 - name: Create management command cron scripts with output
   ansible.builtin.template:

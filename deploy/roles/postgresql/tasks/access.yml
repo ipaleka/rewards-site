@@ -10,14 +10,14 @@
   notify: Restart postgresql
   loop:
     - regex: "^#listen_addresses = 'localhost'"
-      value: "listen_addresses = 'localhost, {{ hostvars[inventory_hostname].ansible_host }}'"
+      value: "listen_addresses = 'localhost, {{ inventory_hostname if moleculetest | default(false) else hostvars[inventory_hostname].ansible_host }}'"
   tags: [postgresql, postgresql-access, postgresql-allow-webserver-ip]
 
 - name: Define connection vars for pg_hba.conf
   ansible.builtin.set_fact:
     postgresql_db_name: "{{ hostvars['localhost'].env_vars.DATABASE_NAME }}"
     postgresql_db_user: "{{ hostvars['localhost'].env_vars.DATABASE_USER }}"
-    postgresql_db_host: "{{ hostvars[inventory_hostname].ansible_host }}"
+    postgresql_db_host: "{{ inventory_hostname if moleculetest | default(false) else hostvars[inventory_hostname].ansible_host }}"
 
 - name: Set access rule in pg_hba.conf for webserver
   ansible.builtin.lineinfile:

@@ -6,26 +6,6 @@ on:
   pull_request:
 
 jobs:
-  ansible-lint:
-    name: Run ansible-lint
-    runs-on: ubuntu-latest
-    steps:
-      - name: Checkout
-        uses: actions/checkout@v4
-
-      - name: Install Python
-        uses: actions/setup-python@v5
-        with:
-          python-version: "3.12"
-
-      - name: Install ansible + lint
-        run: |
-          pip install ansible ansible-lint
-
-      - name: Run ansible-lint
-        run: ansible-lint
-        working-directory: deploy
-
   molecule:
     name: Run Molecule tests
     runs-on: ubuntu-latest

@@ -1,6 +1,6 @@
 # ASA Stats Rewards Site
 
-[![build-status](https://github.com/asastats/rewards-site/actions/workflows/test.yml/badge.svg)](https://github.com/asastats/rewards-site/actions/workflows/test.yml) [![docs](https://app.readthedocs.org/projects/rewards-site/badge/?version=latest)](https://rewards-site.readthedocs.io/en/latest/?badge=latest) ![molecule](https://github.com/ipaleka/rewards-site/actions/workflows/molecule.yml/badge.svg) [![codecov](https://codecov.io/gh/asastats/rewards-site/graph/badge.svg?token=DQC4SRY8J9)](https://codecov.io/gh/asastats/rewards-site)  
+[![build-status](https://github.com/asastats/rewards-site/actions/workflows/test.yml/badge.svg)](https://github.com/asastats/rewards-site/actions/workflows/test.yml) [![docs](https://app.readthedocs.org/projects/rewards-site/badge/?version=latest)](https://rewards-site.readthedocs.io/en/latest/?badge=latest) ![ansible-lint](https://github.com//ipaleka/rewards-site/actions/workflows/ansible-lint.yml/badge.svg) ![molecule](https://github.com/ipaleka/rewards-site/actions/workflows/molecule.yml/badge.svg) [![codecov](https://codecov.io/gh/asastats/rewards-site/graph/badge.svg?token=DQC4SRY8J9)](https://codecov.io/gh/asastats/rewards-site)  
 
 A website dedicated to ASA Stats contributions. Previously written in Laravel, now powered by Django.
 

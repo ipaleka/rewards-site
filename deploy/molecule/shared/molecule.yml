@@ -33,3 +33,4 @@ provisioner:
       ubuntu2404:
         ansible_connection: docker
         ansible_user: root
+        moleculetest: true

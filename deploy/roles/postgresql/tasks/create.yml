@@ -1,9 +1,31 @@
 ---
-- name: Apply PostgreSQL environment when testing under Molecule
-  ansible.builtin.set_fact:
-    postgresql_pg_env: "{{ pg_env | default({}) }}"
+- name: Restart PostgreSQL service (Molecule only)
+  ansible.builtin.service:
+    name: postgresql
+    state: restarted
+  when: moleculetest | default(false)
+  become: true
 
-- name: Create postgresql user
+- name: Wait for PostgreSQL to start (Molecule only)
+  ansible.builtin.wait_for:
+    path: /var/run/postgresql/.s.PGSQL.5432
+    state: present
+    delay: 5
+    timeout: 60
+  when: moleculetest | default(false)
+
+- name: Create postgresql user (Molecule only)
+  ansible.builtin.command:
+    cmd: psql -c "CREATE USER {{ hostvars['localhost'].env_vars.DATABASE_USER }} WITH PASSWORD '{{ hostvars['localhost'].env_vars.DATABASE_PASSWORD }}' CREATEDB;"
+  become: true
+  become_user: postgres
+  when: moleculetest | default(false)
+  register: create_user_result
+  changed_when: "'CREATE ROLE' in create_user_result.stdout"
+  failed_when: create_user_result.rc != 0 and 'already exists' not in create_user_result.stderr
+  tags: [postgresql, postgresql-create]
+
+- name: Create postgresql user (Production)
   community.postgresql.postgresql_user:
     name: "{{ hostvars['localhost'].env_vars.DATABASE_USER }}"
     password: "{{ hostvars['localhost'].env_vars.DATABASE_PASSWORD }}"
@@ -12,7 +34,7 @@
     encrypted: true
   become: true
   become_user: postgres
-  environment: "{{ postgresql_pg_env | default({}) }}"
+  when: not (moleculetest | default(false))
   tags: [postgresql, postgresql-create]
 
 - name: Create postgresql database
@@ -24,7 +46,6 @@
   register: postgresql_database_created
   become: true
   become_user: postgres
-  environment: "{{ postgresql_pg_env | default({}) }}"
   tags: [postgresql, postgresql-create]
 
 - name: Ensure pg_trgm extension is enabled
@@ -34,5 +55,4 @@
     state: present
   become: true
   become_user: postgres
-  environment: "{{ postgresql_pg_env | default({}) }}"
   tags: [postgresql, postgresql-create]

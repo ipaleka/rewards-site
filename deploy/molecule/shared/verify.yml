@@ -90,13 +90,17 @@
         fail_msg: "Nginx did not return an HTML page."
         success_msg: "Nginx served the root page."
 
-    # - name: Extract contribs-count from HTML
-    #   ansible.builtin.set_fact:
-    #     contribs_count: "{{ verify_nginx_root.content | regex_search('<span id=\"contribs-count\">(.*?)</span>', '\\1') }}"
+    - name: Extract contribs-count from HTML
+      ansible.builtin.set_fact:
+        verify_contribs_count_raw: "{{ (verify_nginx_root.content | regex_search('<span id=\"contribs-count\">(.*?)</span>', '\\1'))[0] }}"
 
-    # - name: Verify contribs-count is greater than 0
-    #   ansible.builtin.assert:
-    #     that:
-    #       - contribs_count | float > 0
-    #     fail_msg: "contribs-count <= 0 (page didn't render contributions count correctly)."
-    #     success_msg: "contribs-count is greater than 0."
+    - name: Normalize contribs-count (remove comma separators)
+      ansible.builtin.set_fact:
+        verify_contribs_count: "{{ verify_contribs_count_raw | replace(',', '') | trim }}"
+
+    - name: Verify contribs-count is greater than 0
+      ansible.builtin.assert:
+        that:
+          - verify_contribs_count | float > 0
+        fail_msg: "contribs-count <= 0 (page did not render contributions count correctly)"
+        success_msg: "contribs-count is greater than 0 ({{ verify_contribs_count }})"

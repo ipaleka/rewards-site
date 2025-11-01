@@ -419,11 +419,8 @@ def _create_contributor_from_text(text, contributors):
 
     platform = SocialPlatform.objects.get(name=platform_name)
 
-    # Create new contributor with handle as name
-    contributor_name = handle
-
     # Check if contributor with this name already exists
-    existing_contributor = Contributor.objects.filter(name=contributor_name).first()
+    existing_contributor = Contributor.objects.from_handle(handle)
     if existing_contributor:
         # Contributor exists, create handle if it doesn't exist
         Handle.objects.get_or_create(
@@ -434,11 +431,11 @@ def _create_contributor_from_text(text, contributors):
         # Update contributors mapping
         contributors[existing_contributor.info] = existing_contributor.id
         return existing_contributor.id, contributors
+
     else:
         # Create new contributor
-        new_contributor = Contributor.objects.create(name=contributor_name)
+        new_contributor = Contributor.objects.create(name=handle)
 
-        # Create handle for the contributor
         Handle.objects.create(
             contributor=new_contributor, platform=platform, handle=handle
         )
@@ -709,7 +706,6 @@ def _map_closed_archived_issues(github_issues):
 
     # Process each contribution and try to find matching GitHub issues
     without_url = []
-    missed_assignments = []
     for contribution in contributions:
         if not contribution.url:
             without_url.append(contribution.id)
@@ -733,14 +729,8 @@ def _map_closed_archived_issues(github_issues):
                 )
                 break  # One issue per contribution (first match found)
 
-        else:
-            missed_assignments.append(contribution.id)
-
     if without_url:
         print("MISSING URL:", without_url)
-
-    if without_url:
-        print("MISSED ASSIGNMENTS:", missed_assignments)
 
     # Process all assignments in bulk
     _create_issues_bulk(list(issue_assignments))

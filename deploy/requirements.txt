@@ -1,0 +1,3 @@
+molecule-docker
+community.postgresql
+psycopg[binary]

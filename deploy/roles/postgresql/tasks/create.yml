@@ -1,4 +1,18 @@
 ---
+- name: Create postgresql user (Molecule only)
+  ansible.builtin.command:
+    cmd: >
+      psql -c "CREATE USER {{ hostvars['localhost'].env_vars.DATABASE_USER }}
+      WITH PASSWORD '{{ hostvars['localhost'].env_vars.DATABASE_PASSWORD }}'
+      CREATEDB;"
+  become: true
+  become_user: postgres
+  when: is_molecule_test | default(false)
+  register: postgresql_create_result
+  changed_when: "'CREATE ROLE' in postgresql_create_result.stdout"
+  failed_when: postgresql_create_result.rc != 0 and 'already exists' not in postgresql_create_result.stderr
+  tags: [postgresql, postgresql-create]
+
 - name: Create postgresql user
   community.postgresql.postgresql_user:
     name: "{{ hostvars['localhost'].env_vars.DATABASE_USER }}"
@@ -8,6 +22,7 @@
     encrypted: true
   become: true
   become_user: postgres
+  when: not (is_molecule_test | default(false))
   tags: [postgresql, postgresql-create]
 
 - name: Create postgresql database

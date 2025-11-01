@@ -12,7 +12,7 @@
 
 - name: "Install Python requirements (no upgrades) for {{ project_name }}"
   ansible.builtin.pip:
-    requirements: "{{ site_path }}/source/{{ app_name }}/requirements/{{ host_alias }}.txt"
+    requirements: "{{ site_path }}/source/{{ app_name }}/requirements/{{ 'testing' if is_molecule_test | default(false) else host_alias }}.txt"
     executable: "{{ site_path }}/venv/bin/pip"
     state: present
   become: true
@@ -22,7 +22,7 @@
 
 - name: "Upgrade Python packages based on requirements (pip --upgrade)"
   ansible.builtin.pip:
-    requirements: "{{ site_path }}/source/{{ app_name }}/requirements/{{ host_alias }}.txt"
+    requirements: "{{ site_path }}/source/{{ app_name }}/requirements/{{ 'testing' if is_molecule_test | default(false) else host_alias }}.txt"
     executable: "{{ site_path }}/venv/bin/pip"
     state: forcereinstall
     extra_args: "--upgrade"

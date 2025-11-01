@@ -28,4 +28,5 @@
     line: "ENABLED=0"
     state: present
   become: true
+  when: not is_molecule_test | default(false)
   tags: [audit, audit-motd]

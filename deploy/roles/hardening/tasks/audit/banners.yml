@@ -43,5 +43,6 @@
     regexp: "^#Banner /etc/issue.net"
     replace: "Banner /etc/issue.net"
   become: true
+  when: not is_molecule_test | default(false)
   notify: Restart ssh
   tags: [audit, audit-banners]

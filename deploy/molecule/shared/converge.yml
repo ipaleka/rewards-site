@@ -1,0 +1,89 @@
+---
+# ──────────────────────────────────────────────
+# PLAY 1: Load env_vars on localhost and export
+# ──────────────────────────────────────────────
+- name: Load environment from .env files (Molecule)
+  hosts: localhost
+  connection: local
+  gather_facts: false
+  run_once: true
+
+  vars:
+    env_files:
+      - "{{ playbook_dir }}/../../.env.testing"
+      - "{{ playbook_dir }}/../../../rewardsweb/.env.testing"
+      - "{{ playbook_dir }}/../../../rewardsweb/rewardsbot/.env"
+
+  tasks:
+    - name: Stat env files
+      ansible.builtin.stat:
+        path: "{{ item }}"
+      loop: "{{ env_files }}"
+      register: env_file_check
+
+    - name: Slurp existing env files
+      ansible.builtin.slurp:
+        path: "{{ item.item }}"
+      when: item.stat.exists
+      loop: "{{ env_file_check.results }}"
+      register: env_slurped
+
+    - name: Convert dotenv to dict
+      ansible.builtin.set_fact:
+        env_vars: "{{ env_vars | default({}) | combine(parsed_one, recursive=True) }}"
+      loop: "{{ env_slurped.results }}"
+      vars:
+        decoded: "{{ item.content | b64decode }}"
+        yaml_style: |
+          {% for line in decoded.splitlines() %}
+          {%   if line.strip() and not line.startswith('#') %}
+          {%     set parts = line.split('=', 1) %}
+          {{ parts[0] }}: {{ parts[1] | to_json }}
+          {%   endif %}
+          {% endfor %}
+        parsed_one: "{{ yaml_style | from_yaml }}"
+
+    - name: Export env_vars to localhost
+      ansible.builtin.add_host:
+        name: localhost
+        env_vars: "{{ env_vars }}"
+      changed_when: false
+
+    - name: Set remote hosts SSH user (skip localhost)
+      ansible.builtin.add_host:
+        name: "{{ item }}"
+        ansible_user: "{{ hostvars['localhost'].env_vars.ADMIN_USER }}"
+      loop: "{{ groups['all'] }}"
+      when: item != 'localhost'
+      changed_when: false
+
+    - name: Fix localhost connection — prevent SSH attempts
+      ansible.builtin.add_host:
+        name: localhost
+        ansible_connection: local
+      when: inventory_hostname != "localhost"
+
+# ──────────────────────────────────────────────
+# PLAY 2: Bootstrap admin user inside Molecule instance
+# ──────────────────────────────────────────────
+- name: Ensure admin user exists (Molecule only)
+  hosts: all:!localhost
+  gather_facts: false
+  become: true
+  roles:
+    - createuser
+
+# ──────────────────────────────────────────────
+# PLAY 3: Provision roles
+# ──────────────────────────────────────────────
+- name: Provisioning of rewardsweb project
+  hosts: all:!localhost
+  gather_facts: true
+  roles:
+    - setuphost
+    - redis
+    - postgresql
+    - projectsetup
+    - gunicorn
+    - nginx
+    - hardening

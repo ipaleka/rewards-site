@@ -24,4 +24,4 @@
   become_user: "{{ webapp_user }}"
   register: projectsetup_excel2db_output
   changed_when: "'Database is not empty!' not in projectsetup_excel2db_output.stdout"
-  tags: [project-setup, excel2db]
+  listen: "Run excel2db management command"

@@ -29,3 +29,11 @@
     mode: "0600"
   become: true
   tags: [postgresql, postgresql-install]
+
+- name: Ensure PostgreSQL service is running and enabled
+  ansible.builtin.service:
+    name: postgresql
+    state: started
+    enabled: true
+  become: true
+  tags: [postgresql, postgresql-install]

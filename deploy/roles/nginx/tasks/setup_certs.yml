@@ -10,7 +10,7 @@
   ansible.builtin.set_fact:
     nginx_need_certs: >-
       {{
-        not moleculetest | default(false)
+        not is_molecule_test | default(false)
         and inventory_hostname in groups['production']
         and not nginx_cert_stat.stat.exists
       }}
@@ -36,7 +36,7 @@
     group: root
     mode: '0640'
   become: true
-  when: moleculetest | default(false) or inventory_hostname in groups['testing']
+  when: is_molecule_test | default(false) or inventory_hostname in groups['testing']
   tags: [nginx, letsencrypt]
 
 - name: "Add symlink to nginx sites-enabled for {{ site_name }}"
@@ -49,7 +49,7 @@
     mode: '0640'
   become: true
   when: nginx_need_certs or
-        moleculetest | default(false) or
+        is_molecule_test | default(false) or
         inventory_hostname in groups['testing']
   notify: Restart nginx
   tags: [nginx, letsencrypt]
@@ -93,7 +93,7 @@
     group: root
     mode: '0640'
   become: true
-  when: not moleculetest | default(false) and inventory_hostname in groups['production']
+  when: not is_molecule_test | default(false) and inventory_hostname in groups['production']
   tags: [nginx, nginx-snippets, letsencrypt]
 
 - name: "Add symlink to nginx sites-enabled (SSL) for {{ site_name }}"

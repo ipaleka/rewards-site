@@ -34,4 +34,6 @@ provisioner:
       ubuntu2404:
         ansible_connection: docker
         ansible_user: root
-        moleculetest: true
+        is_molecule_test: true
+        database_user: exampledbuser  # hardcoded variables from rewardsweb/.env-example
+        database_name: exampledb  # hardcoded variables from rewardsweb/.env-example

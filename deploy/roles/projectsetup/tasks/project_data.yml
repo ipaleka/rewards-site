@@ -43,5 +43,5 @@
   loop:
     - addresses.csv
     - users_without_addresses.csv
-  when: not (moleculetest | default(false))
+  when: not (is_molecule_test | default(false))
   tags: [project-setup, excel2db, user-data]

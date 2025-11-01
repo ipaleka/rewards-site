@@ -1,12 +1,4 @@
 ---
-# - name: Wait for PostgreSQL to start (Molecule only)
-#   ansible.builtin.wait_for:
-#     path: /var/run/postgresql/.s.PGSQL.5432
-#     state: present
-#     delay: 5
-#     timeout: 60
-#   when: moleculetest | default(false)
-
 - name: Create postgresql user (Molecule only)
   ansible.builtin.command:
     cmd: >
@@ -15,7 +7,7 @@
       CREATEDB;"
   become: true
   become_user: postgres
-  when: moleculetest | default(false)
+  when: is_molecule_test | default(false)
   register: postgresql_create_result
   changed_when: "'CREATE ROLE' in postgresql_create_result.stdout"
   failed_when: postgresql_create_result.rc != 0 and 'already exists' not in postgresql_create_result.stderr
@@ -30,7 +22,7 @@
     encrypted: true
   become: true
   become_user: postgres
-  when: not (moleculetest | default(false))
+  when: not (is_molecule_test | default(false))
   tags: [postgresql, postgresql-create]
 
 - name: Create postgresql database

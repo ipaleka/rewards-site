@@ -9,6 +9,7 @@ from github import Auth, Github
 from utils.bot import message_from_url
 from utils.constants.core import GITHUB_ISSUES_START_DATE
 from utils.constants.ui import MISSING_TOKEN_TEXT
+from utils.helpers import get_env_variable
 
 logger = logging.getLogger(__name__)
 
@@ -25,7 +26,7 @@ def _github_client(user):
     :type auth: :class:`github.Github`
     :return: :class:`github.Github
     """
-    github_token = user.profile.github_token
+    github_token = get_env_variable("GITHUB_BOT_TOKEN", "") or user.profile.github_token
     if not github_token:
         return False
 

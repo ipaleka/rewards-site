@@ -27,20 +27,37 @@ class TestUtilsIssuesCrudFunctions:
     def test_utils_issues_github_client_for_no_token(self, mocker):
         user = mocker.MagicMock()
         user.profile.github_token = None
+        mocked_env = mocker.patch("utils.issues.get_env_variable", return_value=None)
         mocked_auth = mocker.patch("utils.issues.Auth.Token")
         returned = _github_client(user)
         assert returned is False
+        mocked_env.assert_called_once_with("GITHUB_BOT_TOKEN", "")
         mocked_auth.assert_not_called()
 
-    def test_utils_issues_github_client_functionality(self, mocker):
+    def test_utils_issues_github_client_for_github_api_token_token(self, mocker):
         user = mocker.MagicMock()
         token = mocker.MagicMock()
         auth, client = mocker.MagicMock(), mocker.MagicMock()
+        mocked_env = mocker.patch("utils.issues.get_env_variable", return_value=token)
+        mocked_auth = mocker.patch("utils.issues.Auth.Token", return_value=auth)
+        mocked_client = mocker.patch("utils.issues.Github", return_value=client)
+        returned = _github_client(user)
+        assert returned == client
+        mocked_env.assert_called_once_with("GITHUB_BOT_TOKEN", "")
+        mocked_auth.assert_called_once_with(token)
+        mocked_client.assert_called_once_with(auth=auth)
+
+    def test_utils_issues_github_client_for_user_token(self, mocker):
+        user = mocker.MagicMock()
+        token = mocker.MagicMock()
+        auth, client = mocker.MagicMock(), mocker.MagicMock()
+        mocked_env = mocker.patch("utils.issues.get_env_variable", return_value=None)
         mocked_auth = mocker.patch("utils.issues.Auth.Token", return_value=auth)
         mocked_client = mocker.patch("utils.issues.Github", return_value=client)
         user.profile.github_token = token
         returned = _github_client(user)
         assert returned == client
+        mocked_env.assert_called_once_with("GITHUB_BOT_TOKEN", "")
         mocked_auth.assert_called_once_with(token)
         mocked_client.assert_called_once_with(auth=auth)
 

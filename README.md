@@ -44,5 +44,5 @@ INITIAL_SUPERUSER_PASSWORDS=password1,password2
 - [x] Automated documentation building and publishing on Read The Docs platform
 - [x] Create methods for CRUD operations
 - [x] Implement authentication by connecting a wallet
-- [ ] Create deploy workflow
+- [x] Create deploy workflow
 - [ ] Setup a server and deploy the application

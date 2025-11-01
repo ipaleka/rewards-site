@@ -138,6 +138,7 @@ class ContributionEditView(UpdateView):
                 if issue_status and issue.status != issue_status:
                     issue.status = issue_status
                     issue.save()
+                    self.request.user.profile.log_action("issue_status_set", str(issue))
                 form.instance.issue = issue
 
             except Issue.DoesNotExist:
@@ -156,6 +157,7 @@ class ContributionEditView(UpdateView):
                 issue = Issue.objects.create(
                     number=issue_number, status=issue_status or IssueStatus.CREATED
                 )
+                self.request.user.profile.log_action("issue_created", str(issue))
                 form.instance.issue = issue
         else:
             # If issue_number is empty or None, remove the issue association
@@ -169,6 +171,9 @@ class ContributionEditView(UpdateView):
         :return: URL for contribution detail page with success message
         :rtype: str
         """
+        self.request.user.profile.log_action(
+            "contribution_edited", Contribution.objects.get(id=self.object.pk).info()
+        )
         messages.success(self.request, "Contribution updated successfully!")
         return reverse_lazy("contribution-detail", kwargs={"pk": self.object.pk})
 
@@ -199,6 +204,7 @@ class ContributionInvalidateView(UpdateView):
                 original_comment += f"{line}\n"
 
             context["original_comment"] = original_comment
+
         else:
             context["original_comment"] = ""  # Set empty string when no message
 
@@ -254,6 +260,9 @@ class ContributionInvalidateView(UpdateView):
         # All operations successful - confirm the contribution
         self.object.confirmed = True
         self.object.save()
+        self.request.user.profile.log_action(
+            "contribution_invalidated", self.object.info()
+        )
 
         # Success message
         success_msg = self._get_success_message(comment, reaction)
@@ -529,10 +538,12 @@ class IssueDetailView(DetailView):
             result = set_labels_to_issue(request.user, issue.number, labels_to_add)
 
             if result["success"]:
-                messages.success(
-                    request,
+                text = (
                     f"Successfully set labels for issue #{issue.number}: {', '.join(labels_to_add)}",
                 )
+                messages.success(request, text)
+                self.request.user.profile.log_action("issue_labels_set", text)
+
             else:
                 messages.error(
                     request,
@@ -589,6 +600,7 @@ class IssueDetailView(DetailView):
             )
 
             if result["success"]:
+                self.request.user.profile.log_action("issue_closed", success_message)
                 messages.success(request, success_message)
                 for contribution in self.get_object().contribution_set.all():
                     add_reaction_to_message(
@@ -601,6 +613,7 @@ class IssueDetailView(DetailView):
                     else IssueStatus.WONTFIX
                 )
                 issue.save()
+                self.request.user.profile.log_action("issue_status_set", str(issue))
 
             else:
                 messages.error(
@@ -727,7 +740,9 @@ class CreateIssueView(FormView):
         Issue.objects.confirm_contribution_with_issue(
             data.get("issue_number"), contribution
         )
-
+        self.request.user.profile.log_action(
+            "contribution_created", contribution.info()
+        )
         add_reaction_to_message(contribution.url, DISCORD_EMOJIS.get("noted"))
 
         return super().form_valid(form)

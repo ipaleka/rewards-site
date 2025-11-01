@@ -348,7 +348,7 @@ class SuperuserLog(models.Model):
     """Rewards website superusers' action logs model."""
 
     profile = models.ForeignKey(Profile, on_delete=models.CASCADE)
-    action = models.CharField(max_length=20)
+    action = models.CharField(max_length=50)
     details = models.TextField(blank=True)
     created_at = models.DateTimeField(auto_now_add=True)
 

@@ -1,8 +1,10 @@
 """Module containing functions for GitHub issues management."""
 
 import logging
-from datetime import datetime
+from datetime import datetime, timedelta
 
+import jwt
+import requests
 from django.conf import settings
 from github import Auth, Github
 
@@ -14,24 +16,115 @@ from utils.helpers import get_env_variable
 logger = logging.getLogger(__name__)
 
 
+class GitHubApp:
+    """Helper class for instantiating GitHub client using GitHub bot."""
+
+    def jwt_token(self):
+        """Generate JWT token for GitHub bot.
+
+        :var bot_private_key_filename: filename of the bot's private key
+        :type bot_private_key_filename: str
+        :var bot_client_id: client ID of the bot
+        :type bot_client_id: str
+        :var pem_path: path to the bot's private key
+        :type pem_path: :class:`pathlib.Path`
+        :var signing_key: bot's private key
+        :type signing_key: bytes
+        :var now: current time
+        :type now: :class:`datetime.datetime`
+        :var expiration: expiration time for the token
+        :type expiration: :class:`datetime.datetime`
+        :var payload: JWT payload
+        :type payload: dict
+        :return: JWT token
+        :rtype: str
+        """
+        bot_private_key_filename = get_env_variable(
+            "GITHUB_BOT_PRIVATE_KEY_FILENAME", ""
+        )
+        bot_client_id = get_env_variable("GITHUB_BOT_CLIENT_ID", "")
+        if not (bot_private_key_filename and bot_client_id):
+            return None
+
+        pem_path = settings.BASE_DIR.parent / "fixtures" / bot_private_key_filename
+        with open(pem_path, "rb") as pem_file:
+            signing_key = pem_file.read()
+
+        now = datetime.now()
+        expiration = now + timedelta(minutes=8)
+        payload = {
+            "iat": int(now.timestamp()),
+            "exp": int(expiration.timestamp()),
+            "iss": bot_client_id,
+        }
+        return jwt.encode(payload, signing_key, algorithm="RS256")
+
+    def installation_token(self):
+        """Retrieve installation access token for GitHub bot.
+
+        :var installation_id: ID of the bot's installation
+        :type installation_id: str
+        :var jwt_token: JWT token for the bot
+        :type jwt_token: str
+        :var headers: headers for the request
+        :type headers: dict
+        :var url: URL for the request
+        :type url: str
+        :var response: response from the request
+        :type response: :class:`requests.Response`
+        :return: installation access token
+        :rtype: str
+        """
+        installation_id = get_env_variable("GITHUB_BOT_INSTALLATION_ID", "")
+        if not installation_id:
+            return None
+
+        jwt_token = self.jwt_token()
+        if not jwt_token:
+            return None
+
+        headers = {
+            "Authorization": f"Bearer {jwt_token}",
+            "Accept": "application/vnd.github.v3+json",
+        }
+        url = (
+            f"https://api.github.com/app/installations/{installation_id}/access_tokens"
+        )
+        response = requests.post(url, headers=headers)
+        return response.json().get("token") if response.status_code == 201 else None
+
+    def client(self):
+        """Get authenticated GitHub client using GitHub bot.
+
+        :var token: installation access token
+        :type token: str
+        :return: authenticated GitHub client
+        :rtype: :class:`github.Github`
+        """
+        token = self.installation_token()
+        return Github(token) if token else None
+
+
 # # CRUD
 def _github_client(user):
-    """Instantiate and return GitHub client instance on behalf `user`.
+    """Instantiate and return GitHub client instance on behalf GitHub bot or `user`.
 
     :param user: Django user instance
     :type user: class:`django.contrib.auth.models.User`
-    :var github_token: GitHub user's access token
-    :type github_token: str
+    :var client: GitHub client instance
+    :type client: :class:`github.Github`
     :var auth: GitHub authentication token instance
     :type auth: :class:`github.Github`
-    :return: :class:`github.Github
+    :return: :class:`github.Github`
     """
-    github_token = get_env_variable("GITHUB_BOT_TOKEN", "") or user.profile.github_token
-    if not github_token:
+    client = GitHubApp().client()
+    if client:
+        return client
+    
+    if not user.profile.github_token:
         return False
 
-    auth = Auth.Token(github_token)
-
+    auth = Auth.Token(user.profile.github_token)
     return Github(auth=auth)
 
 

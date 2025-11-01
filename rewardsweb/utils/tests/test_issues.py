@@ -3,6 +3,7 @@
 from django.conf import settings
 
 from utils.issues import (
+    GitHubApp,
     _github_client,
     _github_repository,
     _prepare_issue_body_from_contribution,
@@ -20,46 +21,168 @@ from utils.constants.core import GITHUB_ISSUES_START_DATE
 from utils.constants.ui import MISSING_TOKEN_TEXT
 
 
+class TestUtilsIssuesGitHubApp:
+    """Testing class for :py:mod:`utils.issues.GitHubApp` class."""
+
+    def test_utils_issues_githubapp_jwt_token_no_env_vars(self, mocker):
+        mocked_get_env_variable = mocker.patch(
+            "utils.issues.get_env_variable", return_value=""
+        )
+        instance = GitHubApp()
+        assert instance.jwt_token() is None
+        mocked_get_env_variable.assert_has_calls(
+            [
+                mocker.call("GITHUB_BOT_PRIVATE_KEY_FILENAME", ""),
+                mocker.call("GITHUB_BOT_CLIENT_ID", ""),
+            ]
+        )
+
+    def test_utils_issues_githubapp_jwt_token_success(self, mocker):
+        mocked_get_env_variable = mocker.patch(
+            "utils.issues.get_env_variable",
+            side_effect=["test.pem", "test_id"],
+        )
+        mock_settings = mocker.MagicMock()
+        mock_settings.BASE_DIR.parent = mocker.MagicMock()
+        mocker.patch("utils.issues.settings", mock_settings)
+        mock_open = mocker.mock_open(read_data=b"test_key")
+        mocker.patch("builtins.open", mock_open)
+        mock_datetime = mocker.MagicMock()
+        mock_timedelta = mocker.MagicMock()
+        mocker.patch("utils.issues.datetime", mock_datetime)
+        mocker.patch("utils.issues.timedelta", mock_timedelta)
+        mock_jwt = mocker.MagicMock()
+        mocker.patch("utils.issues.jwt", mock_jwt)
+
+        instance = GitHubApp()
+        instance.jwt_token()
+
+        mocked_get_env_variable.assert_has_calls(
+            [
+                mocker.call("GITHUB_BOT_PRIVATE_KEY_FILENAME", ""),
+                mocker.call("GITHUB_BOT_CLIENT_ID", ""),
+            ]
+        )
+        mock_open.assert_called_once_with(
+            mock_settings.BASE_DIR.parent / "fixtures" / "test.pem", "rb"
+        )
+        mock_jwt.encode.assert_called_once()
+
+    def test_utils_issues_githubapp_installation_token_no_id(self, mocker):
+        mocked_get_env_variable = mocker.patch(
+            "utils.issues.get_env_variable", return_value=""
+        )
+        instance = GitHubApp()
+        assert instance.installation_token() is None
+        mocked_get_env_variable.assert_called_once_with(
+            "GITHUB_BOT_INSTALLATION_ID", ""
+        )
+
+    def test_utils_issues_githubapp_installation_token_no_jwt(self, mocker):
+        mocker.patch("utils.issues.get_env_variable", return_value="test_id")
+        mock_jwt_token = mocker.patch.object(GitHubApp, "jwt_token", return_value=None)
+        instance = GitHubApp()
+        assert instance.installation_token() is None
+        mock_jwt_token.assert_called_once_with()
+
+    def test_utils_issues_githubapp_installation_token_request_fails(self, mocker):
+        mocker.patch("utils.issues.get_env_variable", return_value="test_id")
+        mocker.patch.object(GitHubApp, "jwt_token", return_value="test_jwt")
+        mock_response = mocker.MagicMock()
+        mock_response.status_code = 400
+        mocked_requests = mocker.patch(
+            "utils.issues.requests.post", return_value=mock_response
+        )
+        instance = GitHubApp()
+        assert instance.installation_token() is None
+        mocked_requests.assert_called_once()
+
+    def test_utils_issues_githubapp_installation_token_success(self, mocker):
+        mocker.patch("utils.issues.get_env_variable", return_value="test_id")
+        mocker.patch.object(GitHubApp, "jwt_token", return_value="test_jwt")
+        mock_response = mocker.MagicMock()
+        mock_response.status_code = 201
+        mock_response.json.return_value = {"token": "test_token"}
+        mocked_requests = mocker.patch(
+            "utils.issues.requests.post", return_value=mock_response
+        )
+        instance = GitHubApp()
+        assert instance.installation_token() == "test_token"
+        mocked_requests.assert_called_once()
+
+    def test_utils_issues_githubapp_client_no_token(self, mocker):
+        mock_installation_token = mocker.patch.object(
+            GitHubApp, "installation_token", return_value=None
+        )
+        mocked_github = mocker.patch("utils.issues.Github")
+        instance = GitHubApp()
+        assert instance.client() is None
+        mock_installation_token.assert_called_once_with()
+        mocked_github.assert_not_called()
+
+    def test_utils_issues_githubapp_client_success(self, mocker):
+        mock_installation_token = mocker.patch.object(
+            GitHubApp, "installation_token", return_value="test_token"
+        )
+        mock_github_instance = mocker.MagicMock()
+        mocked_github = mocker.patch(
+            "utils.issues.Github", return_value=mock_github_instance
+        )
+        instance = GitHubApp()
+        assert instance.client() == mock_github_instance
+        mock_installation_token.assert_called_once_with()
+        mocked_github.assert_called_once_with("test_token")
+
+
 class TestUtilsIssuesCrudFunctions:
     """Testing class for :py:mod:`utils.issues` CRUD functions."""
 
     # # _github_client
-    def test_utils_issues_github_client_for_no_token(self, mocker):
-        user = mocker.MagicMock()
-        user.profile.github_token = None
-        mocked_env = mocker.patch("utils.issues.get_env_variable", return_value=None)
-        mocked_auth = mocker.patch("utils.issues.Auth.Token")
-        returned = _github_client(user)
+    def test_utils_issues_github_client_for_no_client_and_token(self, mocker):
+        mcok_user = mocker.MagicMock()
+        mcok_user.profile.github_token = None
+        mock_githubapp = mocker.MagicMock()
+        mock_githubapp.client.return_value = None
+        mocked_githubapp = mocker.patch(
+            "utils.issues.GitHubApp", return_value=mock_githubapp
+        )
+        mocked_token = mocker.patch("utils.issues.Auth.Token")
+        returned = _github_client(mcok_user)
         assert returned is False
-        mocked_env.assert_called_once_with("GITHUB_BOT_TOKEN", "")
-        mocked_auth.assert_not_called()
+        mocked_githubapp.assert_called_once_with()
+        mocked_token.assert_not_called()
 
-    def test_utils_issues_github_client_for_github_api_token_token(self, mocker):
-        user = mocker.MagicMock()
-        token = mocker.MagicMock()
-        auth, client = mocker.MagicMock(), mocker.MagicMock()
-        mocked_env = mocker.patch("utils.issues.get_env_variable", return_value=token)
-        mocked_auth = mocker.patch("utils.issues.Auth.Token", return_value=auth)
-        mocked_client = mocker.patch("utils.issues.Github", return_value=client)
-        returned = _github_client(user)
-        assert returned == client
-        mocked_env.assert_called_once_with("GITHUB_BOT_TOKEN", "")
-        mocked_auth.assert_called_once_with(token)
-        mocked_client.assert_called_once_with(auth=auth)
+    def test_utils_issues_github_client_for_githubapp_client(self, mocker):
+        mock_user = mocker.MagicMock()
+        mock_githubapp = mocker.MagicMock()
+        mock_client = mocker.MagicMock()
+        mock_githubapp.client.return_value = mock_client
+        mocked_githubapp = mocker.patch(
+            "utils.issues.GitHubApp", return_value=mock_githubapp
+        )
+        mocked_token = mocker.patch("utils.issues.Auth.Token")
+        returned = _github_client(mock_user)
+        assert returned == mock_client
+        mocked_githubapp.assert_called_once_with()
+        mocked_token.assert_not_called()
 
     def test_utils_issues_github_client_for_user_token(self, mocker):
-        user = mocker.MagicMock()
-        token = mocker.MagicMock()
-        auth, client = mocker.MagicMock(), mocker.MagicMock()
-        mocked_env = mocker.patch("utils.issues.get_env_variable", return_value=None)
-        mocked_auth = mocker.patch("utils.issues.Auth.Token", return_value=auth)
-        mocked_client = mocker.patch("utils.issues.Github", return_value=client)
-        user.profile.github_token = token
-        returned = _github_client(user)
-        assert returned == client
-        mocked_env.assert_called_once_with("GITHUB_BOT_TOKEN", "")
-        mocked_auth.assert_called_once_with(token)
-        mocked_client.assert_called_once_with(auth=auth)
+        mock_user = mocker.MagicMock()
+        mock_token = mocker.MagicMock()
+        mock_auth, mock_client = mocker.MagicMock(), mocker.MagicMock()
+        mock_githubapp = mocker.MagicMock()
+        mock_githubapp.client.return_value = None
+        mocked_githubapp = mocker.patch(
+            "utils.issues.GitHubApp", return_value=mock_githubapp
+        )
+        mocked_auth = mocker.patch("utils.issues.Auth.Token", return_value=mock_auth)
+        mocked_github = mocker.patch("utils.issues.Github", return_value=mock_client)
+        mock_user.profile.github_token = mock_token
+        returned = _github_client(mock_user)
+        assert returned == mock_client
+        mocked_githubapp.assert_called_once_with()
+        mocked_auth.assert_called_once_with(mock_token)
+        mocked_github.assert_called_once_with(auth=mock_auth)
 
     # # _github_repository
     def test_utils_issues_github_repository_functionality(self, mocker):

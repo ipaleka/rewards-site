@@ -3,6 +3,7 @@
  ************************************************************/
 function showToast(type, text) {
     const toastContainer = document.getElementById("toast-container");
+    if (!toastContainer) return;
     const toast = document.createElement("div");
 
     toast.className = `alert alert-${type === "error" ? "error" : "success"} shadow-lg`;
@@ -47,6 +48,7 @@ function isBlockingRequest(el, requestConfig) {
 
 function startProgressBar(blocking = false) {
     const bar = document.getElementById("htmx-progress-bar");
+    if (!bar) return;
     bar.classList.remove("hidden");
     bar.style.width = "0%";
 
@@ -63,6 +65,7 @@ function startProgressBar(blocking = false) {
 
 function finishProgressBar(blocking = false) {
     const bar = document.getElementById("htmx-progress-bar");
+    if (!bar) return;
 
     clearInterval(progressInterval);
     bar.style.width = "100%";
@@ -131,3 +134,16 @@ document.addEventListener("DOMContentLoaded", () => {
         }, 4500);
     });
 });
+
+
+/* istanbul ignore next */
+if (typeof exports !== 'undefined') {
+  module.exports = {
+    showToast,
+    showDjangoMessages,
+    closeModal,
+    isBlockingRequest,
+    startProgressBar,
+    finishProgressBar,
+  };
+}

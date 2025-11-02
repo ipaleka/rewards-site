@@ -40,12 +40,9 @@
     {% if messages %}
     <script>
     document.addEventListener("DOMContentLoaded", () => {
-        const djangoMessages = [
-            {% for message in messages %}
-            { tag: "{{ message.tags }}", text: "{{ message|escapejs }}" },
-            {% endfor %}
-        ];
-        showDjangoMessages(djangoMessages);
+      {% for message in messages %}
+      showToast("{{ message.tags }}", "{{ message|escapejs }}");
+      {% endfor %}
     });
     </script>
     {% endif %}

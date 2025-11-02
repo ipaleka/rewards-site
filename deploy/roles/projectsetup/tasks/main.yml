@@ -19,3 +19,6 @@
 
 - name: Import project data setup tasks
   ansible.builtin.import_tasks: project_data.yml
+
+- name: Import Discord bot service setup tasks
+  ansible.builtin.import_tasks: bot_service.yml

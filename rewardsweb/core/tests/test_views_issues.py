@@ -1857,6 +1857,7 @@ class TestDbCreateIssueView:
         assert "issue_body" in initial
         assert "issue_title" in initial
         assert "labels" in initial
+        mock_issue_data.assert_called_once_with(contribution, superuser.profile)
 
     def test_createissueview_get_initial_without_contribution_id(self, rf, superuser):
         request = rf.get("/create-issue/")

@@ -25,12 +25,12 @@ class TestUtilsHelpersFunctions:
     """Testing class for :py:mod:`utils.helpers` functions."""
 
     # # convert_and_clean_excel
-    def test_utils_importers_convert_and_clean_excel(self, mocker):
+    def test_utils_helpers_convert_and_clean_excel_functionality(self, mocker):
         # Mock the entire pandas read operation chain
         mock_df = mocker.MagicMock()
 
         # Mock pd.read_excel and all subsequent operations
-        mocker.patch("utils.importers.pd.read_excel").return_value.iloc.return_value = (
+        mocker.patch("utils.helpers.pd.read_excel").return_value.iloc.return_value = (
             mock_df
         )
         mock_df.fillna.return_value.infer_objects.return_value = mock_df
@@ -43,11 +43,11 @@ class TestUtilsHelpersFunctions:
         mock_df.iloc.__getitem__.return_value = mock_df
 
         # Mock pd.concat to avoid real DataFrame operations
-        mocker.patch("utils.importers.pd.concat", return_value=mock_df)
+        mocker.patch("utils.helpers.pd.concat", return_value=mock_df)
 
         # Mock Path operations
         mocker.patch(
-            "utils.importers.Path"
+            "utils.helpers.Path"
         ).return_value.resolve.return_value.parent.parent.__truediv__.return_value.to_csv = (
             mocker.MagicMock()
         )

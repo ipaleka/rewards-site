@@ -73,7 +73,7 @@ class ContributorManager(models.Manager):
         elif count == 0 or handle in HANDLE_EXCEPTIONS:
             return None
 
-        raise AssertionError(
+        raise ValueError(
             f"Can't locate a single contributor for {handle} {str(handles)}"
         )
 

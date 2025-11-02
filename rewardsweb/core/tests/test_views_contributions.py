@@ -528,7 +528,10 @@ class TestDbContributionEditView:
         contribution_with_issue.issue.refresh_from_db()
         calls = [
             mocker.call("issue_status_set", str(contribution_with_issue.issue)),
-            mocker.call("contribution_edited", contribution_with_issue.info() + " // Update issue status"),
+            mocker.call(
+                "contribution_edited",
+                contribution_with_issue.info() + " // Update issue status",
+            ),
         ]
         mocked_log_action.assert_has_calls(calls)
 

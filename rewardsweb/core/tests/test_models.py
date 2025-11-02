@@ -174,7 +174,7 @@ class TestCoreContributorManager:
         Handle.objects.create(
             contributor=contributor2, platform=platform2, handle=handle
         )
-        with pytest.raises(AssertionError) as exception:
+        with pytest.raises(ValueError) as exception:
             Contributor.objects.from_handle(handle)
             assert "Can't locate a single contributor" in str(exception.value)
 

@@ -687,7 +687,8 @@ class CreateIssueView(FormView):
 
         if self.contribution_id:
             data = issue_data_for_contribution(
-                Contribution.objects.get(id=self.contribution_id)
+                Contribution.objects.get(id=self.contribution_id),
+                self.request.user.profile,
             )
         else:
             data = {

@@ -3,11 +3,22 @@
 @source "../../templates";
 
 @layer base {
-  html {
-    height: 100%;
+  html { height: 100%; }
+  body { height: 100%; }
+}
+
+/* ✅ HTMX fade-in animation added as Tailwind utility */
+@layer utilities {
+  .fade-in {
+    animation: fadeIn 0.3s ease-in-out;
   }
 
-  body {
-    height: 100%;
+  @keyframes fadeIn {
+    from { opacity: 0; transform: translateY(4px); }
+    to   { opacity: 1; transform: translateY(0); }
+  }
+
+  #htmx-progress-bar {
+    transition: width 0.2s ease;
   }
 }

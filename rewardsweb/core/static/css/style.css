@@ -513,6 +513,12 @@
       isolation: isolate;
     }
   }
+  .pointer-events-auto {
+    pointer-events: auto;
+  }
+  .pointer-events-none {
+    pointer-events: none;
+  }
   .toast {
     position: fixed;
     inset-inline-start: auto;
@@ -929,8 +935,17 @@
     overflow-x: auto;
     border-radius: var(--radius-box);
   }
+  .fixed {
+    position: fixed;
+  }
   .static {
     position: static;
+  }
+  .top-0 {
+    top: calc(var(--spacing) * 0);
+  }
+  .left-0 {
+    left: calc(var(--spacing) * 0);
   }
   .textarea {
     border: var(--border) solid #0000;
@@ -1010,6 +1025,12 @@
       cursor: pointer;
     }
   }
+  .z-50 {
+    z-index: 50;
+  }
+  .z-\[9999\] {
+    z-index: 9999;
+  }
   .modal-box {
     grid-column-start: 1;
     grid-row-start: 1;
@@ -1064,9 +1085,6 @@
   }
   .mx-auto {
     margin-inline: auto;
-  }
-  .my-6 {
-    margin-block: calc(var(--spacing) * 6);
   }
   .label {
     display: inline-flex;
@@ -1343,6 +1361,9 @@
   .hidden {
     display: none;
   }
+  .h-1 {
+    height: calc(var(--spacing) * 1);
+  }
   .h-6 {
     height: calc(var(--spacing) * 6);
   }
@@ -1441,9 +1462,6 @@
   }
   .justify-center {
     justify-content: center;
-  }
-  .justify-start {
-    justify-content: flex-start;
   }
   .gap-1 {
     gap: calc(var(--spacing) * 1);
@@ -1553,6 +1571,9 @@
   .bg-base-200 {
     background-color: var(--color-base-200);
   }
+  .bg-primary {
+    background-color: var(--color-primary);
+  }
   .stroke-current {
     stroke: currentcolor;
   }
@@ -1608,6 +1629,9 @@
   }
   .pt-6 {
     padding-top: calc(var(--spacing) * 6);
+  }
+  .pr-6 {
+    padding-right: calc(var(--spacing) * 6);
   }
   .text-center {
     text-align: center;
@@ -1882,6 +1906,24 @@
   }
   body {
     height: 100%;
+  }
+}
+@layer utilities {
+  .fade-in {
+    animation: fadeIn 0.3s ease-in-out;
+  }
+  @keyframes fadeIn {
+    from {
+      opacity: 0;
+      transform: translateY(4px);
+    }
+    to {
+      opacity: 1;
+      transform: translateY(0);
+    }
+  }
+  #htmx-progress-bar {
+    transition: width 0.2s ease;
   }
 }
 @layer base {

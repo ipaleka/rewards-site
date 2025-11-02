@@ -6,6 +6,7 @@ import pytest
 
 from django.contrib.auth import get_user_model
 from django.contrib.messages import get_messages
+from django.http import Http404
 from django.urls import reverse
 from django.views.generic import DetailView, ListView
 
@@ -20,7 +21,7 @@ from core.models import (
     SocialPlatform,
 )
 from core.forms import IssueLabelsForm
-from core.views import CreateIssueView, IssueDetailView, IssueListView
+from core.views import CreateIssueView, IssueDetailView, IssueListView, IssueModalView
 from utils.constants.core import DISCORD_EMOJIS
 
 user_model = get_user_model()
@@ -818,8 +819,7 @@ class TestIssueDetailViewSubmissionHandlers:
         # Check success message
         messages = list(get_messages(response.wsgi_request))
         assert any(
-            f"Successfully set labels for issue #{issue.number}" in str(message)
-            for message in messages
+            "Labels updated successfully" in str(message) for message in messages
         )
         mocked_log_action.assert_called_once()
 
@@ -1789,6 +1789,17 @@ class TestIssueDetailViewCloseFunctionality:
         assert response.status_code == 200
         assert "labels_form" in response.context
         assert isinstance(response.context["labels_form"], IssueLabelsForm)
+
+
+class TestIssueDetailView:
+    """Test case for IssueDetailView."""
+
+    def test_issuemodalview_is_subclass_of_detailview(self):
+        assert issubclass(IssueModalView, DetailView)
+
+    def test_issuemodalview_model(self):
+        view = IssueModalView()
+        assert view.model == Issue
 
 
 @pytest.mark.django_db

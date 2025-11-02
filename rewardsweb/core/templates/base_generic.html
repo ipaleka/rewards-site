@@ -10,7 +10,7 @@
     <link href="{% static 'css/style.css' %}" rel="stylesheet" type="text/css" />
     <link rel="icon" type="image/x-icon" href="{% static 'favicon.ico' %}">
   </head>
-  <body>
+  <body hx-boost="true">
     <div class="max-w-5xl mx-auto">
       <div class="navbar bg-base-100 shadow-sm">
         <div class="flex-1">
@@ -38,13 +38,16 @@
     </div>
 
     {% if messages %}
-    <div class="toast toast-top toast-end">
-      {% for message in messages %}
-      <div class="alert alert-{{ message.tags }}">
-        <span>{{ message }}</span>
-      </div>
-      {% endfor %}
-    </div>
+    <script>
+    document.addEventListener("DOMContentLoaded", () => {
+        const djangoMessages = [
+            {% for message in messages %}
+            { tag: "{{ message.tags }}", text: "{{ message|escapejs }}" },
+            {% endfor %}
+        ];
+        showDjangoMessages(djangoMessages);
+    });
+    </script>
     {% endif %}
 
     {% block pagination %}
@@ -70,5 +73,9 @@
       </div>
       {% endif %}
     {% endblock %}
+  <div id="toast-container" class="toast toast-end z-50"></div>
+  <div id="htmx-progress-bar" class="hidden fixed top-0 left-0 h-1 bg-primary z-[9999]" style="width:0%"></div>
+  <script src="{% static 'js/htmx.min.js' %}"></script>
+  <script src="{% static 'js/site.js' %}"></script>
   </body>
 </html>

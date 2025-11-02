@@ -1,4 +1,111 @@
-{% extends "base_generic.html" %}
+{% extends "base_generic.html" %}{% load partials %}
+
+{% partialdef labels_form_partial %}
+<form method="post"
+      hx-post="{% url 'issue-detail' issue.pk %}"
+      hx-target="#labels-form-container"
+      hx-swap="innerHTML transition:true"
+      hx-vals='{"blocking": "true"}'
+      class="space-y-4">
+
+    {% csrf_token %}
+
+    <!-- Labels -->
+    <div class="flex flex-wrap gap-4">
+      {% for checkbox in labels_form.labels %}
+      <label class="label cursor-pointer gap-2">
+        {{ checkbox.tag }}
+        <span class="label-text">{{ checkbox.choice_label }}</span>
+      </label>
+      {% endfor %}
+    </div>
+
+    {{ labels_form.labels.errors }}
+
+    <!-- Priority -->
+    <div class="pt-2 border-t border-base-300 flex flex-wrap gap-4">
+      {% for radio in labels_form.priority %}
+      <label class="label cursor-pointer gap-2">
+        {{ radio.tag }}
+        <span class="label-text">{{ radio.choice_label }}</span>
+      </label>
+      {% endfor %}
+    </div>
+
+    {{ labels_form.priority.errors }}
+
+    <button type="submit" name="submit_labels" class="btn btn-success btn-sm">
+        Set labels
+    </button>
+
+</form>
+{% endpartialdef labels_form_partial %}
+
+{% partialdef close_modal_partial %}
+<dialog id="{{ modal_id }}" class="modal">
+  <div class="modal-box">
+
+      <h3 class="font-bold text-lg">{{ action_label }}</h3>
+      <p class="py-4">This will close the issue as <strong>{{ action_value }}</strong>.</p>
+
+      <form method="post"
+            hx-post="{% url 'issue-detail' issue.pk %}"
+            hx-target="body"
+            hx-swap="none">
+
+          {% csrf_token %}
+          <input type="hidden" name="close_action" value="{{ action_value }}">
+
+          <textarea name="close_comment"
+                    class="textarea textarea-bordered w-full h-24 mb-4"
+                    placeholder="Comment (optional)..."></textarea>
+
+          <div class="modal-action">
+              <button type="button" class="btn" onclick="document.getElementById('{{ modal_id }}').close()">Cancel</button>
+              <button type="submit" class="btn {{ btn_class }}">{{ action_label }}</button>
+          </div>
+      </form>
+
+  </div>
+
+  <form method="dialog" class="modal-backdrop">
+      <button>close</button>
+  </form>
+</dialog>
+{% endpartialdef close_modal_partial %}
+
+{% partialdef message_toast %}
+<div class="toast toast-top toast-end z-[9999] pr-6 pointer-events-none">
+
+  <div class="alert alert-{{ message.tags|yesno:"error,success" }} shadow-lg pointer-events-auto">
+
+    {% if message.tags == "error" %}
+      <svg xmlns="http://www.w3.org/2000/svg"
+           class="stroke-current shrink-0 h-6 w-6"
+           fill="none"
+           viewBox="0 0 24 24">
+        <path stroke-linecap="round"
+              stroke-linejoin="round"
+              stroke-width="2"
+              d="M10 14l2-2m0 0l2-2m-2 2l-2-2m2 2l2 2m7-2a9 9 0 11-18 0 9 9 0 0118 0z" />
+      </svg>
+    {% else %}
+      <svg xmlns="http://www.w3.org/2000/svg"
+           class="stroke-current shrink-0 h-6 w-6"
+           fill="none"
+           viewBox="0 0 24 24">
+        <path stroke-linecap="round"
+              stroke-linejoin="round"
+              stroke-width="2"
+              d="M9 12l2 2 4-4m6 2a9 9 0 11-18 0 9 9 0 0118 0z" />
+      </svg>
+    {% endif %}
+
+    <span>{{ message }}</span>
+  </div>
+
+</div>
+{% endpartialdef message_toast %}
 
 {% block content %}
 <div class="max-w-4xl mx-auto">
@@ -12,13 +119,17 @@
 
     <!-- Close Issue Buttons - Only for superusers and if GitHub issue is open -->
     {% if user.is_superuser and github_issue and issue_state == 'open' %}
-      <!-- Close as addressed Button - Triggers modal -->
-      <button class="btn btn-soft btn-success btn-sm" onclick="document.getElementById('close-addressed-modal').showModal()">
+      <button class="btn btn-soft btn-success btn-sm"
+              hx-get="{% url 'issue-modal' issue.pk %}?action=addressed"
+              hx-target="#modal-container"
+              hx-swap="innerHTML transition:true">
         Close as addressed
       </button>
-      
-      <!-- Close as Wontfix Button - Triggers modal -->
-      <button class="btn btn-soft btn-warning btn-sm" onclick="document.getElementById('close-wontfix-modal').showModal()">
+
+      <button class="btn btn-soft btn-warning btn-sm"
+              hx-get="{% url 'issue-modal' issue.pk %}?action=wontfix"
+              hx-target="#modal-container"
+              hx-swap="innerHTML transition:true">
         Close as wontfix
       </button>
     {% endif %}
@@ -46,70 +157,6 @@
     </div>
   </div>
 
-  <!-- Close as Addressed Modal - Only render if issue is open -->
-  {% if user.is_superuser and github_issue and issue_state == 'open' %}
-  <dialog id="close-addressed-modal" class="modal">
-    <div class="modal-box">
-      <h3 class="font-bold text-lg">Close Issue as Addressed</h3>
-      <p class="py-4">Are you sure you want to close this issue as addressed? This will add the "addressed" label and update the issue status.</p>
-      
-      <form method="post" action="{% url 'issue-detail' issue.pk %}">
-        {% csrf_token %}
-        <input type="hidden" name="close_action" value="addressed">
-        
-        <!-- Comment Input -->
-        <div class="form-control w-full mb-4">
-          <label class="label">
-            <span class="label-text">Add a comment (optional)</span>
-          </label>
-          <textarea name="close_comment" class="textarea textarea-bordered h-24" placeholder="Add any closing comments..."></textarea>
-        </div>
-        
-        <div class="modal-action">
-          <button type="button" class="btn" onclick="document.getElementById('close-addressed-modal').close()">Cancel</button>
-          <button type="submit" class="btn btn-success" name="submit_close">Confirm Close</button>
-        </div>
-      </form>
-    </div>
-    
-    <!-- Click outside to close -->
-    <form method="dialog" class="modal-backdrop">
-      <button>close</button>
-    </form>
-  </dialog>
-
-  <!-- Close as Wontfix Modal - Only render if issue is open -->
-  <dialog id="close-wontfix-modal" class="modal">
-    <div class="modal-box">
-      <h3 class="font-bold text-lg">Close Issue as Wontfix</h3>
-      <p class="py-4">Are you sure you want to close this issue as wontfix? This will add the "wontfix" label and update the issue status.</p>
-      
-      <form method="post" action="{% url 'issue-detail' issue.pk %}">
-        {% csrf_token %}
-        <input type="hidden" name="close_action" value="wontfix">
-        
-        <!-- Comment Input -->
-        <div class="form-control w-full mb-4">
-          <label class="label">
-            <span class="label-text">Add a comment (optional)</span>
-          </label>
-          <textarea name="close_comment" class="textarea textarea-bordered h-24" placeholder="Add any closing comments..."></textarea>
-        </div>
-        
-        <div class="modal-action">
-          <button type="button" class="btn" onclick="document.getElementById('close-wontfix-modal').close()">Cancel</button>
-          <button type="submit" class="btn btn-warning" name="submit_close">Confirm Close</button>
-        </div>
-      </form>
-    </div>
-    
-    <!-- Click outside to close -->
-    <form method="dialog" class="modal-backdrop">
-      <button>close</button>
-    </form>
-  </dialog>
-  {% endif %}
-
   <!-- GitHub Issue Section - Only shown if github_issue or github_error exists -->
   {% if github_issue or github_error %}
   <div class="card bg-base-100 shadow-md mb-6">
@@ -125,55 +172,8 @@
 
         <!-- Add Labels Form - Only for superusers and if GitHub issue is open -->
         {% if user.is_superuser and issue_state == 'open' and labels_form %}
-        <div class="mb-6 p-4 bg-base-200 rounded-lg">
-          <form method="post" action="{% url 'issue-detail' issue.pk %}" class="space-y-4">
-            {% csrf_token %}
-            
-            <!-- Labels Checkboxes - Horizontal -->
-            <div>
-              <div class="flex flex-wrap gap-4">
-                {% for checkbox in labels_form.labels %}
-                <div class="form-control">
-                  <label class="label cursor-pointer justify-start gap-2">
-                    {{ checkbox.tag }}
-                    <span class="label-text">{{ checkbox.choice_label }}</span>
-                  </label>
-                </div>
-                {% endfor %}
-              </div>
-              {% if labels_form.labels.errors %}
-              <div class="text-error text-sm mt-1">
-                {{ labels_form.labels.errors }}
-              </div>
-              {% endif %}
-            </div>
-
-            <!-- Priority Radio Buttons - Horizontal -->
-            <div class="pt-2 border-t border-base-300">
-              <div class="flex flex-wrap gap-4">
-                {% for radio in labels_form.priority %}
-                <div class="form-control">
-                  <label class="label cursor-pointer justify-start gap-2">
-                    {{ radio.tag }}
-                    <span class="label-text">{{ radio.choice_label }}</span>
-                  </label>
-                </div>
-                {% endfor %}
-              </div>
-              {% if labels_form.priority.errors %}
-              <div class="text-error text-sm mt-1">
-                {{ labels_form.priority.errors }}
-              </div>
-              {% endif %}
-            </div>
-
-            <!-- Submit Button -->
-            <div class="pt-2">
-              <button type="submit" class="btn btn-soft btn-success btn-sm" name="submit_labels">
-                Set labels
-              </button>
-            </div>
-          </form>
+        <div id="labels-form-container" class="mb-6 p-4 bg-base-200 rounded-lg">
+            {% partial labels_form_partial %}
         </div>
         {% endif %}
 
@@ -231,24 +231,10 @@
   {% endif %}
 
   <!-- Messages -->
-  {% if messages %}
-  <div class="my-6">
-    {% for message in messages %}
-    <div class="alert alert-{% if message.tags == 'error' %}error{% else %}success{% endif %}">
-      {% if message.tags == 'error' %}
-      <svg xmlns="http://www.w3.org/2000/svg" class="stroke-current shrink-0 h-6 w-6" fill="none" viewBox="0 0 24 24">
-        <path stroke-linecap="round" stroke-linejoin="round" stroke-width="2" d="M10 14l2-2m0 0l2-2m-2 2l-2-2m2 2l2 2m7-2a9 9 0 11-18 0 9 9 0 0118 0z" />
-      </svg>
-      {% else %}
-      <svg xmlns="http://www.w3.org/2000/svg" class="stroke-current shrink-0 h-6 w-6" fill="none" viewBox="0 0 24 24">
-        <path stroke-linecap="round" stroke-linejoin="round" stroke-width="2" d="M9 12l2 2 4-4m6 2a9 9 0 11-18 0 9 9 0 0118 0z" />
-      </svg>
-      {% endif %}
-      <span>{{ message }}</span>
-    </div>
-    {% endfor %}
-  </div>
-  {% endif %}
+  {% for message in messages %}
+    {% partial message_toast %}
+  {% endfor %}
 
 </div>
+<div id="modal-container"></div>
 {% endblock %}

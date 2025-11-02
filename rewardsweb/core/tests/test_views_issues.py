@@ -6,6 +6,7 @@ import pytest
 
 from django.contrib.auth import get_user_model
 from django.contrib.messages import get_messages
+from django.http import Http404
 from django.urls import reverse
 from django.views.generic import DetailView, ListView
 
@@ -20,7 +21,7 @@ from core.models import (
     SocialPlatform,
 )
 from core.forms import IssueLabelsForm
-from core.views import CreateIssueView, IssueDetailView, IssueListView
+from core.views import CreateIssueView, IssueDetailView, IssueListView, IssueModalView
 from utils.constants.core import DISCORD_EMOJIS
 
 user_model = get_user_model()
@@ -1789,6 +1790,49 @@ class TestIssueDetailViewCloseFunctionality:
         assert response.status_code == 200
         assert "labels_form" in response.context
         assert isinstance(response.context["labels_form"], IssueLabelsForm)
+
+
+class TestIssueDetailView:
+    """Test case for IssueDetailView."""
+
+    def test_issuemodalview_is_subclass_of_detailview(self):
+        assert issubclass(IssueModalView, DetailView)
+
+    def test_issuemodalview_model(self):
+        view = IssueModalView()
+        assert view.model == Issue
+
+
+@pytest.mark.django_db
+class TestIssueModalDbView:
+    def test_modal_valid_addressed_superuser(self, client, superuser, issue):
+        client.force_login(superuser)
+        url = reverse("issue-modal", kwargs={"pk": issue.pk}) + "?action=addressed"
+        response = client.get(url)
+        assert response.status_code == 200
+        assert "Close issue as addressed" in response.content.decode()
+
+    def test_modal_invalid_action_raises_404(self, client, superuser, issue):
+        client.force_login(superuser)
+        url = reverse("issue-modal", kwargs={"pk": issue.pk}) + "?action=banana"
+        with pytest.raises(Http404):
+            client.get(url)
+
+    def test_modal_requires_superuser(self, client, user, issue):
+        """Non-superuser should get 403 Forbidden, NOT redirect."""
+        client.force_login(user)  # <-- regular authenticated user
+        url = reverse("issue-modal", kwargs={"pk": issue.pk}) + "?action=addressed"
+        response = client.get(url)
+
+        assert response.status_code == 403
+        assert "Only admins may close issues" in response.content.decode()
+
+    def test_modal_requires_login(self, client, issue):
+        url = reverse("issue-modal", kwargs={"pk": issue.pk}) + "?action=addressed"
+        response = client.get(url)
+
+        assert response.status_code == 302
+        assert "/accounts/login" in response.url
 
 
 @pytest.mark.django_db

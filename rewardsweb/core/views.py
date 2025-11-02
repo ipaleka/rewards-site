@@ -6,12 +6,14 @@ from datetime import datetime
 from django.conf import settings
 from django.contrib import messages
 from django.contrib.auth.decorators import login_required, user_passes_test
+from django.contrib.auth.mixins import LoginRequiredMixin
 from django.contrib.auth.models import User
 from django.db.models import Prefetch, Q, Sum
 from django.db.models.functions import Lower
 from django.forms import ValidationError
-from django.http import HttpResponseRedirect
-from django.shortcuts import redirect
+from django.http import Http404, HttpResponse, HttpResponseForbidden, HttpResponseRedirect
+from django.shortcuts import get_object_or_404, redirect, render
+from django.template.loader import render_to_string
 from django.urls import reverse_lazy
 from django.utils.decorators import method_decorator
 from django.views import View
@@ -43,6 +45,19 @@ from utils.issues import (
 )
 
 logger = logging.getLogger(__name__)
+
+
+def issue_modal(request, pk, action):
+    """TODO: docstring and tests"""
+    issue = get_object_or_404(Issue, pk=pk)
+    return render(
+        request,
+        "partials/issue_close_modal.html",
+        {
+            "issue": issue,
+            "action": action,
+        },
+    )
 
 
 class IndexView(ListView):
@@ -529,28 +544,43 @@ class IssueDetailView(DetailView):
         form = IssueLabelsForm(request.POST)
 
         if form.is_valid():
-            # Combine selected labels with priority
             labels_to_add = form.cleaned_data["labels"] + [
                 form.cleaned_data["priority"]
             ]
 
-            # Call the function to set labels to GitHub issue
             result = set_labels_to_issue(request.user, issue.number, labels_to_add)
 
             if result["success"]:
-                text = (
-                    f"Successfully set labels for issue #{issue.number}: {', '.join(labels_to_add)}",
+                success_message = (
+                    f"Successfully set labels for issue #{issue.number}: "
+                    f"{', '.join(labels_to_add)}"
                 )
-                messages.success(request, text)
-                self.request.user.profile.log_action("issue_labels_set", text)
+                messages.success(request, success_message)
+
+                # ✅ needed for old tests
+                request.user.profile.log_action("issue_labels_set", success_message)
 
             else:
                 messages.error(
                     request,
                     f"Failed to set labels: {result.get('error', 'Unknown error')}",
                 )
+
         else:
             messages.error(request, "Please correct the errors in the form.")
+
+        # ✅ HTMX request — return partial only
+        if request.headers.get("HX-Request") == "true":
+            html = render_to_string(
+                "core/issue_detail.html#labels_form_partial",
+                {
+                    "labels_form": form,
+                    "issue": issue,
+                    "toast_message": messages.get_messages(request),
+                },
+                request=request,
+            )
+            return HttpResponse(html)
 
         return redirect("issue-detail", pk=issue.pk)
 
@@ -624,6 +654,54 @@ class IssueDetailView(DetailView):
             messages.error(request, f"Error closing issue: {str(e)}")
 
         return redirect("issue-detail", pk=issue.pk)
+
+
+class IssueModalView(LoginRequiredMixin, DetailView):
+    """
+    Returns a DaisyUI modal fragment (used by HTMX) to close an issue.
+
+    Permissions:
+        - Anonymous users → redirected to login
+        - Authenticated non-superusers → HTTP 403 Forbidden
+        - Superusers → allowed
+
+    Querystring:
+        ?action=addressed  (Green button, marks as addressed)
+        ?action=wontfix    (Yellow button, marks as wontfix)
+
+    Returns:
+        - HTML fragment rendered from `{% partialdef close_modal_partial %}`
+        - Never returns a full HTML page
+        - Raises Http404 if action is invalid
+    """
+
+    model = Issue
+
+    def get(self, request, *args, **kwargs):
+        # ✅ must be authenticated (LoginRequiredMixin handles redirect)
+        if not request.user.is_superuser:
+            return HttpResponseForbidden("Only admins may close issues.")
+
+        action = request.GET.get("action")
+        if action not in ["addressed", "wontfix"]:
+            raise Http404("Invalid action")
+
+        issue = self.get_object()
+
+        html = render_to_string(
+            "core/issue_detail.html#close_modal_partial",
+            {
+                "issue": issue,
+                "modal_id": f"close-{action}-modal",
+                "action_value": action,
+                "action_label": f"Close issue as {action}",
+                "btn_class": "btn-success" if action == "addressed" else "btn-warning",
+            },
+            request=request,
+        )
+
+        return HttpResponse(html)
+
 
 
 @method_decorator(user_passes_test(lambda user: user.is_superuser), name="dispatch")

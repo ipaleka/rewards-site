@@ -41,4 +41,5 @@ urlpatterns = [
         views.IssueDetailView.as_view(),
         name="issue-detail",
     ),
+    path("issue/<int:pk>/modal/", views.IssueModalView.as_view(), name="issue-modal"),
 ]

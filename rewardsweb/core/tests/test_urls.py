@@ -83,5 +83,11 @@ class TestCoreUrls:
         assert url.lookup_str == "core.views.IssueDetailView"
         assert url.name == "issue-detail"
 
+    def test_core_urls_issue_modal(self):
+        url = self._url_from_pattern("issue/<int:pk>/modal/")
+        assert isinstance(url, URLPattern)
+        assert url.lookup_str == "core.views.IssueModalView"
+        assert url.name == "issue-modal"
+
     def test_core_urls_patterns_count(self):
-        assert len(urls.urlpatterns) == 12
+        assert len(urls.urlpatterns) == 13

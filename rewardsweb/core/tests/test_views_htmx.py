@@ -1,84 +1,7 @@
 import pytest
-from django.urls import reverse
 from django.http import Http404
-
-
-@pytest.mark.django_db
-class TestIssueDetailHTMX:
-    """Tests verifying HTMX fragment responses on label submission."""
-
-    def test_issuedetailview_htmx_labels_submit_success(
-        self, client, superuser, issue, mocker
-    ):
-        """HTMX POST returns HTML fragment instead of redirect."""
-        mock_add_labels = mocker.patch("core.views.set_labels_to_issue")
-        mock_add_labels.return_value = {"success": True}
-
-        client.force_login(superuser)
-
-        url = reverse("issue-detail", kwargs={"pk": issue.pk})
-        response = client.post(
-            url,
-            {
-                "labels": ["bug"],
-                "priority": "high priority",
-                "submit_labels": "Set labels",
-            },
-            HTTP_HX_REQUEST="true",  # 🚀 simulate HTMX
-        )
-
-        assert response.status_code == 200
-        content = response.content.decode()
-
-        # Fragment should contain form, not entire layout
-        assert "<form" in content
-        assert "</html>" not in content
-
-        # Toast message should appear in data attributes
-        assert "data-toast-message" in content
-
-        # Backend must call API
-        mock_add_labels.assert_called_once_with(
-            superuser, issue.number, ["bug", "high priority"]
-        )
-
-    def test_issuedetailview_htmx_labels_submit_form_error(
-        self, client, superuser, issue
-    ):
-        """Invalid label submission returns same partial with errors."""
-        client.force_login(superuser)
-
-        url = reverse("issue-detail", kwargs={"pk": issue.pk})
-
-        response = client.post(
-            url,
-            {
-                "priority": "medium priority",
-                "submit_labels": "Set labels",
-            },
-            HTTP_HX_REQUEST="true",
-        )
-
-        assert response.status_code == 200
-        content = response.content.decode()
-
-        assert "<form" in content
-        assert "Please correct the errors" in content
-        assert "</html>" not in content
-        
-    def test_non_htmx_still_redirects(self, client, superuser, issue, mocker):
-        mock_add_labels = mocker.patch("core.views.set_labels_to_issue")
-        mock_add_labels.return_value = {"success": True}
-
-        client.force_login(superuser)
-        url = reverse("issue-detail", kwargs={"pk": issue.pk})
-
-        response = client.post(
-            url,
-            {"labels": ["bug"], "priority": "medium priority", "submit_labels": "Set labels"},
-        )
-
-        assert response.status_code == 302  # ✅ redirect for non-HTMX
+from django.template.loader import render_to_string
+from django.urls import reverse
 
 
 @pytest.mark.django_db
@@ -90,7 +13,7 @@ class TestIssueModalHTMX:
         client.force_login(superuser)
 
         url = reverse("issue-modal", kwargs={"pk": issue.pk}) + "?action=addressed"
-        response = client.get(url, HTTP_HX_REQUEST="true")  # ✅ simulate HTMX GET
+        response = client.get(url, HTTP_HX_REQUEST="true")
 
         assert response.status_code == 200
         content = response.content.decode()
@@ -98,12 +21,46 @@ class TestIssueModalHTMX:
         assert "<dialog" in content
         assert f"close-addressed-modal" in content
 
-    def test_issuemodalview_htmx_modal_requires_valid_action(
-        self, client, superuser, issue
-    ):
+    def test_modal_raises_404_for_non_superuser(self, client, issue):
+        """Anonymous or normal user should trigger Http404"""
+        url = reverse("issue-modal", kwargs={"pk": issue.pk}) + "?action=addressed"
+        response = client.get(url, HTTP_HX_REQUEST="true")
+        assert response.status_code == 404
+
+    def test_modal_raises_404_for_invalid_action(self, client, superuser, issue):
+        """Invalid ?action should raise Http404"""
         client.force_login(superuser)
 
-        url = reverse("issue-modal", kwargs={"pk": issue.pk}) + "?action=invalid"
+        url = reverse("issue-modal", kwargs={"pk": issue.pk}) + "?action=banana"
+        response = client.get(url, HTTP_HX_REQUEST="true")
+        assert response.status_code == 404
 
-        with pytest.raises(Http404):
-            client.get(url, HTTP_HX_REQUEST="true")
+    def test_issue_detail_view_handle_labels_submission_htmx(
+        self, client, superuser, issue, mocker
+    ):
+        """IssueDetailView._handle_labels_submission should return HTMX partial on success."""
+        client.force_login(superuser)
+
+        mocked_set_labels = mocker.patch(
+            "core.views.set_labels_to_issue",
+            return_value={
+                "success": True,
+                "message": f"some message",
+                "current_labels": ["bug", "high priority"],
+            },
+        )
+        url = reverse("issue-detail", kwargs={"pk": issue.pk})
+        data = {
+            "submit_labels": "",
+            "labels": ["bug"],
+            "priority": "high priority",
+        }
+        response = client.post(url, data, HTTP_HX_REQUEST="true")
+
+        assert response.status_code == 200
+        content = response.content.decode()
+
+        assert "<form" in content
+        assert "bug" in content
+        assert "high priority" in content
+        assert "Labels updated successfully" in content

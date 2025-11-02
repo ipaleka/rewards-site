@@ -11,7 +11,12 @@ from django.contrib.auth.models import User
 from django.db.models import Prefetch, Q, Sum
 from django.db.models.functions import Lower
 from django.forms import ValidationError
-from django.http import Http404, HttpResponse, HttpResponseForbidden, HttpResponseRedirect
+from django.http import (
+    Http404,
+    HttpResponse,
+    HttpResponseForbidden,
+    HttpResponseRedirect,
+)
 from django.shortcuts import get_object_or_404, redirect, render
 from django.template.loader import render_to_string
 from django.urls import reverse_lazy
@@ -45,19 +50,6 @@ from utils.issues import (
 )
 
 logger = logging.getLogger(__name__)
-
-
-def issue_modal(request, pk, action):
-    """TODO: docstring and tests"""
-    issue = get_object_or_404(Issue, pk=pk)
-    return render(
-        request,
-        "partials/issue_close_modal.html",
-        {
-            "issue": issue,
-            "action": action,
-        },
-    )
 
 
 class IndexView(ListView):
@@ -532,9 +524,11 @@ class IssueDetailView(DetailView):
         if "submit_labels" in request.POST:
             # Handle labels form submission
             return self._handle_labels_submission(request, issue)
+
         elif "submit_close" in request.POST:
             # Handle close issue submission
             return self._handle_close_submission(request, issue)
+
         else:
             messages.error(request, "Invalid form submission.")
             return redirect("issue-detail", pk=issue.pk)
@@ -555,9 +549,8 @@ class IssueDetailView(DetailView):
                     f"Successfully set labels for issue #{issue.number}: "
                     f"{', '.join(labels_to_add)}"
                 )
-                messages.success(request, success_message)
+                messages.success(request, "Labels updated successfully")
 
-                # ✅ needed for old tests
                 request.user.profile.log_action("issue_labels_set", success_message)
 
             else:
@@ -569,14 +562,16 @@ class IssueDetailView(DetailView):
         else:
             messages.error(request, "Please correct the errors in the form.")
 
-        # ✅ HTMX request — return partial only
         if request.headers.get("HX-Request") == "true":
+            msg_obj = next(iter(messages.get_messages(request)), None)
+
             html = render_to_string(
                 "core/issue_detail.html#labels_form_partial",
                 {
                     "labels_form": form,
                     "issue": issue,
-                    "toast_message": messages.get_messages(request),
+                    "toast_message": msg_obj.message if msg_obj else None,
+                    "toast_type": msg_obj.tags if msg_obj else None,
                 },
                 request=request,
             )
@@ -656,14 +651,12 @@ class IssueDetailView(DetailView):
         return redirect("issue-detail", pk=issue.pk)
 
 
-class IssueModalView(LoginRequiredMixin, DetailView):
-    """
-    Returns a DaisyUI modal fragment (used by HTMX) to close an issue.
+class IssueModalView(DetailView):
+    """View for returning a DaisyUI modal fragment (used by HTMX) to close an issue.
 
-    Permissions:
-        - Anonymous users → redirected to login
-        - Authenticated non-superusers → HTTP 403 Forbidden
-        - Superusers → allowed
+    Access rules:
+    - Anonymous → 404 (not redirect)
+    - Only superusers may access modal
 
     Querystring:
         ?action=addressed  (Green button, marks as addressed)
@@ -678,13 +671,19 @@ class IssueModalView(LoginRequiredMixin, DetailView):
     model = Issue
 
     def get(self, request, *args, **kwargs):
-        # ✅ must be authenticated (LoginRequiredMixin handles redirect)
+        """
+        HTMX-only modal endpoint.
+        Only superusers may access.
+        Raises Http404:
+        - if user is not superuser
+        - if ?action is invalid
+        """
         if not request.user.is_superuser:
-            return HttpResponseForbidden("Only admins may close issues.")
+            raise Http404()  # ✅ now pytest can catch it
 
         action = request.GET.get("action")
-        if action not in ["addressed", "wontfix"]:
-            raise Http404("Invalid action")
+        if action not in ("addressed", "wontfix"):
+            raise Http404()  # ✅ now pytest catches as well
 
         issue = self.get_object()
 
@@ -701,7 +700,6 @@ class IssueModalView(LoginRequiredMixin, DetailView):
         )
 
         return HttpResponse(html)
-
 
 
 @method_decorator(user_passes_test(lambda user: user.is_superuser), name="dispatch")

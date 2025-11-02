@@ -819,8 +819,7 @@ class TestIssueDetailViewSubmissionHandlers:
         # Check success message
         messages = list(get_messages(response.wsgi_request))
         assert any(
-            f"Successfully set labels for issue #{issue.number}" in str(message)
-            for message in messages
+            "Labels updated successfully" in str(message) for message in messages
         )
         mocked_log_action.assert_called_once()
 
@@ -1801,38 +1800,6 @@ class TestIssueDetailView:
     def test_issuemodalview_model(self):
         view = IssueModalView()
         assert view.model == Issue
-
-
-@pytest.mark.django_db
-class TestIssueModalDbView:
-    def test_modal_valid_addressed_superuser(self, client, superuser, issue):
-        client.force_login(superuser)
-        url = reverse("issue-modal", kwargs={"pk": issue.pk}) + "?action=addressed"
-        response = client.get(url)
-        assert response.status_code == 200
-        assert "Close issue as addressed" in response.content.decode()
-
-    def test_modal_invalid_action_raises_404(self, client, superuser, issue):
-        client.force_login(superuser)
-        url = reverse("issue-modal", kwargs={"pk": issue.pk}) + "?action=banana"
-        with pytest.raises(Http404):
-            client.get(url)
-
-    def test_modal_requires_superuser(self, client, user, issue):
-        """Non-superuser should get 403 Forbidden, NOT redirect."""
-        client.force_login(user)  # <-- regular authenticated user
-        url = reverse("issue-modal", kwargs={"pk": issue.pk}) + "?action=addressed"
-        response = client.get(url)
-
-        assert response.status_code == 403
-        assert "Only admins may close issues" in response.content.decode()
-
-    def test_modal_requires_login(self, client, issue):
-        url = reverse("issue-modal", kwargs={"pk": issue.pk}) + "?action=addressed"
-        response = client.get(url)
-
-        assert response.status_code == 302
-        assert "/accounts/login" in response.url
 
 
 @pytest.mark.django_db

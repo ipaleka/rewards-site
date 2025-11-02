@@ -2,43 +2,52 @@
 
 {% partialdef labels_form_partial %}
 <form method="post"
-      hx-post="{% url 'issue-detail' issue.pk %}"
-      hx-target="#labels-form-container"
-      hx-swap="innerHTML transition:true"
-      hx-vals='{"blocking": "true"}'
-      class="space-y-4">
+    hx-post="{{ request.path }}"
+    hx-target="#labels-form-container"
+    hx-swap="innerHTML transition:true"
+    hx-vals='{"blocking": "true"}'
+    class="space-y-4">
 
-    {% csrf_token %}
+{% csrf_token %}
 
-    <!-- Labels -->
-    <div class="flex flex-wrap gap-4">
-      {% for checkbox in labels_form.labels %}
-      <label class="label cursor-pointer gap-2">
-        {{ checkbox.tag }}
-        <span class="label-text">{{ checkbox.choice_label }}</span>
-      </label>
-      {% endfor %}
-    </div>
+  <!-- Labels -->
+  <div class="flex flex-wrap gap-4">
+    {% for checkbox in labels_form.labels %}
+    <label class="label cursor-pointer gap-2">
+      {{ checkbox.tag }}
+      <span class="label-text">{{ checkbox.choice_label }}</span>
+    </label>
+    {% endfor %}
+  </div>
 
-    {{ labels_form.labels.errors }}
+  {{ labels_form.labels.errors }}
 
-    <!-- Priority -->
-    <div class="pt-2 border-t border-base-300 flex flex-wrap gap-4">
-      {% for radio in labels_form.priority %}
-      <label class="label cursor-pointer gap-2">
-        {{ radio.tag }}
-        <span class="label-text">{{ radio.choice_label }}</span>
-      </label>
-      {% endfor %}
-    </div>
+  <!-- Priority -->
+  <div class="pt-2 border-t border-base-300 flex flex-wrap gap-4">
+    {% for radio in labels_form.priority %}
+    <label class="label cursor-pointer gap-2">
+      {{ radio.tag }}
+      <span class="label-text">{{ radio.choice_label }}</span>
+    </label>
+    {% endfor %}
+  </div>
 
-    {{ labels_form.priority.errors }}
+  {{ labels_form.priority.errors }}
 
-    <button type="submit" name="submit_labels" class="btn btn-success btn-sm">
-        Set labels
-    </button>
+  <button type="submit" name="submit_labels" class="btn btn-success btn-sm">
+      Set labels
+  </button>
 
 </form>
+
+{% if toast_message %}
+<div id="toast-container" hx-swap-oob="afterbegin">
+  <div class="alert alert-{{ toast_type|default:"success" }} shadow-lg">
+    <span>{{ toast_message }}</span>
+  </div>
+</div>
+{% endif %}
+
 {% endpartialdef labels_form_partial %}
 
 {% partialdef close_modal_partial %}

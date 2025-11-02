@@ -1,36 +1,153 @@
 """Module containing functions for GitHub issues management."""
 
 import logging
-from datetime import datetime
+from datetime import datetime, timedelta
 
+import jwt
+import requests
 from django.conf import settings
 from github import Auth, Github
 
+from core.models import Contributor
 from utils.bot import message_from_url
 from utils.constants.core import GITHUB_ISSUES_START_DATE
 from utils.constants.ui import MISSING_TOKEN_TEXT
+from utils.helpers import get_env_variable
 
 logger = logging.getLogger(__name__)
 
 
+class GitHubApp:
+    """Helper class for instantiating GitHub client using GitHub bot."""
+
+    def jwt_token(self):
+        """Generate JWT token for GitHub bot.
+
+        :var bot_private_key_filename: filename of the bot's private key
+        :type bot_private_key_filename: str
+        :var bot_client_id: client ID of the bot
+        :type bot_client_id: str
+        :var pem_path: path to the bot's private key
+        :type pem_path: :class:`pathlib.Path`
+        :var signing_key: bot's private key
+        :type signing_key: bytes
+        :var now: current time
+        :type now: :class:`datetime.datetime`
+        :var expiration: expiration time for the token
+        :type expiration: :class:`datetime.datetime`
+        :var payload: JWT payload
+        :type payload: dict
+        :return: JWT token
+        :rtype: str
+        """
+        bot_private_key_filename = get_env_variable(
+            "GITHUB_BOT_PRIVATE_KEY_FILENAME", ""
+        )
+        bot_client_id = get_env_variable("GITHUB_BOT_CLIENT_ID", "")
+        if not (bot_private_key_filename and bot_client_id):
+            return None
+
+        pem_path = settings.BASE_DIR.parent / "fixtures" / bot_private_key_filename
+        with open(pem_path, "rb") as pem_file:
+            signing_key = pem_file.read()
+
+        now = datetime.now()
+        expiration = now + timedelta(minutes=8)
+        payload = {
+            "iat": int(now.timestamp()),
+            "exp": int(expiration.timestamp()),
+            "iss": bot_client_id,
+        }
+        return jwt.encode(payload, signing_key, algorithm="RS256")
+
+    def installation_token(self):
+        """Retrieve installation access token for GitHub bot.
+
+        :var installation_id: ID of the bot's installation
+        :type installation_id: str
+        :var jwt_token: JWT token for the bot
+        :type jwt_token: str
+        :var headers: headers for the request
+        :type headers: dict
+        :var url: URL for the request
+        :type url: str
+        :var response: response from the request
+        :type response: :class:`requests.Response`
+        :return: installation access token
+        :rtype: str
+        """
+        installation_id = get_env_variable("GITHUB_BOT_INSTALLATION_ID", "")
+        if not installation_id:
+            return None
+
+        jwt_token = self.jwt_token()
+        if not jwt_token:
+            return None
+
+        headers = {
+            "Authorization": f"Bearer {jwt_token}",
+            "Accept": "application/vnd.github.v3+json",
+        }
+        url = (
+            f"https://api.github.com/app/installations/{installation_id}/access_tokens"
+        )
+        response = requests.post(url, headers=headers)
+        return response.json().get("token") if response.status_code == 201 else None
+
+    def client(self):
+        """Get authenticated GitHub client using GitHub bot.
+
+        :var token: installation access token
+        :type token: str
+        :return: authenticated GitHub client
+        :rtype: :class:`github.Github`
+        """
+        token = self.installation_token()
+        return Github(token) if token else None
+
+
+# # HELPERS
+def _contributor_link(handle):
+    """Create link to contributor defined by provided Discord `handle`.
+
+    :param handle: Discord handle/username
+    :type handle: str
+    :param contributor: contributor's model instance
+    :type contributor: :class:`core.models.Contributor`
+    :return: str
+    """
+    try:
+        contributor = Contributor.objects.from_handle(handle)
+
+    except ValueError:
+        contributor = None
+
+    if contributor is None:
+        return handle
+
+    return f"[{handle}]({contributor.get_absolute_url()})"
+
+
 # # CRUD
 def _github_client(user):
-    """Instantiate and return GitHub client instance on behalf `user`.
+    """Instantiate and return GitHub client instance on behalf GitHub bot or `user`.
 
     :param user: Django user instance
     :type user: class:`django.contrib.auth.models.User`
-    :var github_token: GitHub user's access token
-    :type github_token: str
+    :var client: GitHub client instance
+    :type client: :class:`github.Github`
     :var auth: GitHub authentication token instance
     :type auth: :class:`github.Github`
-    :return: :class:`github.Github
+    :return: :class:`github.Github`
     """
-    github_token = user.profile.github_token
-    if not github_token:
+    client = GitHubApp().client()
+    if client:
+        return client
+
+    if not user.profile.github_token:
         return False
 
-    auth = Auth.Token(github_token)
-
+    auth = Auth.Token(user.profile.github_token)
     return Github(auth=auth)
 
 
@@ -260,15 +377,19 @@ def set_labels_to_issue(user, issue_number, labels_to_set):
 
 
 # # PREPARE ISSUE
-def _prepare_issue_body_from_contribution(contribution):
-    """Prepare the body content for a GitHub issue from provided `contribution`.
+def _prepare_issue_body_from_contribution(contribution, profile):
+    """Prepare the body content for a GitHub issue from provided arguments.
 
     :param contribution: contribution instance to extract data from
-    :type contribution: :class:`contributions.models.Contribution`
+    :type contribution: :class:`core.models.Contribution`
+    :param profile: superuser's profile instance
+    :type profile: :class:`core.models.Profile`
     :var issue_body: default issue body template
     :type issue_body: str
     :var message: parsed message data from contribution URL
     :type message: dict
+    :var contributor: link to contributor's page on rewards website
+    :type contributor: str
     :return: str
     """
     issue_body = "** Please provide the necessary information **"
@@ -277,11 +398,14 @@ def _prepare_issue_body_from_contribution(contribution):
 
     message = message_from_url(contribution.url)
     if message.get("success"):
-        author = message.get("author")
         timestamp = datetime.strptime(
             message.get("timestamp"), "%Y-%m-%dT%H:%M:%S.%f%z"
         ).strftime("%d %b %H:%M")
-        issue_body = f"By {author} on {timestamp} in [Discord]({contribution.url}):\n"
+        contributor = _contributor_link(message.get("author"))
+        issue_body = (
+            f"By {contributor} on {timestamp} in [Discord]"
+            f"({contribution.url}): // su: {str(profile)}\n"
+        )
         for line in message.get("content").split("\n"):
             issue_body += f"> {line}\n"
 
@@ -292,7 +416,7 @@ def _prepare_issue_labels_from_contribution(contribution):
     """Prepare labels for a GitHub issue based on contribution reward type.
 
     :param contribution: contribution instance to extract data from
-    :type contribution: :class:`contributions.models.Contribution`
+    :type contribution: :class:`core.models.Contribution`
     :var labels: collection of labels to apply to the issue
     :type labels: list
     :return: list
@@ -320,7 +444,7 @@ def _prepare_issue_priority_from_contribution(contribution):
     """Prepare priority level for a GitHub issue based on contribution reward type.
 
     :param contribution: contribution instance to extract data from
-    :type contribution: :class:`contributions.models.Contribution`
+    :type contribution: :class:`core.models.Contribution`
     :return: str
     """
     if "Bug" in contribution.reward.type.name:
@@ -333,7 +457,7 @@ def _prepare_issue_title_from_contribution(contribution):
     """Prepare title for a GitHub issue from contribution data.
 
     :param contribution: contribution instance to extract data from
-    :type contribution: :class:`contributions.models.Contribution`
+    :type contribution: :class:`core.models.Contribution`
     :var issue_title: formatted issue title with reward type and level
     :type issue_title: str
     :return: str
@@ -345,16 +469,18 @@ def _prepare_issue_title_from_contribution(contribution):
     return issue_title
 
 
-def issue_data_for_contribution(contribution):
+def issue_data_for_contribution(contribution, profile):
     """Prepare complete issue data dictionary from a contribution.
 
     :param contribution: contribution instance to extract data from
-    :type contribution: :class:`contributions.models.Contribution`
+    :type contribution: :class:`core.models.Contribution`
+    :param profile: superuser's profile instance
+    :type profile: :class:`core.models.Profile`
     :return: dict
     """
     return {
         "issue_title": _prepare_issue_title_from_contribution(contribution),
-        "issue_body": _prepare_issue_body_from_contribution(contribution),
+        "issue_body": _prepare_issue_body_from_contribution(contribution, profile),
         "labels": _prepare_issue_labels_from_contribution(contribution),
         "priority": _prepare_issue_priority_from_contribution(contribution),
     }

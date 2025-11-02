@@ -12,6 +12,7 @@ from core.models import (
     Reward,
     RewardType,
     SocialPlatform,
+    SuperuserLog,
 )
 
 admin.site.register(Profile)
@@ -23,3 +24,21 @@ admin.site.register(RewardType)
 admin.site.register(Reward)
 admin.site.register(Issue)
 admin.site.register(Contribution)
+
+
+@admin.register(SuperuserLog)
+class SuperuserLogAdmin(admin.ModelAdmin):
+    """Customized superusers' log table in Django admin UI."""
+
+    list_display = ["profile", "action", "created_at"]
+    list_filter = ["action", "created_at", "profile"]
+    search_fields = ["profile_user__username", "action", "details"]
+    readonly_fields = ["profile", "action", "details", "created_at"]
+
+    def has_add_permission(self, request):
+        """Prevent adding log entries"""
+        return False
+
+    def has_change_permission(self, request, obj=None):
+        """Prevent modifications to log entries"""
+        return False

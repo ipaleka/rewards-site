@@ -24,6 +24,7 @@ from core.models import (
     Reward,
     RewardType,
     SocialPlatform,
+    SuperuserLog,
 )
 from utils.constants.core import HANDLE_EXCEPTIONS
 
@@ -173,7 +174,7 @@ class TestCoreContributorManager:
         Handle.objects.create(
             contributor=contributor2, platform=platform2, handle=handle
         )
-        with pytest.raises(AssertionError) as exception:
+        with pytest.raises(ValueError) as exception:
             Contributor.objects.from_handle(handle)
             assert "Can't locate a single contributor" in str(exception.value)
 
@@ -674,6 +675,26 @@ class TestCoreProfileModel:
         profile = Profile(user=user)
         assert profile.get_absolute_url() == "/profile/"
 
+    # # log_action
+    @pytest.mark.django_db
+    def test_profile_model_log_action_for_non_superuser(self, mocker):
+        mocked_superuserlog = mocker.patch("core.models.SuperuserLog.objects.create")
+        user = user_model.objects.create(username="nonsuperuser")
+        assert user.profile.log_action("some action") is None
+        mocked_superuserlog.assert_not_called()
+
+    @pytest.mark.django_db
+    def test_profile_model_log_action_for_superuser(self, mocker):
+        mocked_superuserlog = mocker.patch("core.models.SuperuserLog.objects.create")
+        user = user_model.objects.create_superuser("superuser_for_log")
+        action, details = "some action", "action details"
+        assert (
+            user.profile.log_action(action, details) == mocked_superuserlog.return_value
+        )
+        mocked_superuserlog.assert_called_once_with(
+            profile=user.profile, action=action, details=details
+        )
+
     # # profile
     @pytest.mark.django_db
     def test_profile_model_profile_returns_self(self):
@@ -714,6 +735,100 @@ class TestCoreProfileModel:
     def test_profile_model_name_is_user_email_without_domain(self):
         user = user_model.objects.create(email="abs@abc.com")
         assert user.profile.name == "abs"
+
+
+class TestCoreSuperuserLogModel:
+    """Testing class for :class:`core.models.SuperuserLog` model."""
+
+    # # field characteristics
+    @pytest.mark.parametrize(
+        "name,typ",
+        [
+            ("profile", models.ForeignKey),
+            ("action", models.CharField),
+            ("details", models.TextField),
+            ("created_at", models.DateTimeField),
+        ],
+    )
+    def test_core_superuserlog_model_fields(self, name, typ):
+        assert hasattr(SuperuserLog, name)
+        assert isinstance(SuperuserLog._meta.get_field(name), typ)
+
+    @pytest.mark.django_db
+    def test_core_superuserlog_model_profile_is_not_optional(self):
+        with pytest.raises(ValidationError):
+            SuperuserLog(action="foobar").full_clean()
+
+    @pytest.mark.django_db
+    def test_core_superuserlog_model_action_is_not_optional(self):
+        user = user_model.objects.create(username="userrnamesuperuserlog1")
+        profile = Profile.objects.get(pk=user.profile.id)
+        with pytest.raises(ValidationError):
+            SuperuserLog(profile=profile).full_clean()
+
+    @pytest.mark.django_db
+    def test_core_superuserlog_model_delete_profile_sets_null(self):
+        user = user_model.objects.create(username="userrnamesuperuserlog2")
+        profile = Profile.objects.get(pk=user.profile.id)
+        superuserlog = SuperuserLog.objects.create(
+            profile=profile, action="some action"
+        )
+        profile.delete()
+        with pytest.raises(SuperuserLog.DoesNotExist):
+            SuperuserLog.objects.get(pk=superuserlog.id)
+
+    @pytest.mark.django_db
+    def test_core_superuserlog_model_cannot_save_too_long_action(self):
+        user = user_model.objects.create(username="userrnamesuperuserlog3")
+        profile = Profile.objects.get(pk=user.profile.id)
+        superuserlog = SuperuserLog(profile=profile, action="a" * 100)
+        with pytest.raises(DataError):
+            superuserlog.save()
+            superuserlog.full_clean()
+
+    @pytest.mark.django_db
+    def test_core_superuserlog_model_created_at_datetime_field_set(self):
+        user = user_model.objects.create(username="userrnamesuperuserlog4")
+        profile = Profile.objects.get(pk=user.profile.id)
+        superuserlog = SuperuserLog.objects.create(
+            profile=profile, action="some action"
+        )
+        assert superuserlog.created_at <= timezone.now()
+
+    # # Meta
+    @pytest.mark.django_db
+    def test_core_superuserlog_model_ordering(self):
+        user = user_model.objects.create(username="userrnamesuperuserlog5")
+        profile = Profile.objects.get(pk=user.profile.id)
+        superuserlog1 = SuperuserLog.objects.create(
+            profile=profile, action="some action1"
+        )
+        superuserlog2 = SuperuserLog.objects.create(
+            profile=profile, action="some action3"
+        )
+        superuserlog3 = SuperuserLog.objects.create(
+            profile=profile, action="some action2"
+        )
+        superuserlog4 = SuperuserLog.objects.create(
+            profile=profile, action="some action"
+        )
+        assert list(SuperuserLog.objects.all()) == [
+            superuserlog4,
+            superuserlog3,
+            superuserlog2,
+            superuserlog1,
+        ]
+
+    # # __str__
+    @pytest.mark.django_db
+    def test_core_superuserlog_model_string_representation(self):
+        user = user_model.objects.create(username="superuser")
+        profile = Profile.objects.get(pk=user.profile.id)
+        superuserlog = SuperuserLog.objects.create(profile=profile, action="action1")
+        assert (
+            str(superuserlog)
+            == f"{profile.name} - {superuserlog.action} - {superuserlog.created_at}"
+        )
 
 
 class TestCoreSocialPlatformModel:

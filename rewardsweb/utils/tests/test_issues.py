@@ -3,6 +3,8 @@
 from django.conf import settings
 
 from utils.issues import (
+    GitHubApp,
+    _contributor_link,
     _github_client,
     _github_repository,
     _prepare_issue_body_from_contribution,
@@ -20,29 +22,204 @@ from utils.constants.core import GITHUB_ISSUES_START_DATE
 from utils.constants.ui import MISSING_TOKEN_TEXT
 
 
+class TestUtilsIssuesGitHubApp:
+    """Testing class for :py:mod:`utils.issues.GitHubApp` class."""
+
+    def test_utils_issues_githubapp_jwt_token_no_env_vars(self, mocker):
+        mocked_get_env_variable = mocker.patch(
+            "utils.issues.get_env_variable", return_value=""
+        )
+        instance = GitHubApp()
+        assert instance.jwt_token() is None
+        mocked_get_env_variable.assert_has_calls(
+            [
+                mocker.call("GITHUB_BOT_PRIVATE_KEY_FILENAME", ""),
+                mocker.call("GITHUB_BOT_CLIENT_ID", ""),
+            ]
+        )
+
+    def test_utils_issues_githubapp_jwt_token_success(self, mocker):
+        mocked_get_env_variable = mocker.patch(
+            "utils.issues.get_env_variable",
+            side_effect=["test.pem", "test_id"],
+        )
+        mock_settings = mocker.MagicMock()
+        mock_settings.BASE_DIR.parent = mocker.MagicMock()
+        mocker.patch("utils.issues.settings", mock_settings)
+        mock_open = mocker.mock_open(read_data=b"test_key")
+        mocker.patch("builtins.open", mock_open)
+        mock_datetime = mocker.MagicMock()
+        mock_timedelta = mocker.MagicMock()
+        mocker.patch("utils.issues.datetime", mock_datetime)
+        mocker.patch("utils.issues.timedelta", mock_timedelta)
+        mock_jwt = mocker.MagicMock()
+        mocker.patch("utils.issues.jwt", mock_jwt)
+
+        instance = GitHubApp()
+        instance.jwt_token()
+
+        mocked_get_env_variable.assert_has_calls(
+            [
+                mocker.call("GITHUB_BOT_PRIVATE_KEY_FILENAME", ""),
+                mocker.call("GITHUB_BOT_CLIENT_ID", ""),
+            ]
+        )
+        mock_open.assert_called_once_with(
+            mock_settings.BASE_DIR.parent / "fixtures" / "test.pem", "rb"
+        )
+        mock_jwt.encode.assert_called_once()
+
+    def test_utils_issues_githubapp_installation_token_no_id(self, mocker):
+        mocked_get_env_variable = mocker.patch(
+            "utils.issues.get_env_variable", return_value=""
+        )
+        instance = GitHubApp()
+        assert instance.installation_token() is None
+        mocked_get_env_variable.assert_called_once_with(
+            "GITHUB_BOT_INSTALLATION_ID", ""
+        )
+
+    def test_utils_issues_githubapp_installation_token_no_jwt(self, mocker):
+        mocker.patch("utils.issues.get_env_variable", return_value="test_id")
+        mock_jwt_token = mocker.patch.object(GitHubApp, "jwt_token", return_value=None)
+        instance = GitHubApp()
+        assert instance.installation_token() is None
+        mock_jwt_token.assert_called_once_with()
+
+    def test_utils_issues_githubapp_installation_token_request_fails(self, mocker):
+        mocker.patch("utils.issues.get_env_variable", return_value="test_id")
+        mocker.patch.object(GitHubApp, "jwt_token", return_value="test_jwt")
+        mock_response = mocker.MagicMock()
+        mock_response.status_code = 400
+        mocked_requests = mocker.patch(
+            "utils.issues.requests.post", return_value=mock_response
+        )
+        instance = GitHubApp()
+        assert instance.installation_token() is None
+        mocked_requests.assert_called_once()
+
+    def test_utils_issues_githubapp_installation_token_success(self, mocker):
+        mocker.patch("utils.issues.get_env_variable", return_value="test_id")
+        mocker.patch.object(GitHubApp, "jwt_token", return_value="test_jwt")
+        mock_response = mocker.MagicMock()
+        mock_response.status_code = 201
+        mock_response.json.return_value = {"token": "test_token"}
+        mocked_requests = mocker.patch(
+            "utils.issues.requests.post", return_value=mock_response
+        )
+        instance = GitHubApp()
+        assert instance.installation_token() == "test_token"
+        mocked_requests.assert_called_once()
+
+    def test_utils_issues_githubapp_client_no_token(self, mocker):
+        mock_installation_token = mocker.patch.object(
+            GitHubApp, "installation_token", return_value=None
+        )
+        mocked_github = mocker.patch("utils.issues.Github")
+        instance = GitHubApp()
+        assert instance.client() is None
+        mock_installation_token.assert_called_once_with()
+        mocked_github.assert_not_called()
+
+    def test_utils_issues_githubapp_client_success(self, mocker):
+        mock_installation_token = mocker.patch.object(
+            GitHubApp, "installation_token", return_value="test_token"
+        )
+        mock_github_instance = mocker.MagicMock()
+        mocked_github = mocker.patch(
+            "utils.issues.Github", return_value=mock_github_instance
+        )
+        instance = GitHubApp()
+        assert instance.client() == mock_github_instance
+        mock_installation_token.assert_called_once_with()
+        mocked_github.assert_called_once_with("test_token")
+
+
+class TestUtilsIssuesHelperFunctions:
+    """Testing class for :py:mod:`utils.issues` helper functions."""
+
+    # # contributor_link
+    def test_utils_issues_contributor_link_for_contributor_not_found(self, mocker):
+        handle = "handle"
+        mocked_contributor = mocker.patch(
+            "utils.issues.Contributor.objects.from_handle", return_value=None
+        )
+        returned = _contributor_link(handle)
+        assert returned == handle
+        mocked_contributor.assert_called_once_with(handle)
+
+    def test_utils_issues_contributor_link_for_error(self, mocker):
+        handle = "handle"
+        mocked_contributor = mocker.patch(
+            "utils.issues.Contributor.objects.from_handle",
+            side_effect=ValueError("error"),
+        )
+        returned = _contributor_link(handle)
+        assert returned == handle
+        mocked_contributor.assert_called_once_with(handle)
+
+    def test_utils_issues_contributor_link_functionality(self, mocker):
+        handle = "handle"
+        contributor = mocker.MagicMock()
+        url = "http://example.com"
+        contributor.get_absolute_url.return_value = url
+        mocked_contributor = mocker.patch(
+            "utils.issues.Contributor.objects.from_handle", return_value=contributor
+        )
+        returned = _contributor_link(handle)
+        assert returned == f"[{handle}]({url})"
+        mocked_contributor.assert_called_once_with(handle)
+
+
 class TestUtilsIssuesCrudFunctions:
     """Testing class for :py:mod:`utils.issues` CRUD functions."""
 
     # # _github_client
-    def test_utils_issues_github_client_for_no_token(self, mocker):
-        user = mocker.MagicMock()
-        user.profile.github_token = None
-        mocked_auth = mocker.patch("utils.issues.Auth.Token")
-        returned = _github_client(user)
+    def test_utils_issues_github_client_for_no_client_and_token(self, mocker):
+        mcok_user = mocker.MagicMock()
+        mcok_user.profile.github_token = None
+        mock_githubapp = mocker.MagicMock()
+        mock_githubapp.client.return_value = None
+        mocked_githubapp = mocker.patch(
+            "utils.issues.GitHubApp", return_value=mock_githubapp
+        )
+        mocked_token = mocker.patch("utils.issues.Auth.Token")
+        returned = _github_client(mcok_user)
         assert returned is False
-        mocked_auth.assert_not_called()
+        mocked_githubapp.assert_called_once_with()
+        mocked_token.assert_not_called()
 
-    def test_utils_issues_github_client_functionality(self, mocker):
-        user = mocker.MagicMock()
-        token = mocker.MagicMock()
-        auth, client = mocker.MagicMock(), mocker.MagicMock()
-        mocked_auth = mocker.patch("utils.issues.Auth.Token", return_value=auth)
-        mocked_client = mocker.patch("utils.issues.Github", return_value=client)
-        user.profile.github_token = token
-        returned = _github_client(user)
-        assert returned == client
-        mocked_auth.assert_called_once_with(token)
-        mocked_client.assert_called_once_with(auth=auth)
+    def test_utils_issues_github_client_for_githubapp_client(self, mocker):
+        mock_user = mocker.MagicMock()
+        mock_githubapp = mocker.MagicMock()
+        mock_client = mocker.MagicMock()
+        mock_githubapp.client.return_value = mock_client
+        mocked_githubapp = mocker.patch(
+            "utils.issues.GitHubApp", return_value=mock_githubapp
+        )
+        mocked_token = mocker.patch("utils.issues.Auth.Token")
+        returned = _github_client(mock_user)
+        assert returned == mock_client
+        mocked_githubapp.assert_called_once_with()
+        mocked_token.assert_not_called()
+
+    def test_utils_issues_github_client_for_user_token(self, mocker):
+        mock_user = mocker.MagicMock()
+        mock_token = mocker.MagicMock()
+        mock_auth, mock_client = mocker.MagicMock(), mocker.MagicMock()
+        mock_githubapp = mocker.MagicMock()
+        mock_githubapp.client.return_value = None
+        mocked_githubapp = mocker.patch(
+            "utils.issues.GitHubApp", return_value=mock_githubapp
+        )
+        mocked_auth = mocker.patch("utils.issues.Auth.Token", return_value=mock_auth)
+        mocked_github = mocker.patch("utils.issues.Github", return_value=mock_client)
+        mock_user.profile.github_token = mock_token
+        returned = _github_client(mock_user)
+        assert returned == mock_client
+        mocked_githubapp.assert_called_once_with()
+        mocked_auth.assert_called_once_with(mock_token)
+        mocked_github.assert_called_once_with(auth=mock_auth)
 
     # # _github_repository
     def test_utils_issues_github_repository_functionality(self, mocker):
@@ -475,32 +652,38 @@ class TestUtilsIssuesPrepareFunctions:
 
     # # _prepare_issue_body_from_contribution
     def test_utils_issues_prepare_issue_body_from_contribution_no_url(self, mocker):
-        contribution = mocker.MagicMock()
+        contribution, profile = mocker.MagicMock(), mocker.MagicMock()
         contribution.url = None
+        mocked_link = mocker.patch("utils.issues._contributor_link")
 
-        result = _prepare_issue_body_from_contribution(contribution)
+        result = _prepare_issue_body_from_contribution(contribution, profile)
 
         assert result == "** Please provide the necessary information **"
+        mocked_link.assert_not_called()
 
     def test_utils_issues_prepare_issue_body_from_contribution_url_no_success(
         self, mocker
     ):
-        contribution = mocker.MagicMock()
+        contribution, profile = mocker.MagicMock(), mocker.MagicMock()
         contribution.url = "https://discord.com/channels/test"
+        mocked_link = mocker.patch("utils.issues._contributor_link")
 
         mocked_message_from_url = mocker.patch("utils.issues.message_from_url")
         mocked_message_from_url.return_value = {"success": False}
 
-        result = _prepare_issue_body_from_contribution(contribution)
+        result = _prepare_issue_body_from_contribution(contribution, profile)
 
         assert result == "** Please provide the necessary information **"
         mocked_message_from_url.assert_called_once_with(contribution.url)
+        mocked_link.assert_not_called()
 
     def test_utils_issues_prepare_issue_body_from_contribution_successful_parsing(
         self, mocker
     ):
-        contribution = mocker.MagicMock()
+        contribution, profile = mocker.MagicMock(), "username"
         contribution.url = "https://discord.com/channels/test"
+        link = "https://example.com"
+        mocked_link = mocker.patch("utils.issues._contributor_link", return_value=link)
 
         test_message = {
             "success": True,
@@ -514,14 +697,18 @@ class TestUtilsIssuesPrepareFunctions:
         mocked_datetime = mocker.patch("utils.issues.datetime")
         mocked_datetime.strptime.return_value.strftime.return_value = "15 Oct 14:30"
 
-        result = _prepare_issue_body_from_contribution(contribution)
+        result = _prepare_issue_body_from_contribution(contribution, profile)
 
-        expected_body = "By testuser on 15 Oct 14:30 in [Discord](https://discord.com/channels/test):\n> This is a test message\n> with multiple lines\n"
+        expected_body = (
+            f"By {link} on 15 Oct 14:30 in [Discord](https://discord.com/channels/test): "
+            f"// su: {profile}\n> This is a test message\n> with multiple lines\n"
+        )
         assert result == expected_body
         mocked_message_from_url.assert_called_once_with(contribution.url)
         mocked_datetime.strptime.assert_called_once_with(
             "2023-10-15T14:30:00.000000+00:00", "%Y-%m-%dT%H:%M:%S.%f%z"
         )
+        mocked_link.assert_called_once_with(test_message.get("author"))
 
     # # _prepare_issue_labels_from_contribution
     def test_utils_issues_prepare_issue_labels_bug_type(self, mocker):
@@ -634,7 +821,7 @@ class TestUtilsIssuesPrepareFunctions:
 
     # # issue_data_for_contribution
     def test_utils_issues_issue_data_for_contribution_complete_data(self, mocker):
-        contribution = mocker.MagicMock()
+        contribution, profile = mocker.MagicMock(), mocker.MagicMock()
 
         # Mock all the helper functions
         mocker.patch(
@@ -653,7 +840,7 @@ class TestUtilsIssuesPrepareFunctions:
             return_value="high priority",
         )
 
-        result = issue_data_for_contribution(contribution)
+        result = issue_data_for_contribution(contribution, profile)
 
         expected_data = {
             "issue_title": "Test Title",
@@ -664,7 +851,7 @@ class TestUtilsIssuesPrepareFunctions:
         assert result == expected_data
 
     def test_utils_issues_issue_data_for_contribution_calls_all_helpers(self, mocker):
-        contribution = mocker.MagicMock()
+        contribution, profile = mocker.MagicMock(), mocker.MagicMock()
 
         mocked_title = mocker.patch(
             "utils.issues._prepare_issue_title_from_contribution"
@@ -677,9 +864,9 @@ class TestUtilsIssuesPrepareFunctions:
             "utils.issues._prepare_issue_priority_from_contribution"
         )
 
-        issue_data_for_contribution(contribution)
+        issue_data_for_contribution(contribution, profile)
 
         mocked_title.assert_called_once_with(contribution)
-        mocked_body.assert_called_once_with(contribution)
+        mocked_body.assert_called_once_with(contribution, profile)
         mocked_labels.assert_called_once_with(contribution)
         mocked_priority.assert_called_once_with(contribution)

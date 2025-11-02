@@ -142,11 +142,9 @@ class TestUtilsMappersMappingCreation:
         mock_existing_contributor.name = "existing_user"
         mock_existing_contributor.info = "existing_user"
 
-        # Mock Contributor.objects.filter to return existing contributor
-        mock_filter = mocker.MagicMock()
-        mock_filter.first = mocker.MagicMock(return_value=mock_existing_contributor)
         mocker.patch(
-            "utils.mappers.Contributor.objects.filter", return_value=mock_filter
+            "utils.mappers.Contributor.objects.from_handle",
+            return_value=mock_existing_contributor,
         )
 
         # Mock Handle.objects.get_or_create

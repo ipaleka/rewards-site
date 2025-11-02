@@ -73,7 +73,7 @@ class ContributorManager(models.Manager):
         elif count == 0 or handle in HANDLE_EXCEPTIONS:
             return None
 
-        raise AssertionError(
+        raise ValueError(
             f"Can't locate a single contributor for {handle} {str(handles)}"
         )
 
@@ -308,6 +308,20 @@ class Profile(models.Model):
         """
         return reverse("profile")
 
+    def log_action(self, action, details=""):
+        """Create superuser log action record for this profile from provided arguments.
+
+        :param action: action identifier
+        :type action: str
+        :param details: detailed data of the action
+        :type details: str
+        :return: :class:`SuperuserLog`
+        """
+        if self.user.is_superuser:
+            return SuperuserLog.objects.create(
+                profile=self, action=action, details=details
+            )
+
     def profile(self):
         """Return self instance for generic templating purposes.
 
@@ -328,6 +342,27 @@ class Profile(models.Model):
             if (self.user.first_name or self.user.last_name)
             else self.user.username or self.user.email.split("@")[0]
         )
+
+
+class SuperuserLog(models.Model):
+    """Rewards website superusers' action logs model."""
+
+    profile = models.ForeignKey(Profile, on_delete=models.CASCADE)
+    action = models.CharField(max_length=50)
+    details = models.TextField(blank=True)
+    created_at = models.DateTimeField(auto_now_add=True)
+
+    class Meta:
+        """Define ordering of the log entries."""
+
+        ordering = ["-created_at"]
+
+    def __str__(self):
+        """Return this ledger row instance's string representation.
+
+        :return: str
+        """
+        return f"{self.profile.name} - {self.action} - {self.created_at}"
 
 
 class SocialPlatform(models.Model):

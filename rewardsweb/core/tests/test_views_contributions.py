@@ -90,10 +90,14 @@ class TestDbContributionEditView:
         setattr(request, "_messages", messages)
         return request
 
-    def test_contributioneditview_get_success_url(self, rf, superuser, contribution):
+    def test_contributioneditview_get_success_url(
+        self, rf, superuser, contribution, mocker
+    ):
         request = rf.get(f"/contributions/{contribution.id}/edit/")
         request.user = superuser
         request = self._setup_messages(request)
+
+        mocked_log_action = mocker.patch("core.models.Profile.log_action")
 
         view = ContributionEditView()
         view.setup(request, pk=contribution.id)
@@ -104,6 +108,7 @@ class TestDbContributionEditView:
 
         expected_url = reverse("contribution-detail", kwargs={"pk": contribution.pk})
         assert success_url == expected_url
+        mocked_log_action.assert_called_once()
 
     def test_contributioneditview_requires_superuser(
         self, rf, regular_user, contribution
@@ -159,6 +164,7 @@ class TestDbContributionEditView:
             "core.views.issue_by_number",
             return_value={"success": True, "data": {"number": 123}},
         )
+        mocked_log_action = mocker.patch("core.models.Profile.log_action")
 
         request = rf.post(
             f"/contribution/{contribution.id}/edit/",
@@ -182,6 +188,12 @@ class TestDbContributionEditView:
         assert contribution.issue is not None
         assert contribution.issue.number == 123
         mock_issue_by_number.assert_called_once_with(superuser, 123)
+
+        calls = [
+            mocker.call("issue_created", str(contribution.issue)),
+            mocker.call("contribution_edited", contribution.info()),
+        ]
+        mocked_log_action.assert_has_calls(calls)
 
     def test_contributioneditview_form_invalid_with_nonexistent_github_issue(
         self, rf, superuser, contribution, mocker
@@ -491,6 +503,35 @@ class TestDbContributionEditView:
         assert contribution_with_issue.issue.status == new_status
         assert contribution_with_issue.issue.status != original_status
 
+    def test_contributioneditview_form_valid_updates_existing_issue_status_logs_action(
+        self, rf, superuser, contribution_with_issue, mocker
+    ):
+        """Test updating existing issue status logs the action."""
+        new_status = IssueStatus.ADDRESSED
+        mocked_log_action = mocker.patch("core.models.Profile.log_action")
+
+        request = rf.post(
+            f"/contribution/{contribution_with_issue.id}/edit/",
+            {
+                "reward": contribution_with_issue.reward.id,
+                "percentage": "90.00",
+                "comment": "Update issue status",
+                "issue_number": str(contribution_with_issue.issue.number),
+                "issue_status": new_status,
+            },
+        )
+        request.user = superuser
+        request = self._setup_messages(request)
+
+        ContributionEditView.as_view()(request, pk=contribution_with_issue.id)
+
+        contribution_with_issue.issue.refresh_from_db()
+        calls = [
+            mocker.call("issue_status_set", str(contribution_with_issue.issue)),
+            mocker.call("contribution_edited", contribution_with_issue.info() + " // Update issue status"),
+        ]
+        mocked_log_action.assert_has_calls(calls)
+
 
 class TestContributionInvalidateView:
     """Testing class for :class:`core.views.ContributionInvalidateView`."""
@@ -571,6 +612,7 @@ class TestContributionInvalidateViewDb:
         mock_add_reaction = mocker.patch(
             "core.views.add_reaction_to_message", return_value=True
         )
+        mocked_log_action = mocker.patch("core.models.Profile.log_action")
 
         response = client.post(invalidate_url, {"comment": comment})
 
@@ -596,6 +638,10 @@ class TestContributionInvalidateViewDb:
         # Check redirect
         expected_url = reverse("contribution-detail", kwargs={"pk": contribution.pk})
         assert response.url == expected_url
+
+        mocked_log_action.assert_called_once_with(
+            "contribution_invalidated", contribution.info()
+        )
 
     def test_contributioninvalidateview_form_valid_reply_fails(
         self, client, superuser, contribution, invalidate_url, mocker

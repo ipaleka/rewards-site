@@ -793,6 +793,7 @@ class TestIssueDetailViewSubmissionHandlers:
             "message": f"Added labels ['bug', 'feature', 'high priority'] to issue #{issue.number}",
             "current_labels": ["bug", "feature", "high priority"],
         }
+        mocked_log_action = mocker.patch("core.models.Profile.log_action")
 
         client.force_login(superuser)
         url = reverse("issue-detail", kwargs={"pk": issue.pk})
@@ -820,6 +821,7 @@ class TestIssueDetailViewSubmissionHandlers:
             f"Successfully set labels for issue #{issue.number}" in str(message)
             for message in messages
         )
+        mocked_log_action.assert_called_once()
 
     def test_issuedetailview_handle_labels_submission_github_failure(
         self, client, superuser, issue, mocker
@@ -915,6 +917,7 @@ class TestIssueDetailViewSubmissionHandlers:
         # Mock GitHub functions
         mock_get_issue = mocker.patch("core.views.issue_by_number")
         mock_close_issue = mocker.patch("core.views.close_issue_with_labels")
+        mocked_log_action = mocker.patch("core.models.Profile.log_action")
 
         mock_github_data = {
             "success": True,
@@ -969,6 +972,15 @@ class TestIssueDetailViewSubmissionHandlers:
             f"Issue #{issue.number} closed as addressed successfully" in str(message)
             for message in messages
         )
+
+        calls = [
+            mocker.call(
+                "issue_closed",
+                f"Issue #{issue.number} closed as addressed successfully.",
+            ),
+            mocker.call("issue_status_set", str(issue)),
+        ]
+        mocked_log_action.assert_has_calls(calls)
 
     def test_issuedetailview_handle_close_submission_addressed_success_no_comment(
         self, client, superuser, issue, contribution, mocker
@@ -1899,6 +1911,7 @@ class TestDbCreateIssueView:
             "core.views.Issue.objects.confirm_contribution_with_issue"
         )
         mock_add_reaction = mocker.patch("core.views.add_reaction_to_message")
+        mocked_log_action = mocker.patch("core.models.Profile.log_action")
 
         # Create mock form with valid data
         mock_form = mocker.MagicMock()
@@ -1927,6 +1940,10 @@ class TestDbCreateIssueView:
 
         # Verify response is successful
         assert response.status_code == 302
+
+        mocked_log_action.assert_called_once_with(
+            "contribution_created", contribution.info()
+        )
 
     def test_createissueview_form_valid_failure(
         self, rf, superuser, contribution, mocker

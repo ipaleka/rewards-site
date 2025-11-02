@@ -1,0 +1,11 @@
+---
+- name: Write Discord bot SystemD service script
+  ansible.builtin.template:
+    src: discord_bot_systemd.service
+    dest: "/etc/systemd/system/discord-bot-{{ env_name }}.service"
+    owner: root
+    group: root
+    mode: "0644"
+  become: true
+  notify: "Enable and restart Discord bot"
+  tags: [project-setup, create-scripts, discord-bot]

@@ -1,0 +1,19 @@
+[Unit]
+Description=Discord bot for {{ site_name }}
+Wants=network-online.target
+After=network.target network-online.target
+
+[Service]
+User={{ webapp_user }}
+Group={{ webapp_group }}
+OOMScoreAdjust=-999
+Nice=-15
+Restart=always
+RestartSec=30
+RuntimeMaxSec=168h
+WorkingDirectory={{ site_path }}/source/{{ app_name }}
+Environment="PYTHONPATH={{ app_name }}"
+ExecStart={{ site_path }}/venv/bin/python -m rewardsbot.bot
+
+[Install]
+WantedBy=multi-user.target

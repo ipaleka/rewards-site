@@ -76,6 +76,18 @@
         fail_msg: "Gunicorn service file not found at /etc/systemd/system/gunicorn-testing_rewardsweb.service"
         success_msg: "Gunicorn service file found ✅"
 
+    - name: Verify Discord bot service file exists
+      ansible.builtin.stat:
+        path: /etc/systemd/system/discord-bot-testing_rewardsweb.service
+      register: discord_bot_file
+
+    - name: Assert Discord bot systemd unit present
+      ansible.builtin.assert:
+        that:
+          - discord_bot_file.stat.exists
+        fail_msg: "Discord bot service file not found at /etc/systemd/system/discord-bot-testing_rewardsweb.service"
+        success_msg: "Discord bot service file found ✅"
+
     - name: Fetch root page from nginx
       ansible.builtin.uri:
         url: "http://localhost/"

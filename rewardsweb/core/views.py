@@ -6,18 +6,12 @@ from datetime import datetime
 from django.conf import settings
 from django.contrib import messages
 from django.contrib.auth.decorators import login_required, user_passes_test
-from django.contrib.auth.mixins import LoginRequiredMixin
 from django.contrib.auth.models import User
 from django.db.models import Prefetch, Q, Sum
 from django.db.models.functions import Lower
 from django.forms import ValidationError
-from django.http import (
-    Http404,
-    HttpResponse,
-    HttpResponseForbidden,
-    HttpResponseRedirect,
-)
-from django.shortcuts import get_object_or_404, redirect, render
+from django.http import Http404, HttpResponse, HttpResponseRedirect
+from django.shortcuts import redirect
 from django.template.loader import render_to_string
 from django.urls import reverse_lazy
 from django.utils.decorators import method_decorator
@@ -338,6 +332,23 @@ class ContributorListView(ListView):
                 to_attr="prefetched_handles",
             )
         )
+
+    def render_to_response(self, context, **response_kwargs):
+        """Return full template or partial based on instance request.
+
+        :param context: template context data
+        :type context: dict
+        :return: :class:`django.http.HttpResponse`
+        """
+        if getattr(self.request, "htmx", False):
+            html = render_to_string(
+                "core/contributor_list.html#results_partial",
+                context,
+                request=self.request,
+            )
+            return HttpResponse(html)
+
+        return super().render_to_response(context, **response_kwargs)
 
     def get_context_data(self, *args, **kwargs):
         """Add search query to template context.

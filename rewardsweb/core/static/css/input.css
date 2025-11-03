@@ -19,6 +19,17 @@
   }
 }
 
+/* ✅ HTMX loading indicator (MUST be outside Tailwind layer) */
+[hx-indicator] {
+  opacity: 0;
+  transition: opacity .2s ease;
+}
+
+.htmx-request [hx-indicator],
+[hx-indicator].htmx-request {
+  opacity: 1;
+}
+
 /* ✅ HTMX fade-in animation added as Tailwind utility */
 @layer utilities {
   .fade-in {

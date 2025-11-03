@@ -1,9 +1,7 @@
 {% extends "base_generic.html" %}
 
 {% block content %}
-<div class="max-w-md mx-auto py-10" hx-boost="false">
-  <div class="card bg-base-100 shadow-xl p-8">
-    {% block inner_content %}{% endblock %}
-  </div>
+<div class="max-w-xl mx-auto" hx-boost="false">
+  {% block inner_content %}{% endblock %}
 </div>
 {% endblock content %}

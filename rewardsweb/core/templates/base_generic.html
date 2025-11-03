@@ -28,7 +28,7 @@
             <li><a href="{% url 'account_logout' %}">Logout {{ user }}</a></li>
             <li><a href="{% url 'profile' %}">Profile</a></li>
             {% else %}
-            <li><a href="{% url 'account_login' %}">Login</a></li>
+            <li><a href="{% url 'account_login' %}" hx-boost="false" hx-disable="true">Login</a></li>
             {% endif %}
 
             <li><a href="{% url 'issues' %}">Issues</a></li>

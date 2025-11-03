@@ -5,7 +5,7 @@
   {% trans "Sign Up" %}
 {% endblock head_title %}
 
-{% block content %}
+{% block inner_content %}
 
 <div class="card bg-base-100 shadow-xl mt-10 border border-base-300">
   <div class="card-body space-y-6">
@@ -27,7 +27,7 @@
       <p class="text-sm text-base-content/70 text-center">
         {% blocktranslate %}
           Already have an account?
-          <a href="{{ login_url }}" class="link link-accent">Sign in</a>.
+          <a href="{{ login_url }}" class="link link-accent" hx-boost="false" hx-disable="true">Sign in</a>
         {% endblocktranslate %}
       </p>
 
@@ -35,8 +35,7 @@
       {% element form form=form method="post" action=action_url class="space-y-4" tags="entrance,signup" %}
         {% slot body %}
           {% csrf_token %}
-          {% element fields form=form unlabeled=True %}
-          {% endelement %}
+          {% element fields form=form %}{% endelement %}
           {{ redirect_field }}
         {% endslot %}
         {% slot actions %}
@@ -60,4 +59,4 @@
   </div>
 </div>
 
-{% endblock content %}
+{% endblock inner_content %}

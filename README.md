@@ -6,7 +6,7 @@ A website dedicated to ASA Stats contributions. Previously written in Laravel, n
 
 ## Usage
 
-It provides a preview for all historic and latest contributions, hot tasks, contributions guide and more. Community members can use our [Discord Bot](url) to suggest rewards for contributions which appear on this website.
+It provides a preview for all historic and latest contributions, hot tasks, contributions guide and more. Community members can use our [Discord Bot](https://github.com/asastats/rewards-site/tree/main/rewardsweb/rewardsbot) to suggest rewards for contributions which appear on this website.
 
 > [!IMPORTANT]
 > In order for the bot to access all the channels in the ASA Stats Discord, an admin has to assign it the `Verified` role.

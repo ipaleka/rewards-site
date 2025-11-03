@@ -4,6 +4,8 @@ import pytest
 from django.contrib.auth import get_user_model
 from django.contrib.messages import get_messages
 from django.contrib.messages.storage.fallback import FallbackStorage
+from django.http import HttpResponse
+from django.template.loader import render_to_string
 from django.urls import reverse
 from django.views.generic import DetailView, ListView, UpdateView
 
@@ -1232,6 +1234,50 @@ class TestDbContributorListViewSearch:
 
         assert response.status_code == 200
         assert len(response.context["contributor_list"]) == 0
+
+
+@pytest.mark.django_db
+class TestDbContributorListViewHtmx:
+    """Testing class for :class:`core.views.ContributorListView` htmx requests."""
+
+    @pytest.mark.django_db
+    def test_contributorlistview_render_to_response_htmx_returns_partial(self, rf):
+        """HTMX request → should render only the partial fragment."""
+
+        Contributor.objects.create(name="Alice", address="addr1")
+
+        # simulate request
+        request = rf.get("/contributors/?q=alice")
+        request.htmx = True  # <-- ✅ BEFORE dispatch
+
+        # Call view via dispatch(), not .render_to_response()
+        response = ContributorListView.as_view()(request)
+        html = response.content.decode()
+
+        # Assertions
+        assert response.status_code == 200
+        assert "Alice" in html
+
+        # ✅ Must NOT contain full page (no navbar)
+        assert "<html" not in html.lower()
+        assert "<body" not in html.lower()
+
+    @pytest.mark.django_db
+    def test_contributorlistview_render_to_response_standard_request_renders_full_page(
+        rself, rf
+    ):
+        Contributor.objects.create(name="Bob", address="addr2")
+
+        request = rf.get("/contributors/")
+        request.htmx = False  # simulate normal request
+
+        response = ContributorListView.as_view()(request)
+        response.render()
+        html = response.content.decode()
+
+        assert "<html" in html.lower()  # ✅ full HTML page
+        assert "ASA Stats Contributors" in html
+        assert "Bob" in html
 
 
 class TestContributorDetailView:

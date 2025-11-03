@@ -3,8 +3,31 @@
 @source "../../templates";
 
 @layer base {
-  html { height: 100%; }
-  body { height: 100%; }
+  html {
+    height: 100%;
+    font-family: "Nunito", sans-serif;
+  }
+  body {
+    height: 100%;
+  }
+
+  /* Apply Oswald to headers and buttons */
+  h1, h2, h3, h4, h5, h6,
+  .btn,
+  .text-xl /* Your navbar brand */ {
+    font-family: "Oswald", sans-serif;
+  }
+}
+
+/* ✅ HTMX loading indicator (MUST be outside Tailwind layer) */
+[hx-indicator] {
+  opacity: 0;
+  transition: opacity .2s ease;
+}
+
+.htmx-request [hx-indicator],
+[hx-indicator].htmx-request {
+  opacity: 1;
 }
 
 /* ✅ HTMX fade-in animation added as Tailwind utility */

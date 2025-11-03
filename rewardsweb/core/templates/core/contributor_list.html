@@ -1,26 +1,49 @@
 {% extends "base_generic.html" %}
+{% load partials %}
 
 {% block content %}
 <div class="max-w-4xl mx-auto">
   <h1 class="text-3xl font-bold mb-6">ASA Stats Contributors</h1>
 
-  <!-- Simple Search Form -->
-  <div class="mb-6">
-    <form method="get" action="." class="flex gap-2">
-      <input 
-        type="text" 
-        name="q" 
-        value="{{ search_query }}" 
-        placeholder="Search contributors..." 
-        class="input input-bordered flex-1"
-      >
+  <!-- ✅ HTMX Search -->
+  <form method="get"
+        hx-get="."
+        hx-target="#results-container"
+        hx-select="#results-container > *"
+        hx-swap="innerHTML transition:true"
+        hx-push-url="true"
+        hx-trigger="input changed delay:400ms"
+        class="flex gap-2 items-center">
+
+      <div class="relative flex-1">
+          <input type="text"
+                name="q"
+                value="{{ search_query }}"
+                placeholder="Search contributors..."
+                class="input input-bordered w-full pr-10">
+
+          <!-- Loading spinner -->
+          <span class="loading loading-spinner loading-sm absolute right-3 top-1/2 -translate-y-1/2 opacity-0"
+                id="search-spinner"
+                hx-indicator>
+          </span>
+      </div>
+
       <button type="submit" class="btn btn-primary">Search</button>
+
       {% if search_query %}
         <a href="." class="btn btn-ghost">Clear</a>
       {% endif %}
-    </form>
-  </div>
+  </form>
 
+  <div id="results-container" class="mt-6">
+    {% partial results_partial %}
+  </div>
+</div>
+{% endblock %}
+
+
+{% partialdef results_partial %}
   <!-- Search Results Info -->
   {% if search_query and contributor_list %}
     <div class="alert alert-info mb-4">
@@ -54,5 +77,22 @@
     </div>
   </div>
 
-</div>
-{% endblock %}
+  <!-- ✅ Pagination stays HTMX-aware -->
+  {% if is_paginated %}
+    <div class="mt-6 flex justify-center gap-2">
+      {% if page_obj.has_previous %}
+        <a hx-get="?page={{ page_obj.previous_page_number }}{% if search_query %}&q={{ search_query }}{% endif %}"
+           hx-target="#results-container"
+           hx-swap="innerHTML transition:true"
+           class="btn btn-soft btn-sm">Prev</a>
+      {% endif %}
+
+      {% if page_obj.has_next %}
+        <a hx-get="?page={{ page_obj.next_page_number }}{% if search_query %}&q={{ search_query }}{% endif %}"
+           hx-target="#results-container"
+           hx-swap="innerHTML transition:true"
+           class="btn btn-soft btn-sm">Next</a>
+      {% endif %}
+    </div>
+  {% endif %}
+{% endpartialdef %}

@@ -1,0 +1,27 @@
+{% load socialaccount %}
+
+{% get_providers as social_providers %}
+
+<div class="flex flex-col gap-3 w-full">
+
+  {% for provider in social_providers %}
+    <a href="{% provider_login_url provider.id process='login' scope=provider.get_scope auth_params=provider.get_auth_params %}"
+       class="btn btn-outline w-full flex justify-center gap-2">
+
+      {% if provider.id == "google" %}
+        <i class="fa-brands fa-google"></i>
+      {% elif provider.id == "github" %}
+        <i class="fa-brands fa-github"></i>
+      {% elif provider.id == "discord" %}
+        <i class="fa-brands fa-discord"></i>
+      {% elif provider.id == "reddit" %}
+        <i class="fa-brands fa-reddit"></i>
+      {% elif provider.id == "twitter_oauth2" %}
+        <i class="fa-brands fa-x-twitter"></i>
+      {% endif %}
+
+      Continue with {{ provider.name }}
+    </a>
+  {% endfor %}
+
+</div>

@@ -113,7 +113,6 @@ AUTH_PASSWORD_VALIDATORS = [
 
 
 # allauth
-ACCOUNT_ADAPTER = "core.adapters.NoSignupAccountAdapter"
 ACCOUNT_LOGIN_METHODS = {"username", "email"}
 LOGIN_REDIRECT_URL = "/"
 ACCOUNT_EMAIL_VERIFICATION = "optional"

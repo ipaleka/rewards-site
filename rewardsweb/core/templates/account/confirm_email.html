@@ -1,0 +1,16 @@
+{% extends "account/base_entrance.html" %}
+{% load i18n %}
+
+{% block inner_content %}
+<h1 class="text-2xl font-bold">{% trans "Confirm Email" %}</h1>
+
+<p class="mb-4">
+    {% trans "Please confirm that you want to use this email:" %}
+    <strong class="text-accent">{{ email }}</strong>
+</p>
+
+<form method="post" class="space-y-4">
+  {% csrf_token %}
+  <button class="btn btn-success w-full" type="submit">{% trans "Confirm" %}</button>
+</form>
+{% endblock %}

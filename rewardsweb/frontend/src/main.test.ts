@@ -88,7 +88,6 @@ describe('main.ts', () => {
     require('./main');
 
     expect(document.querySelector).toHaveBeenCalledWith('#app');
-    expect(mockAppDiv.innerHTML).toContain('Pera + Defly Wallet Connect for Django');
     expect(mockAppDiv.innerHTML).toContain('Connect your wallet below');
   });
 

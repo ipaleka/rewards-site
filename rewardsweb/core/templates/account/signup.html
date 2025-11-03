@@ -1,0 +1,69 @@
+{% extends "account/base_entrance.html" %}
+{% load i18n static allauth account %}
+
+{% block head_title %}
+  {% trans "Sign Up" %}
+{% endblock head_title %}
+
+{% block inner_content %}
+
+<div class="card bg-base-100 shadow-xl mt-10 border border-base-300">
+  <div class="card-body space-y-6">
+
+    <h2 class="text-2xl font-bold text-center">
+      {% trans "Create Account" %}
+    </h2>
+
+    <!-- ✅ Wallet signup button (same logic as login) -->
+    <div class="mt-2">
+      <h3 class="text-lg font-semibold mb-3">{% trans "Sign Up with Algorand Wallet" %}</h3>
+      <div class="p-4 rounded-lg bg-base-200 mb-6">
+        <div id="app"></div>
+        <script type="module" src="{% static 'js/bundle.js' %}"></script>
+      </div>
+    </div>
+
+    {% if not SOCIALACCOUNT_ONLY %}
+      <p class="text-sm text-base-content/70 text-center">
+        {% blocktranslate %}
+          Already have an account?
+          <a href="{{ login_url }}" class="link link-accent" hx-boost="false" hx-disable="true">Sign in</a>
+        {% endblocktranslate %}
+      </p>
+
+      {% url 'account_signup' as action_url %}
+      {% element form form=form method="post" action=action_url class="space-y-4" tags="entrance,signup" %}
+        {% slot body %}
+          {% csrf_token %}
+          {% for field in form %}
+            {% include "account/elements/field.html" %}
+          {% endfor %}
+          {% if form.non_field_errors %}
+            <div class="alert alert-error shadow-lg">
+              <span>{{ form.non_field_errors }}</span>
+            </div>
+          {% endif %}
+          {{ redirect_field }}
+        {% endslot %}
+        {% slot actions %}
+          <button type="submit"
+                  class="btn btn-success w-full"
+                  tags="prominent,signup">
+            {% trans "Sign Up" %}
+          </button>
+        {% endslot %}
+      {% endelement %}
+    {% endif %}
+
+    {% if SOCIALACCOUNT_ENABLED %}
+      <div class="divider">OR</div>
+
+      <div class="w-full">
+        {% include "socialaccount/snippets/providers_list.html" %}
+      </div>
+    {% endif %}
+
+  </div>
+</div>
+
+{% endblock inner_content %}

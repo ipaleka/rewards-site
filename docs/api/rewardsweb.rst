@@ -43,15 +43,6 @@
   :show-inheritance:
 
 
-:mod:`core.adapters` -- Main application adapters module
---------------------------------------------------------
-
-.. automodule:: core.adapters
-  :members:
-  :undoc-members:
-  :show-inheritance:
-
-
 :mod:`core.admin` -- Main application administration module
 -----------------------------------------------------------
 

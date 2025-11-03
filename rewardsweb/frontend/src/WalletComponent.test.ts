@@ -412,7 +412,7 @@ describe('WalletComponent', () => {
       mockWallet.isActive = true;
       walletComponent.render();
 
-      expect(walletComponent.element.innerHTML).toContain('[active]');
+      expect(walletComponent.element.innerHTML).toContain('Active');
     });
 
     it('should render accounts dropdown when active', () => {

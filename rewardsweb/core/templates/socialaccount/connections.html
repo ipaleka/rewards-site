@@ -1,0 +1,30 @@
+{% extends "account/base_entrance.html" %}
+{% load socialaccount i18n %}
+
+{% block inner_content %}
+<h1 class="text-2xl font-bold mb-4">{% trans "Linked Accounts" %}</h1>
+
+{% get_social_accounts user as accounts %}
+{% if accounts %}
+<ul class="space-y-3">
+  {% for provider, provider_accounts in accounts.items %}
+    {% for account in provider_accounts %}
+    <li class="flex justify-between items-center p-3 rounded bg-base-200">
+      <span>{{ provider.name }} → {{ account.extra_data.username|default:account.uid }}</span>
+
+      <form action="{% url 'socialaccount_connections' %}" method="post">
+        {% csrf_token %}
+        <input type="hidden" name="account" value="{{ account.pk }}">
+        <button class="btn btn-error btn-sm" type="submit">{% trans "Disconnect" %}</button>
+      </form>
+    </li>
+    {% endfor %}
+  {% endfor %}
+</ul>
+{% else %}
+<p class="opacity-70">{% trans "You have no linked accounts." %}</p>
+{% endif %}
+
+<div class="divider">{% trans "Add account" %}</div>
+{% include "socialaccount/snippets/providers_list.html" %}
+{% endblock %}

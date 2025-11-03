@@ -121,59 +121,106 @@ https://github.com/browserify/crypto-browserify`)},Ht.constants={DH_CHECK_P_NOT_
   <path d="M766 207L496.627 623.406C463.521 675.336 382.014 652.248 382.014 590.941V432.568L260.638 623.28C227.559 675.255 146 652.186 146 590.854V274.844H234.646V499.761L356.022 309.049C389.101 257.074 470.66 280.143 470.66 341.475V499.978L660.146 207L766 207Z" fill="#4BB7D1"/>
 </svg>
 `)}`,O0,TM=(O0=class extends fn{constructor({id:e,store:t,subscribe:r,getAlgodClient:a,metadata:n={}}){super({id:e,metadata:n,getAlgodClient:a,store:t,subscribe:r});Ce(this,"client",null);Ce(this,"store");Ce(this,"connect",async()=>{this.logger.info("Connecting...");const t=await(this.client||await this.initializeClient()).account(),r={accounts:[t],activeAccount:t};return cn(this.store,{walletId:this.id,wallet:r}),this.logger.info("✅ Connected.",r),[t]});Ce(this,"disconnect",async()=>{this.logger.info("Disconnecting..."),this.onDisconnect(),this.logger.info("Disconnected.")});Ce(this,"resumeSession",async()=>{try{if(!this.store.state.wallets[this.id]){this.logger.info("No session to resume");return}if(this.logger.info("Resuming session..."),!await(await this.initializeClient()).isConnected())throw this.logger.error("W3 Wallet is not connected."),new Error("W3 Wallet is not connected.");this.logger.info("Session resumed")}catch(e){throw this.logger.error("Error resuming session:",e.message),this.onDisconnect(),e}});Ce(this,"signTransactions",async(e,t)=>{try{this.logger.debug("Signing transactions...",{txnGroup:e,indexesToSign:t});let r=[];if(Cn(e)){const c=pr(e);r=this.processTxns(c,t)}else{const c=pr(e);r=this.processEncodedTxns(c,t)}const a=this.client||await this.initializeClient();this.logger.debug("Sending processed transactions to wallet...",r);const n=await a.signTxns(r);this.logger.debug("Received signed transactions from wallet",n);const s=n.map(c=>c===null?null:Ic(c));return this.logger.debug("Transactions signed successfully",s),s}catch(r){throw this.logger.error("Error signing transactions:",r.message),r}});this.store=t}async initializeClient(){if(this.logger.info("Initializing client..."),typeof window>"u"||window.w3walletAlgorand===void 0)throw this.logger.error("W3 Wallet is not available."),new Error("W3 Wallet is not available.");const e=window.w3walletAlgorand;return this.client=e,this.logger.info("Client initialized"),e}processTxns(e,t){const r=[];return e.forEach((a,n)=>{const s=!t||t.includes(n),c=a.sender.toString(),u=this.addresses.includes(c),h=Jr(a.toByte());s&&u?r.push({txn:h}):r.push({txn:h,signers:[]})}),r}processEncodedTxns(e,t){const r=[];return e.forEach((a,n)=>{const s=Kt.msgpackRawDecode(a),c=Fn(s),u=c?Kt.decodeSignedTransaction(a).txn:Kt.decodeUnsignedTransaction(a),h=!t||t.includes(n),f=u.sender.toString(),g=!c&&this.addresses.includes(f),b=Jr(u.toByte());h&&g?r.push({txn:b}):r.push({txn:b,signers:[]})}),r}},Ce(O0,"defaultMetadata",{name:"W3 Wallet",icon:RM}),O0);function BM(){return{biatec:sM,custom:fM,defly:uM,"defly-web":dM,exodus:gM,kibisis:vM,kmd:wM,lute:EM,magic:_M,mnemonic:kM,pera:DM,walletconnect:P6,"w3-wallet":TM}}function kc(i,e){const t=new Set(i.map(a=>a.address)),r=new Set(e.map(a=>a.address));if(t.size!==r.size)return!1;for(const a of t)if(!r.has(a))return!1;return!0}function Ic(i){return FM(atob(i))}function Jr(i){return btoa(CM(i))}function FM(i){const e=new Uint8Array(i.length);for(let t=0;t<i.length;t++)e[t]=i.charCodeAt(t);return e}function CM(i){let e="";for(let t=0;t<i.length;t++)e+=String.fromCharCode(i[t]);return e}function Fn(i){if(!i||typeof i!="object"||!("sig"in i&&"txn"in i)||!(i.sig instanceof Uint8Array))return!1;const e=i.txn;return!e||typeof e!="object"?!1:"type"in e&&"snd"in e}function K2(i){return i&&typeof i=="object"&&"sender"in i&&(i.sender instanceof Kt.Address||typeof i.sender=="string")}function Cn(i){return!Array.isArray(i)||i.length===0?!1:!!(K2(i[0])||Array.isArray(i[0])&&i[0].length>0&&K2(i[0][0]))}function pr(i){return Array.isArray(i[0])?i.flat():i}function PM(){const i=Date.now()*Math.pow(10,3),e=Math.floor(Math.random()*Math.pow(10,3));return i+e}function NM(i,e){return{id:PM(),jsonrpc:"2.0",method:i,params:e}}var OM=class{constructor({wallets:i=[],networks:e,defaultNetwork:t="testnet",options:r={}}={}){Ce(this,"_clients",new Map);Ce(this,"baseNetworkConfig");Ce(this,"store");Ce(this,"subscribe");Ce(this,"options");Ce(this,"logger");Ce(this,"getAlgodClient",()=>this.algodClient);Ce(this,"setActiveNetwork",async i=>{if(this.activeNetwork===i)return;if(!this.networkConfig[i])throw new Error(`Network "${i}" not found in network configuration`);const e=this.createAlgodClient(this.networkConfig[i].algod);rM(this.store,{networkId:i,algodClient:e}),this.logger.info(`✅ Active network set to ${i}`)});this.logger=this.initializeLogger(r),this.logger.debug("Initializing WalletManager with config:",{wallets:i,networks:e,defaultNetwork:t,options:r});const a=this.loadPersistedState();this.baseNetworkConfig=e||Y9();const n=this.initNetworkConfig(this.baseNetworkConfig,a);this.options={resetNetwork:r.resetNetwork||!1};const s=this.options.resetNetwork?t:(a==null?void 0:a.activeNetwork)||t;if(!n[s])throw new Error(`Network "${s}" not found in network configuration`);const c=this.createAlgodClient(n[s].algod),u={...eM,...a,networkConfig:n,activeNetwork:s,algodClient:c};this.store=new $0(u,{onUpdate:()=>this.savePersistedState()}),this.savePersistedState(),this.subscribe=h=>this.store.subscribe(()=>{h(this.store.state)}),this.initializeWallets(i)}initializeLogger(i){const e=this.determineLogLevel(i);return F6.setLevel(e),mc.createScopedLogger("WalletManager")}determineLogLevel(i){return i!=null&&i.debug?0:(i==null?void 0:i.logLevel)!==void 0?i.logLevel:2}get algodClient(){return this.store.state.algodClient}set algodClient(i){this.store.setState(e=>({...e,algodClient:i}))}loadPersistedState(){try{const i=Wr.getItem(yf);if(i===null)return null;const e=JSON.parse(i);if(!nM(e))throw this.logger.warn("Parsed state:",e),new Error("Persisted state is invalid");return e}catch(i){return this.logger.error(`Could not load state from local storage: ${i.message}`),null}}savePersistedState(){try{const{wallets:i,activeWallet:e,activeNetwork:t,networkConfig:r}=this.store.state,a={wallets:i,activeWallet:e,activeNetwork:t,customNetworkConfigs:{}};for(const[s,c]of Object.entries(r)){const u=this.baseNetworkConfig[s];if(!u)continue;const h={};let f=!1;JSON.stringify(c.algod)!==JSON.stringify(u.algod)&&(h.algod=c.algod,f=!0),f&&(a.customNetworkConfigs={...a.customNetworkConfigs||{},[s]:h})}const n=JSON.stringify(a);Wr.setItem(yf,n)}catch(i){this.logger.error("Could not save state to local storage:",i)}}get status(){return this.store.state.managerStatus}get isReady(){return this.store.state.managerStatus==="ready"}initializeWallets(i){this.logger.info("Initializing wallets...");for(const r of i){let a,n,s;if(typeof r=="string")a=r;else{const{id:f,options:g,metadata:b}=r;a=f,n=g,s=b}const u=BM()[a];if(!u){this.logger.error(`Wallet not found: ${a}`);continue}const h=new u({id:a,metadata:s,options:n,getAlgodClient:this.getAlgodClient,store:this.store,subscribe:this.subscribe});this._clients.set(a,h),this.logger.info(`✅ Initialized ${a}`)}const e=this.store.state,t=Object.keys(e.wallets);for(const r of t)this._clients.has(r)||(this.logger.warn(`Connected wallet not found: ${r}`),C6(this.store,{walletId:r}));e.activeWallet&&!this._clients.has(e.activeWallet)&&(this.logger.warn(`Active wallet not found: ${e.activeWallet}`),mh(this.store,{walletId:null}))}get wallets(){return[...this._clients.values()]}getWallet(i){return this._clients.get(i)}async resumeSessions(){try{const i=this.wallets.map(e=>e==null?void 0:e.resumeSession());await Promise.all(i)}finally{this.store.setState(i=>({...i,managerStatus:"ready"}))}}async disconnect(){const i=this.wallets.filter(e=>e.isConnected).map(e=>e==null?void 0:e.disconnect());await Promise.all(i)}initNetworkConfig(i,e){this.logger.info("Initializing network configuration...");const t=(e==null?void 0:e.customNetworkConfigs)||{},r={};for(const[a,n]of Object.entries(i)){const s=t[a];r[a]={...n,...s,algod:{...n.algod,...(s==null?void 0:s.algod)||{}}}}for(const[a,n]of Object.entries(r))if(!G2(n))throw new Error(`Invalid network configuration for "${a}"`);return this.logger.debug("Network configuration:",r),r}createAlgodClient(i){this.logger.info("Creating new Algodv2 client...");const{token:e="",baseServer:t,port:r="",headers:a={}}=i;return new Kt.Algodv2(e,t,r,a)}updateAlgodConfig(i,e){if(!this.networkConfig[i])throw new Error(`Network "${i}" not found in network configuration`);const t={...this.networkConfig[i],algod:{...this.networkConfig[i].algod,...e}};if(!G2(t))throw new Error("Invalid network configuration");this.store.setState(r=>({...r,networkConfig:{...r.networkConfig,[i]:t}})),this.activeNetwork===i&&(this.algodClient=this.createAlgodClient(t.algod)),this.savePersistedState(),this.logger.info(`✅ Updated algod configuration for ${i}`)}resetNetworkConfig(i){if(!this.baseNetworkConfig[i])throw new Error(`Network "${i}" not found in network configuration`);this.store.setState(t=>({...t,networkConfig:{...t.networkConfig,[i]:{...this.baseNetworkConfig[i]}}})),this.activeNetwork===i&&(this.algodClient=this.createAlgodClient(this.baseNetworkConfig[i].algod));const e=this.loadPersistedState();e!=null&&e.customNetworkConfigs&&(delete e.customNetworkConfigs[i],Wr.setItem(yf,JSON.stringify(e))),this.logger.info(`✅ Reset network configuration for ${i}`)}get activeNetwork(){return this.store.state.activeNetwork}get networkConfig(){return this.store.state.networkConfig}get activeNetworkConfig(){const{networkConfig:i,activeNetwork:e}=this.store.state;return i[e]}get activeWallet(){const i=this.store.state,e=this.wallets.find(t=>t.id===i.activeWallet);return e||null}get activeWalletAccounts(){return this.activeWallet?this.activeWallet.accounts:null}get activeWalletAddresses(){return this.activeWallet?this.activeWallet.accounts.map(i=>i.address):null}get activeAccount(){return this.activeWallet?this.activeWallet.activeAccount:null}get activeAddress(){return this.activeAccount?this.activeAccount.address:null}get signTransactions(){if(!this.activeWallet)throw this.logger.error("No active wallet found!"),new Error("No active wallet found!");return this.activeWallet.signTransactions}get transactionSigner(){if(!this.activeWallet)throw this.logger.error("No active wallet found!"),new Error("No active wallet found!");return this.activeWallet.transactionSigner}};class LM{constructor(e){Ce(this,"manager");Ce(this,"element");Ce(this,"setActiveNetwork",e=>{this.manager.setActiveNetwork(e),this.render()});this.manager=e,this.element=document.createElement("div"),this.element.className="network-group",this.render(),this.addEventListeners()}render(){const e=this.manager.activeNetwork;this.element.innerHTML=`
-      <h4>
-        Current Network: <span class="active-network">${e}</span>
-      </h4>
-      <div class="network-buttons">
-        <button type="button" id="set-testnet" ${e===Oa.TESTNET?"disabled":""}>
-          Set to Testnet
-        </button>
-        <button type="button" id="set-mainnet" ${e===Oa.MAINNET?"disabled":""}>
-          Set to Mainnet
-        </button>
-      </div>
-    `}addEventListeners(){this.element.addEventListener("click",e=>{const t=e.target;t.id==="set-testnet"?this.setActiveNetwork(Oa.TESTNET):t.id==="set-mainnet"&&this.setActiveNetwork(Oa.MAINNET)})}destroy(){this.element.removeEventListener("click",this.addEventListeners)}}class UM{constructor(e,t){Ce(this,"wallet");Ce(this,"manager");Ce(this,"element");Ce(this,"unsubscribe");Ce(this,"magicEmail","");Ce(this,"connect",e=>this.wallet.connect(e));Ce(this,"disconnect",()=>this.wallet.disconnect());Ce(this,"setActive",()=>this.wallet.setActive());Ce(this,"sendTransaction",async()=>{var t;const e=this.element.querySelector("#transaction-button");if(e)try{const r=(t=this.wallet.activeAccount)==null?void 0:t.address;if(!r)throw new Error("[App] No active account");const a=new nn,n=await this.manager.algodClient.getTransactionParams().do(),s=Pp({sender:r,receiver:r,amount:0,suggestedParams:n});a.addTransaction({txn:s,signer:this.wallet.transactionSigner}),console.info("[App] Sending transaction...",s),e.disabled=!0,e.textContent="Sending Transaction...";const c=await a.execute(this.manager.algodClient,4);console.info("[App] ✅ Successfully sent transaction!",{confirmedRound:c.confirmedRound,txIDs:c.txIDs})}catch(r){console.error("[App] Error signing transaction:",r)}finally{e.disabled=!1,e.textContent="Send Transaction"}});Ce(this,"auth",async()=>{var t;const e=(t=this.wallet.activeAccount)==null?void 0:t.address;if(!e||!Dg(e))throw new Error(`[App] Invalid or missing address: ${e||"undefined"}`);console.info(`[App] Authenticating with address: ${e}`);try{const a={"Content-Type":"application/json","X-CSRFToken":(()=>{var V,U;return((V=document.cookie.match("(^|;)\\s*"+"csrftoken"+"\\s*=\\s*([^;]+)"))==null?void 0:V.pop())||""||((U=document.querySelector('input[name="csrfmiddlewaretoken"]'))==null?void 0:U.value)||""})()};console.info("[App] Fetching nonce for address:",e);const s=await(await fetch("/api/wallet/nonce/",{method:"POST",headers:a,body:JSON.stringify({address:e})})).json();if(s.error)throw new Error(`[App] Failed to fetch nonce: ${s.error}`);const c=s.nonce,u=s.prefix;console.info("[App] Received nonce:",c);const h=`${u}${c}`,f=new TextEncoder().encode(h),g=await this.manager.algodClient.getTransactionParams().do(),b=Pp({sender:e,receiver:e,amount:0,note:f,suggestedParams:g}),M=I3(b);console.info("[App] Client encodedTx:",Array.from(M)),console.info("[App] Signing transaction with note:",h);const _=await this.wallet.signTransactions([M]);if(!_[0])throw new Error("[App] No signed transaction returned");const D=_[0],R=btoa(String.fromCharCode(...D));console.info("[App] Signed transaction base64 length:",R.length);const I=await(await fetch("/api/wallet/verify/",{method:"POST",headers:a,body:JSON.stringify({address:e,signedTransaction:R,nonce:c})})).json();if(!I.success)throw new Error(`[App] Verification failed: ${I.error}`);console.info(`[App] ✅ Successfully authenticated with ${this.wallet.metadata.name}!`),window.location.href=I.redirect_url||"/"}catch(r){const a=r instanceof Error?r.message:String(r);console.error("[App] Error signing data:",r);const n=document.createElement("div");n.className="error-message",n.style.color="red",n.textContent=a,this.element.appendChild(n),setTimeout(()=>n.remove(),5e3)}});Ce(this,"setActiveAccount",e=>{const t=e.target;this.wallet.setActiveAccount(t.value)});Ce(this,"isMagicLink",()=>this.wallet.id===Rs.MAGIC);Ce(this,"isEmailValid",()=>/^[a-zA-Z0-9.!#$%&'*+/=?^_`{|}~-]+@[a-zA-Z0-9](?:[a-zA-Z0-9-]{0,61}[a-zA-Z0-9])?(?:\.[a-zA-Z0-9](?:[a-zA-Z0-9-]{0,61}[a-zA-Z0-9])?)*$/.test(this.magicEmail));Ce(this,"isConnectDisabled",()=>this.wallet.isConnected||this.isMagicLink()&&!this.isEmailValid());Ce(this,"getConnectArgs",()=>this.isMagicLink()?{email:this.magicEmail}:void 0);Ce(this,"updateEmailInput",()=>{const e=this.element.querySelector("#magic-email");e&&(e.value=this.magicEmail);const t=this.element.querySelector("#connect-button");t&&(t.disabled=this.isConnectDisabled())});this.wallet=e,this.manager=t,this.element=document.createElement("div"),this.unsubscribe=e.subscribe(r=>{console.info("[App] State change:",r),this.render()}),this.render(),this.addEventListeners()}sanitizeText(e){const t=document.createElement("div");return t.textContent=e,t.innerHTML}render(){console.log(`[WalletComponent] ${this.wallet.metadata.name}: id = ${this.wallet.id}, isActive = ${this.wallet.isActive}, canSignData = ${this.wallet.canSignData}, metadata =`,JSON.stringify(this.wallet.metadata,null,2));const e=this.sanitizeText(this.wallet.metadata.name),t=this.sanitizeText(this.magicEmail);this.element.innerHTML=`
-    <div class="wallet-group">
-      <h4>
-        ${e} ${this.wallet.isActive?"[active]":""}
-      </h4>
-      <div class="wallet-buttons">
-        <button id="connect-button" type="button" ${this.isConnectDisabled()?"disabled":""}>
-          Connect
-        </button>
-        <button id="disconnect-button" type="button" ${this.wallet.isConnected?"":"disabled"}>
-          Disconnect
-        </button>
-        ${this.wallet.isActive?`<button id="transaction-button" type="button">Send Transaction</button>
-               <button id="auth-button" type="button">Authenticate</button>`:`<button id="set-active-button" type="button" ${this.wallet.isConnected?"":"disabled"}>Set Active</button>`}
-      </div>
-      ${this.isMagicLink()?`
-        <div class="input-group">
-          <label for="magic-email">Email:</label>
-          <input
-            id="magic-email"
-            type="email"
-            value="${t}"
-            placeholder="Enter email to connect..."
-            ${this.wallet.isConnected?"disabled":""}
-          />
+      <div class="space-y-3">
+        <h4 class="font-semibold text-lg">
+          Current Network:
+          <span class="badge badge-outline">${e}</span>
+        </h4>
+
+        <div class="flex gap-2">
+          <button
+            type="button"
+            id="set-testnet"
+            class="btn btn-outline btn-sm"
+            ${e===Oa.TESTNET?"disabled":""}
+          >
+            Set to Testnet
+          </button>
+
+          <button
+            type="button"
+            id="set-mainnet"
+            class="btn btn-outline btn-sm"
+            ${e===Oa.MAINNET?"disabled":""}
+          >
+            Set to Mainnet
+          </button>
         </div>
-      `:""}
-      ${this.wallet.isActive&&this.wallet.accounts.length?`
-        <div>
-          <select>
-            ${this.wallet.accounts.map(r=>{var a;return`
-              <option value="${this.sanitizeText(r.address)}" ${r.address===((a=this.wallet.activeAccount)==null?void 0:a.address)?"selected":""}>
-                ${this.sanitizeText(r.address)}
-              </option>
-            `}).join("")}
-          </select>
+      </div>
+    `}addEventListeners(){this.element.addEventListener("click",e=>{const t=e.target;t.id==="set-testnet"?this.setActiveNetwork(Oa.TESTNET):t.id==="set-mainnet"&&this.setActiveNetwork(Oa.MAINNET)})}destroy(){this.element.removeEventListener("click",this.addEventListeners)}}class UM{constructor(e,t){Ce(this,"wallet");Ce(this,"manager");Ce(this,"element");Ce(this,"unsubscribe");Ce(this,"magicEmail","");Ce(this,"connect",e=>this.wallet.connect(e));Ce(this,"disconnect",()=>this.wallet.disconnect());Ce(this,"setActive",()=>this.wallet.setActive());Ce(this,"sendTransaction",async()=>{var t;const e=this.element.querySelector("#transaction-button");if(e)try{const r=(t=this.wallet.activeAccount)==null?void 0:t.address;if(!r)throw new Error("[App] No active account");const a=new nn,n=await this.manager.algodClient.getTransactionParams().do(),s=Pp({sender:r,receiver:r,amount:0,suggestedParams:n});a.addTransaction({txn:s,signer:this.wallet.transactionSigner}),console.info("[App] Sending transaction...",s),e.disabled=!0,e.textContent="Sending Transaction...";const c=await a.execute(this.manager.algodClient,4);console.info("[App] ✅ Successfully sent transaction!",{confirmedRound:c.confirmedRound,txIDs:c.txIDs})}catch(r){console.error("[App] Error signing transaction:",r)}finally{e.disabled=!1,e.textContent="Send Transaction"}});Ce(this,"auth",async()=>{var t;const e=(t=this.wallet.activeAccount)==null?void 0:t.address;if(!e||!Dg(e))throw new Error(`[App] Invalid or missing address: ${e||"undefined"}`);console.info(`[App] Authenticating with address: ${e}`);try{const a={"Content-Type":"application/json","X-CSRFToken":(()=>{var V,U;return((V=document.cookie.match("(^|;)\\s*"+"csrftoken"+"\\s*=\\s*([^;]+)"))==null?void 0:V.pop())||""||((U=document.querySelector('input[name="csrfmiddlewaretoken"]'))==null?void 0:U.value)||""})()};console.info("[App] Fetching nonce for address:",e);const s=await(await fetch("/api/wallet/nonce/",{method:"POST",headers:a,body:JSON.stringify({address:e})})).json();if(s.error)throw new Error(`[App] Failed to fetch nonce: ${s.error}`);const c=s.nonce,u=s.prefix;console.info("[App] Received nonce:",c);const h=`${u}${c}`,f=new TextEncoder().encode(h),g=await this.manager.algodClient.getTransactionParams().do(),b=Pp({sender:e,receiver:e,amount:0,note:f,suggestedParams:g}),M=I3(b);console.info("[App] Client encodedTx:",Array.from(M)),console.info("[App] Signing transaction with note:",h);const _=await this.wallet.signTransactions([M]);if(!_[0])throw new Error("[App] No signed transaction returned");const D=_[0],R=btoa(String.fromCharCode(...D));console.info("[App] Signed transaction base64 length:",R.length);const I=await(await fetch("/api/wallet/verify/",{method:"POST",headers:a,body:JSON.stringify({address:e,signedTransaction:R,nonce:c})})).json();if(!I.success)throw new Error(`[App] Verification failed: ${I.error}`);console.info(`[App] ✅ Successfully authenticated with ${this.wallet.metadata.name}!`),window.location.href=I.redirect_url||"/"}catch(r){const a=r instanceof Error?r.message:String(r);console.error("[App] Error signing data:",r);const n=document.createElement("div");n.className="error-message",n.style.color="red",n.textContent=a,this.element.appendChild(n),setTimeout(()=>n.remove(),5e3)}});Ce(this,"setActiveAccount",e=>{const t=e.target;this.wallet.setActiveAccount(t.value)});Ce(this,"isMagicLink",()=>this.wallet.id===Rs.MAGIC);Ce(this,"isEmailValid",()=>/^[a-zA-Z0-9.!#$%&'*+/=?^_`{|}~-]+@[a-zA-Z0-9](?:[a-zA-Z0-9-]{0,61}[a-zA-Z0-9])?(?:\.[a-zA-Z0-9](?:[a-zA-Z0-9-]{0,61}[a-zA-Z0-9])?)*$/.test(this.magicEmail));Ce(this,"isConnectDisabled",()=>this.wallet.isConnected||this.isMagicLink()&&!this.isEmailValid());Ce(this,"getConnectArgs",()=>this.isMagicLink()?{email:this.magicEmail}:void 0);Ce(this,"updateEmailInput",()=>{const e=this.element.querySelector("#magic-email");e&&(e.value=this.magicEmail);const t=this.element.querySelector("#connect-button");t&&(t.disabled=this.isConnectDisabled())});this.wallet=e,this.manager=t,this.element=document.createElement("div"),this.unsubscribe=e.subscribe(r=>{console.info("[App] State change:",r),this.render()}),this.render(),this.addEventListeners()}sanitizeText(e){const t=document.createElement("div");return t.textContent=e,t.innerHTML}render(){const e=this.sanitizeText(this.wallet.metadata.name),t=this.sanitizeText(this.magicEmail);this.element.innerHTML=`
+      <div class="space-y-4 p-4 rounded-lg bg-base-200">
+        <h4 class="font-semibold text-lg flex items-center gap-2">
+          ${e}
+          ${this.wallet.isActive?'<span class="badge badge-success">Active</span>':""}
+        </h4>
+        <div class="flex flex-wrap gap-2">
+          <button
+            id="connect-button"
+            type="button"
+            class="btn btn-primary btn-sm"
+            ${this.isConnectDisabled()?"disabled":""}
+          >
+            Connect
+          </button>
+          <button
+            id="disconnect-button"
+            type="button"
+            class="btn btn-error btn-sm"
+            ${this.wallet.isConnected?"":"disabled"}
+          >
+            Disconnect
+          </button>
+          ${this.wallet.isActive?`
+              <button id="transaction-button" type="button" class="btn btn-accent btn-sm">
+                Send Transaction
+              </button>
+              <button id="auth-button" type="button" class="btn btn-secondary btn-sm">
+                Authenticate
+              </button>
+            `:`
+              <button
+                id="set-active-button"
+                type="button"
+                class="btn btn-outline btn-sm"
+                ${this.wallet.isConnected?"":"disabled"}
+              >
+                Set Active
+              </button>
+            `}
         </div>
-      `:""}
-    </div>
-  `}addEventListeners(){this.element.addEventListener("click",e=>{const t=e.target;if(t.id==="connect-button"){const r=this.getConnectArgs();this.connect(r)}else t.id==="disconnect-button"?this.disconnect():t.id==="set-active-button"?this.setActive():t.id==="transaction-button"?this.sendTransaction():t.id==="auth-button"&&this.auth()}),this.element.addEventListener("change",e=>{e.target.tagName.toLowerCase()==="select"&&this.setActiveAccount(e)}),this.element.addEventListener("input",e=>{const t=e.target;t.id==="magic-email"&&(this.magicEmail=t.value,this.updateEmailInput())})}destroy(){this.unsubscribe&&this.unsubscribe(),this.element.removeEventListener("click",this.addEventListeners),this.element.removeEventListener("change",this.addEventListeners),this.element.removeEventListener("input",this.addEventListeners)}}const Nf=new OM({wallets:[Rs.PERA,Rs.DEFLY,Rs.LUTE],defaultNetwork:Oa.MAINNET}),Wg=document.querySelector("#app");Wg.innerHTML=`
+        ${this.isMagicLink()?`
+          <div class="form-control w-full">
+            <label for="magic-email" class="label">
+              <span class="label-text">Email</span>
+            </label>
+            <input
+              id="magic-email"
+              type="email"
+              value="${t}"
+              placeholder="Enter email to connect..."
+              class="input input-bordered w-full"
+              ${this.wallet.isConnected?"disabled":""}
+            />
+          </div>
+          `:""}
+        ${this.wallet.isActive&&this.wallet.accounts.length?`
+          <div class="form-control">
+            <label class="label">
+              <span class="label-text">Active Account</span>
+            </label>
+            <select class="select select-bordered w-full">
+              ${this.wallet.accounts.map(r=>{var a;return`
+                  <option value="${this.sanitizeText(r.address)}"
+                    ${r.address===((a=this.wallet.activeAccount)==null?void 0:a.address)?"selected":""}>
+                    ${this.sanitizeText(r.address)}
+                  </option>
+                `}).join("")}
+            </select>
+          </div>
+          `:""}
+      </div>
+    `}addEventListeners(){this.element.addEventListener("click",e=>{const t=e.target;if(t.id==="connect-button"){const r=this.getConnectArgs();this.connect(r)}else t.id==="disconnect-button"?this.disconnect():t.id==="set-active-button"?this.setActive():t.id==="transaction-button"?this.sendTransaction():t.id==="auth-button"&&this.auth()}),this.element.addEventListener("change",e=>{e.target.tagName.toLowerCase()==="select"&&this.setActiveAccount(e)}),this.element.addEventListener("input",e=>{const t=e.target;t.id==="magic-email"&&(this.magicEmail=t.value,this.updateEmailInput())})}destroy(){this.unsubscribe&&this.unsubscribe(),this.element.removeEventListener("click",this.addEventListeners),this.element.removeEventListener("change",this.addEventListeners),this.element.removeEventListener("input",this.addEventListeners)}}const Nf=new OM({wallets:[Rs.PERA,Rs.DEFLY,Rs.LUTE],defaultNetwork:Oa.MAINNET}),Wg=document.querySelector("#app");Wg.innerHTML=`
   <div>
-    <h1>Pera + Defly Wallet Connect for Django</h1>
     <p>Connect your wallet below. Transactions are signed client-side.</p>
   </div>
 `;const $M=new LM(Nf);Wg.appendChild($M.element);const O6=Nf.wallets.map(i=>new UM(i,Nf));O6.forEach(i=>{Wg.appendChild(i.element)});document.addEventListener("DOMContentLoaded",async()=>{try{await Nf.resumeSessions()}catch(i){console.error("Error resuming sessions:",i)}});window.addEventListener("beforeunload",()=>{O6.forEach(i=>i.destroy())});const qM=Object.freeze(Object.defineProperty({__proto__:null},Symbol.toStringTag,{value:"Module"})),VM=Object.freeze(Object.defineProperty({__proto__:null},Symbol.toStringTag,{value:"Module"}));export{Xt as B,za as _,Kt as a,HM as b,Of as c,Gt as d,Y6 as e,Da as g,Bt as p,Ei as r};

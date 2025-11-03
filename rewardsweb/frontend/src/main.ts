@@ -16,7 +16,6 @@ const appDiv = document.querySelector<HTMLDivElement>('#app')!
 // Add header
 appDiv.innerHTML = `
   <div>
-    <h1>Pera + Defly Wallet Connect for Django</h1>
     <p>Connect your wallet below. Transactions are signed client-side.</p>
   </div>
 `

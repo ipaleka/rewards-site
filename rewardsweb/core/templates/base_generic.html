@@ -10,6 +10,7 @@
     <link rel="preconnect" href="https://fonts.googleapis.com">
     <link rel="preconnect" href="https://fonts.gstatic.com" crossorigin>
     <link href="https://fonts.googleapis.com/css2?family=Nunito:ital,wght@0,200..1000;1,200..1000&family=Oswald:wght@200..700&display=swap" rel="stylesheet">
+    <link href="https://cdnjs.cloudflare.com/ajax/libs/font-awesome/6.5.0/css/all.min.css" rel="stylesheet"/>    
     <link href="{% static 'css/style.css' %}" rel="stylesheet" type="text/css" />
     <link rel="icon" type="image/x-icon" href="{% static 'favicon.ico' %}">
   </head>
@@ -28,7 +29,7 @@
             <li><a href="{% url 'account_logout' %}">Logout {{ user }}</a></li>
             <li><a href="{% url 'profile' %}">Profile</a></li>
             {% else %}
-            <li><a href="{% url 'account_login' %}">Login</a></li>
+            <li><a href="{% url 'account_login' %}" hx-boost="false" hx-disable="true">Login</a></li>
             {% endif %}
 
             <li><a href="{% url 'issues' %}">Issues</a></li>

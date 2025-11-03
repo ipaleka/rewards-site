@@ -46,6 +46,7 @@ INSTALLED_APPS = [
     "django.contrib.messages",
     "django.contrib.staticfiles",
     "django.contrib.postgres",
+    "widget_tweaks",
     "allauth",
     "allauth.account",
     "allauth.socialaccount",
@@ -70,6 +71,7 @@ MIDDLEWARE = [
 ]
 
 AUTHENTICATION_BACKENDS = [
+    "django.contrib.auth.backends.ModelBackend",
     "allauth.account.auth_backends.AuthenticationBackend",
 ]
 
@@ -113,7 +115,6 @@ AUTH_PASSWORD_VALIDATORS = [
 
 
 # allauth
-ACCOUNT_ADAPTER = "core.adapters.NoSignupAccountAdapter"
 ACCOUNT_LOGIN_METHODS = {"username", "email"}
 LOGIN_REDIRECT_URL = "/"
 ACCOUNT_EMAIL_VERIFICATION = "optional"

@@ -37,7 +37,14 @@
       {% element form form=form method="post" action=login_url class="space-y-4" tags="entrance,login" %}
         {% slot body %}
           {% csrf_token %}
-          {% element fields form=form %}{% endelement %}
+          {% for field in form %}
+            {% include "account/elements/field.html" %}
+          {% endfor %}
+          {% if form.non_field_errors %}
+            <div class="alert alert-error shadow-lg">
+              <span>{{ form.non_field_errors }}</span>
+            </div>
+          {% endif %}
           {{ redirect_field }}
         {% endslot %}
         {% slot actions %}

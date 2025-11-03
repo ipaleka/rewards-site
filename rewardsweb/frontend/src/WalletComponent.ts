@@ -171,7 +171,6 @@ export class WalletComponent {
     return div.innerHTML; // Escapes HTML
   }
   render() {
-    console.log(`[WalletComponent] ${this.wallet.metadata.name}: id = ${this.wallet.id}, isActive = ${this.wallet.isActive}, canSignData = ${this.wallet.canSignData}, metadata =`, JSON.stringify(this.wallet.metadata, null, 2));
     const walletName = this.sanitizeText(this.wallet.metadata.name); // Sanitize wallet name
     const sanitizedEmail = this.sanitizeText(this.magicEmail); // Sanitize email
     this.element.innerHTML = `

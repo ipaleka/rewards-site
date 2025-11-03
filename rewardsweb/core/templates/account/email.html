@@ -1,0 +1,95 @@
+{% extends "account/base.html" %}
+{% load i18n %}
+{% load allauth %}
+
+{% block inner_content %}
+
+<h1 class="text-2xl font-bold mb-6">{% trans "Email Addresses" %}</h1>
+
+{% if user.emailaddress_set.all %}
+  <div class="space-y-8">
+
+    {% for emailaddress in user.emailaddress_set.all %}
+      <div class="p-4 rounded-lg border border-base-300 bg-base-100 space-y-3">
+
+        <!-- EMAIL + BADGES -->
+        <div class="flex flex-wrap items-center gap-2">
+          <span class="text-lg font-medium">{{ emailaddress.email }}</span>
+
+          {% if emailaddress.verified %}
+            <span class="badge badge-success">{% trans "Verified" %}</span>
+          {% else %}
+            <span class="badge badge-warning">{% trans "Unverified" %}</span>
+          {% endif %}
+
+          {% if emailaddress.primary %}
+            <span class="badge badge-info">{% trans "Primary" %}</span>
+          {% endif %}
+        </div>
+
+        <!-- BUTTONS BELOW EMAIL -->
+        <div class="flex flex-wrap gap-2">
+
+          {% if not emailaddress.primary %}
+            <form method="post" action="{% url 'account_email' %}">
+              {% csrf_token %}
+              <input type="hidden" name="email" value="{{ emailaddress.email }}">
+              <button name="action_primary" class="btn btn-xs btn-outline btn-info">
+                {% trans "Set primary" %}
+              </button>
+            </form>
+          {% endif %}
+
+          {% if not emailaddress.verified %}
+            <form method="post" action="{% url 'account_email' %}">
+              {% csrf_token %}
+              <input type="hidden" name="email" value="{{ emailaddress.email }}">
+              <button name="action_send" class="btn btn-xs btn-outline">
+                {% trans "Resend verification" %}
+              </button>
+            </form>
+          {% endif %}
+
+          {% if not emailaddress.primary %}
+            <form method="post" action="{% url 'account_email' %}">
+              {% csrf_token %}
+              <input type="hidden" name="email" value="{{ emailaddress.email }}">
+              <button name="action_remove" class="btn btn-xs btn-error">
+                {% trans "Remove" %}
+              </button>
+            </form>
+          {% endif %}
+
+        </div>
+      </div>
+    {% endfor %}
+
+  </div>
+{% else %}
+  <div class="alert alert-warning shadow-lg mb-6">
+    {% trans "You currently do not have any emails attached to your account." %}
+  </div>
+{% endif %}
+
+<!-- ADD EMAIL FIELD -->
+<div class="mt-8 space-y-4 p-4 rounded-lg border border-base-300 bg-base-100">
+
+  <h2 class="text-xl font-semibold">{% trans "Add Email Address" %}</h2>
+
+  <form method="post" action="{% url 'account_email' %}" class="space-y-4">
+    {% csrf_token %}
+    <input type="email"
+           name="email"
+           placeholder="{% trans 'Email address' %}"
+           class="input input-bordered w-full"
+           required>
+
+    <button type="submit"
+            name="action_add"
+            class="btn btn-primary w-full">
+      {% trans "Add Email" %}
+    </button>
+  </form>
+</div>
+
+{% endblock %}

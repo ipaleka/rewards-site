@@ -1,35 +1,30 @@
 {% extends "account/base_entrance.html" %}
-{% load i18n socialaccount %}
+{% load socialaccount i18n %}
 
-{% block head_title %}{% trans "Connected Accounts" %}{% endblock %}
+{% block inner_content %}
+<h1 class="text-2xl font-bold mb-4">{% trans "Linked Accounts" %}</h1>
 
-{% block content %}
-<div class="card bg-base-100 shadow-xl mt-10 p-8 space-y-6">
+{% get_social_accounts user as accounts %}
+{% if accounts %}
+<ul class="space-y-3">
+  {% for provider, provider_accounts in accounts.items %}
+    {% for account in provider_accounts %}
+    <li class="flex justify-between items-center p-3 rounded bg-base-200">
+      <span>{{ provider.name }} → {{ account.extra_data.username|default:account.uid }}</span>
 
-  <h1 class="text-2xl font-bold text-center">{% trans "Connected Accounts" %}</h1>
+      <form action="{% url 'socialaccount_connections' %}" method="post">
+        {% csrf_token %}
+        <input type="hidden" name="account" value="{{ account.pk }}">
+        <button class="btn btn-error btn-sm" type="submit">{% trans "Disconnect" %}</button>
+      </form>
+    </li>
+    {% endfor %}
+  {% endfor %}
+</ul>
+{% else %}
+<p class="opacity-70">{% trans "You have no linked accounts." %}</p>
+{% endif %}
 
-  {% get_social_accounts user as socialaccounts %}
-
-  {% if socialaccounts %}
-    <ul class="space-y-3">
-      {% for provider, accounts in socialaccounts.items %}
-        {% for account in accounts %}
-        <li class="flex justify-between items-center p-3 rounded-lg bg-base-200">
-          <span>{{ account.get_provider.name }} → {{ account.extra_data.username|default:account.uid }}</span>
-          <form method="post" action="{% url 'socialaccount_connections' %}">
-            {% csrf_token %}
-            <input type="hidden" name="account" value="{{ account.pk }}">
-            <button type="submit" class="btn btn-error btn-sm">{% trans "Disconnect" %}</button>
-          </form>
-        </li>
-        {% endfor %}
-      {% endfor %}
-    </ul>
-  {% else %}
-    <p class="text-center">{% trans "You haven't connected any social accounts yet." %}</p>
-  {% endif %}
-
-  <div class="divider">Add new account</div>
-  {% include "socialaccount/snippets/providers_list.html" %}
-</div>
+<div class="divider">{% trans "Add account" %}</div>
+{% include "socialaccount/snippets/providers_list.html" %}
 {% endblock %}

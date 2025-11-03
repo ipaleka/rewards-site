@@ -21,16 +21,31 @@ export class ActiveNetwork {
     const activeNetwork = this.manager.activeNetwork
 
     this.element.innerHTML = `
-      <h4>
-        Current Network: <span class="active-network">${activeNetwork}</span>
-      </h4>
-      <div class="network-buttons">
-        <button type="button" id="set-testnet" ${activeNetwork === NetworkId.TESTNET ? 'disabled' : ''}>
-          Set to Testnet
-        </button>
-        <button type="button" id="set-mainnet" ${activeNetwork === NetworkId.MAINNET ? 'disabled' : ''}>
-          Set to Mainnet
-        </button>
+      <div class="space-y-3">
+        <h4 class="font-semibold text-lg">
+          Current Network:
+          <span class="badge badge-outline">${activeNetwork}</span>
+        </h4>
+
+        <div class="flex gap-2">
+          <button
+            type="button"
+            id="set-testnet"
+            class="btn btn-outline btn-sm"
+            ${activeNetwork === NetworkId.TESTNET ? "disabled" : ""}
+          >
+            Set to Testnet
+          </button>
+
+          <button
+            type="button"
+            id="set-mainnet"
+            class="btn btn-outline btn-sm"
+            ${activeNetwork === NetworkId.MAINNET ? "disabled" : ""}
+          >
+            Set to Mainnet
+          </button>
+        </div>
       </div>
     `
   }

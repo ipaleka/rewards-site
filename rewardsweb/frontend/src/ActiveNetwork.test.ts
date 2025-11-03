@@ -61,17 +61,18 @@ describe('ActiveNetwork', () => {
       activeNetwork.render();
 
       // Current network button should be disabled
-      expect(activeNetwork.element.innerHTML).toContain('id="set-testnet" disabled');
+      expect(activeNetwork.element.innerHTML).toMatch(/id="set-testnet".*disabled/);
+
       // Other network buttons should be enabled
       expect(activeNetwork.element.innerHTML).toContain('id="set-mainnet"');
-      expect(activeNetwork.element.innerHTML).not.toContain('id="set-mainnet" disabled');
+      expect(activeNetwork.element.innerHTML).not.toMatch(/id="set-mainnet".*disabled/);
     });
 
     it('should render different network as active', () => {
       mockManager.activeNetwork = NetworkId.MAINNET;
       activeNetwork.render();
 
-      expect(activeNetwork.element.innerHTML).toContain('id="set-mainnet" disabled');
+      expect(activeNetwork.element.innerHTML).toMatch(/id="set-mainnet".*disabled/);
       expect(activeNetwork.element.innerHTML).toContain('mainnet');
     });
   });

@@ -1144,6 +1144,9 @@
   .mt-6 {
     margin-top: calc(var(--spacing) * 6);
   }
+  .mr-3 {
+    margin-right: calc(var(--spacing) * 3);
+  }
   .mb-1 {
     margin-bottom: calc(var(--spacing) * 1);
   }
@@ -1367,6 +1370,9 @@
   .h-6 {
     height: calc(var(--spacing) * 6);
   }
+  .h-10 {
+    height: calc(var(--spacing) * 10);
+  }
   .h-24 {
     height: calc(var(--spacing) * 24);
   }
@@ -1381,6 +1387,9 @@
   }
   .w-6 {
     width: calc(var(--spacing) * 6);
+  }
+  .w-10 {
+    width: calc(var(--spacing) * 10);
   }
   .w-full {
     width: 100%;
@@ -1903,9 +1912,13 @@
 @layer base {
   html {
     height: 100%;
+    font-family: "Nunito", sans-serif;
   }
   body {
     height: 100%;
+  }
+  h1, h2, h3, h4, h5, h6, .btn, .text-xl {
+    font-family: "Oswald", sans-serif;
   }
 }
 @layer utilities {

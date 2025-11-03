@@ -3,8 +3,20 @@
 @source "../../templates";
 
 @layer base {
-  html { height: 100%; }
-  body { height: 100%; }
+  html {
+    height: 100%;
+    font-family: "Nunito", sans-serif;
+  }
+  body {
+    height: 100%;
+  }
+
+  /* Apply Oswald to headers and buttons */
+  h1, h2, h3, h4, h5, h6,
+  .btn,
+  .text-xl /* Your navbar brand */ {
+    font-family: "Oswald", sans-serif;
+  }
 }
 
 /* ✅ HTMX fade-in animation added as Tailwind utility */

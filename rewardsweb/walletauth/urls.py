@@ -3,11 +3,11 @@
 from django.urls import path
 
 from walletauth.views import (
+    AddAllocationsView,
+    ClaimAllocationView,
+    ReclaimAllocationsView,
     WalletNonceView,
     WalletVerifyView,
-    ClaimAllocationView,
-    AddAllocationsView,
-    ReclaimAllocationsView,
 )
 
 urlpatterns = [

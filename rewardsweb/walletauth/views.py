@@ -7,9 +7,9 @@ from secrets import token_hex
 import msgpack
 from algosdk.encoding import is_valid_address
 from algosdk.transaction import SignedTransaction
+from django.contrib.auth import get_user_model, login
 from django.http import JsonResponse
 from django.views import View
-from django.contrib.auth import get_user_model, login
 
 from core.models import Contributor, Profile
 from utils.constants.core import WALLET_CONNECT_NONCE_PREFIX

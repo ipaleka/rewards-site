@@ -2,6 +2,8 @@
 
 from django.conf import settings
 
+from utils.constants.core import GITHUB_ISSUES_START_DATE
+from utils.constants.ui import MISSING_TOKEN_TEXT
 from utils.issues import (
     GitHubApp,
     _contributor_link,
@@ -11,15 +13,13 @@ from utils.issues import (
     _prepare_issue_labels_from_contribution,
     _prepare_issue_priority_from_contribution,
     _prepare_issue_title_from_contribution,
-    fetch_issues,
-    set_labels_to_issue,
     close_issue_with_labels,
     create_github_issue,
+    fetch_issues,
     issue_by_number,
     issue_data_for_contribution,
+    set_labels_to_issue,
 )
-from utils.constants.core import GITHUB_ISSUES_START_DATE
-from utils.constants.ui import MISSING_TOKEN_TEXT
 
 
 class TestUtilsIssuesGitHubApp:

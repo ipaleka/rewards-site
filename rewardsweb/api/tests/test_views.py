@@ -1,19 +1,21 @@
 """Testing module for :py:mod:`api.views` module."""
 
+from unittest.mock import AsyncMock, patch
+
 import pytest
-from unittest.mock import patch, AsyncMock
-from rest_framework.response import Response
 from rest_framework import status
+from rest_framework.response import Response
+
 from api.views import (
+    AddContributionView,
+    ContributionsTailView,
+    ContributionsView,
+    CurrentCycleAggregatedView,
+    CurrentCyclePlainView,
+    CycleAggregatedView,
+    CyclePlainView,
     aggregated_cycle_response,
     contributions_response,
-    CycleAggregatedView,
-    CurrentCycleAggregatedView,
-    CyclePlainView,
-    CurrentCyclePlainView,
-    ContributionsView,
-    ContributionsTailView,
-    AddContributionView,
 )
 from core.models import Contributor, Cycle, Reward, RewardType, SocialPlatform
 

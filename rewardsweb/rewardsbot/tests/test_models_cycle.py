@@ -4,8 +4,9 @@ This module contains tests for the Cycle class and its
 formatting functionality.
 """
 
-import pytest
 from datetime import datetime
+
+import pytest
 
 from rewardsbot.models.cycle import Cycle, confirmed_status
 

@@ -4,9 +4,15 @@ from adrf.views import APIView
 from asgiref.sync import sync_to_async
 from django.db import transaction
 from django.shortcuts import get_object_or_404
-from rest_framework.response import Response
 from rest_framework import status
+from rest_framework.response import Response
 
+from api.serializers import (
+    AggregatedCycleSerializer,
+    ContributionSerializer,
+    CycleSerializer,
+    HumanizedContributionSerializer,
+)
 from core.models import (
     Contribution,
     Contributor,
@@ -14,12 +20,6 @@ from core.models import (
     Reward,
     RewardType,
     SocialPlatform,
-)
-from api.serializers import (
-    AggregatedCycleSerializer,
-    ContributionSerializer,
-    CycleSerializer,
-    HumanizedContributionSerializer,
 )
 from utils.constants.core import CONTRIBUTIONS_TAIL_SIZE
 from utils.helpers import humanize_contributions

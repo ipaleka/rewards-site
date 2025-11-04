@@ -3,13 +3,13 @@
 from datetime import datetime
 
 import pytest
-
 from django.contrib.auth import get_user_model
 from django.contrib.messages import get_messages
 from django.http import Http404
 from django.urls import reverse
 from django.views.generic import DetailView, ListView
 
+from core.forms import IssueLabelsForm
 from core.models import (
     Contribution,
     Contributor,
@@ -20,8 +20,12 @@ from core.models import (
     RewardType,
     SocialPlatform,
 )
-from core.forms import IssueLabelsForm
-from core.views import CreateIssueView, IssueDetailView, IssueListView, IssueModalView
+from core.views import (
+    CreateIssueView,
+    IssueDetailView,
+    IssueListView,
+    IssueModalView,
+)
 from utils.constants.core import DISCORD_EMOJIS
 
 user_model = get_user_model()

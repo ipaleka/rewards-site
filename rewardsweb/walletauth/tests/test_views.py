@@ -13,11 +13,11 @@ from core.models import Contributor, Profile
 from utils.constants.core import WALLET_CONNECT_NONCE_PREFIX
 from walletauth.models import WalletNonce
 from walletauth.views import (
+    AddAllocationsView,
+    ClaimAllocationView,
+    ReclaimAllocationsView,
     WalletNonceView,
     WalletVerifyView,
-    ClaimAllocationView,
-    AddAllocationsView,
-    ReclaimAllocationsView,
 )
 
 User = get_user_model()

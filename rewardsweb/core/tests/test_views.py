@@ -12,9 +12,14 @@ from django.views import View
 from django.views.generic import DetailView, ListView, UpdateView
 from django.views.generic.detail import SingleObjectMixin
 
-from core.models import Contribution, Contributor, Cycle
 from core.forms import ProfileFormSet, UpdateUserForm
-from core.views import IndexView, ProfileDisplay, ProfileEditView, ProfileUpdate
+from core.models import Contribution, Contributor, Cycle
+from core.views import (
+    IndexView,
+    ProfileDisplay,
+    ProfileEditView,
+    ProfileUpdate,
+)
 
 user_model = get_user_model()
 

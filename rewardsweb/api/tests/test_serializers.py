@@ -1,15 +1,16 @@
 """Testing module for :py:mod:`api.serializers` module."""
 
 from datetime import date
+
 from api.serializers import (
     AggregatedCycleSerializer,
+    ContributionSerializer,
     ContributorSerializer,
     CycleSerializer,
-    SocialPlatformSerializer,
-    RewardTypeSerializer,
-    RewardSerializer,
     HumanizedContributionSerializer,
-    ContributionSerializer,
+    RewardSerializer,
+    RewardTypeSerializer,
+    SocialPlatformSerializer,
 )
 from core.models import (
     Contribution,

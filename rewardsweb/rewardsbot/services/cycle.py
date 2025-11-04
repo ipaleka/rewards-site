@@ -9,8 +9,8 @@ cycle information from the API service.
 
 import logging
 
-from rewardsbot.models.cycle import Cycle
 from rewardsbot.models.contribution import Contribution
+from rewardsbot.models.cycle import Cycle
 
 logger = logging.getLogger("discord.cycle")
 

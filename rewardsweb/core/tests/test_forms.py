@@ -26,8 +26,8 @@ from core.forms import (
     ContributionInvalidateForm,
     CreateIssueForm,
     IssueLabelsForm,
-    ProfileFormSet,
     ProfileForm,
+    ProfileFormSet,
     UpdateUserForm,
 )
 from core.models import Contribution, IssueStatus, Profile

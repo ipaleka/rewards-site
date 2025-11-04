@@ -12,8 +12,8 @@ from django.http import Http404
 from django.shortcuts import get_object_or_404
 
 from core.models import (
-    Contributor,
     Contribution,
+    Contributor,
     Cycle,
     Handle,
     Reward,
@@ -22,7 +22,6 @@ from core.models import (
 )
 from utils.constants.core import REWARDS_COLLECTION
 from utils.helpers import get_env_variable
-
 
 ADDRESSES_CSV_COLUMNS = ["handle", "address"]
 CONTRIBUTION_CSV_COLUMNS = [

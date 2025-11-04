@@ -20,7 +20,10 @@ from django.forms import (
 from django.forms.models import ModelForm, inlineformset_factory
 
 from core.models import Contribution, IssueStatus, Profile, Reward
-from utils.constants.core import ISSUE_CREATION_LABEL_CHOICES, ISSUE_PRIORITY_CHOICES
+from utils.constants.core import (
+    ISSUE_CREATION_LABEL_CHOICES,
+    ISSUE_PRIORITY_CHOICES,
+)
 from utils.constants.ui import MISSING_OPTION_TEXT, TEXTINPUT_CLASS
 
 

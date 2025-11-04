@@ -1,5 +1,5 @@
 -r base.txt
 gunicorn>=23.0.0
 ## cache requirements
-django-redis>=5.0.0
-redis>=3.5.3
+django-redis>=6.0.0
+redis>=7.0.1

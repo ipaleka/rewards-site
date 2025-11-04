@@ -12,9 +12,184 @@ from django.views import View
 from core.models import Contributor, Profile
 from utils.constants.core import WALLET_CONNECT_NONCE_PREFIX
 from walletauth.models import WalletNonce
-from walletauth.views import WalletNonceView, WalletVerifyView
+from walletauth.views import (
+    WalletNonceView,
+    WalletVerifyView,
+    ClaimAllocationView,
+    AddAllocationsView,
+    ReclaimAllocationsView,
+)
 
 User = get_user_model()
+
+
+class TestClaimAllocationView:
+    """Test suite for ClaimAllocationView."""
+
+    @pytest.fixture
+    def view(self):
+        return ClaimAllocationView()
+
+    @pytest.fixture
+    def rf(self):
+        return RequestFactory()
+
+    @pytest.fixture
+    def valid_address(self):
+        return "2EVGZ4BGOSL3J64UYDE2BUGTNTBZZZLI54VUQQNZZLYCDODLY33UGXNSIU"
+
+    def test_walletauth_claimallocationview_is_subclass_of_view(self):
+        assert issubclass(ClaimAllocationView, View)
+
+    @pytest.mark.django_db
+    def test_walletauth_claimallocationview_valid_request(
+        self, view, rf, valid_address, mocker
+    ):
+        """Test successful claimable status check for valid address."""
+        mocker.patch("walletauth.views.is_valid_address", return_value=True)
+        data = {"address": valid_address}
+        request = rf.post(
+            "/claim-allocation/", data=json.dumps(data), content_type="application/json"
+        )
+
+        response = view.post(request)
+
+        assert response.status_code == 200
+        response_data = json.loads(response.content)
+        assert "claimable" in response_data
+
+    def test_walletauth_claimallocationview_invalid_json(self, view, rf):
+        """Test handling of invalid JSON."""
+        request = rf.post(
+            "/claim-allocation/", data="invalid json", content_type="application/json"
+        )
+        response = view.post(request)
+        assert response.status_code == 400
+        assert json.loads(response.content) == {"error": "Invalid JSON"}
+
+    def test_walletauth_claimallocationview_missing_address(self, view, rf):
+        """Test handling of missing address."""
+        request = rf.post(
+            "/claim-allocation/", data=json.dumps({}), content_type="application/json"
+        )
+        response = view.post(request)
+        assert response.status_code == 400
+        assert "Invalid or missing address" in json.loads(response.content)["error"]
+
+
+class TestAddAllocationsView:
+    """Test suite for AddAllocationsView."""
+
+    @pytest.fixture
+    def view(self):
+        return AddAllocationsView()
+
+    @pytest.fixture
+    def rf(self):
+        return RequestFactory()
+
+    @pytest.fixture
+    def valid_address(self):
+        return "2EVGZ4BGOSL3J64UYDE2BUGTNTBZZZLI54VUQQNZZLYCDODLY33UGXNSIU"
+
+    def test_walletauth_addallocationsview_is_subclass_of_view(self):
+        assert issubclass(AddAllocationsView, View)
+
+    @pytest.mark.django_db
+    def test_walletauth_addallocationsview_valid_request(
+        self, view, rf, valid_address, mocker
+    ):
+        """Test successful data retrieval for valid address."""
+        mocker.patch("walletauth.views.is_valid_address", return_value=True)
+        data = {"address": valid_address}
+        request = rf.post(
+            "/add-allocations/", data=json.dumps(data), content_type="application/json"
+        )
+
+        response = view.post(request)
+
+        assert response.status_code == 200
+        response_data = json.loads(response.content)
+        assert "addresses" in response_data
+        assert "amounts" in response_data
+
+    def test_walletauth_addallocationsview_invalid_json(self, view, rf):
+        """Test handling of invalid JSON."""
+        request = rf.post(
+            "/add-allocations/", data="invalid json", content_type="application/json"
+        )
+        response = view.post(request)
+        assert response.status_code == 400
+        assert json.loads(response.content) == {"error": "Invalid JSON"}
+
+    def test_walletauth_addallocationsview_missing_address(self, view, rf):
+        """Test handling of missing address."""
+        request = rf.post(
+            "/add-allocations/", data=json.dumps({}), content_type="application/json"
+        )
+        response = view.post(request)
+        assert response.status_code == 400
+        assert "Invalid or missing address" in json.loads(response.content)["error"]
+
+
+class TestReclaimAllocationsView:
+    """Test suite for ReclaimAllocationsView."""
+
+    @pytest.fixture
+    def view(self):
+        return ReclaimAllocationsView()
+
+    @pytest.fixture
+    def rf(self):
+        return RequestFactory()
+
+    @pytest.fixture
+    def valid_address(self):
+        return "2EVGZ4BGOSL3J64UYDE2BUGTNTBZZZLI54VUQQNZZLYCDODLY33UGXNSIU"
+
+    def test_walletauth_reclaimallocationsview_is_subclass_of_view(self):
+        assert issubclass(ReclaimAllocationsView, View)
+
+    @pytest.mark.django_db
+    def test_walletauth_reclaimallocationsview_valid_request(
+        self, view, rf, valid_address, mocker
+    ):
+        """Test successful data retrieval for valid address."""
+        mocker.patch("walletauth.views.is_valid_address", return_value=True)
+        data = {"address": valid_address}
+        request = rf.post(
+            "/reclaim-allocations/",
+            data=json.dumps(data),
+            content_type="application/json",
+        )
+
+        response = view.post(request)
+
+        assert response.status_code == 200
+        response_data = json.loads(response.content)
+        assert "addresses" in response_data
+
+    def test_walletauth_reclaimallocationsview_invalid_json(self, view, rf):
+        """Test handling of invalid JSON."""
+        request = rf.post(
+            "/reclaim-allocations/",
+            data="invalid json",
+            content_type="application/json",
+        )
+        response = view.post(request)
+        assert response.status_code == 400
+        assert json.loads(response.content) == {"error": "Invalid JSON"}
+
+    def test_walletauth_reclaimallocationsview_missing_address(self, view, rf):
+        """Test handling of missing address."""
+        request = rf.post(
+            "/reclaim-allocations/",
+            data=json.dumps({}),
+            content_type="application/json",
+        )
+        response = view.post(request)
+        assert response.status_code == 400
+        assert "Invalid or missing address" in json.loads(response.content)["error"]
 
 
 class TestWalletNonceView:

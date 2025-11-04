@@ -1,4 +1,30 @@
 import { NetworkId, WalletManager } from '@txnlab/use-wallet'
+import algosdk from 'algosdk'
+
+// Placeholder Algorand node configurations
+const algodTestnetConfig = {
+  token: '', // Replace with your Testnet Algod token
+  server: 'https://testnet-api.algonode.cloud', // Replace with your Testnet Algod server
+  port: '',
+}
+
+const algodMainnetConfig = {
+  token: '', // Replace with your Mainnet Algod token
+  server: 'https://mainnet-api.algonode.cloud', // Replace with your Mainnet Algod server
+  port: '',
+}
+
+export function getAlgodClient(network: NetworkId): algosdk.Algodv2 {
+  switch (network) {
+    case NetworkId.TESTNET:
+      return new algosdk.Algodv2(algodTestnetConfig.token, algodTestnetConfig.server, algodTestnetConfig.port)
+    case NetworkId.MAINNET:
+      return new algosdk.Algodv2(algodMainnetConfig.token, algodMainnetConfig.server, algodMainnetConfig.port)
+    default:
+      // Fallback to Testnet or throw an error
+      return new algosdk.Algodv2(algodTestnetConfig.token, algodTestnetConfig.server, algodTestnetConfig.port)
+  }
+}
 
 export class ActiveNetwork {
   manager: WalletManager

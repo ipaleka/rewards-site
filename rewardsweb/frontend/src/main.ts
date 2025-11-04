@@ -1,6 +1,10 @@
 import { NetworkId, WalletId, WalletManager } from '@txnlab/use-wallet'
 import { ActiveNetwork } from './ActiveNetwork'
 import { WalletComponent } from './WalletComponent'
+import { AirdropClient } from './AirdropClient'
+import { ClaimComponent } from './ClaimComponent'
+import { AddAllocationsComponent } from './AddAllocationsComponent'
+import { ReclaimAllocationsComponent } from './ReclaimAllocationsComponent'
 
 const walletManager = new WalletManager({
   wallets: [
@@ -31,6 +35,18 @@ const walletComponents = walletManager.wallets.map(
 walletComponents.forEach((walletComponent) => {
   appDiv.appendChild(walletComponent.element)
 })
+
+// Add Airdrop client and Claim component
+const airdropClient = new AirdropClient(walletManager.wallets[0], walletManager) // Assuming the first wallet is the active one for now
+const claimComponent = new ClaimComponent(airdropClient, walletManager)
+appDiv.appendChild(claimComponent.element)
+
+// Add superuser components
+const addAllocationsComponent = new AddAllocationsComponent(airdropClient, walletManager)
+appDiv.appendChild(addAllocationsComponent.element)
+
+const reclaimAllocationsComponent = new ReclaimAllocationsComponent(airdropClient, walletManager)
+appDiv.appendChild(reclaimAllocationsComponent.element)
 
 // Resume sessions on load
 document.addEventListener('DOMContentLoaded', async () => {

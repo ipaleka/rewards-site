@@ -31,7 +31,6 @@ from api import urls as api_urls
 from core import urls as core_urls
 from walletauth import urls as walletauth_urls
 
-
 urlpatterns = [
     path("admin/", admin.site.urls),
     path("api/wallet/", include(walletauth_urls)),
@@ -41,8 +40,8 @@ urlpatterns = [
 ]
 
 if settings.DEBUG:  # pragma: no cover
-    from django.conf.urls.static import static
     from debug_toolbar.toolbar import debug_toolbar_urls
+    from django.conf.urls.static import static
 
     urlpatterns += static(settings.STATIC_URL, document_root=settings.STATIC_ROOT)
     urlpatterns += debug_toolbar_urls()

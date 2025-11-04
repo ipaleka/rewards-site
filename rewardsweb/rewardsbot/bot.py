@@ -4,14 +4,14 @@ import signal
 import sys
 
 import discord
-from discord.ext import commands
 from discord import app_commands
+from discord.ext import commands
 
 from rewardsbot import config
+from rewardsbot.controllers.command_handler import SuggestRewardModal
 from rewardsbot.services.cycle import CycleService
 from rewardsbot.services.user import UserService
 from rewardsbot.utils.api import ApiService
-from rewardsbot.controllers.command_handler import SuggestRewardModal
 
 # Set up comprehensive logging
 logging.basicConfig(

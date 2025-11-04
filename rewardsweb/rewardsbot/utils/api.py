@@ -7,8 +7,9 @@ to the rewards backend API with proper session management and error handling.
 :type logger: :class:`logging.Logger`
 """
 
-import aiohttp
 import logging
+
+import aiohttp
 from aiohttp import ClientSession
 
 from rewardsbot.config import BASE_URL

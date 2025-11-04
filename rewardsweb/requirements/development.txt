@@ -1,28 +1,28 @@
 -r base.txt
 ## cache requirements
-django-redis>=5.4.0
-redis>=5.2.1
+django-redis>=6.0.0
+redis>=7.0.1
 ## tests requirements
-pytest>=8.3.5
+pytest>=8.4.2
 pytest-cov>=7.0.0
-pytest-django>=4.10.0
-pytest-mock>=3.14.0
-pytest-xdist>=3.6.1
-pytest-asyncio>=1.2
+pytest-django>=4.11.1
+pytest-mock>=3.15.1
+pytest-xdist>=3.8.0
+pytest-asyncio>=1.2.0
 # profiling requirements
-django-debug-toolbar>=5.1.0
+django-debug-toolbar>=6.1.0
 django-debug-toolbar-template-profiler>=2.1.0
 # linting
-black>=25.1.0
-pylint>=3.3.6
-isort>=6.0.1
+black>=25.9.0
+pylint>=4.0.2
+isort>=7.0.0
 # docs
 Sphinx>=8.2.3
 sphinx-rtd-theme>=3.0.2
-rope>=1.13.0
-ruff>=0.11.2
+rope>=1.14.0
+ruff>=0.14.3
 # ipython
-ipython>=9.0.2
+ipython>=9.6.0
 # deployment
 ansible>=12.1.0
 ansible-lint>=25.9.2

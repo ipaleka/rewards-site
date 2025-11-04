@@ -1,10 +1,10 @@
 """Testing module for :py:mod:`rewardsbot.bot` module."""
 
 import asyncio
-
-import pytest
-import discord
 from unittest.mock import AsyncMock, MagicMock, patch
+
+import discord
+import pytest
 
 from rewardsbot.bot import (
     RewardsBot,

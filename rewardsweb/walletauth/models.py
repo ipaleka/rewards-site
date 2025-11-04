@@ -1,8 +1,9 @@
 """Module containing walletauth app's ORM models."""
 
+from datetime import timedelta
+
 from django.db import models
 from django.utils import timezone
-from datetime import timedelta
 
 
 class WalletNonce(models.Model):

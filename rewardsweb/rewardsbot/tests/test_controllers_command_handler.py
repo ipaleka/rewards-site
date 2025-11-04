@@ -4,9 +4,10 @@ This module contains tests for the SuggestRewardModal class and its
 interaction handling functionality.
 """
 
-import pytest
-import discord
 from unittest import mock
+
+import discord
+import pytest
 
 from rewardsbot.controllers.command_handler import SuggestRewardModal
 from rewardsbot.services.suggestion import SuggestionService

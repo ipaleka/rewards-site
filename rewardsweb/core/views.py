@@ -27,8 +27,19 @@ from core.forms import (
     ProfileFormSet,
     UpdateUserForm,
 )
-from core.models import Contribution, Contributor, Cycle, Handle, Issue, IssueStatus
-from utils.bot import add_reaction_to_message, add_reply_to_message, message_from_url
+from core.models import (
+    Contribution,
+    Contributor,
+    Cycle,
+    Handle,
+    Issue,
+    IssueStatus,
+)
+from utils.bot import (
+    add_reaction_to_message,
+    add_reply_to_message,
+    message_from_url,
+)
 from utils.constants.core import (
     DISCORD_EMOJIS,
     ISSUE_CREATION_LABEL_CHOICES,

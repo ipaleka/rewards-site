@@ -7,9 +7,9 @@ from secrets import token_hex
 import msgpack
 from algosdk.encoding import is_valid_address
 from algosdk.transaction import SignedTransaction
+from django.contrib.auth import get_user_model, login
 from django.http import JsonResponse
 from django.views import View
-from django.contrib.auth import get_user_model, login
 
 from core.models import Contributor, Profile
 from utils.constants.core import WALLET_CONNECT_NONCE_PREFIX
@@ -17,6 +17,87 @@ from utils.helpers import verify_signed_transaction
 from walletauth.models import WalletNonce
 
 User = get_user_model()
+
+
+class ClaimAllocationView(View):
+    """Check if a user has a claimable allocation."""
+
+    def post(self, request, *args, **kwargs):
+        """Return claimable status for the given address.
+
+        :param request: HTTP request object
+        :return: JSON response with claimable status
+        """
+        try:
+            data = json.loads(request.body)
+            address = data.get("address")
+        except (json.JSONDecodeError, KeyError):
+            return JsonResponse({"error": "Invalid JSON"}, status=400)
+
+        if not address or not is_valid_address(address):
+            return JsonResponse(
+                {"error": f"Invalid or missing address: {address}"}, status=400
+            )
+
+        # This is a placeholder for the actual logic to check the Algorand box.
+        # You will need to implement this using the Algorand SDK.
+        has_claimable_allocation = False  # Replace with actual check
+
+        return JsonResponse({"claimable": has_claimable_allocation})
+
+
+class AddAllocationsView(View):
+    """Provide data for adding new allocations."""
+
+    def post(self, request, *args, **kwargs):
+        """Return a list of addresses and amounts for new allocations.
+
+        :param request: HTTP request object
+        :return: JSON response with allocation data
+        """
+        try:
+            data = json.loads(request.body)
+            address = data.get("address")
+        except (json.JSONDecodeError, KeyError):
+            return JsonResponse({"error": "Invalid JSON"}, status=400)
+
+        if not address or not is_valid_address(address):
+            return JsonResponse(
+                {"error": f"Invalid or missing address: {address}"}, status=400
+            )
+
+        # As per your instruction, this is a placeholder.
+        # You will replace this with your actual queryset logic.
+        allocations = {"addresses": [], "amounts": []}  # Replace with actual data
+
+        return JsonResponse(allocations)
+
+
+class ReclaimAllocationsView(View):
+    """Provide data for reclaiming expired allocations."""
+
+    def post(self, request, *args, **kwargs):
+        """Return a list of expired allocations that can be reclaimed.
+
+        :param request: HTTP request object
+        :return: JSON response with reclaimable allocation data
+        """
+        try:
+            data = json.loads(request.body)
+            address = data.get("address")
+        except (json.JSONDecodeError, KeyError):
+            return JsonResponse({"error": "Invalid JSON"}, status=400)
+
+        if not address or not is_valid_address(address):
+            return JsonResponse(
+                {"error": f"Invalid or missing address: {address}"}, status=400
+            )
+
+        # This is a placeholder for the actual logic to check Algorand boxes.
+        # You will need to implement this using the Algorand SDK.
+        reclaimable_allocations = {"addresses": []}  # Replace with actual data
+
+        return JsonResponse(reclaimable_allocations)
 
 
 class WalletNonceView(View):

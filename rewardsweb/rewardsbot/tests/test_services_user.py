@@ -4,12 +4,13 @@ This module contains tests for the UserService class and its
 user summary generation functionality.
 """
 
-import pytest
-from unittest import mock
 from datetime import datetime
+from unittest import mock
 
-from rewardsbot.services.user import UserService
+import pytest
+
 from rewardsbot.models.contribution import Contribution
+from rewardsbot.services.user import UserService
 
 
 class TestServicesUser:

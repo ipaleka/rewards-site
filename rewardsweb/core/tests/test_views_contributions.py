@@ -9,6 +9,7 @@ from django.template.loader import render_to_string
 from django.urls import reverse
 from django.views.generic import DetailView, ListView, UpdateView
 
+from core.forms import ContributionEditForm, ContributionInvalidateForm
 from core.models import (
     Contribution,
     Contributor,
@@ -20,15 +21,14 @@ from core.models import (
     RewardType,
     SocialPlatform,
 )
-from core.forms import ContributionEditForm, ContributionInvalidateForm
 from core.views import (
     ContributionDetailView,
     ContributionEditView,
     ContributionInvalidateView,
-    ContributorListView,
     ContributorDetailView,
-    CycleListView,
+    ContributorListView,
     CycleDetailView,
+    CycleListView,
 )
 from utils.constants.core import DISCORD_EMOJIS
 

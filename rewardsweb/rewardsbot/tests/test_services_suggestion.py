@@ -4,8 +4,9 @@ This module contains tests for the SuggestionService class and its
 suggestion creation and command handling functionality.
 """
 
-import pytest
 from unittest import mock
+
+import pytest
 
 from rewardsbot.services.suggestion import SuggestionService
 from rewardsbot.utils.suggestion_parser import SuggestionParser

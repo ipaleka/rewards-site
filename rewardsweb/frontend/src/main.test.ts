@@ -1,47 +1,129 @@
 // Mock everything at the top
-jest.mock('@txnlab/use-wallet', () => {
+jest.mock("@txnlab/use-wallet", () => {
+  const mockSubscribe = jest.fn();
+  const mockResumeSessions = jest.fn();
+
   const mockWalletManager = {
     wallets: [
-      { id: 'pera', metadata: { name: 'Pera Wallet' } },
-      { id: 'defly', metadata: { name: 'Defly Wallet' } },
-      { id: 'lute', metadata: { name: 'Lute Wallet' } }
+      {
+        id: "pera",
+        metadata: { name: "Pera Wallet" },
+        activeAccount: { address: "test-address" },
+      },
+      {
+        id: "defly",
+        metadata: { name: "Defly Wallet" },
+        activeAccount: null,
+      },
+      {
+        id: "lute",
+        metadata: { name: "Lute Wallet" },
+        activeAccount: null,
+      },
     ],
-    resumeSessions: jest.fn()
+    resumeSessions: mockResumeSessions,
+    subscribe: mockSubscribe,
+    activeNetwork: "mainnet",
+    activeWallet: null,
+    setActiveNetwork: jest.fn(),
+    getAlgodClient: jest.fn().mockReturnValue({
+      getTransactionParams: jest.fn().mockReturnValue({
+        do: jest.fn().mockResolvedValue({
+          fee: 1000,
+          firstRound: 1000,
+          lastRound: 2000,
+          genesisID: "testnet-v1.0",
+          genesisHash: "SGO1GKSzyE7IEPItTxCByw9x8FmnrCDexi9/cOUJOiI=",
+        }),
+      }),
+    }),
   };
 
   return {
     NetworkId: {
-      TESTNET: 'testnet',
-      MAINNET: 'mainnet'
+      TESTNET: "testnet",
+      MAINNET: "mainnet",
     },
     WalletId: {
-      PERA: 'pera',
-      DEFLY: 'defly',
-      LUTE: 'lute'
+      PERA: "pera",
+      DEFLY: "defly",
+      LUTE: "lute",
     },
-    WalletManager: jest.fn(() => mockWalletManager)
+    WalletManager: jest.fn(() => mockWalletManager),
   };
 });
 
 // Mock the components
 const mockActiveNetwork = {
-  element: document.createElement('div')
+  element: document.createElement("div"),
+  destroy: jest.fn(),
 };
 
 const mockWalletComponent = {
-  element: document.createElement('div'),
-  destroy: jest.fn()
+  element: document.createElement("div"),
+  destroy: jest.fn(),
 };
 
-jest.mock('./ActiveNetwork', () => ({
-  ActiveNetwork: jest.fn(() => mockActiveNetwork)
+const mockClaimComponent = {
+  element: document.createElement("div"),
+  destroy: jest.fn(),
+};
+
+const mockAddAllocationsComponent = {
+  element: document.createElement("div"),
+  destroy: jest.fn(),
+};
+
+const mockReclaimAllocationsComponent = {
+  element: document.createElement("div"),
+  destroy: jest.fn(),
+};
+
+// Mock the ActiveNetwork component
+jest.mock("./ActiveNetwork", () => ({
+  ActiveNetwork: jest.fn().mockImplementation(() => mockActiveNetwork),
+  getAlgodClient: jest.fn().mockReturnValue({
+    getTransactionParams: jest.fn().mockReturnValue({
+      do: jest.fn().mockResolvedValue({
+        fee: 1000,
+        firstRound: 1000,
+        lastRound: 2000,
+        genesisID: "testnet-v1.0",
+        genesisHash: "SGO1GKSzyE7IEPItTxCByw9x8FmnrCDexi9/cOUJOiI=",
+      }),
+    }),
+  }),
 }));
 
-jest.mock('./WalletComponent', () => ({
-  WalletComponent: jest.fn(() => mockWalletComponent)
+jest.mock("./WalletComponent", () => ({
+  WalletComponent: jest.fn(() => mockWalletComponent),
 }));
 
-describe('main.ts', () => {
+jest.mock("./ClaimComponent", () => ({
+  ClaimComponent: jest.fn(() => mockClaimComponent),
+}));
+
+jest.mock("./AddAllocationsComponent", () => ({
+  AddAllocationsComponent: jest.fn(() => mockAddAllocationsComponent),
+}));
+
+jest.mock("./ReclaimAllocationsComponent", () => ({
+  ReclaimAllocationsComponent: jest.fn(() => mockReclaimAllocationsComponent),
+}));
+
+// Mock AirdropClient
+jest.mock("./AirdropClient", () => ({
+  AirdropClient: jest.fn().mockImplementation(() => ({
+    fetchClaimableStatus: jest.fn(),
+    claim: jest.fn(),
+    addAllocations: jest.fn(),
+    reclaimAllocation: jest.fn(),
+    fetchAddAllocationsData: jest.fn(),
+    fetchReclaimAllocationsData: jest.fn(),
+  })),
+}));
+
+describe("main.ts", () => {
   let mockAppDiv: HTMLDivElement;
   let originalQuerySelector: typeof document.querySelector;
 
@@ -50,14 +132,14 @@ describe('main.ts', () => {
     jest.clearAllMocks();
 
     // Set up DOM
-    mockAppDiv = document.createElement('div');
-    mockAppDiv.id = 'app';
+    mockAppDiv = document.createElement("div");
+    mockAppDiv.id = "app";
     document.body.appendChild(mockAppDiv);
 
     // Mock document.querySelector
     originalQuerySelector = document.querySelector;
     document.querySelector = jest.fn((selector: string) => {
-      if (selector === '#app') return mockAppDiv;
+      if (selector === "#app") return mockAppDiv;
       return null;
     });
   });
@@ -70,35 +152,35 @@ describe('main.ts', () => {
     jest.resetModules();
   });
 
-  it('should initialize the application without errors', () => {
+  it("should initialize the application without errors", () => {
     // This test just verifies the module can load without throwing
     expect(() => {
-      require('./main');
+      require("./main");
     }).not.toThrow();
 
     // Verify basic setup occurred
-    const { WalletManager } = require('@txnlab/use-wallet');
+    const { WalletManager } = require("@txnlab/use-wallet");
     expect(WalletManager).toHaveBeenCalledWith({
-      wallets: ['pera', 'defly', 'lute'],
-      defaultNetwork: 'mainnet'
+      wallets: ["pera", "defly", "lute"],
+      defaultNetwork: "mainnet",
     });
   });
 
-  it('should render the application content', () => {
-    require('./main');
+  it("should render the application content", () => {
+    require("./main");
 
-    expect(document.querySelector).toHaveBeenCalledWith('#app');
-    expect(mockAppDiv.innerHTML).toContain('Connect your wallet below');
+    expect(document.querySelector).toHaveBeenCalledWith("#app");
+    expect(mockAppDiv.innerHTML).toContain("Connect your wallet below");
   });
 
-  it('should handle DOMContentLoaded event', async () => {
-    const { WalletManager } = require('@txnlab/use-wallet');
+  it("should handle DOMContentLoaded event", async () => {
+    const { WalletManager } = require("@txnlab/use-wallet");
     const mockResumeSessions = WalletManager().resumeSessions;
 
-    require('./main');
+    require("./main");
 
     // Simulate DOMContentLoaded
-    const event = new Event('DOMContentLoaded');
+    const event = new Event("DOMContentLoaded");
     document.dispatchEvent(event);
 
     // Wait for async operations
@@ -107,79 +189,90 @@ describe('main.ts', () => {
     expect(mockResumeSessions).toHaveBeenCalled();
   });
 
-  it('should handle resumeSessions errors', async () => {
-    const consoleErrorSpy = jest.spyOn(console, 'error').mockImplementation();
-    const { WalletManager } = require('@txnlab/use-wallet');
+  it("should handle resumeSessions errors", async () => {
+    const consoleErrorSpy = jest.spyOn(console, "error").mockImplementation();
+    const { WalletManager } = require("@txnlab/use-wallet");
     const mockResumeSessions = WalletManager().resumeSessions;
-    mockResumeSessions.mockRejectedValue(new Error('Session error'));
+    mockResumeSessions.mockRejectedValue(new Error("Session error"));
 
-    require('./main');
+    require("./main");
 
     // Simulate DOMContentLoaded
-    const event = new Event('DOMContentLoaded');
+    const event = new Event("DOMContentLoaded");
     document.dispatchEvent(event);
 
     // Wait for async operations
     await new Promise(process.nextTick);
 
-    expect(consoleErrorSpy).toHaveBeenCalledWith('Error resuming sessions:', expect.any(Error));
+    expect(consoleErrorSpy).toHaveBeenCalledWith(
+      "Error resuming sessions:",
+      expect.any(Error)
+    );
     consoleErrorSpy.mockRestore();
   });
 
-  it('should handle beforeunload event cleanup', () => {
+  it("should handle beforeunload event cleanup", () => {
     // Create specific mock instances for this test
     const mockDestroy1 = jest.fn();
     const mockDestroy2 = jest.fn();
     const mockDestroy3 = jest.fn();
 
-    const { WalletComponent } = require('./WalletComponent');
-    WalletComponent
-      .mockImplementationOnce(() => ({ element: document.createElement('div'), destroy: mockDestroy1 }))
-      .mockImplementationOnce(() => ({ element: document.createElement('div'), destroy: mockDestroy2 }))
-      .mockImplementationOnce(() => ({ element: document.createElement('div'), destroy: mockDestroy3 }));
+    const { WalletComponent } = require("./WalletComponent");
+    WalletComponent.mockImplementationOnce(() => ({
+      element: document.createElement("div"),
+      destroy: mockDestroy1,
+    }))
+      .mockImplementationOnce(() => ({
+        element: document.createElement("div"),
+        destroy: mockDestroy2,
+      }))
+      .mockImplementationOnce(() => ({
+        element: document.createElement("div"),
+        destroy: mockDestroy3,
+      }));
 
-    require('./main');
+    require("./main");
 
     // Get all created wallet components
     const walletInstances = [
       WalletComponent.mock.results[0].value,
       WalletComponent.mock.results[1].value,
-      WalletComponent.mock.results[2].value
+      WalletComponent.mock.results[2].value,
     ];
 
     // Simulate beforeunload by calling destroy on all instances
-    walletInstances.forEach(instance => instance.destroy());
+    walletInstances.forEach((instance) => instance.destroy());
 
     expect(mockDestroy1).toHaveBeenCalled();
     expect(mockDestroy2).toHaveBeenCalled();
     expect(mockDestroy3).toHaveBeenCalled();
   });
 
-  it('should handle beforeunload event with wallet components', () => {
+  it("should handle beforeunload event with wallet components", () => {
     // Create specific mock wallet components
     const mockWalletComponents = [
-      { element: document.createElement('div'), destroy: jest.fn() },
-      { element: document.createElement('div'), destroy: jest.fn() },
-      { element: document.createElement('div'), destroy: jest.fn() }
+      { element: document.createElement("div"), destroy: jest.fn() },
+      { element: document.createElement("div"), destroy: jest.fn() },
+      { element: document.createElement("div"), destroy: jest.fn() },
     ];
 
-    const { WalletComponent } = require('./WalletComponent');
+    const { WalletComponent } = require("./WalletComponent");
     let callCount = 0;
     WalletComponent.mockImplementation(() => mockWalletComponents[callCount++]);
 
-    require('./main');
+    require("./main");
 
     // Trigger beforeunload event
-    const beforeUnloadEvent = new Event('beforeunload');
+    const beforeUnloadEvent = new Event("beforeunload");
     window.dispatchEvent(beforeUnloadEvent);
 
     // Verify all wallet components had destroy called
-    mockWalletComponents.forEach(component => {
+    mockWalletComponents.forEach((component) => {
       expect(component.destroy).toHaveBeenCalled();
     });
   });
 
-  it('should handle main.ts execution with missing app element', () => {
+  it("should handle main.ts execution with missing app element", () => {
     // Mock querySelector to return null (app element not found)
     document.querySelector = jest.fn(() => null);
 
@@ -187,56 +280,14 @@ describe('main.ts', () => {
     // The module will try to execute but fail gracefully when app element is null
     let errorThrown = false;
     try {
-      require('./main');
+      require("./main");
     } catch (error) {
       errorThrown = true;
       // It's okay if it throws - we're testing the edge case
     }
 
-    expect(document.querySelector).toHaveBeenCalledWith('#app');
+    expect(document.querySelector).toHaveBeenCalledWith("#app");
     // The test passes as long as we verified the querySelector was called
     // We don't care if it throws or not for this edge case
-  });
-
-  it('should handle main.ts execution with missing app element', () => {
-    // Mock querySelector to return null
-    const querySelectorSpy = jest.spyOn(document, 'querySelector').mockReturnValue(null);
-
-    // This should not crash the test runner
-    // The module might throw, but that's expected behavior for this edge case
-    let executionCompleted = false;
-    try {
-      require('./main');
-      executionCompleted = true;
-    } catch (error) {
-      // It's okay if it throws - we're testing the boundary condition
-      executionCompleted = true; // Still consider it completed
-    }
-
-    expect(querySelectorSpy).toHaveBeenCalledWith('#app');
-    expect(executionCompleted).toBe(true);
-
-    querySelectorSpy.mockRestore();
-  });
-
-  it('should handle main.ts execution with missing app element', () => {
-    // Mock querySelector to return null
-    const querySelectorSpy = jest.spyOn(document, 'querySelector').mockReturnValue(null);
-
-    // This should not crash the test runner
-    // The module might throw, but that's expected behavior for this edge case
-    let executionCompleted = false;
-    try {
-      require('./main');
-      executionCompleted = true;
-    } catch (error) {
-      // It's okay if it throws - we're testing the boundary condition
-      executionCompleted = true; // Still consider it completed
-    }
-
-    expect(querySelectorSpy).toHaveBeenCalledWith('#app');
-    expect(executionCompleted).toBe(true);
-
-    querySelectorSpy.mockRestore();
   });
 });

@@ -6,8 +6,8 @@ import pytest
 from django.contrib.auth import get_user_model
 from django.core.exceptions import ValidationError
 from django.db import DataError, models
-from django.http import Http404
 from django.db.utils import IntegrityError
+from django.http import Http404
 from django.utils import timezone
 
 from core.models import (

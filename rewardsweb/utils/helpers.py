@@ -9,8 +9,8 @@ from pathlib import Path
 import pandas as pd
 from algosdk import encoding
 from django.core.exceptions import ImproperlyConfigured
-from nacl.signing import VerifyKey
 from nacl.exceptions import BadSignatureError
+from nacl.signing import VerifyKey
 
 from utils.constants.core import MISSING_ENVIRONMENT_VARIABLE_ERROR
 

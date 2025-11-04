@@ -4,12 +4,13 @@ This module contains tests for the CycleService class and its
 API interaction functionality.
 """
 
-import pytest
 from unittest import mock
 
-from rewardsbot.services.cycle import CycleService
-from rewardsbot.models.cycle import Cycle
+import pytest
+
 from rewardsbot.models.contribution import Contribution
+from rewardsbot.models.cycle import Cycle
+from rewardsbot.services.cycle import CycleService
 
 
 class TestServicesCycle:

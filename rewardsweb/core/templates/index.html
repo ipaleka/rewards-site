@@ -1,4 +1,4 @@
-{% extends "base_generic.html" %}
+{% extends "base_generic.html" %}{% load partials %}
 
 {% block content %}
 <div class="space-y-6">
@@ -11,7 +11,7 @@
 
   <div class="card bg-base-100 shadow-sm">
     <div class="card-body">
-      <h2 class="card-title text-xl">Data Overview</h2>
+      <h2 class="card-title text-xl">Data overview</h2>
       <div class="stats stats-vertical md:stats-horizontal shadow">
         <div class="stat">
           <div class="stat-title">Cycles</div>
@@ -26,7 +26,7 @@
           <div class="stat-value"><span id="contribs-count">{{ num_contributions|floatformat:"g" }}</span></div>
         </div>
         <div class="stat">
-          <div class="stat-title">Total Rewards</div>
+          <div class="stat-title">Total rewards</div>
           <div class="stat-value">{{ total_rewards|floatformat:"g" }}</div>
         </div>
       </div>
@@ -35,7 +35,7 @@
 
   <div class="card bg-base-100 shadow-sm">
     <div class="card-body">
-      <h2 class="card-title text-xl">Unconfirmed Contributions</h2>
+      <h2 class="card-title text-xl">Unconfirmed contributions</h2>
       {% if contribution_list %}
         <div class="space-y-2">
           {% for contribution in contribution_list %}
@@ -51,5 +51,38 @@
       {% endif %}
     </div>
   </div>
+
+  {% if user.is_authenticated %}
+  <div class="card bg-base-100 shadow-md">
+    <div class="card-body">
+      <h2 class="card-title text-xl">Active contributions for <a class="link link-accent" href="{{ user.profile.contributor.get_absolute_url }}">{{ user.profile }}</a> </h2>
+      {% for group in user.profile.contributor.contribution_groups %}
+        {% if group.query %}
+          {% if group.name == "Open" or group.name == "Addressed" %}
+            {% partial contributions %}
+          {% endif %}
+        {% endif %}
+      {% endfor %}
+    </div>
+  </div>
+  {% endif %}
+
 </div>
+
+{% partialdef contributions %}
+<div class="card-body">
+  <h3 class="text-lg font-semibold mb-4">{{ group.name }}{% if group.total %}: {{ group.total|floatformat:"g" }}{% endif %}</h3>
+  <div class="space-y-3">
+    {% for contribution in group.query reversed %}
+    <div class="flex items-center gap-2">
+      <span class="font-medium">Cycle:</span>
+      <a class="link link-accent" href="{{ contribution.cycle.get_absolute_url }}">{{ contribution.cycle }}</a>
+      <span class="font-medium">Reward:</span>
+      <a class="link link-accent" href="{{ contribution.get_absolute_url }}">{{ contribution.reward }}</a>
+    </div>
+    {% endfor %}
+  </div>
+</div>
+{% endpartialdef contributions %}
+
 {% endblock %}

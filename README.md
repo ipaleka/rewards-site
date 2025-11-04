@@ -1,6 +1,6 @@
 # ASA Stats Rewards Site
 
-[![build-status](https://github.com/asastats/rewards-site/actions/workflows/test.yml/badge.svg)](https://github.com/asastats/rewards-site/actions/workflows/test.yml) [![docs](https://app.readthedocs.org/projects/rewards-site/badge/?version=latest)](https://rewards-site.readthedocs.io/en/latest/?badge=latest) [![codecov](https://codecov.io/gh/asastats/rewards-site/graph/badge.svg?token=DQC4SRY8J9)](https://codecov.io/gh/asastats/rewards-site) ![ansible-lint](https://github.com//asastats/rewards-site/actions/workflows/ansible-lint.yml/badge.svg) ![molecule](https://github.com/asastats/rewards-site/actions/workflows/molecule.yml/badge.svg) 
+[![build-status](https://github.com/asastats/rewards-site/actions/workflows/build.yml/badge.svg)](https://github.com/asastats/rewards-site/actions/workflows/build.yml) [![docs](https://app.readthedocs.org/projects/rewards-site/badge/?version=latest)](https://rewards-site.readthedocs.io/en/latest/?badge=latest) [![codecov](https://codecov.io/gh/asastats/rewards-site/graph/badge.svg?token=DQC4SRY8J9)](https://codecov.io/gh/asastats/rewards-site) ![ansible-lint](https://github.com//asastats/rewards-site/actions/workflows/ansible-lint.yml/badge.svg) ![molecule](https://github.com/asastats/rewards-site/actions/workflows/molecule.yml/badge.svg) 
 
 A website dedicated to ASA Stats contributions. Previously written in Laravel, now powered by Django.
 
@@ -46,3 +46,5 @@ INITIAL_SUPERUSER_PASSWORDS=password1,password2
 - [x] Implement authentication by connecting a wallet
 - [x] Create deploy workflow
 - [ ] Setup a server and deploy the application
+- [ ] Create smart contract for rewards allocation and claiming
+- [ ] Develop UI for rewards allocation and claiming

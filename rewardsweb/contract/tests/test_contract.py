@@ -1,4 +1,4 @@
-"""Testing module for :py:mod:`contract.contract` module."""
+"""Testing module for :py:mod:`contract.artifacts.contract` module."""
 
 import os
 import time

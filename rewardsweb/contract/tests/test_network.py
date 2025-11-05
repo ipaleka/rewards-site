@@ -29,12 +29,16 @@ class TestContractNetworkFunctions:
 
         mocked_wait = mocker.patch("contract.network.wait_for_confirmation")
         client.pending_transaction_info.return_value = {"application-index": 99}
+        mock_params = mocker.MagicMock()
+        mock_params.gh = b"genesis_hash_value"
+        client.suggested_params.return_value = mock_params
 
-        returned = create_app(
+        returned_app_id, returned_genesis_hash = create_app(
             client, private_key, approval_program, clear_program, contract_json
         )
 
-        assert returned == 99
+        assert returned_app_id == 99
+        assert returned_genesis_hash == b"genesis_hash_value"
         mock_txn.sign.assert_called_once_with(private_key)
         client.send_transactions.assert_called_once_with([mock_signed])
         mocked_wait.assert_called_once_with(client, "txid123")

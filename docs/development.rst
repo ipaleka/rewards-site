@@ -151,6 +151,30 @@ For additional information read the scanner `documentation`_.
 .. _download: https://docs.sonarsource.com/sonarqube-server/latest/analyzing-source-code/scanners/sonarscanner/
 
 
+Smart contract
+--------------
+
+Compile
+^^^^^^^
+
+After you activated the Python environment, you can compile smart contract by issuing the following commands:
+
+.. code-block:: bash
+
+  cd rewardsweb/contract/artifacts
+  algokit compile py contract.py
+
+
+Deploy
+^^^^^^
+
+You can deploy the generated smart contract by running Django mamangement command:
+
+.. code-block:: bash
+
+  python manage.py deploy_contract testnet
+
+
 Tests
 -----
 

@@ -1,1 +1,1 @@
-"""Initialization module for rewards Algorand smart contract."""
+"""Initialization module for contract package."""

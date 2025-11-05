@@ -37,7 +37,7 @@ class TestContractDeployFunctions:
             "contract.deploy.private_key_from_mnemonic",
             return_value=creator_private_key,
         )
-        contract_json = mocker.MagicMock()
+        contract_json = {"contract": "json"}
         mocked_json = mocker.patch(
             "contract.deploy.read_json", return_value=contract_json
         )
@@ -47,11 +47,24 @@ class TestContractDeployFunctions:
             side_effect=[approval_program, clear_program],
         )
         app_id = 5050
-        mocked_create = mocker.patch("contract.deploy.create_app", return_value=app_id)
-        approval_source, clear_source = mocker.MagicMock(), mocker.MagicMock()
+        genesis_hash = "SGO1GKSzyE7IEPItTxCByw9x8FmnrCDexi9/cOUJOiI="
+        mocked_create = mocker.patch(
+            "contract.deploy.create_app", return_value=(app_id, genesis_hash)
+        )
+        approval_source, clear_source, json_file = (
+            mocker.MagicMock(),
+            mocker.MagicMock(),
+            mocker.MagicMock(),
+        )
+        contract_json_path = (
+            Path(contract.deploy.__file__).resolve().parent
+            / "artifacts"
+            / f"{dapp_name}.arc56.json"
+        )
         with mock.patch(
-            "contract.deploy.open", side_effect=[approval_source, clear_source]
-        ) as mocked_open:
+            "contract.deploy.open",
+            side_effect=[approval_source, clear_source, json_file],
+        ) as mocked_open, mock.patch("contract.deploy.json.dump") as mocked_dump:
             returned = deploy_app(network="mainnet")
             assert returned == app_id
             calls = [
@@ -65,9 +78,13 @@ class TestContractDeployFunctions:
                     / "artifacts"
                     / f"{dapp_name}.clear.teal"
                 ),
+                mocker.call(contract_json_path, "w"),
             ]
             mocked_open.assert_has_calls(calls, any_order=True)
-            assert mocked_open.call_count == 2
+            assert mocked_open.call_count == 3
+            mocked_dump.assert_called_once_with(
+                contract_json, json_file.__enter__.return_value, indent=4
+            )
             approval_source.read.assert_called_once_with()
             approval_source.read.return_value.encode.assert_called_once_with()
             clear_source.read.assert_called_once_with()
@@ -75,11 +92,7 @@ class TestContractDeployFunctions:
         mocked_env.assert_called_once_with()
         mocked_client.assert_called_once_with(algod_token, algod_address)
         mocked_private_key.assert_called_once_with(creator_mnemonic)
-        mocked_json.assert_called_once_with(
-            Path(contract.deploy.__file__).resolve().parent
-            / "artifacts"
-            / f"{dapp_name}.arc56.json"
-        )
+        mocked_json.assert_called_once_with(contract_json_path)
         calls = [
             mocker.call(client, approval_source.read.return_value.encode.return_value),
             mocker.call(client, clear_source.read.return_value.encode.return_value),
@@ -98,12 +111,12 @@ class TestContractDeployFunctions:
         )
         dapp_name = "Rewards"
         env = {
-            "algod_token_testnet": algod_token,
-            "algod_address_testnet": algod_address,
-            "creator_mnemonic_testnet": creator_mnemonic,
             "algod_token_mainnet": mocker.MagicMock(),
             "algod_address_mainnet": mocker.MagicMock(),
             "creator_mnemonic_mainnet": mocker.MagicMock(),
+            "algod_token_testnet": algod_token,
+            "algod_address_testnet": algod_address,
+            "creator_mnemonic_testnet": creator_mnemonic,
             "rewards_dapp_name": dapp_name,
         }
         mocked_env = mocker.patch(
@@ -116,7 +129,7 @@ class TestContractDeployFunctions:
             "contract.deploy.private_key_from_mnemonic",
             return_value=creator_private_key,
         )
-        contract_json = mocker.MagicMock()
+        contract_json = {"contract": "json", "networks": {"foo": "bar"}}
         mocked_json = mocker.patch(
             "contract.deploy.read_json", return_value=contract_json
         )
@@ -126,13 +139,33 @@ class TestContractDeployFunctions:
             side_effect=[approval_program, clear_program],
         )
         app_id = 5050
-        mocked_create = mocker.patch("contract.deploy.create_app", return_value=app_id)
-        approval_source, clear_source = mocker.MagicMock(), mocker.MagicMock()
+        genesis_hash = "SGO1GKSzyE7IEPItTxCByw9x8FmnrCDexi9/cOUJOiI="
+        mocked_create = mocker.patch(
+            "contract.deploy.create_app", return_value=(app_id, genesis_hash)
+        )
+        approval_source, clear_source, json_file = (
+            mocker.MagicMock(),
+            mocker.MagicMock(),
+            mocker.MagicMock(),
+        )
+        contract_json_path = (
+            Path(contract.deploy.__file__).resolve().parent
+            / "artifacts"
+            / f"{dapp_name}.arc56.json"
+        )
         with mock.patch(
-            "contract.deploy.open", side_effect=[approval_source, clear_source]
-        ) as mocked_open:
+            "contract.deploy.open",
+            side_effect=[approval_source, clear_source, json_file],
+        ) as mocked_open, mock.patch("contract.deploy.json.dump") as mocked_dump:
             returned = deploy_app()
             assert returned == app_id
+            assert (
+                "SGO1GKSzyE7IEPItTxCByw9x8FmnrCDexi9/cOUJOiI="
+                in contract_json["networks"]
+            )
+            assert contract_json["networks"][
+                "SGO1GKSzyE7IEPItTxCByw9x8FmnrCDexi9/cOUJOiI="
+            ] == {"app_id": 5050}
             calls = [
                 mocker.call(
                     Path(contract.deploy.__file__).resolve().parent
@@ -144,9 +177,13 @@ class TestContractDeployFunctions:
                     / "artifacts"
                     / f"{dapp_name}.clear.teal"
                 ),
+                mocker.call(contract_json_path, "w"),
             ]
             mocked_open.assert_has_calls(calls, any_order=True)
-            assert mocked_open.call_count == 2
+            assert mocked_open.call_count == 3
+            mocked_dump.assert_called_once_with(
+                contract_json, json_file.__enter__.return_value, indent=4
+            )
             approval_source.read.assert_called_once_with()
             approval_source.read.return_value.encode.assert_called_once_with()
             clear_source.read.assert_called_once_with()
@@ -154,11 +191,7 @@ class TestContractDeployFunctions:
         mocked_env.assert_called_once_with()
         mocked_client.assert_called_once_with(algod_token, algod_address)
         mocked_private_key.assert_called_once_with(creator_mnemonic)
-        mocked_json.assert_called_once_with(
-            Path(contract.deploy.__file__).resolve().parent
-            / "artifacts"
-            / f"{dapp_name}.arc56.json"
-        )
+        mocked_json.assert_called_once_with(contract_json_path)
         calls = [
             mocker.call(client, approval_source.read.return_value.encode.return_value),
             mocker.call(client, clear_source.read.return_value.encode.return_value),

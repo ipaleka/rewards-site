@@ -10,20 +10,21 @@ def create_app(client, private_key, approval_program, clear_program, contract_js
     """Create a new smart contract application on the Algorand blockchain.
 
     Builds and submits an ApplicationCreate transaction using compiled approval
-    and clear programs. Waits for confirmation and returns the resulting app-id.
+    and clear programs. Waits for confirmation and returns the resulting app-id
+    and genesis hash.
 
-    :param client: Algorand Node client instance
+    :param client: Algorand Node client instance.
     :type client: :class:`AlgodClient`
-    :param private_key: creator's private key used to sign transaction
+    :param private_key: Creator's private key used to sign the transaction.
     :type private_key: str
-    :param approval_program: compiled TEAL approval program
+    :param approval_program: Compiled TEAL approval program.
     :type approval_program: bytes
-    :param clear_program: compiled TEAL clear program
+    :param clear_program: Compiled TEAL clear program.
     :type clear_program: bytes
-    :param contract_json: ARC-56 smart contract specification
+    :param contract_json: ARC-56 smart contract specification.
     :type contract_json: dict
-    :return: newly created application id
-    :rtype: int
+    :return: A tuple containing the newly created application ID and genesis hash.
+    :rtype: tuple[int, str]
     """
     # define sender as creator
     sender = address_from_private_key(private_key)
@@ -63,9 +64,9 @@ def create_app(client, private_key, approval_program, clear_program, contract_js
     # display results
     transaction_response = client.pending_transaction_info(tx_id)
     app_id = transaction_response["application-index"]
-    print("Created new app-id: ", app_id)
+    print("Created new app id: ", app_id)
 
-    return app_id
+    return app_id, params.gh
 
 
 def delete_app(client, private_key, index):

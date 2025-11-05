@@ -39,7 +39,7 @@ main_create_application@13:
     return
 
 
-// contract.contract.Rewards.setup[routing]() -> void:
+// contract.artifacts.contract.Rewards.setup[routing]() -> void:
 setup:
     // contract.py:67
     // @arc4.abimethod
@@ -128,7 +128,7 @@ setup:
     return
 
 
-// contract.contract.Rewards.add_allocations[routing]() -> void:
+// contract.artifacts.contract.Rewards.add_allocations[routing]() -> void:
 add_allocations:
     // contract.py:91
     // @arc4.abimethod
@@ -290,7 +290,7 @@ add_allocations_after_for@8:
     return
 
 
-// contract.contract.Rewards.claim[routing]() -> void:
+// contract.artifacts.contract.Rewards.claim[routing]() -> void:
 claim:
     // contract.py:138
     // sender = Txn.sender
@@ -416,7 +416,7 @@ claim_after_if_else@4:
     return
 
 
-// contract.contract.Rewards.reclaim_allocation[routing]() -> void:
+// contract.artifacts.contract.Rewards.reclaim_allocation[routing]() -> void:
 reclaim_allocation:
     // contract.py:166
     // @arc4.abimethod

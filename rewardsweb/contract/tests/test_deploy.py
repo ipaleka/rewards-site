@@ -4,7 +4,7 @@ from pathlib import Path
 from unittest import mock
 
 import contract.deploy
-from contract.deploy import deploy_app
+from contract.deploy import deploy_app, setup_app
 
 
 class TestContractDeployFunctions:
@@ -201,3 +201,73 @@ class TestContractDeployFunctions:
         mocked_create.assert_called_once_with(
             client, creator_private_key, approval_program, clear_program, contract_json
         )
+
+    def test_contract_deploy_setup_app_uses_default_network(self, mocker):
+        env = {
+            "algod_token_testnet": "token_test",
+            "algod_address_testnet": "address_test",
+            "rewards_token_id_testnet": 1234,
+        }
+
+        mocked_env = mocker.patch(
+            "contract.deploy.environment_variables", return_value=env
+        )
+
+        client = mocker.MagicMock()
+        mocked_client = mocker.patch("contract.deploy.AlgodClient", return_value=client)
+
+        app_client = mocker.MagicMock()
+        mocked_appclient_instance = mocker.patch(
+            "contract.deploy.app_client_instance", return_value=app_client
+        )
+
+        mocker.patch("builtins.print")  # silence output during testing
+
+        returned = setup_app()
+
+        mocked_env.assert_called_once_with()
+        mocked_client.assert_called_once_with("token_test", "address_test")
+        mocked_appclient_instance.assert_called_once_with(client, "testnet")
+
+        app_client.call.assert_called_once_with(
+            "setup",
+            token_id=1234,
+            claim_period_duration=1234,
+        )
+
+        assert returned == (1234, 1234)  # ✅ NEW ASSERTION FOR RETURN VALUE
+
+    def test_contract_deploy_setup_app_for_provided_network(self, mocker):
+        env = {
+            "algod_token_mainnet": "mainnet_token",
+            "algod_address_mainnet": "mainnet_address",
+            "rewards_token_id_mainnet": 9999,
+        }
+
+        mocked_env = mocker.patch(
+            "contract.deploy.environment_variables", return_value=env
+        )
+
+        client = mocker.MagicMock()
+        mocked_client = mocker.patch("contract.deploy.AlgodClient", return_value=client)
+
+        app_client = mocker.MagicMock()
+        mocked_appclient_instance = mocker.patch(
+            "contract.deploy.app_client_instance", return_value=app_client
+        )
+
+        mocker.patch("builtins.print")  # suppress console output
+
+        returned = setup_app(network="mainnet")
+
+        mocked_env.assert_called_once_with()
+        mocked_client.assert_called_once_with("mainnet_token", "mainnet_address")
+        mocked_appclient_instance.assert_called_once_with(client, "mainnet")
+
+        app_client.call.assert_called_once_with(
+            "setup",
+            token_id=9999,
+            claim_period_duration=9999,
+        )
+
+        assert returned == (9999, 9999)  # ✅ NEW ASSERTION FOR RETURN VALUE

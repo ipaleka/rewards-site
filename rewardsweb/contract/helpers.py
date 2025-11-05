@@ -4,13 +4,85 @@ import base64
 import json
 import os
 import time
+from pathlib import Path
 
+from algokit_utils.applications import AppClient
+from algosdk.abi.contract import Contract
+from algosdk.atomic_transaction_composer import AccountTransactionSigner
 from algosdk.encoding import decode_address
 from algosdk.mnemonic import to_private_key
 from algosdk.transaction import StateSchema
 from dotenv import load_dotenv
 
 DAPP_NAME = "Rewards"
+
+
+# # HELPERS
+def box_name_from_address(address):
+    """Return string representation of base64 encoded public Algorand `address`.
+
+    :param address: governance seat address
+    :type address: bytes
+    :return: str
+    """
+    return decode_address(address)
+
+
+def environment_variables():
+    """Return collection of required environment variables.
+
+    :return: dict
+    """
+    load_dotenv()
+    return {
+        "algod_token_testnet": os.getenv("ALGOD_TOKEN_TESTNET"),
+        "algod_token_mainnet": os.getenv("ALGOD_TOKEN_MAINNET"),
+        "algod_address_testnet": os.getenv("ALGOD_ADDRESS_TESTNET"),
+        "algod_address_mainnet": os.getenv("ALGOD_ADDRESS_MAINNET"),
+        "creator_mnemonic_testnet": os.getenv("CREATOR_MNEMONIC_TESTNET"),
+        "creator_mnemonic_mainnet": os.getenv("CREATOR_MNEMONIC_MAINNET"),
+        "user_mnemonic_testnet": os.getenv("USER_MNEMONIC_TESTNET"),
+        "user_mnemonic_mainnet": os.getenv("USER_MNEMONIC_MAINNET"),
+        "rewards_token_id_testnet": os.getenv("REWARDS_TOKEN_ID_TESTNET"),
+        "rewards_token_id_mainnet": os.getenv("REWARDS_TOKEN_ID_MAINNET"),
+        "rewards_dapp_name": os.getenv("REWARDS_DAPP_NAME"),
+        "claim_period_duration": os.getenv("CLAIM_PERIOD_DURATION"),
+    }
+
+
+def pause(seconds=1):
+    """Sleep for provided number of seconds.
+
+    :param seconds: number of seconds to pause
+    :type seconds: int
+    """
+    time.sleep(seconds)
+
+
+def private_key_from_mnemonic(passphrase):
+    """Return base64 encoded private key created from provided mnemonic `passphrase`.
+
+    :param passphrase: collection of English words separated by spaces
+    :type passphrase: str
+    :return: str
+    """
+    return to_private_key(passphrase)
+
+
+def read_json(filename):
+    """Return collection of key and values created from provided `filename` JSON file.
+
+    :param filename: full path to JSON file
+    :type filename: :class:`pathlib.Path`
+    :return: dict
+    """
+    if os.path.exists(filename):
+        with open(filename, "r") as json_file:
+            try:
+                return json.load(json_file)
+            except json.JSONDecodeError:
+                pass
+    return {}
 
 
 # # CONTRACT
@@ -60,69 +132,50 @@ def compile_program(client, source_code):
     return base64.b64decode(compile_response["result"])
 
 
-# # HELPERS
-def box_name_from_address(address):
-    """Return string representation of base64 encoded public Algorand `address`.
+# # NETWORK
+def app_client_instance(algod_client, network):
+    """Create and return an AppClient for the smart contract.
 
-    :param address: governance seat address
-    :type address: bytes
-    :return: str
+    :param algod_client: Algod client instance.
+    :type algod_client: :class:`algosdk.v2client.algod.AlgodClient`
+    :param network: The network to connect to (e.g., "testnet").
+    :type network: str
+    :var env: Environment variables.
+    :type env: dict
+    :var contract_json: The ARC-56 smart contract specification.
+    :type contract_json: dict
+    :var contract: Algorand ABI contract instance
+    :type contract: :class:`algosdk.abi.contract.Contract`
+    :var genesis_hash: unique network's genesis hash
+    :type genesis_hash: str
+    :var app_id: application unique identifier
+    :type app_id: int
+    :var creator_private_key: The private key of the application creator.
+    :type creator_private_key: str
+    :var creator_signer: The clear program source code.
+    :type creator_signer: :class:`algosdk.atomic_transaction_compose.AccountTransactionSigner`
+    :return: An AppClient instance.
+    :rtype: :class:`algokit_utils.applications.AppClient`
     """
-    return decode_address(address)
+    env = environment_variables()
+    contract_json = read_json(
+        Path(__file__).resolve().parent / "artifacts" / f"{DAPP_NAME}.arc56.json"
+    )
+    contract = Contract.from_json(contract_json)
+    genesis_hash = algod_client.suggested_params().gh
+    app_id = contract_json["networks"][genesis_hash]["app_id"]
 
+    creator_private_key = private_key_from_mnemonic(
+        env.get(f"creator_mnemonic_{network}")
+    )
+    creator_signer = AccountTransactionSigner(creator_private_key)
 
-def environment_variables():
-    """Return collection of required environment variables.
-
-    :return: dict
-    """
-    load_dotenv()
-    return {
-        "algod_token_testnet": os.getenv("ALGOD_TOKEN_TESTNET"),
-        "algod_token_mainnet": os.getenv("ALGOD_TOKEN_MAINNET"),
-        "algod_address_testnet": os.getenv("ALGOD_ADDRESS_TESTNET"),
-        "algod_address_mainnet": os.getenv("ALGOD_ADDRESS_MAINNET"),
-        "creator_mnemonic_testnet": os.getenv("CREATOR_MNEMONIC_TESTNET"),
-        "creator_mnemonic_mainnet": os.getenv("CREATOR_MNEMONIC_MAINNET"),
-        "user_mnemonic_testnet": os.getenv("USER_MNEMONIC_TESTNET"),
-        "user_mnemonic_mainnet": os.getenv("USER_MNEMONIC_MAINNET"),
-        "rewards_dapp_name": os.getenv("REWARDS_DAPP_NAME"),
-    }
-
-
-def pause(seconds=1):
-    """Sleep for provided number of seconds.
-
-    :param seconds: number of seconds to pause
-    :type seconds: int
-    """
-    time.sleep(seconds)
-
-
-def private_key_from_mnemonic(passphrase):
-    """Return base64 encoded private key created from provided mnemonic `passphrase`.
-
-    :param passphrase: collection of English words separated by spaces
-    :type passphrase: str
-    :return: str
-    """
-    return to_private_key(passphrase)
-
-
-def read_json(filename):
-    """Return collection of key and values created from provided `filename` JSON file.
-
-    :param filename: full path to JSON file
-    :type filename: :class:`pathlib.Path`
-    :return: dict
-    """
-    if os.path.exists(filename):
-        with open(filename, "r") as json_file:
-            try:
-                return json.load(json_file)
-            except json.JSONDecodeError:
-                pass
-    return {}
+    return AppClient(
+        algod_client,
+        contract,
+        app_id=app_id,
+        signer=creator_signer,
+    )
 
 
 def wait_for_confirmation(client, txid):

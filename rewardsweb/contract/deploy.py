@@ -6,6 +6,7 @@ from pathlib import Path
 from algosdk.v2client.algod import AlgodClient
 
 from contract.helpers import (
+    app_client_instance,
     compile_program,
     environment_variables,
     private_key_from_mnemonic,
@@ -99,3 +100,45 @@ def deploy_app(network="testnet"):
 
     # print("App ID: ", app_id)
     return app_id
+
+
+def setup_app(network="testnet"):
+    """Set up the deployed smart contract and return configuration values.
+
+    Creates an Algod client, initializes an :class:`AppClient` instance,
+    and invokes the ``setup`` method on the deployed smart contract
+    passing the token ID and claim duration as parameters.
+
+    :param network: The network environment to connect to (e.g., "testnet").
+    :type network: str
+    :var env: Environment variables collection
+    :type env: dict
+    :var client: Algorand Node client instance
+    :type client: :class:`AlgodClient`
+    :var app_client: AppClient instance for calling the application
+    :type app_client: :class:`AppClient`
+    :var token_id: configured ASA (Algorand Standard Asset) ID
+    :type token_id: int
+    :var claim_period_duration: configured claim period duration
+    :type claim_period_duration: int
+    :return: Token ID and claim period duration used for setup
+    :rtype: tuple[int, int]
+    """
+    env = environment_variables()
+    client = AlgodClient(
+        env.get(f"algod_token_{network}"), env.get(f"algod_address_{network}")
+    )
+    app_client = app_client_instance(client, network)
+
+    token_id = env.get(f"rewards_token_id_{network}")
+    claim_period_duration = env.get(f"rewards_token_id_{network}")
+
+    print("Setting up the contract...")
+    response = app_client.call(
+        "setup",
+        token_id=token_id,
+        claim_period_duration=claim_period_duration,
+    )
+    print(f"Contract setup complete in transaction {response.tx_id}")
+
+    return token_id, claim_period_duration

@@ -45,6 +45,42 @@ class TestDeployContractCommand:
         mocked_deploy.assert_called_once_with("mainnet")
 
 
+class TestSetupDappCommand:
+    """Testing class for management command
+
+    :py:mod:`core.management.commands.setup_dapp`."""
+
+    def test_setup_dapp_command_output_for_default_network_value(self, mocker):
+        token_id, period = 505, 172800
+        mocked_deploy = mocker.patch(
+            "core.management.commands.setup_dapp.setup_app",
+            return_value=(token_id, period),
+        )
+        with mock.patch(
+            "django.core.management.base.OutputWrapper.write"
+        ) as output_log:
+            call_command("setup_dapp")
+            output_log.assert_called_once_with(
+                "Application was set up for token 505 and claim duration of 2 days!"
+            )
+        mocked_deploy.assert_called_once_with("testnet")
+
+    def test_setup_dapp_command_output_for_provided_network_value(self, mocker):
+        token_id, period = 505, 172800
+        mocked_deploy = mocker.patch(
+            "core.management.commands.setup_dapp.setup_app",
+            return_value=(token_id, period),
+        )
+        with mock.patch(
+            "django.core.management.base.OutputWrapper.write"
+        ) as output_log:
+            call_command("setup_dapp", network="mainnet")
+            output_log.assert_called_once_with(
+                "Application was set up for token 505 and claim duration of 2 days!"
+            )
+        mocked_deploy.assert_called_once_with("mainnet")
+
+
 class TestExcel2DbCommand:
     """Testing class for management command
 

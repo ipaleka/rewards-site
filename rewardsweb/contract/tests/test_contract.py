@@ -42,16 +42,11 @@ def admin_account(algod_client: AlgodClient) -> SigningAccount:
 
 
 @pytest.fixture(scope="function")
-def rewards_client(
-    algod_client: AlgodClient,
-    admin_account: SigningAccount,
-    app_spec: Arc56Contract,
-) -> AppClient:
+def rewards_client(algod_client: AlgodClient, app_spec: Arc56Contract) -> AppClient:
     """Create an ApplicationClient for the rewards contract."""
-    app_client = AppClient.from_network(
+    return AppClient.from_network(
         app_spec=app_spec, algorand=algod_client, app_name="rewards"
     )
-    return app_client.create()
 
 
 @pytest.fixture(scope="session")

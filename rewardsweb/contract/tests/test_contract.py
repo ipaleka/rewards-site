@@ -1,11 +1,10 @@
-"""Testing module for :py:mod:`contract.rewards.contract` module."""
+"""Testing module for :py:mod:`contract.contract` module."""
 
+import os
 import time
 from pathlib import Path
 
 import pytest
-from dotenv import load_dotenv
-
 from algokit_utils import (
     AlgorandClient,
     Arc56Contract,
@@ -20,12 +19,15 @@ from algosdk.atomic_transaction_composer import (
 )
 from algosdk.transaction import AssetCreateTxn, PaymentTxn
 from algosdk.v2client.algod import AlgodClient
-
-# Assume tests are run from the project root
-CONTRACT_PATH = Path(__file__).parent.parent / "rewards"
-APP_SPEC_PATH = CONTRACT_PATH / "Rewards.arc56.json"
+from dotenv import load_dotenv
 
 load_dotenv(Path(__file__).parent.parent / ".env")
+
+dapp_name = os.getenv("REWARDS_DAPP_NAME")
+
+# Assume tests are run from the project root
+CONTRACT_PATH = Path(__file__).parent.parent / "artifacts"
+APP_SPEC_PATH = CONTRACT_PATH / f"{dapp_name}.arc56.json"
 
 
 @pytest.fixture(scope="session")
@@ -78,7 +80,7 @@ def create_asset(algod_client: AlgodClient, account: SigningAccount) -> int:
     return tx_info["asset-index"]
 
 
-class TestContractRewards:
+class TestContractContractRewards:
     """Testing class for :py:mod:`contract.rewards.contract` classes."""
 
     def test_contract_rewards_setup(

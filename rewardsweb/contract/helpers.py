@@ -1,26 +1,30 @@
-"""Module with Rewards dApp helpers functions."""
+"""Module with Rewards smart contract's helpers functions."""
 
 import base64
 import json
 import os
 import time
-from pathlib import Path
 
-from algosdk.abi.contract import Contract
-from algosdk.account import address_from_private_key
-from algosdk.atomic_transaction_composer import AccountTransactionSigner
 from algosdk.encoding import decode_address
 from algosdk.mnemonic import to_private_key
 from algosdk.transaction import StateSchema
 from dotenv import load_dotenv
 
+DAPP_NAME = "Rewards"
+
 
 # # CONTRACT
-def app_schemas():
+def app_schemas(contract_json):
     """Return instances of state schemas for smart contract's global and local apps.
 
-    :param local_ints: total number of local uint states
-    :type local_ints: int
+    :param contract_json: full path to smart contract's JSON file
+    :type contract_json: dict
+    :var schema: smart contract's schema
+    :type schema: dict
+    :var global_schema: smart contract's global schema
+    :type global_schema: dict
+    :var local_schema: smart contract's local schema
+    :type local_schema: dict
     :var local_bytes: total number of local bytes states
     :type local_bytes: int
     :var global_ints: total number of global uint states
@@ -29,10 +33,15 @@ def app_schemas():
     :type global_bytes: int
     :return: two-tuple
     """
-    local_ints = 0
-    local_bytes = 0
-    global_ints = 2
-    global_bytes = 1
+    schema = contract_json.get("state", {}).get("schema", {})
+    global_schema = schema.get("global", {})
+    local_schema = schema.get("local", {})
+
+    global_ints = global_schema.get("ints", 0)
+    global_bytes = global_schema.get("bytes", 0)
+    local_ints = local_schema.get("ints", 0)
+    local_bytes = local_schema.get("bytes", 0)
+
     return StateSchema(global_ints, global_bytes), StateSchema(local_ints, local_bytes)
 
 
@@ -51,19 +60,6 @@ def compile_program(client, source_code):
     return base64.b64decode(compile_response["result"])
 
 
-def load_contract():
-    """Load from disk, instantiate and return Permission dApp smart contract object.
-
-    :var contract_json: full path to Permission dApp smart contract file
-    :type contract_json: dict
-    :return: :class:`Contract`
-    """
-    contract_json = read_json(
-        Path(__file__).resolve().parent / "artifacts" / "Rewards.arc56.json"
-    )
-    return Contract.undictify(contract_json)
-
-
 # # HELPERS
 def box_name_from_address(address):
     """Return string representation of base64 encoded public Algorand `address`.
@@ -73,33 +69,6 @@ def box_name_from_address(address):
     :return: str
     """
     return decode_address(address)
-
-
-def box_writing_parameters(env, network_suffix=""):
-    """Instantiate and return arguments needed for writing boxes to blockchain.
-
-    :param env: environment variables collection
-    :type env: dict
-    :param network_suffix: network suffix for environment variable keys
-    :type network_suffix: str
-    :var creator_private_key: application creator's base64 encoded private key
-    :type creator_private_key: str
-    :var sender: application caller's address
-    :type sender: str
-    :var signer: application caller's signer instance
-    :type signer: :class:`AccountTransactionSigner`
-    :var contract: application caller's address
-    :type contract: :class:`Contract`
-    :return: dict
-    """
-    creator_private_key = private_key_from_mnemonic(
-        env.get(f"creator_mnemonic{network_suffix}")
-    )
-    sender = address_from_private_key(creator_private_key)
-    signer = AccountTransactionSigner(creator_private_key)
-    contract = load_contract()
-
-    return {"sender": sender, "signer": signer, "contract": contract}
 
 
 def environment_variables():
@@ -117,6 +86,7 @@ def environment_variables():
         "creator_mnemonic_mainnet": os.getenv("CREATOR_MNEMONIC_MAINNET"),
         "user_mnemonic_testnet": os.getenv("USER_MNEMONIC_TESTNET"),
         "user_mnemonic_mainnet": os.getenv("USER_MNEMONIC_MAINNET"),
+        "rewards_dapp_name": os.getenv("REWARDS_DAPP_NAME"),
     }
 
 
@@ -156,7 +126,19 @@ def read_json(filename):
 
 
 def wait_for_confirmation(client, txid):
-    """TODO: docstring and tests"""
+    """Wait for a blockchain transaction to be confirmed.
+
+    Polls Algorand node until the transaction referenced by `txid`
+    is confirmed in a round. Prints waiting messages until confirmation
+    then returns full pending transaction information.
+
+    :param client: Algorand Node client instance
+    :type client: :class:`AlgodClient`
+    :param txid: blockchain transaction ID
+    :type txid: str
+    :return: pending transaction info including confirmed round
+    :rtype: dict
+    """
     last_round = client.status().get("last-round")
     txinfo = client.pending_transaction_info(txid)
     while not (txinfo.get("confirmed-round") and txinfo.get("confirmed-round") > 0):

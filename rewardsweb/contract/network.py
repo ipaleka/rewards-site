@@ -6,9 +6,25 @@ from algosdk.account import address_from_private_key
 from contract.helpers import app_schemas, wait_for_confirmation
 
 
-# # PERMISSION DAPP
-def create_app(client, private_key, approval_program, clear_program):
-    """TODO: docstring and tests"""
+def create_app(client, private_key, approval_program, clear_program, contract_json):
+    """Create a new smart contract application on the Algorand blockchain.
+
+    Builds and submits an ApplicationCreate transaction using compiled approval
+    and clear programs. Waits for confirmation and returns the resulting app-id.
+
+    :param client: Algorand Node client instance
+    :type client: :class:`AlgodClient`
+    :param private_key: creator's private key used to sign transaction
+    :type private_key: str
+    :param approval_program: compiled TEAL approval program
+    :type approval_program: bytes
+    :param clear_program: compiled TEAL clear program
+    :type clear_program: bytes
+    :param contract_json: ARC-56 smart contract specification
+    :type contract_json: dict
+    :return: newly created application id
+    :rtype: int
+    """
     # define sender as creator
     sender = address_from_private_key(private_key)
 
@@ -21,7 +37,7 @@ def create_app(client, private_key, approval_program, clear_program):
     # params.flat_fee = True
     # params.fee = 1000
 
-    global_schema, local_schema = app_schemas()
+    global_schema, local_schema = app_schemas(contract_json)
 
     # create unsigned transaction
     txn = transaction.ApplicationCreateTxn(
@@ -53,7 +69,19 @@ def create_app(client, private_key, approval_program, clear_program):
 
 
 def delete_app(client, private_key, index):
-    """TODO: docstring and tests"""
+    """Delete an existing application on the Algorand blockchain.
+
+    Builds and submits an ApplicationDelete transaction, waits for confirmation,
+    and prints application id removed from the blockchain.
+
+    :param client: Algorand Node client instance
+    :type client: :class:`AlgodClient`
+    :param private_key: application's creator private key used to sign transaction
+    :type private_key: str
+    :param index: application id to delete
+    :type index: int
+    :return: None
+    """
     # declare sender
     sender = address_from_private_key(private_key)
 

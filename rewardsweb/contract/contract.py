@@ -1,4 +1,4 @@
-import typing
+"""ASA Stats Rewards smart contract module."""
 
 from algopy import (
     Account,

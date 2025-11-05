@@ -92,7 +92,7 @@ def deploy_app(network="testnet"):
     if "networks" not in contract_json:
         contract_json["networks"] = {}
 
-    contract_json["networks"][genesis_hash] = {"app_id": app_id}
+    contract_json["networks"][genesis_hash] = {"appID": app_id}
 
     # write to file
     with open(contract_json_path, "w") as json_file:

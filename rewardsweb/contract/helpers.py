@@ -161,9 +161,9 @@ def app_client_instance(algod_client, network):
     contract_json = read_json(
         Path(__file__).resolve().parent / "artifacts" / f"{DAPP_NAME}.arc56.json"
     )
-    contract = Contract.from_json(contract_json)
+    contract = Contract.from_json(json.dumps(contract_json))
     genesis_hash = algod_client.suggested_params().gh
-    app_id = contract_json["networks"][genesis_hash]["app_id"]
+    app_id = contract_json["networks"][genesis_hash]["appID"]
 
     creator_private_key = private_key_from_mnemonic(
         env.get(f"creator_mnemonic_{network}")

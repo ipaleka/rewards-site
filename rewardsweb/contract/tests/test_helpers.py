@@ -247,7 +247,7 @@ class TestContractHelpersNetworkFunctions:
         )
 
         # ---- mock contract JSON ----
-        contract_json = {"networks": {genesis_hash: {"app_id": app_id}}}
+        contract_json = {"networks": {genesis_hash: {"appID": app_id}}}
         mocked_read_json = mocker.patch(
             "contract.helpers.read_json", return_value=contract_json
         )
@@ -288,7 +288,7 @@ class TestContractHelpersNetworkFunctions:
         mocked_env.assert_called_once_with()
 
         mocked_read_json.assert_called_once()
-        mocked_contract.assert_called_once_with(contract_json)
+        mocked_contract.assert_called_once_with(json.dumps(contract_json))
 
         mocked_private_key.assert_called_once_with(env["creator_mnemonic_testnet"])
         mocked_signer.assert_called_once_with(creator_private_key)

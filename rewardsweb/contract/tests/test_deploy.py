@@ -165,7 +165,7 @@ class TestContractDeployFunctions:
             )
             assert contract_json["networks"][
                 "SGO1GKSzyE7IEPItTxCByw9x8FmnrCDexi9/cOUJOiI="
-            ] == {"app_id": 5050}
+            ] == {"appID": 5050}
             calls = [
                 mocker.call(
                     Path(contract.deploy.__file__).resolve().parent

@@ -2,7 +2,7 @@
 
 from django.core.management.base import BaseCommand
 
-from contract.deploy import deploy_app
+from contract.deploy import deploy_and_setup
 
 
 class Command(BaseCommand):
@@ -21,8 +21,7 @@ class Command(BaseCommand):
         :type app_id: int
         """
         network = options.get("network") or "testnet"
-        app_id = deploy_app(network)
+        app_id = deploy_and_setup(network)
         self.stdout.write(
-            "Smart contract application %i successfully deployed on %s!"
-            % (app_id, network)
+            "Application %i successfully deployed on %s!" % (app_id, network)
         )

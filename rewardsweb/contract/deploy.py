@@ -3,52 +3,87 @@
 import json
 from pathlib import Path
 
+from algosdk.account import address_from_private_key
+from algosdk.atomic_transaction_composer import AtomicTransactionComposer
+from algosdk.logic import get_application_address
+from algosdk.transaction import PaymentTxn
 from algosdk.v2client.algod import AlgodClient
 
 from contract.helpers import (
-    app_client_instance,
+    atc_method_stub,
     compile_program,
     environment_variables,
     private_key_from_mnemonic,
     read_json,
+    wait_for_confirmation,
 )
-from contract.network import create_app
+from contract.network import create_app, delete_app
+
+
+def delete_dapp(network, app_id):
+    """Delete a deployed smart contract application.
+
+    Creates an Algod client, retrieves the creator private key from the
+    environment, and calls :func:`delete_app` to remove the application
+    from the blockchain.
+
+    :param network: The network where the dApp exists (e.g., ``"testnet"``).
+    :type network: str
+    :param app_id: The application ID to delete.
+    :type app_id: int
+    :var env: Environment variables collection
+    :type env: dict
+    :var client: Algorand Node client instance
+    :type client: :class:`AlgodClient`
+    :var creator_private_key: private key of the creator used to sign deletion
+    :type creator_private_key: str
+    :return: None
+    :rtype: None
+    """
+    env = environment_variables()
+    client = AlgodClient(
+        env.get(f"algod_token_{network}"), env.get(f"algod_address_{network}")
+    )
+    creator_private_key = private_key_from_mnemonic(
+        env.get(f"creator_mnemonic_{network}")
+    )
+    delete_app(client, creator_private_key, app_id)
 
 
 def deploy_app(network="testnet"):
     """Compile ASA Stats Rewards smart contract, deploy it, and update the artifact.
 
     This function orchestrates the deployment process by:
-    1. Compiling the TEAL approval and clear programs.
-    2. Creating a new application on the specified network.
-    3. Capturing the new app ID and the network's genesis hash.
-    4. Updating the ARC-56 JSON artifact with the new network information.
+    1. Compiling the TEAL approval and clear programs
+    2. Creating a new application on the specified network
+    3. Capturing the new app ID and the network's genesis hash
+    4. Updating the ARC-56 JSON artifact with the new network information
 
-    :param network: The network to deploy to (e.g., "testnet").
+    :param network: network to deploy to (e.g., "testnet")
     :type network: str
-    :var env: Environment variables.
+    :var env: environment variables collection
     :type env: dict
-    :var dapp_name: The name of the smart contract application.
+    :var dapp_name: name of the smart contract application
     :type dapp_name: str
-    :var client: Algorand Node client.
+    :var client: Algorand Node client
     :type client: :class:`AlgodClient`
-    :var creator_private_key: The private key of the application creator.
+    :var creator_private_key: private key of the application creator
     :type creator_private_key: str
-    :var approval_program_source: The approval program source code.
+    :var approval_program_source: approval program source code
     :type approval_program_source: bytes
-    :var clear_program_source: The clear program source code.
+    :var clear_program_source: clear program source code
     :type clear_program_source: bytes
-    :var contract_json: The ARC-56 smart contract specification.
+    :var contract_json: ARC-56 smart contract specification
     :type contract_json: dict
-    :var approval_program: The compiled approval program.
+    :var approval_program: compiled approval program
     :type approval_program: str
-    :var clear_program: The compiled clear program.
+    :var clear_program: compiled clear program
     :type clear_program: str
-    :var app_id: The ID of the newly created application.
+    :var app_id: ID of the newly created application
     :type app_id: int
-    :var genesis_hash: The genesis hash of the network.
+    :var genesis_hash: genesis hash of the network
     :type genesis_hash: str
-    :return: The ID of the newly created application.
+    :return: ID of the newly created application
     :rtype: int
     """
     env = environment_variables()
@@ -102,43 +137,121 @@ def deploy_app(network="testnet"):
     return app_id
 
 
-def setup_app(network="testnet"):
-    """Set up the deployed smart contract and return configuration values.
+def fund_app(app_id, network):
+    """Fund the application escrow account with 0.2 Algo.
 
-    Creates an Algod client, initializes an :class:`AppClient` instance,
-    and invokes the ``setup`` method on the deployed smart contract
-    passing the token ID and claim duration as parameters.
+    Creates an Algod client and sends a payment transaction from the
+    creator's account to the application escrow address. Waits for
+    confirmation before returning.
 
-    :param network: The network environment to connect to (e.g., "testnet").
+    :param app_id: The smart contract application ID.
+    :type app_id: int
+    :param network: Network where the app is deployed (e.g., ``"testnet"``).
     :type network: str
     :var env: Environment variables collection
     :type env: dict
     :var client: Algorand Node client instance
     :type client: :class:`AlgodClient`
-    :var app_client: AppClient instance for calling the application
-    :type app_client: :class:`AppClient`
-    :var token_id: configured ASA (Algorand Standard Asset) ID
+    :var creator_private_key: The private key of the application creator
+    :type creator_private_key: str
+    :var sender: Derived Algorand wallet address from private key
+    :type sender: str
+    :var app_address: Application escrow account address
+    :type app_address: str
+    :return: None
+    :rtype: None
+    """
+    env = environment_variables()
+
+    client = AlgodClient(
+        env.get(f"algod_token_{network}"), env.get(f"algod_address_{network}")
+    )
+    creator_private_key = private_key_from_mnemonic(
+        env.get(f"creator_mnemonic_{network}")
+    )
+    sender = address_from_private_key(creator_private_key)
+    app_address = get_application_address(app_id)
+    suggested_params = client.suggested_params()
+    suggested_params.flat_fee = True
+    suggested_params.fee = 1000
+
+    # Amount to send: 0.2 Algo (200,000 microAlgos)
+    amount = 200000
+
+    txn = PaymentTxn(
+        sender=sender,
+        sp=suggested_params,
+        receiver=app_address,
+        amt=amount,
+    )
+
+    signed_txn = txn.sign(creator_private_key)
+    tx_id = signed_txn.transaction.get_txid()
+    client.send_transactions([signed_txn])
+    wait_for_confirmation(client, tx_id)
+    print(f"Funded app {app_id} with {amount / 1_000_000} Algo in transaction {tx_id}")
+
+
+def deploy_and_setup(network):
+    """Deploy smart contract on `network`, fund the app's escrow, and setup application.
+
+    :param network: network to deploy to (e.g., "testnet")
+    :type network: str
+    :var app_id: Rewards dApp unique identifier
+    :type app_id: int
+    :return: int
+    """
+    app_id = deploy_app(network)
+    fund_app(app_id, network)
+    setup_app(network)
+    return app_id
+
+
+def setup_app(network):
+    """Set up the deployed smart contract.
+
+    :param network: network to deploy to (e.g., "testnet")
+    :type network: str
+    :var env: environment variables collection
+    :type env: dict
+    :var client: Algorand Node client
+    :type client: :class:`AlgodClient`
+    :var token_id: Algorand standard asset identifier to be distributed
     :type token_id: int
-    :var claim_period_duration: configured claim period duration
+    :var claim_period_duration: duration of the claim period in seconds
     :type claim_period_duration: int
-    :return: Token ID and claim period duration used for setup
-    :rtype: tuple[int, int]
+    :var genesis_hash: genesis hash of the network
+    :type genesis_hash: str
+    :var atc_stub: collection of data required to create atomic transaction
+    :type atc_stub: dict
+    :var atc: clear program source code
+    :type atc: :class:`AtomicTransactionComposer`
+    :var sp: suggested transaction params
+    :type sp: :class:`transaction.SuggestedParams`
+    :var response: atomic transaction creation response
+    :type response: :class:`AtomicTransactionResponse`
     """
     env = environment_variables()
     client = AlgodClient(
         env.get(f"algod_token_{network}"), env.get(f"algod_address_{network}")
     )
-    app_client = app_client_instance(client, network)
-
-    token_id = env.get(f"rewards_token_id_{network}")
-    claim_period_duration = env.get(f"rewards_token_id_{network}")
-
-    print("Setting up the contract...")
-    response = app_client.call(
-        "setup",
-        token_id=token_id,
-        claim_period_duration=claim_period_duration,
+    token_id = int(env.get(f"rewards_token_id_{network}"))
+    claim_period_duration = int(env.get("claim_period_duration"))
+    genesis_hash = client.suggested_params().gh
+    atc_stub = atc_method_stub(network, genesis_hash)
+    atc = AtomicTransactionComposer()
+    sp = client.suggested_params()
+    sp.flat_fee = True
+    sp.fee = 2000
+    atc.add_method_call(
+        app_id=atc_stub.get("app_id"),
+        method=atc_stub.get("contract").get_method_by_name("setup"),
+        sender=atc_stub.get("sender"),
+        sp=sp,
+        signer=atc_stub.get("signer"),
+        method_args=[token_id, claim_period_duration],
+        foreign_assets=[token_id],
     )
-    print(f"Contract setup complete in transaction {response.tx_id}")
-
-    return token_id, claim_period_duration
+    print("Setting up the contract...")
+    response = atc.execute(client, 2)
+    print(f"Contract setup complete in transaction {response.tx_ids[0]}")

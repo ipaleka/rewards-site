@@ -6,8 +6,8 @@ import os
 import time
 from pathlib import Path
 
-from algokit_utils.applications import AppClient
 from algosdk.abi.contract import Contract
+from algosdk.account import address_from_private_key
 from algosdk.atomic_transaction_composer import AccountTransactionSigner
 from algosdk.encoding import decode_address
 from algosdk.mnemonic import to_private_key
@@ -133,49 +133,43 @@ def compile_program(client, source_code):
 
 
 # # NETWORK
-def app_client_instance(algod_client, network):
-    """Create and return an AppClient for the smart contract.
+def atc_method_stub(network, genesis_hash):
+    """Return instances needed for calling a method with AtomicTransactionComposer.
 
-    :param algod_client: Algod client instance.
-    :type algod_client: :class:`algosdk.v2client.algod.AlgodClient`
     :param network: The network to connect to (e.g., "testnet").
     :type network: str
+    :param genesis_hash: The network to connect to (e.g., "testnet").
+    :type genesis_hash: str
     :var env: Environment variables.
     :type env: dict
+    :var creator_private_key: The private key of the application creator.
+    :type creator_private_key: str
+    :var sender: The address of the transaction sender.
+    :type sender: str
+    :var signer: The transaction signer.
+    :type signer: :class:`algosdk.atomic_transaction_composer.AccountTransactionSigner`
     :var contract_json: The ARC-56 smart contract specification.
     :type contract_json: dict
     :var contract: Algorand ABI contract instance
     :type contract: :class:`algosdk.abi.contract.Contract`
-    :var genesis_hash: unique network's genesis hash
-    :type genesis_hash: str
-    :var app_id: application unique identifier
+    :var app_id: Rewards dApp unique identifier
     :type app_id: int
-    :var creator_private_key: The private key of the application creator.
-    :type creator_private_key: str
-    :var creator_signer: The clear program source code.
-    :type creator_signer: :class:`algosdk.atomic_transaction_compose.AccountTransactionSigner`
-    :return: An AppClient instance.
-    :rtype: :class:`algokit_utils.applications.AppClient`
+    :return: A dictionary with sender, signer, and contract.
+    :rtype: dict
     """
     env = environment_variables()
+    creator_private_key = private_key_from_mnemonic(
+        env.get(f"creator_mnemonic_{network}")
+    )
+    sender = address_from_private_key(creator_private_key)
+    signer = AccountTransactionSigner(creator_private_key)
     contract_json = read_json(
         Path(__file__).resolve().parent / "artifacts" / f"{DAPP_NAME}.arc56.json"
     )
     contract = Contract.from_json(json.dumps(contract_json))
-    genesis_hash = algod_client.suggested_params().gh
     app_id = contract_json["networks"][genesis_hash]["appID"]
 
-    creator_private_key = private_key_from_mnemonic(
-        env.get(f"creator_mnemonic_{network}")
-    )
-    creator_signer = AccountTransactionSigner(creator_private_key)
-
-    return AppClient(
-        algod_client,
-        contract,
-        app_id=app_id,
-        signer=creator_signer,
-    )
+    return {"sender": sender, "signer": signer, "contract": contract, "app_id": app_id}
 
 
 def wait_for_confirmation(client, txid):

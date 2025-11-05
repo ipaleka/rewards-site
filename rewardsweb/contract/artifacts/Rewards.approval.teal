@@ -4,11 +4,11 @@
 // algopy.arc4.ARC4Contract.approval_program() -> uint64:
 main:
     intcblock 0 1 8 4
-    bytecblock "token_id" "admin_address" "allocations" "claim_period_duration"
-    // contract.py:26
+    bytecblock "token_id" "admin_address" "claim_period_duration" "allocations"
+    // contract/contract.py:26
     // class Rewards(arc4.ARC4Contract):
     txn NumAppArgs
-    bz main_create_application@13
+    bz main_bare_routing@13
     txn OnCompletion
     !
     assert // OnCompletion must be NoOp
@@ -19,29 +19,64 @@ main:
     match setup add_allocations claim reclaim_allocation
     err
 
-main_create_application@13:
-    // contract.py:58
-    // @arc4.baremethod(allow_actions=["NoOp"], create="require")
+main_bare_routing@13:
+    // contract/contract.py:26
+    // class Rewards(arc4.ARC4Contract):
+    intc_0 // NoOp
+    pushint 5 // DeleteApplication
     txn OnCompletion
-    !
+    match main_create_application@14 main_delete_application@15
+    err
+
+main_delete_application@15:
+    // contract/contract.py:69
+    // @arc4.baremethod(allow_actions=["DeleteApplication"])
+    txn ApplicationID
+    assert // can only call when not creating
+    // contract/contract.py:74
+    // assert Txn.sender == self.admin_address.value, "Sender is not the admin"
+    txn Sender
+    intc_0 // 0
+    bytec_1 // "admin_address"
+    app_global_get_ex
+    assert // check self.admin_address exists
+    ==
+    assert // Sender is not the admin
+    // contract/contract.py:69
+    // @arc4.baremethod(allow_actions=["DeleteApplication"])
+    intc_1 // 1
+    return
+
+main_create_application@14:
+    // contract/contract.py:58
+    // @arc4.baremethod(allow_actions=["NoOp"], create="require")
     txn ApplicationID
     !
-    &&
-    assert // OnCompletion must be NoOp && can only call when creating
-    // contract.py:65
+    assert // can only call when creating
+    // contract/contract.py:65
     // self.admin_address.value = Txn.sender
     bytec_1 // "admin_address"
     txn Sender
     app_global_put
-    // contract.py:58
+    // contract/contract.py:66
+    // self.token_id.value = UInt64(0)
+    bytec_0 // "token_id"
+    intc_0 // 0
+    app_global_put
+    // contract/contract.py:67
+    // self.claim_period_duration.value = UInt64(0)
+    bytec_2 // "claim_period_duration"
+    intc_0 // 0
+    app_global_put
+    // contract/contract.py:58
     // @arc4.baremethod(allow_actions=["NoOp"], create="require")
     intc_1 // 1
     return
 
 
-// contract.artifacts.contract.Rewards.setup[routing]() -> void:
+// contract.contract.Rewards.setup[routing]() -> void:
 setup:
-    // contract.py:67
+    // contract/contract.py:76
     // @arc4.abimethod
     txna ApplicationArgs 1
     dup
@@ -57,7 +92,7 @@ setup:
     ==
     assert // invalid number of bytes for arc4.uint64
     btoi
-    // contract.py:79
+    // contract/contract.py:88
     // assert Txn.sender == self.admin_address.value, "Sender is not the admin"
     txn Sender
     intc_0 // 0
@@ -66,25 +101,25 @@ setup:
     assert // check self.admin_address exists
     ==
     assert // Sender is not the admin
-    // contract.py:80
-    // assert self.token_id.value.id == 0, "Contract already set up"
+    // contract/contract.py:89
+    // assert self.token_id.value == 0, "Contract already set up"
     intc_0 // 0
     bytec_0 // "token_id"
     app_global_get_ex
     assert // check self.token_id exists
     !
     assert // Contract already set up
-    // contract.py:81
-    // self.token_id.value = token_id
+    // contract/contract.py:90
+    // self.token_id.value = token_id.id
     bytec_0 // "token_id"
     uncover 2
     app_global_put
-    // contract.py:82
+    // contract/contract.py:91
     // self.claim_period_duration.value = claim_period_duration
-    bytec_3 // "claim_period_duration"
+    bytec_2 // "claim_period_duration"
     swap
     app_global_put
-    // contract.py:84-89
+    // contract/contract.py:93-98
     // # Contract opts-in to the ASA
     // itxn.AssetTransfer(
     //     xfer_asset=self.token_id.value,
@@ -92,29 +127,29 @@ setup:
     //     asset_amount=0,
     // ).submit()
     itxn_begin
-    // contract.py:86
+    // contract/contract.py:95
     // xfer_asset=self.token_id.value,
     intc_0 // 0
     bytec_0 // "token_id"
     app_global_get_ex
     assert // check self.token_id exists
-    // contract.py:87
+    // contract/contract.py:96
     // asset_receiver=Global.current_application_address,
     global CurrentApplicationAddress
-    // contract.py:88
+    // contract/contract.py:97
     // asset_amount=0,
     intc_0 // 0
     itxn_field AssetAmount
     itxn_field AssetReceiver
     itxn_field XferAsset
-    // contract.py:84-85
+    // contract/contract.py:93-94
     // # Contract opts-in to the ASA
     // itxn.AssetTransfer(
     intc_3 // axfer
     itxn_field TypeEnum
     intc_0 // 0
     itxn_field Fee
-    // contract.py:84-89
+    // contract/contract.py:93-98
     // # Contract opts-in to the ASA
     // itxn.AssetTransfer(
     //     xfer_asset=self.token_id.value,
@@ -122,15 +157,15 @@ setup:
     //     asset_amount=0,
     // ).submit()
     itxn_submit
-    // contract.py:67
+    // contract/contract.py:76
     // @arc4.abimethod
     intc_1 // 1
     return
 
 
-// contract.artifacts.contract.Rewards.add_allocations[routing]() -> void:
+// contract.contract.Rewards.add_allocations[routing]() -> void:
 add_allocations:
-    // contract.py:91
+    // contract/contract.py:100
     // @arc4.abimethod
     txna ApplicationArgs 1
     dupn 2
@@ -162,7 +197,7 @@ add_allocations:
     len
     ==
     assert // invalid number of bytes for arc4.dynamic_array<arc4.uint64>
-    // contract.py:107
+    // contract/contract.py:116
     // assert Txn.sender == self.admin_address.value, "Sender is not the admin"
     txn Sender
     intc_0 // 0
@@ -171,34 +206,34 @@ add_allocations:
     assert // check self.admin_address exists
     ==
     assert // Sender is not the admin
-    // contract.py:109
+    // contract/contract.py:118
     // addresses.length == amounts.length
     ==
-    // contract.py:108-110
+    // contract/contract.py:117-119
     // assert (
     //     addresses.length == amounts.length
     // ), "Input arrays must have the same length"
     assert // Input arrays must have the same length
-    // contract.py:112
+    // contract/contract.py:121
     // expires_at = Global.latest_timestamp + self.claim_period_duration.value
     global LatestTimestamp
     intc_0 // 0
-    bytec_3 // "claim_period_duration"
+    bytec_2 // "claim_period_duration"
     app_global_get_ex
     assert // check self.claim_period_duration exists
     +
-    // contract.py:113
+    // contract/contract.py:122
     // for i in urange(addresses.length):
     intc_0 // 0
 
 add_allocations_for_header@2:
-    // contract.py:113
+    // contract/contract.py:122
     // for i in urange(addresses.length):
     dup
     dig 4
     <
     bz add_allocations_after_for@8
-    // contract.py:114
+    // contract/contract.py:123
     // address = addresses[i].native
     dig 4
     extract 2 0
@@ -209,7 +244,7 @@ add_allocations_for_header@2:
     *
     pushint 32 // 32
     extract3 // on error: index access is out of bounds
-    // contract.py:115
+    // contract/contract.py:124
     // amount = amounts[i].native
     dig 4
     extract 2 0
@@ -218,26 +253,26 @@ add_allocations_for_header@2:
     *
     extract_uint64
     swap
-    // contract.py:116
+    // contract/contract.py:125
     // allocation_box = self.allocations.box(address)
-    bytec_2 // "allocations"
+    bytec_3 // "allocations"
     swap
     concat
     dup
     cover 2
-    // contract.py:117
+    // contract/contract.py:126
     // if allocation_box:
     box_len
     bury 1
     bz add_allocations_else_body@5
-    // contract.py:118-119
+    // contract/contract.py:127-128
     // # Update existing allocation
     // existing_allocation = allocation_box.value.copy()
     swap
     dup
     box_get
     assert // check Box exists
-    // contract.py:120
+    // contract/contract.py:129
     // existing_allocation.amount += amount
     dup
     intc_0 // 0
@@ -246,17 +281,17 @@ add_allocations_for_header@2:
     +
     itob
     replace2 0
-    // contract.py:121
+    // contract/contract.py:130
     // existing_allocation.expires_at = expires_at
     dig 3
     itob
     replace2 8
-    // contract.py:122
+    // contract/contract.py:131
     // allocation_box.value = existing_allocation.copy()
     box_put
 
 add_allocations_after_if_else@6:
-    // contract.py:113
+    // contract/contract.py:122
     // for i in urange(addresses.length):
     dup
     intc_1 // 1
@@ -265,7 +300,7 @@ add_allocations_after_if_else@6:
     b add_allocations_for_header@2
 
 add_allocations_else_body@5:
-    // contract.py:125-126
+    // contract/contract.py:134-135
     // # Create new allocation
     // assert allocation_box.create()
     swap
@@ -273,7 +308,7 @@ add_allocations_else_body@5:
     pushint 16 // 16
     box_create
     assert
-    // contract.py:127
+    // contract/contract.py:136
     // allocation_box.value = Allocation(amount=amount, expires_at=expires_at)
     swap
     itob
@@ -284,55 +319,55 @@ add_allocations_else_body@5:
     b add_allocations_after_if_else@6
 
 add_allocations_after_for@8:
-    // contract.py:91
+    // contract/contract.py:100
     // @arc4.abimethod
     intc_1 // 1
     return
 
 
-// contract.artifacts.contract.Rewards.claim[routing]() -> void:
+// contract.contract.Rewards.claim[routing]() -> void:
 claim:
-    // contract.py:138
+    // contract/contract.py:147
     // sender = Txn.sender
     txn Sender
     dup
-    // contract.py:139
+    // contract/contract.py:148
     // allocation_box = self.allocations.box(sender)
-    bytec_2 // "allocations"
+    bytec_3 // "allocations"
     dig 1
     concat
     dup
     cover 2
-    // contract.py:140
+    // contract/contract.py:149
     // assert allocation_box, "Sender has no allocation"
     dup
     box_len
     bury 1
     assert // Sender has no allocation
-    // contract.py:141
+    // contract/contract.py:150
     // amount_to_claim = allocation_box.value.amount
     box_get
     pop
     intc_0 // 0
     extract_uint64
     swap
-    // contract.py:145
-    // sender, self.token_id.value.id
+    // contract/contract.py:154
+    // sender, self.token_id.value
     intc_0 // 0
     bytec_0 // "token_id"
     app_global_get_ex
     assert // check self.token_id exists
-    // contract.py:143-146
+    // contract/contract.py:152-155
     // # Check if the user is already opted-in to the asset
     // balance, opted_in = op.AssetHoldingGet.asset_balance(
-    //     sender, self.token_id.value.id
+    //     sender, self.token_id.value
     // )
     asset_holding_get AssetBalance
     bury 1
-    // contract.py:148
+    // contract/contract.py:157
     // if not opted_in:
     bnz claim_after_if_else@4
-    // contract.py:149-154
+    // contract/contract.py:158-163
     // # Create an opt-in transaction for the user
     // itxn.AssetTransfer(
     //     xfer_asset=self.token_id.value,
@@ -340,27 +375,27 @@ claim:
     //     asset_amount=0,
     // ).submit()
     itxn_begin
-    // contract.py:151
+    // contract/contract.py:160
     // xfer_asset=self.token_id.value,
     intc_0 // 0
     bytec_0 // "token_id"
     app_global_get_ex
     assert // check self.token_id exists
-    // contract.py:153
+    // contract/contract.py:162
     // asset_amount=0,
     intc_0 // 0
     itxn_field AssetAmount
     dig 3
     itxn_field AssetReceiver
     itxn_field XferAsset
-    // contract.py:149-150
+    // contract/contract.py:158-159
     // # Create an opt-in transaction for the user
     // itxn.AssetTransfer(
     intc_3 // axfer
     itxn_field TypeEnum
     intc_0 // 0
     itxn_field Fee
-    // contract.py:149-154
+    // contract/contract.py:158-163
     // # Create an opt-in transaction for the user
     // itxn.AssetTransfer(
     //     xfer_asset=self.token_id.value,
@@ -370,7 +405,7 @@ claim:
     itxn_submit
 
 claim_after_if_else@4:
-    // contract.py:156-161
+    // contract/contract.py:165-170
     // # Create the transaction to transfer the allocated amount
     // itxn.AssetTransfer(
     //     xfer_asset=self.token_id.value,
@@ -378,7 +413,7 @@ claim_after_if_else@4:
     //     asset_amount=amount_to_claim,
     // ).submit()
     itxn_begin
-    // contract.py:158
+    // contract/contract.py:167
     // xfer_asset=self.token_id.value,
     intc_0 // 0
     bytec_0 // "token_id"
@@ -389,14 +424,14 @@ claim_after_if_else@4:
     dig 3
     itxn_field AssetReceiver
     itxn_field XferAsset
-    // contract.py:156-157
+    // contract/contract.py:165-166
     // # Create the transaction to transfer the allocated amount
     // itxn.AssetTransfer(
     intc_3 // axfer
     itxn_field TypeEnum
     intc_0 // 0
     itxn_field Fee
-    // contract.py:156-161
+    // contract/contract.py:165-170
     // # Create the transaction to transfer the allocated amount
     // itxn.AssetTransfer(
     //     xfer_asset=self.token_id.value,
@@ -404,21 +439,21 @@ claim_after_if_else@4:
     //     asset_amount=amount_to_claim,
     // ).submit()
     itxn_submit
-    // contract.py:163-164
+    // contract/contract.py:172-173
     // # Delete the allocation to prevent claiming again
     // del allocation_box.value
     dig 1
     box_del
     pop
-    // contract.py:129
+    // contract/contract.py:138
     // @arc4.abimethod(name="claim")
     intc_1 // 1
     return
 
 
-// contract.artifacts.contract.Rewards.reclaim_allocation[routing]() -> void:
+// contract.contract.Rewards.reclaim_allocation[routing]() -> void:
 reclaim_allocation:
-    // contract.py:166
+    // contract/contract.py:175
     // @arc4.abimethod
     txna ApplicationArgs 1
     dup
@@ -426,7 +461,7 @@ reclaim_allocation:
     pushint 32 // 32
     ==
     assert // invalid number of bytes for arc4.static_array<arc4.uint8, 32>
-    // contract.py:174
+    // contract/contract.py:183
     // assert Txn.sender == self.admin_address.value, "Sender is not the admin"
     txn Sender
     intc_0 // 0
@@ -437,35 +472,35 @@ reclaim_allocation:
     dig 1
     ==
     assert // Sender is not the admin
-    // contract.py:175
+    // contract/contract.py:184
     // allocation_box = self.allocations.box(user_address)
-    bytec_2 // "allocations"
+    bytec_3 // "allocations"
     uncover 2
     concat
-    // contract.py:176
+    // contract/contract.py:185
     // assert allocation_box, "User has no allocation"
     dup
     box_len
     bury 1
     assert // User has no allocation
-    // contract.py:177
+    // contract/contract.py:186
     // allocation = allocation_box.value.copy()
     dup
     box_get
     pop
-    // contract.py:179
+    // contract/contract.py:188
     // Global.latest_timestamp > allocation.expires_at
     global LatestTimestamp
     dig 1
     intc_2 // 8
     extract_uint64
     >
-    // contract.py:178-180
+    // contract/contract.py:187-189
     // assert (
     //     Global.latest_timestamp > allocation.expires_at
     // ), "Claim period has not ended for this user"
     assert // Claim period has not ended for this user
-    // contract.py:182-187
+    // contract/contract.py:191-196
     // # Transfer the user's allocated amount back to the admin
     // itxn.AssetTransfer(
     //     xfer_asset=self.token_id.value,
@@ -473,13 +508,13 @@ reclaim_allocation:
     //     asset_amount=allocation.amount,
     // ).submit()
     itxn_begin
-    // contract.py:184
+    // contract/contract.py:193
     // xfer_asset=self.token_id.value,
     intc_0 // 0
     bytec_0 // "token_id"
     app_global_get_ex
     assert // check self.token_id exists
-    // contract.py:186
+    // contract/contract.py:195
     // asset_amount=allocation.amount,
     swap
     intc_0 // 0
@@ -488,14 +523,14 @@ reclaim_allocation:
     uncover 2
     itxn_field AssetReceiver
     itxn_field XferAsset
-    // contract.py:182-183
+    // contract/contract.py:191-192
     // # Transfer the user's allocated amount back to the admin
     // itxn.AssetTransfer(
     intc_3 // axfer
     itxn_field TypeEnum
     intc_0 // 0
     itxn_field Fee
-    // contract.py:182-187
+    // contract/contract.py:191-196
     // # Transfer the user's allocated amount back to the admin
     // itxn.AssetTransfer(
     //     xfer_asset=self.token_id.value,
@@ -503,12 +538,12 @@ reclaim_allocation:
     //     asset_amount=allocation.amount,
     // ).submit()
     itxn_submit
-    // contract.py:189-190
+    // contract/contract.py:198-199
     // # Delete the allocation
     // del allocation_box.value
     box_del
     pop
-    // contract.py:166
+    // contract/contract.py:175
     // @arc4.abimethod
     intc_1 // 1
     return

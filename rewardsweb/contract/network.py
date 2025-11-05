@@ -34,9 +34,9 @@ def create_app(client, private_key, approval_program, clear_program, contract_js
 
     # get node suggested parameters
     params = client.suggested_params()
-    # # comment out the next two (2) lines to use suggested fees
-    # params.flat_fee = True
-    # params.fee = 1000
+    # comment out the next two (2) lines to use suggested fees
+    params.flat_fee = True
+    params.fee = 1000
 
     global_schema, local_schema = app_schemas(contract_json)
 
@@ -69,7 +69,7 @@ def create_app(client, private_key, approval_program, clear_program, contract_js
     return app_id, params.gh
 
 
-def delete_app(client, private_key, index):
+def delete_app(client, private_key, app_id):
     """Delete an existing application on the Algorand blockchain.
 
     Builds and submits an ApplicationDelete transaction, waits for confirmation,
@@ -79,9 +79,8 @@ def delete_app(client, private_key, index):
     :type client: :class:`AlgodClient`
     :param private_key: application's creator private key used to sign transaction
     :type private_key: str
-    :param index: application id to delete
-    :type index: int
-    :return: None
+    :param app_id: application identifier
+    :type app_id: int
     """
     # declare sender
     sender = address_from_private_key(private_key)
@@ -93,7 +92,7 @@ def delete_app(client, private_key, index):
     params.fee = 1000
 
     # create unsigned transaction
-    txn = transaction.ApplicationDeleteTxn(sender, params, index)
+    txn = transaction.ApplicationDeleteTxn(sender, params, app_id)
 
     # sign transaction
     signed_txn = txn.sign(private_key)

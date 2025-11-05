@@ -161,18 +161,20 @@ After you activated the Python environment, you can compile smart contract by is
 
 .. code-block:: bash
 
-  cd rewardsweb/contract/artifacts
-  algokit compile py contract.py
+  cd rewardsweb
+  algokit compile py contract/contract.py --out-dir artifacts
 
 
-Deploy
-^^^^^^
+Deploy, fund, and setup dApp
+^^^^^^^^^^^^^^^^^^^^^^^^^^^^
 
-You can deploy the generated smart contract by running Django mamangement command:
+Here's a shortcat Django management command that will deploy generated smart contract on the blockchain,
+fund the related account with required ALGO, and finally set up the dApp with rewards token ID and
+claim period duration values retrieved from the environemnt variables:
 
 .. code-block:: bash
 
-  python manage.py deploy_contract testnet
+  python manage.py deploy_dapp testnet
 
 
 Tests

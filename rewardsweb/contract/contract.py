@@ -46,7 +46,7 @@ class Rewards(arc4.ARC4Contract):
         self.admin_address = GlobalState(Account)
 
         # The ID of the ASA being distributed
-        self.token_id = GlobalState(Asset)
+        self.token_id = GlobalState(UInt64)
 
         # The duration of the claim period in seconds
         self.claim_period_duration = GlobalState(UInt64)
@@ -63,6 +63,15 @@ class Rewards(arc4.ARC4Contract):
         It sets the sender of the creation transaction as the admin.
         """
         self.admin_address.value = Txn.sender
+        self.token_id.value = UInt64(0)
+        self.claim_period_duration.value = UInt64(0)
+
+    @arc4.baremethod(allow_actions=["DeleteApplication"])
+    def delete_application(self) -> None:
+        """
+        Allows the admin to delete the application.
+        """
+        assert Txn.sender == self.admin_address.value, "Sender is not the admin"
 
     @arc4.abimethod
     def setup(self, token_id: Asset, claim_period_duration: UInt64) -> None:
@@ -77,8 +86,8 @@ class Rewards(arc4.ARC4Contract):
         """
 
         assert Txn.sender == self.admin_address.value, "Sender is not the admin"
-        assert self.token_id.value.id == 0, "Contract already set up"
-        self.token_id.value = token_id
+        assert self.token_id.value == 0, "Contract already set up"
+        self.token_id.value = token_id.id
         self.claim_period_duration.value = claim_period_duration
 
         # Contract opts-in to the ASA
@@ -142,7 +151,7 @@ class Rewards(arc4.ARC4Contract):
 
         # Check if the user is already opted-in to the asset
         balance, opted_in = op.AssetHoldingGet.asset_balance(
-            sender, self.token_id.value.id
+            sender, self.token_id.value
         )
 
         if not opted_in:

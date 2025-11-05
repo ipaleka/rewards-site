@@ -4,11 +4,77 @@ from pathlib import Path
 from unittest import mock
 
 import contract.deploy
-from contract.deploy import deploy_app, setup_app
+from contract.deploy import (
+    delete_dapp,
+    deploy_and_setup,
+    deploy_app,
+    fund_app,
+    setup_app,
+)
 
 
 class TestContractDeployFunctions:
-    """Testing class for :py:mod:`deploy` functions."""
+    """Testing class for :py:mod:`contract.deploy` functions."""
+
+    # # delete_dapp
+    def test_contract_deploy_delete_dapp_calls_delete_app(self, mocker):
+        network = "testnet"
+        app_id = 5052
+
+        env = {
+            "algod_token_testnet": "token",
+            "algod_address_testnet": "address",
+            "creator_mnemonic_testnet": "mnemonic",
+        }
+
+        mocked_env = mocker.patch(
+            "contract.deploy.environment_variables", return_value=env
+        )
+
+        client = mocker.MagicMock()
+        mocked_client = mocker.patch("contract.deploy.AlgodClient", return_value=client)
+
+        creator_private_key = mocker.MagicMock()
+        mocked_private_key = mocker.patch(
+            "contract.deploy.private_key_from_mnemonic",
+            return_value=creator_private_key,
+        )
+
+        mocked_delete = mocker.patch("contract.deploy.delete_app")
+
+        delete_dapp(network, app_id)
+
+        mocked_env.assert_called_once_with()
+        mocked_client.assert_called_once_with("token", "address")
+        mocked_private_key.assert_called_once_with("mnemonic")
+        mocked_delete.assert_called_once_with(client, creator_private_key, app_id)
+
+    def test_contract_deploy_delete_dapp_for_mainnet(self, mocker):
+        network = "mainnet"
+        app_id = 5058
+
+        env = {
+            "algod_token_mainnet": "TOKEN_MAIN",
+            "algod_address_mainnet": "ADDRESS_MAIN",
+            "creator_mnemonic_mainnet": "MNEMONIC_MAIN",
+        }
+
+        mocker.patch("contract.deploy.environment_variables", return_value=env)
+
+        client = mocker.MagicMock()
+        mocker.patch("contract.deploy.AlgodClient", return_value=client)
+
+        creator_private_key = mocker.MagicMock()
+        mocker.patch(
+            "contract.deploy.private_key_from_mnemonic",
+            return_value=creator_private_key,
+        )
+
+        mocked_delete = mocker.patch("contract.deploy.delete_app")
+
+        delete_dapp(network, app_id)
+
+        mocked_delete.assert_called_once_with(client, creator_private_key, app_id)
 
     # # deploy_app
     def test_contract_deploy_deploy_app_for_provided_network(self, mocker):
@@ -202,11 +268,14 @@ class TestContractDeployFunctions:
             client, creator_private_key, approval_program, clear_program, contract_json
         )
 
-    def test_contract_deploy_setup_app_uses_default_network(self, mocker):
+    def test_contract_deploy_fund_app_functionality(self, mocker):
+        app_id = 5059
+        network = "testnet"
+
         env = {
-            "algod_token_testnet": "token_test",
-            "algod_address_testnet": "address_test",
-            "rewards_token_id_testnet": 1234,
+            "algod_token_testnet": "token",
+            "algod_address_testnet": "address",
+            "creator_mnemonic_testnet": "mnemonic",
         }
 
         mocked_env = mocker.patch(
@@ -216,58 +285,155 @@ class TestContractDeployFunctions:
         client = mocker.MagicMock()
         mocked_client = mocker.patch("contract.deploy.AlgodClient", return_value=client)
 
-        app_client = mocker.MagicMock()
-        mocked_appclient_instance = mocker.patch(
-            "contract.deploy.app_client_instance", return_value=app_client
+        creator_private_key = mocker.MagicMock()
+        mocked_private_key = mocker.patch(
+            "contract.deploy.private_key_from_mnemonic",
+            return_value=creator_private_key,
         )
 
-        mocker.patch("builtins.print")  # silence output during testing
+        sender = "sender-address"
+        mocked_address = mocker.patch(
+            "contract.deploy.address_from_private_key",
+            return_value=sender,
+        )
 
-        returned = setup_app()
+        app_address = "app-escrow-address"
+        mocked_app_address = mocker.patch(
+            "contract.deploy.get_application_address", return_value=app_address
+        )
+
+        suggested_params = mocker.MagicMock()
+        client.suggested_params.return_value = suggested_params
+
+        mock_tx = mocker.MagicMock()
+        mock_signed = mocker.MagicMock()
+        mock_signed.transaction.get_txid.return_value = "tx123"
+
+        mocked_payment = mocker.patch(
+            "contract.deploy.PaymentTxn", return_value=mock_tx
+        )
+        mock_tx.sign.return_value = mock_signed
+
+        mocked_wait = mocker.patch("contract.deploy.wait_for_confirmation")
+        mocker.patch("builtins.print")  # suppress output
+
+        fund_app(app_id, network)
 
         mocked_env.assert_called_once_with()
-        mocked_client.assert_called_once_with("token_test", "address_test")
-        mocked_appclient_instance.assert_called_once_with(client, "testnet")
+        mocked_client.assert_called_once_with("token", "address")
+        mocked_private_key.assert_called_once_with("mnemonic")
+        mocked_address.assert_called_once_with(creator_private_key)
+        mocked_app_address.assert_called_once_with(app_id)
 
-        app_client.call.assert_called_once_with(
-            "setup",
-            token_id=1234,
-            claim_period_duration=1234,
+        mocked_payment.assert_called_once_with(
+            sender=sender,
+            sp=suggested_params,
+            receiver=app_address,
+            amt=200000,  # 0.2 Algo in microAlgos
         )
 
-        assert returned == (1234, 1234)  # ✅ NEW ASSERTION FOR RETURN VALUE
+        client.send_transactions.assert_called_once_with([mock_signed])
+        mocked_wait.assert_called_once_with(client, "tx123")
+
+    # # setup_app
+    def test_contract_deploy_setup_app_uses_default_network(self, mocker):
+        env = {
+            "algod_token_testnet": "token_test",
+            "algod_address_testnet": "address_test",
+            "rewards_token_id_testnet": 502,
+            "claim_period_duration": 3600,
+        }
+        mocked_env = mocker.patch(
+            "contract.deploy.environment_variables", return_value=env
+        )
+        client = mocker.MagicMock()
+        genesis_hash = mocker.MagicMock()
+        client.suggested_params.return_value.gh = genesis_hash
+        mocked_client = mocker.patch("contract.deploy.AlgodClient", return_value=client)
+        app_id = 5050
+        atc_method_stub = {
+            "sender": "SENDER",
+            "signer": "SIGNER",
+            "contract": mocker.MagicMock(),
+            "app_id": app_id,
+        }
+        mocked_atc_stub = mocker.patch(
+            "contract.deploy.atc_method_stub", return_value=atc_method_stub
+        )
+        atc = mocker.MagicMock()
+        mocked_atc = mocker.patch(
+            "contract.deploy.AtomicTransactionComposer", return_value=atc
+        )
+        mocker.patch("builtins.print")
+        setup_app("testnet")
+        mocked_env.assert_called_once_with()
+        mocked_client.assert_called_once_with("token_test", "address_test")
+        mocked_atc_stub.assert_called_once_with("testnet", genesis_hash)
+        mocked_atc.assert_called_once_with()
+        atc.add_method_call.assert_called_once_with(
+            app_id=app_id,
+            method=atc_method_stub["contract"].get_method_by_name.return_value,
+            sender=atc_method_stub["sender"],
+            sp=client.suggested_params.return_value,
+            signer=atc_method_stub["signer"],
+            method_args=[502, 3600],
+            foreign_assets=[502],
+        )
+        atc.execute.assert_called_once_with(client, 2)
 
     def test_contract_deploy_setup_app_for_provided_network(self, mocker):
         env = {
             "algod_token_mainnet": "mainnet_token",
             "algod_address_mainnet": "mainnet_address",
-            "rewards_token_id_mainnet": 9999,
+            "rewards_token_id_mainnet": 503,
+            "claim_period_duration": 7200,
         }
-
         mocked_env = mocker.patch(
             "contract.deploy.environment_variables", return_value=env
         )
-
         client = mocker.MagicMock()
+        genesis_hash = mocker.MagicMock()
+        client.suggested_params.return_value.gh = genesis_hash
         mocked_client = mocker.patch("contract.deploy.AlgodClient", return_value=client)
-
-        app_client = mocker.MagicMock()
-        mocked_appclient_instance = mocker.patch(
-            "contract.deploy.app_client_instance", return_value=app_client
+        app_id = 5050
+        atc_method_stub = {
+            "sender": "SENDER",
+            "signer": "SIGNER",
+            "contract": mocker.MagicMock(),
+            "app_id": app_id,
+        }
+        mocked_atc_stub = mocker.patch(
+            "contract.deploy.atc_method_stub", return_value=atc_method_stub
         )
-
-        mocker.patch("builtins.print")  # suppress console output
-
-        returned = setup_app(network="mainnet")
-
+        atc = mocker.MagicMock()
+        mocked_atc = mocker.patch(
+            "contract.deploy.AtomicTransactionComposer", return_value=atc
+        )
+        mocker.patch("builtins.print")
+        setup_app("mainnet")
         mocked_env.assert_called_once_with()
         mocked_client.assert_called_once_with("mainnet_token", "mainnet_address")
-        mocked_appclient_instance.assert_called_once_with(client, "mainnet")
-
-        app_client.call.assert_called_once_with(
-            "setup",
-            token_id=9999,
-            claim_period_duration=9999,
+        mocked_atc_stub.assert_called_once_with("mainnet", genesis_hash)
+        mocked_atc.assert_called_once_with()
+        atc.add_method_call.assert_called_once_with(
+            app_id=app_id,
+            method=atc_method_stub["contract"].get_method_by_name.return_value,
+            sender=atc_method_stub["sender"],
+            sp=client.suggested_params.return_value,
+            signer=atc_method_stub["signer"],
+            method_args=[503, 7200],
+            foreign_assets=[503],
         )
+        atc.execute.assert_called_once_with(client, 2)
 
-        assert returned == (9999, 9999)  # ✅ NEW ASSERTION FOR RETURN VALUE
+    # # deploy_and_setup
+    def test_contract_deploy_deploy_and_setup_functionality(self, mocker):
+        app_id = 5052
+        mocked_deploy = mocker.patch("contract.deploy.deploy_app", return_value=app_id)
+        mocked_fund = mocker.patch("contract.deploy.fund_app")
+        mocked_setup = mocker.patch("contract.deploy.setup_app")
+        returned = deploy_and_setup("mainnet")
+        mocked_deploy.assert_called_once_with("mainnet")
+        mocked_fund.assert_called_once_with(app_id, "mainnet")
+        mocked_setup.assert_called_once_with("mainnet")
+        assert returned == app_id

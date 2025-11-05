@@ -11,72 +11,38 @@ from django.db import connection
 from core.management.commands import migrate
 
 
-class TestDeployContractCommand:
+class TestDeployDappCommand:
     """Testing class for management command
 
-    :py:mod:`core.management.commands.deploy_contract`."""
+    :py:mod:`core.management.commands.deploy_dapp`."""
 
-    def test_deploy_contract_command_output_for_default_network_value(self, mocker):
+    def test_deploy_dapp_command_output_for_default_network_value(self, mocker):
         app_id = 5050
         mocked_deploy = mocker.patch(
-            "core.management.commands.deploy_contract.deploy_app", return_value=app_id
+            "core.management.commands.deploy_dapp.deploy_and_setup",
+            return_value=app_id,
         )
         with mock.patch(
             "django.core.management.base.OutputWrapper.write"
         ) as output_log:
-            call_command("deploy_contract")
+            call_command("deploy_dapp")
             output_log.assert_called_once_with(
-                f"Smart contract application {app_id} successfully deployed on testnet!"
+                "Application 5050 successfully deployed on testnet!"
             )
         mocked_deploy.assert_called_once_with("testnet")
 
-    def test_deploy_contract_command_output_for_provided_network_value(self, mocker):
-        app_id = 5050
+    def test_deploy_dapp_command_output_for_provided_network_value(self, mocker):
+        app_id = 5051
         mocked_deploy = mocker.patch(
-            "core.management.commands.deploy_contract.deploy_app", return_value=app_id
+            "core.management.commands.deploy_dapp.deploy_and_setup",
+            return_value=app_id,
         )
         with mock.patch(
             "django.core.management.base.OutputWrapper.write"
         ) as output_log:
-            call_command("deploy_contract", network="mainnet")
+            call_command("deploy_dapp", network="mainnet")
             output_log.assert_called_once_with(
-                f"Smart contract application {app_id} successfully deployed on mainnet!"
-            )
-        mocked_deploy.assert_called_once_with("mainnet")
-
-
-class TestSetupDappCommand:
-    """Testing class for management command
-
-    :py:mod:`core.management.commands.setup_dapp`."""
-
-    def test_setup_dapp_command_output_for_default_network_value(self, mocker):
-        token_id, period = 505, 172800
-        mocked_deploy = mocker.patch(
-            "core.management.commands.setup_dapp.setup_app",
-            return_value=(token_id, period),
-        )
-        with mock.patch(
-            "django.core.management.base.OutputWrapper.write"
-        ) as output_log:
-            call_command("setup_dapp")
-            output_log.assert_called_once_with(
-                "Application was set up for token 505 and claim duration of 2 days!"
-            )
-        mocked_deploy.assert_called_once_with("testnet")
-
-    def test_setup_dapp_command_output_for_provided_network_value(self, mocker):
-        token_id, period = 505, 172800
-        mocked_deploy = mocker.patch(
-            "core.management.commands.setup_dapp.setup_app",
-            return_value=(token_id, period),
-        )
-        with mock.patch(
-            "django.core.management.base.OutputWrapper.write"
-        ) as output_log:
-            call_command("setup_dapp", network="mainnet")
-            output_log.assert_called_once_with(
-                "Application was set up for token 505 and claim duration of 2 days!"
+                "Application 5051 successfully deployed on mainnet!"
             )
         mocked_deploy.assert_called_once_with("mainnet")
 

@@ -198,7 +198,7 @@
       "stack_out": []
     },
     "128": {
-      "subroutine": "airdrop.contract.Airdrop.setup[routing]",
+      "subroutine": "rewards.contract.Rewards.setup[routing]",
       "params": {},
       "block": "setup",
       "stack_in": [],
@@ -665,7 +665,7 @@
       "stack_out": []
     },
     "190": {
-      "subroutine": "airdrop.contract.Airdrop.add_allocations[routing]",
+      "subroutine": "rewards.contract.Rewards.add_allocations[routing]",
       "params": {},
       "block": "add_allocations",
       "stack_in": [],
@@ -2386,7 +2386,7 @@
       ]
     },
     "341": {
-      "subroutine": "airdrop.contract.Airdrop.claim[routing]",
+      "subroutine": "rewards.contract.Rewards.claim[routing]",
       "params": {},
       "block": "claim",
       "stack_in": [],
@@ -3016,7 +3016,7 @@
       ]
     },
     "421": {
-      "subroutine": "airdrop.contract.Airdrop.reclaim_allocation[routing]",
+      "subroutine": "rewards.contract.Rewards.reclaim_allocation[routing]",
       "params": {},
       "block": "reclaim_allocation",
       "stack_in": [],

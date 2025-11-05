@@ -6,7 +6,7 @@ main:
     intcblock 0 1 8 4
     bytecblock "token_id" "admin_address" "allocations" "claim_period_duration"
     // contract.py:26
-    // class Airdrop(arc4.ARC4Contract):
+    // class Rewards(arc4.ARC4Contract):
     txn NumAppArgs
     bz main_create_application@13
     txn OnCompletion
@@ -39,7 +39,7 @@ main_create_application@13:
     return
 
 
-// airdrop.contract.Airdrop.setup[routing]() -> void:
+// rewards.contract.Rewards.setup[routing]() -> void:
 setup:
     // contract.py:67
     // @arc4.abimethod
@@ -128,7 +128,7 @@ setup:
     return
 
 
-// airdrop.contract.Airdrop.add_allocations[routing]() -> void:
+// rewards.contract.Rewards.add_allocations[routing]() -> void:
 add_allocations:
     // contract.py:91
     // @arc4.abimethod
@@ -290,7 +290,7 @@ add_allocations_after_for@8:
     return
 
 
-// airdrop.contract.Airdrop.claim[routing]() -> void:
+// rewards.contract.Rewards.claim[routing]() -> void:
 claim:
     // contract.py:138
     // sender = Txn.sender
@@ -416,7 +416,7 @@ claim_after_if_else@4:
     return
 
 
-// airdrop.contract.Airdrop.reclaim_allocation[routing]() -> void:
+// rewards.contract.Rewards.reclaim_allocation[routing]() -> void:
 reclaim_allocation:
     // contract.py:166
     // @arc4.abimethod

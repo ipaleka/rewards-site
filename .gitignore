@@ -23,5 +23,6 @@ rewardsweb/core/static/css/tailwindcss
 rewardsweb/rewardsbot/.env
 rewardsweb/rewardsbot/*.log
 rewardsweb/frontend/coverage
+rewardsweb/contract/.env
 deploy/.env.*
 deploy/.ansible/

@@ -23,9 +23,9 @@ class Allocation(Struct):
     expires_at: UInt64
 
 
-class Airdrop(arc4.ARC4Contract):
+class Rewards(arc4.ARC4Contract):
     """
-    An airdrop smart contract for distributing an ASA (Algorand Standard Asset).
+    A rewards smart contract for distributing an ASA (Algorand Standard Asset).
 
     The contract is managed by an admin who can:
     1. Fund the contract with the ASA.

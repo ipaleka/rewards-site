@@ -188,7 +188,7 @@ def atc_method_stub(client, network):
         "sp": sp,
         "app_id": app_id,
     }
-    
+
 
 def wait_for_confirmation(client, txid):
     """Wait for a blockchain transaction to be confirmed.

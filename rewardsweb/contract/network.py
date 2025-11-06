@@ -16,7 +16,7 @@ from contract.helpers import (
 )
 
 
-def add_allocations(network, addresses, amounts):
+def _add_allocations(network, addresses, amounts):
     """Add or update allocations for a batch of users.
 
     :param network: network to deploy to (e.g., "testnet")
@@ -60,6 +60,85 @@ def add_allocations(network, addresses, amounts):
     print(f"Allocations added in transaction {response.tx_ids[0]}")
 
 
+def _check_balances(client, address, token_id):
+    """Return available ALGO and token balances for a given account.
+
+    :param client: Algorand Node client instance
+    :type client: :class:`AlgodClient`
+    :param address: account's public address
+    :type address: str
+    :param token_id: Algorand standard asset identifier to be distributed
+    :type token_id: int
+    :var account_info: account's public information
+    :type account_info: dict
+    :var available_balance: account's available ALGO balance
+    :type available_balance: int
+    :var token_balance: account's token balance
+    :type token_balance: int
+    :return: two-tuple
+    """
+    account_info = client.account_info(address)
+    if not account_info:
+        raise ValueError("Can't fetch account info")
+
+    available_balance = account_info.get("amount", 0) - account_info.get(
+        "min-balance", 0
+    )
+    token_balance = next(
+        (
+            asset.get("amount")
+            for asset in account_info.get("assets", [])
+            if asset.get("asset-id") == token_id
+        ),
+        0,
+    )
+
+    return available_balance, token_balance
+
+
+def _reclaim_allocation(network, user_address):
+    """Reclaim a user's allocation if it has expired.
+
+    :param network: network to deploy to (e.g., "testnet")
+    :type network: str
+    :param user_address: The address of the user whose allocation is to be reclaimed
+    :type user_address: str
+    :var env: environment variables collection
+    :type env: dict
+    :var client: Algorand Node client instance
+    :type client: :class:`AlgodClient`
+    :var token_id: Algorand standard asset identifier to be distributed
+    :type token_id: int
+    :var atc_stub: collection of data required to create atomic transaction
+    :type atc_stub: dict
+    :var atc: clear program source code
+    :type atc: :class:`AtomicTransactionComposer`
+    :var response: atomic transaction creation response
+    :type response: :class:`AtomicTransactionResponse`
+    """
+    env = environment_variables()
+
+    client = AlgodClient(
+        env.get(f"algod_token_{network}"), env.get(f"algod_address_{network}")
+    )
+    token_id = int(env.get(f"rewards_token_id_{network}"))
+    atc_stub = atc_method_stub(client, network)
+    atc = AtomicTransactionComposer()
+
+    atc.add_method_call(
+        app_id=atc_stub.get("app_id"),
+        method=atc_stub.get("contract").get_method_by_name("reclaim_allocation"),
+        sender=atc_stub.get("sender"),
+        sp=atc_stub.get("sp"),
+        signer=atc_stub.get("signer"),
+        method_args=[user_address],
+        foreign_assets=[token_id],
+    )
+    response = atc.execute(client, 2)
+    print(f"Allocations reclaimed in transaction {response.tx_ids[0]}")
+
+
+# # PUBLIC
 def create_app(client, private_key, approval_program, clear_program, contract_json):
     """Create a new smart contract application on the Algorand blockchain.
 
@@ -226,13 +305,15 @@ def fund_app(app_id, network, amount=None):
     print(f"Funded app {app_id} with {amount / 1_000_000} Algo in transaction {tx_id}")
 
 
-def reclaim_allocation(network, user_address):
-    """Reclaim a user's allocation if it has expired.
+def process_allocations(network, addresses, amounts):
+    """Process allocations after performing a couple of checks.
 
     :param network: network to deploy to (e.g., "testnet")
     :type network: str
-    :param user_address: The address of the user whose allocation is to be reclaimed
-    :type user_address: str
+    :param addresses: list of user addresses
+    :type addresses: list
+    :param amounts: list of corresponding allocation amounts
+    :type amounts: list
     :var env: environment variables collection
     :type env: dict
     :var client: Algorand Node client instance
@@ -241,28 +322,41 @@ def reclaim_allocation(network, user_address):
     :type token_id: int
     :var atc_stub: collection of data required to create atomic transaction
     :type atc_stub: dict
-    :var atc: clear program source code
-    :type atc: :class:`AtomicTransactionComposer`
-    :var response: atomic transaction creation response
-    :type response: :class:`AtomicTransactionResponse`
+    :var admin_address: ASA Stats admin address
+    :type admin_address: str
+    :var app_address: ASA Stats Rewards dApp address
+    :type app_address: str
+    :var app_id: ASA Stats Rewards dApp unique identifier
+    :type app_id: int
+    :var dapp_minimum_algo: minimum required ALGO for dApp
+    :type dapp_minimum_algo: int
+    :var app_algo_balance: dApp's ALGO balance
+    :type app_algo_balance: int
+    :var admin_algo_balance: admin's ALGO balance
+    :type admin_algo_balance: int
+    :var admin_token_balance: admin's token balance
+    :type admin_token_balance: int
     """
     env = environment_variables()
-
     client = AlgodClient(
         env.get(f"algod_token_{network}"), env.get(f"algod_address_{network}")
     )
     token_id = int(env.get(f"rewards_token_id_{network}"))
     atc_stub = atc_method_stub(client, network)
-    atc = AtomicTransactionComposer()
+    admin_address = atc_stub.get("sender")
+    app_id = atc_stub.get("app_id")
+    app_address = get_application_address(app_id)
+    dapp_minimum_algo = int(env.get("dapp_minimum_algo", 100_000))
 
-    atc.add_method_call(
-        app_id=atc_stub.get("app_id"),
-        method=atc_stub.get("contract").get_method_by_name("reclaim_allocation"),
-        sender=atc_stub.get("sender"),
-        sp=atc_stub.get("sp"),
-        signer=atc_stub.get("signer"),
-        method_args=[user_address],
-        foreign_assets=[token_id],
-    )
-    response = atc.execute(client, 2)
-    print(f"Allocations reclaimed in transaction {response.tx_ids[0]}")
+    app_algo_balance, _ = _check_balances(client, app_address, token_id)
+    if app_algo_balance < dapp_minimum_algo:
+        admin_algo_balance, _ = _check_balances(client, admin_address, token_id)
+        if admin_algo_balance < dapp_minimum_algo:
+            raise ValueError("Not enough ALGO in admin account to fund the app")
+        fund_app(app_id, network)
+
+    _, admin_token_balance = _check_balances(client, admin_address, token_id)
+    if admin_token_balance < sum(amount for amount in amounts):
+        raise ValueError("Not enough token in admin account to process allocations")
+
+    _add_allocations(network, addresses, amounts)

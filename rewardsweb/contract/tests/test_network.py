@@ -1,21 +1,22 @@
 """Testing module for :py:mod:`contract.network` module."""
 
-import json
+import pytest
 
 from contract.network import (
-    add_allocations,
-    atc_method_stub,
+    _add_allocations,
+    _check_balances,
+    _reclaim_allocation,
     create_app,
     delete_app,
     fund_app,
-    reclaim_allocation,
+    process_allocations,
 )
 
 
-class TestContractNetworkFunctions:
-    """Testing class for :py:mod:`contract.network` functions."""
+class TestContractNetworkPrivateFunctions:
+    """Testing class for :py:mod:`contract.network` private functions."""
 
-    # # add_allocations
+    # # _add_allocations
     def test_contract_network_add_allocations_functionality(self, mocker):
         network = "testnet"
         addresses = ["ADDR1", "ADDR2"]
@@ -63,7 +64,7 @@ class TestContractNetworkFunctions:
 
         mocker.patch("builtins.print")  # Silence logs
 
-        add_allocations(network, addresses, amounts)
+        _add_allocations(network, addresses, amounts)
 
         mocked_env.assert_called_once_with()
         mocked_client.assert_called_once_with("token", "address")
@@ -81,6 +82,124 @@ class TestContractNetworkFunctions:
         )
 
         atc.execute.assert_called_once_with(client, 2)
+
+    # # _check_balances
+    def test_contract_network_check_balances_returns_algo_and_token(self, mocker):
+        client = mocker.MagicMock()
+        address = "ADDR123"
+        token_id = 42
+
+        client.account_info.return_value = {
+            "amount": 2_000_000,
+            "min-balance": 100_000,
+            "assets": [
+                {"asset-id": 10, "amount": 999},
+                {"asset-id": 42, "amount": 1234},
+            ],
+        }
+
+        returned = _check_balances(client, address, token_id)
+
+        assert returned == (2_000_000 - 100_000, 1234)
+        client.account_info.assert_called_once_with(address)
+
+    def test_contract_network_check_balances_returns_zero_when_token_not_found(
+        self, mocker
+    ):
+        client = mocker.MagicMock()
+        address = "ADDR123"
+        token_id = 999
+
+        client.account_info.return_value = {
+            "amount": 1_000_000,
+            "min-balance": 0,
+            "assets": [
+                {"asset-id": 111, "amount": 777},
+            ],
+        }
+
+        returned = _check_balances(client, address, token_id)
+
+        assert returned == (1_000_000, 0)
+
+    def test_contract_network_check_balances_raises_error_for_missing_account_info(
+        self, mocker
+    ):
+        client = mocker.MagicMock()
+        client.account_info.return_value = None
+
+        with pytest.raises(ValueError, match="Can't fetch account info"):
+            _check_balances(client, "ADDR", 42)
+
+    # # _reclaim_allocation
+    def test_contract_network_reclaim_allocation_functionality(self, mocker):
+        network = "mainnet"
+        user_address = "USER123"
+        token_id = 507
+
+        env = {
+            "algod_token_mainnet": "main_token",
+            "algod_address_mainnet": "main_address",
+            "rewards_token_id_mainnet": token_id,
+        }
+
+        mocked_env = mocker.patch(
+            "contract.network.environment_variables", return_value=env
+        )
+
+        client = mocker.MagicMock()
+        mocked_client = mocker.patch(
+            "contract.network.AlgodClient", return_value=client
+        )
+
+        stub_contract = mocker.MagicMock()
+        stub_contract.get_method_by_name.return_value = "METHOD_OBJ"
+
+        atc_stub = {
+            "app_id": 222,
+            "contract": stub_contract,
+            "sender": "sender_address",
+            "sp": mocker.MagicMock(),
+            "signer": mocker.MagicMock(),
+        }
+
+        mocked_atc_stub = mocker.patch(
+            "contract.network.atc_method_stub", return_value=atc_stub
+        )
+
+        atc = mocker.MagicMock()
+        mocked_atc = mocker.patch(
+            "contract.network.AtomicTransactionComposer", return_value=atc
+        )
+
+        response = mocker.MagicMock()
+        response.tx_ids = ["TX777"]
+        atc.execute.return_value = response
+
+        mocker.patch("builtins.print")  # Silence logs
+
+        _reclaim_allocation(network, user_address)
+
+        mocked_env.assert_called_once_with()
+        mocked_client.assert_called_once_with("main_token", "main_address")
+        mocked_atc_stub.assert_called_once_with(client, network)
+        mocked_atc.assert_called_once_with()
+
+        atc.add_method_call.assert_called_once_with(
+            app_id=222,
+            method="METHOD_OBJ",
+            sender="sender_address",
+            sp=atc_stub["sp"],
+            signer=atc_stub["signer"],
+            method_args=[user_address],
+            foreign_assets=[token_id],
+        )
+
+        atc.execute.assert_called_once_with(client, 2)
+
+
+class TestContractNetworkFunctions:
+    """Testing class for :py:mod:`contract.network` functions."""
 
     # # create_app
     def test_contract_network_create_app_calls_wait_and_returns_app_id(self, mocker):
@@ -358,68 +477,125 @@ class TestContractNetworkFunctions:
         client.send_transactions.assert_called_once_with([mock_signed])
         mocked_wait.assert_called_once_with(client, "tx123")
 
-    # # reclaim_allocation
-    def test_contract_network_reclaim_allocation_functionality(self, mocker):
-        network = "mainnet"
-        user_address = "USER123"
-        token_id = 507
+    # # process_allocations
+    def test_contract_network_process_allocations_happy_path(self, mocker):
+        network = "testnet"
+        addresses = ["A1", "A2"]
+        amounts = [5, 10]
+        token_id = 1111
 
         env = {
-            "algod_token_mainnet": "main_token",
-            "algod_address_mainnet": "main_address",
-            "rewards_token_id_mainnet": token_id,
+            "algod_token_testnet": "token",
+            "algod_address_testnet": "address",
+            "rewards_token_id_testnet": token_id,
+            "dapp_minimum_algo": 100000,
         }
-
-        mocked_env = mocker.patch(
-            "contract.network.environment_variables", return_value=env
-        )
+        mocker.patch("contract.network.environment_variables", return_value=env)
 
         client = mocker.MagicMock()
-        mocked_client = mocker.patch(
-            "contract.network.AlgodClient", return_value=client
-        )
+        mocker.patch("contract.network.AlgodClient", return_value=client)
 
-        stub_contract = mocker.MagicMock()
-        stub_contract.get_method_by_name.return_value = "METHOD_OBJ"
-
-        atc_stub = {
-            "app_id": 222,
-            "contract": stub_contract,
-            "sender": "sender_address",
-            "sp": mocker.MagicMock(),
-            "signer": mocker.MagicMock(),
+        stub = {
+            "sender": "ADMIN_ADDR",
+            "app_id": 123,
         }
-
-        mocked_atc_stub = mocker.patch(
-            "contract.network.atc_method_stub", return_value=atc_stub
+        mocker.patch("contract.network.atc_method_stub", return_value=stub)
+        mocker.patch(
+            "contract.network.get_application_address", return_value="APP_ADDR"
         )
 
-        atc = mocker.MagicMock()
-        mocked_atc = mocker.patch(
-            "contract.network.AtomicTransactionComposer", return_value=atc
+        mock_check = mocker.patch(
+            "contract.network.check_balances",
+            side_effect=[
+                (200_000, 0),  # app_algo_balance (sufficient)
+                (150_000, 500),  # admin balances
+            ],
         )
 
-        response = mocker.MagicMock()
-        response.tx_ids = ["TX777"]
-        atc.execute.return_value = response
+        mocked_fund = mocker.patch("contract.network.fund_app")
+        mocked_add = mocker.patch("contract.network.add_allocations")
 
-        mocker.patch("builtins.print")  # Silence logs
+        process_allocations(network, addresses, amounts)
 
-        reclaim_allocation(network, user_address)
+        mocked_fund.assert_not_called()
+        mocked_add.assert_called_once_with(network, addresses, amounts)
 
-        mocked_env.assert_called_once_with()
-        mocked_client.assert_called_once_with("main_token", "main_address")
-        mocked_atc_stub.assert_called_once_with(client, network)
-        mocked_atc.assert_called_once_with()
+        assert mock_check.call_count == 2
 
-        atc.add_method_call.assert_called_once_with(
-            app_id=222,
-            method="METHOD_OBJ",
-            sender="sender_address",
-            sp=atc_stub["sp"],
-            signer=atc_stub["signer"],
-            method_args=[user_address],
-            foreign_assets=[token_id],
+    def test_contract_network_process_allocations_funds_app_if_needed(self, mocker):
+        network = "testnet"
+        addresses = ["A1"]
+        amounts = [5]
+        token_id = 1111
+
+        env = {
+            "algod_token_testnet": "token",
+            "algod_address_testnet": "address",
+            "rewards_token_id_testnet": token_id,
+            "dapp_minimum_algo": 200000,
+        }
+        mocker.patch("contract.network.environment_variables", return_value=env)
+
+        client = mocker.MagicMock()
+        mocker.patch("contract.network.AlgodClient", return_value=client)
+
+        stub = {"sender": "ADMIN_ADDR", "app_id": 123}
+        mocker.patch("contract.network.atc_method_stub", return_value=stub)
+        mocker.patch(
+            "contract.network.get_application_address", return_value="APP_ADDR"
         )
 
-        atc.execute.assert_called_once_with(client, 2)
+        mock_check = mocker.patch(
+            "contract.network.check_balances",
+            side_effect=[
+                (50_000, 0),  # app balance insufficient
+                (300_000, 0),  # admin algo enough to fund
+                (300_000, 100),  # admin token after funding
+            ],
+        )
+
+        mocked_fund = mocker.patch("contract.network.fund_app")
+        mocked_add = mocker.patch("contract.network.add_allocations")
+
+        process_allocations(network, addresses, amounts)
+
+        mocked_fund.assert_called_once_with(123, network)  # ✅ app funded
+        mocked_add.assert_called_once_with(network, addresses, amounts)
+        assert mock_check.call_count == 3
+
+    def test_contract_network_process_allocations_not_enough_tokens(self, mocker):
+        network = "testnet"
+        addresses = ["A1"]
+        amounts = [500]
+        token_id = 1111
+
+        env = {
+            "algod_token_testnet": "token",
+            "algod_address_testnet": "address",
+            "rewards_token_id_testnet": token_id,
+            "dapp_minimum_algo": 100000,
+        }
+        mocker.patch("contract.network.environment_variables", return_value=env)
+
+        client = mocker.MagicMock()
+        mocker.patch("contract.network.AlgodClient", return_value=client)
+
+        stub = {"sender": "ADMIN_ADDR", "app_id": 123}
+        mocker.patch("contract.network.atc_method_stub", return_value=stub)
+        mocker.patch(
+            "contract.network.get_application_address", return_value="APP_ADDR"
+        )
+
+        mocker.patch(
+            "contract.network.check_balances",
+            side_effect=[
+                (500_000, 0),  # app algo ok
+                (0, 100),  # admin doesn't have enough tokens
+            ],
+        )
+
+        mocker.patch("contract.network.fund_app")
+        mocker.patch("contract.network.add_allocations")
+
+        with pytest.raises(ValueError, match="Not enough token"):
+            process_allocations(network, addresses, amounts)

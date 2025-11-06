@@ -6,11 +6,8 @@ from algosdk.atomic_transaction_composer import AccountTransactionSigner
 from algosdk.error import AlgodHTTPError
 from algosdk.v2client.algod import AlgodClient
 
-from contract.helpers import (
-    environment_variables,
-    private_key_from_mnemonic,
-)
-from contract.network import add_allocations, reclaim_allocation
+from contract.helpers import environment_variables, private_key_from_mnemonic
+from contract.network import _add_allocations, _reclaim_allocation
 
 # This should be set to the ID of a deployed Rewards contract on TestNet
 REWARDS_APP_ID_TESTNET = environment_variables().get("REWARDS_APP_ID_TESTNET")
@@ -36,7 +33,7 @@ class TestRewardsIntegration:
         user_account = Account()
 
         # 1. Add allocation
-        add_allocations(
+        _add_allocations(
             client,
             creator_private_key,
             REWARDS_APP_ID_TESTNET,
@@ -46,7 +43,7 @@ class TestRewardsIntegration:
 
         # 2. Attempt to reclaim before expiry (should fail)
         with pytest.raises(AlgodHTTPError) as exception:
-            reclaim_allocation(
+            _reclaim_allocation(
                 client,
                 creator_private_key,
                 REWARDS_APP_ID_TESTNET,
@@ -78,7 +75,7 @@ class TestRewardsIntegration:
         user_account = Account()
 
         with pytest.raises(AlgodHTTPError) as exception:
-            add_allocations(
+            _add_allocations(
                 client,
                 user_private_key,
                 REWARDS_APP_ID_TESTNET,
@@ -88,7 +85,7 @@ class TestRewardsIntegration:
         assert "Sender is not the admin" in str(exception.value)
 
         with pytest.raises(AlgodHTTPError) as exception:
-            reclaim_allocation(
+            _reclaim_allocation(
                 client,
                 user_private_key,
                 REWARDS_APP_ID_TESTNET,

@@ -1,8 +1,13 @@
 """Module with functions for retrieving and saving blockchain data."""
 
+import base64
+import struct
+import time
+
 from algosdk import transaction
 from algosdk.account import address_from_private_key
 from algosdk.atomic_transaction_composer import AtomicTransactionComposer
+from algosdk.encoding import decode_address, encode_address
 from algosdk.logic import get_application_address
 from algosdk.transaction import PaymentTxn
 from algosdk.v2client.algod import AlgodClient
@@ -139,6 +144,52 @@ def _reclaim_allocation(network, user_address):
 
 
 # # PUBLIC
+def can_user_claim(network, user_address):
+    """Check if the provided address can claim their allocation.
+
+    :param network: network to deploy to (e.g., "testnet")
+    :type network: str
+    :param user_address: The address of the user to check for claimability
+    :type user_address: str
+    :var env: environment variables collection
+    :type env: dict
+    :var client: Algorand Node client instance
+    :type client: :class:`AlgodClient`
+    :var atc_stub: collection of data required to create atomic transaction
+    :type atc_stub: dict
+    :var app_id: ASA Stats Rewards dApp unique identifier
+    :type app_id: int
+    :var box_name: user's box name
+    :type box_name: bytes
+    :var value: user's box value
+    :type value: bytes
+    :var amount: amount to reclaim
+    :type amount: int
+    :var expires_at: timestamp when user's claim period ends
+    :type expires_at: int
+    :return: True if the user can claim, False otherwise
+    :rtype: bool
+    """
+    env = environment_variables()
+    client = AlgodClient(
+        env.get(f"algod_token_{network}"), env.get(f"algod_address_{network}")
+    )
+    atc_stub = atc_method_stub(client, network)
+    app_id = atc_stub.get("app_id")
+    box_name = decode_address(user_address)
+    value = client.application_box_by_name(app_id, box_name).get("value")
+    if value is None:
+        return False
+
+    amount, expires_at = struct.unpack(">QQ", base64.b64decode(value))
+    if amount:
+        if expires_at < int(time.time()):
+            raise ValueError("User's claim period has ended")
+        return True
+
+    return False
+
+
 def create_app(client, private_key, approval_program, clear_program, contract_json):
     """Create a new smart contract application on the Algorand blockchain.
 
@@ -353,6 +404,7 @@ def process_allocations(network, addresses, amounts):
         admin_algo_balance, _ = _check_balances(client, admin_address, token_id)
         if admin_algo_balance < dapp_minimum_algo:
             raise ValueError("Not enough ALGO in admin account to fund the app")
+
         fund_app(app_id, network)
 
     _, admin_token_balance = _check_balances(client, admin_address, token_id)
@@ -360,3 +412,98 @@ def process_allocations(network, addresses, amounts):
         raise ValueError("Not enough token in admin account to process allocations")
 
     _add_allocations(network, addresses, amounts)
+
+
+def process_reclaim_allocation(network, user_address):
+    """Process reclaim allocation after performing a couple of checks.
+
+    :param network: network to deploy to (e.g., "testnet")
+    :type network: str
+    :param user_address: The address of the user whose allocation is to be reclaimed
+    :type user_address: str
+    :var env: environment variables collection
+    :type env: dict
+    :var client: Algorand Node client instance
+    :type client: :class:`AlgodClient`
+    :var atc_stub: collection of data required to create atomic transaction
+    :type atc_stub: dict
+    :var app_id: ASA Stats Rewards dApp unique identifier
+    :type app_id: int
+    :var box_name: user's box name
+    :type box_name: bytes
+    :var value: user's box value
+    :type value: bytes
+    :var amount: amount to reclaim
+    :type amount: int
+    :var expires_at: timestamp when user's claim period ends
+    :type expires_at: int
+    """
+    env = environment_variables()
+    client = AlgodClient(
+        env.get(f"algod_token_{network}"), env.get(f"algod_address_{network}")
+    )
+    atc_stub = atc_method_stub(client, network)
+    app_id = atc_stub.get("app_id")
+    box_name = decode_address(user_address)
+    value = client.application_box_by_name(app_id, box_name).get("value")
+    if value is None:
+        raise ValueError("No user's box")
+
+    amount, expires_at = struct.unpack(">QQ", base64.b64decode(value))
+    if expires_at > int(time.time()):
+        raise ValueError("User claim period hasn't ended")
+
+    if amount > 0:
+        _reclaim_allocation(network, user_address)
+
+
+def reclaimable_addresses(network):
+    """Return collection of addresses that can be reclaimed.
+
+    :param network: network to deploy to (e.g., "testnet")
+    :type network: str
+    :var env: environment variables collection
+    :type env: dict
+    :var client: Algorand Node client instance
+    :type client: :class:`AlgodClient`
+    :var atc_stub: collection of data required to create atomic transaction
+    :type atc_stub: dict
+    :var app_id: ASA Stats Rewards dApp unique identifier
+    :type app_id: int
+    :var reclaimable_addresses: collection of addresses that can be reclaimed
+    :type reclaimable_addresses: list
+    :var boxes: collection of user's boxes
+    :type boxes: list
+    :var box: user's box
+    :type box: dict
+    :var box_name: user's box name
+    :type box_name: bytes
+    :var user_address: user's public address
+    :type user_address: str
+    :var value: user's box value
+    :type value: bytes
+    :var amount: amount to reclaim
+    :type amount: int
+    :var expires_at: timestamp when user's claim period ends
+    :type expires_at: int
+    :return: collection of addresses that can be reclaimed
+    :rtype: list
+    """
+    env = environment_variables()
+    client = AlgodClient(
+        env.get(f"algod_token_{network}"), env.get(f"algod_address_{network}")
+    )
+    atc_stub = atc_method_stub(client, network)
+    app_id = atc_stub.get("app_id")
+    reclaimable_addresses = []
+    boxes = client.application_boxes(app_id).get("boxes", [])
+    for box in boxes:
+        box_name = box.get("name")
+        user_address = encode_address(box_name)
+        value = client.application_box_by_name(app_id, box_name).get("value")
+        if value:
+            amount, expires_at = struct.unpack(">QQ", base64.b64decode(value))
+            if expires_at < int(time.time()) and amount > 0:
+                reclaimable_addresses.append(user_address)
+
+    return reclaimable_addresses

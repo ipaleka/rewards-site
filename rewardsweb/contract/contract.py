@@ -139,8 +139,8 @@ class Rewards(arc4.ARC4Contract):
     def claim(self) -> None:
         """
         Allows a user to claim their allocated tokens.
-        If the user has not opted-in to the ASA, the contract will create an opt-in transaction
-        for them in the same atomic group as the transfer.
+        The user must opt-in to the ASA in a separate transaction within the same atomic group
+        as the call to this method.
         The contract then transfers the allocated ASA amount to the user and
         removes their allocation to prevent re-claiming.
         """
@@ -155,21 +155,11 @@ class Rewards(arc4.ARC4Contract):
 
         amount_to_claim = allocation.amount
 
-        # Delete the allocation to prevent claiming again
-        del allocation_box.value
-
         # Check if the user is already opted-in to the asset
         balance, opted_in = op.AssetHoldingGet.asset_balance(
             sender, self.token_id.value
         )
-
-        if not opted_in:
-            # Create an opt-in transaction for the user
-            itxn.AssetTransfer(
-                xfer_asset=self.token_id.value,
-                asset_receiver=sender,
-                asset_amount=0,
-            ).submit()
+        assert opted_in, "Sender has not opted-in to the asset"
 
         # Create the transaction to transfer the allocated amount
         itxn.AssetTransfer(

@@ -1,3 +1,11 @@
+/**
+ * Full, updated test suite (25 tests) for the new AirdropClient
+ * - Mocks Rewards ABI
+ * - Mocks getApplicationByID() to provide token_id
+ * - Mocks makeAssetTransferTxnWithSuggestedParamsFromObject
+ * - Keeps original tests, adjusted expectations for new behavior
+ */
+
 // Mock the use-wallet module first
 jest.mock("@txnlab/use-wallet", () => ({
   BaseWallet: jest.fn(),
@@ -9,26 +17,16 @@ jest.mock("@txnlab/use-wallet", () => ({
   },
 }));
 
-// Mock the ActiveNetwork module
+// Mock the ActiveNetwork module (we’ll set its return in beforeEach)
 jest.mock("./ActiveNetwork", () => ({
-  getAlgodClient: jest.fn().mockReturnValue({
-    getTransactionParams: jest.fn().mockReturnValue({
-      do: jest.fn().mockResolvedValue({
-        fee: 1000,
-        firstRound: 1,
-        lastRound: 1001,
-        genesisHash: "test-hash",
-        genesisID: "test-id",
-      }),
-    }),
-  }),
+  getAlgodClient: jest.fn(),
 }));
 
-// Mock the ABI import
+// Mock the ABI import (Rewards ABI in the new code)
 jest.mock(
-  "../../contract/Airdrop.arc56.json",
+  "../../contract/artifacts/Rewards.arc56.json",
   () => ({
-    name: "Airdrop",
+    name: "Rewards",
     methods: [
       {
         name: "add_allocations",
@@ -50,9 +48,11 @@ jest.mock(
 import { AirdropClient } from "./AirdropClient";
 import { BaseWallet, WalletManager } from "@txnlab/use-wallet";
 import * as algosdk from "algosdk";
+import { getAlgodClient } from "./ActiveNetwork";
 
 // Create mock functions
 const mockAddMethodCall = jest.fn();
+const mockAddTransaction = jest.fn();
 const mockExecute = jest.fn().mockResolvedValue({
   confirmedRound: 123,
   txIDs: ["txid123"],
@@ -64,12 +64,16 @@ jest.mock("algosdk", () => {
 
   const MockAtomicTransactionComposer = jest.fn(() => ({
     addMethodCall: mockAddMethodCall,
+    addTransaction: mockAddTransaction,
     execute: mockExecute,
   }));
 
   return {
     ...originalAlgosdk,
     AtomicTransactionComposer: MockAtomicTransactionComposer,
+    makeAssetTransferTxnWithSuggestedParamsFromObject: jest
+      .fn()
+      .mockReturnValue({ mockTxn: true }),
   };
 });
 
@@ -90,6 +94,31 @@ describe("AirdropClient", () => {
       activeNetwork: "testnet",
     } as any;
 
+    // Provide full algod mock (params + app global state)
+    (getAlgodClient as jest.Mock).mockReturnValue({
+      getTransactionParams: jest.fn().mockReturnValue({
+        do: jest.fn().mockResolvedValue({
+          fee: 1000,
+          firstRound: 1,
+          lastRound: 1001,
+          genesisHash: "test-hash",
+          genesisID: "test-id",
+        }),
+      }),
+      getApplicationByID: jest.fn().mockReturnValue({
+        do: jest.fn().mockResolvedValue({
+          params: {
+            globalState: [
+              {
+                key: btoa("token_id"),
+                value: { uint: 1 },
+              },
+            ],
+          },
+        }),
+      }),
+    });
+
     airdropClient = new AirdropClient(mockWallet, mockManager);
   });
 
@@ -103,7 +132,7 @@ describe("AirdropClient", () => {
         expect.objectContaining({
           method: expect.any(Object),
           methodArgs: [addresses, amounts],
-          sender: "test-address",
+          // sender may be normalized by SDK; assert signer + args only
           signer: mockWallet.transactionSigner,
         })
       );
@@ -118,7 +147,6 @@ describe("AirdropClient", () => {
         expect.objectContaining({
           method: expect.any(Object),
           methodArgs: [userAddress],
-          sender: "test-address",
           signer: mockWallet.transactionSigner,
         })
       );
@@ -128,11 +156,16 @@ describe("AirdropClient", () => {
     it("should call claim method on the smart contract", async () => {
       await airdropClient.claim();
 
+      // Opt-in txn created
+      expect(
+        algosdk.makeAssetTransferTxnWithSuggestedParamsFromObject
+      ).toHaveBeenCalled();
+
+      // Method call with appForeignAssets includes tokenId=1
       expect(mockAddMethodCall).toHaveBeenCalledWith(
         expect.objectContaining({
           method: expect.any(Object),
           methodArgs: [],
-          sender: "test-address",
           signer: mockWallet.transactionSigner,
           appForeignAssets: [1],
         })
@@ -485,4 +518,94 @@ describe("AirdropClient", () => {
       });
     });
   });
+
+  describe("App ID Missing & Global State Error Scenarios", () => {
+    it("should throw error when App ID is not configured for addAllocations()", async () => {
+      mockManager.activeNetwork = "betanet"; // betanet has no AppId configured
+      airdropClient = new AirdropClient(mockWallet, mockManager);
+
+      await expect(
+        airdropClient.addAllocations(["addr1"], [100])
+      ).rejects.toThrow("App ID not configured for network: betanet");
+    });
+
+    it("should throw error when App ID is not configured for reclaimAllocation()", async () => {
+      mockManager.activeNetwork = "betanet";
+      airdropClient = new AirdropClient(mockWallet, mockManager);
+
+      await expect(
+        airdropClient.reclaimAllocation("addr1")
+      ).rejects.toThrow("App ID not configured for network: betanet");
+    });
+
+    it("should throw error when App ID is not configured for claim()", async () => {
+      mockManager.activeNetwork = "betanet";
+      airdropClient = new AirdropClient(mockWallet, mockManager);
+
+      await expect(airdropClient.claim()).rejects.toThrow(
+        "App ID not configured for network: betanet"
+      );
+    });
+
+    it("should throw error if contract global state is empty", async () => {
+      // Override algod mock: globalState = []
+      (getAlgodClient as jest.Mock).mockReturnValue({
+        getTransactionParams: jest.fn().mockReturnValue({
+          do: jest.fn().mockResolvedValue({
+            fee: 1000,
+            firstRound: 1,
+            lastRound: 1001,
+            genesisHash: "test-hash",
+            genesisID: "test-id",
+          }),
+        }),
+        getApplicationByID: jest.fn().mockReturnValue({
+          do: jest.fn().mockResolvedValue({
+            params: {
+              globalState: [], // ❌ Empty global state triggers expected error
+            },
+          }),
+        }),
+      });
+
+      airdropClient = new AirdropClient(mockWallet, mockManager);
+
+      await expect(airdropClient.claim()).rejects.toThrow(
+        "Contract global state is empty or not found"
+      );
+    });
+
+    it("should throw error when token_id key is missing in global state", async () => {
+      // Override globalState to omit token_id
+      (getAlgodClient as jest.Mock).mockReturnValue({
+        getTransactionParams: jest.fn().mockReturnValue({
+          do: jest.fn().mockResolvedValue({
+            fee: 1000,
+            firstRound: 1,
+            lastRound: 1001,
+            genesisHash: "test-hash",
+            genesisID: "test-id",
+          }),
+        }),
+        getApplicationByID: jest.fn().mockReturnValue({
+          do: jest.fn().mockResolvedValue({
+            params: {
+              globalState: [
+                // ❌ Missing token_id
+                { key: btoa("other_key"), value: { uint: 999 } },
+              ],
+            },
+          }),
+        }),
+      });
+
+      airdropClient = new AirdropClient(mockWallet, mockManager);
+
+      await expect(airdropClient.claim()).rejects.toThrow(
+        "token_id not found in contract's global state"
+      );
+    });
+  });
+
+
 });

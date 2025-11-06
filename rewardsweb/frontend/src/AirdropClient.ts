@@ -1,26 +1,31 @@
 import {
   AtomicTransactionComposer,
-  ABIContract
+  ABIContract,
+  makeAssetTransferTxnWithSuggestedParamsFromObject,
+  Algodv2
 } from 'algosdk'
 import { BaseWallet, WalletManager, NetworkId } from '@txnlab/use-wallet'
 import { getAlgodClient } from './ActiveNetwork'
-import airdropABI from '../../contract/Airdrop.arc56.json'
-
-// ARC-56 Contract
-const contract = new ABIContract(airdropABI)
-
-// TODO: Replace with your actual app ID
-const appId = 123456789
+import rewardsABI from '../../contract/artifacts/Rewards.arc56.json'
 
 export class AirdropClient {
   private wallet: BaseWallet
   private manager: WalletManager
-  private algodClient: ReturnType<typeof getAlgodClient>
+  private algodClient: Algodv2
+  private contract: ABIContract
+  private rewardsAppIds: { [key in NetworkId]?: number }
 
   constructor(wallet: BaseWallet, manager: WalletManager) {
     this.wallet = wallet
     this.manager = manager
     this.algodClient = getAlgodClient(this.manager.activeNetwork as NetworkId)
+    this.contract = new ABIContract(rewardsABI as any)
+
+    // Hardcoded App IDs for different networks
+    this.rewardsAppIds = {
+      [NetworkId.MAINNET]: 0, // TODO: Replace with your Mainnet App ID
+      [NetworkId.TESTNET]: 749240272, // TODO: Replace with your Testnet App ID
+    }
   }
 
   private getCsrfToken = () => {
@@ -45,10 +50,16 @@ export class AirdropClient {
     try {
       const suggestedParams = await this.algodClient.getTransactionParams().do()
       const atc = new AtomicTransactionComposer()
+      const currentNetwork = this.manager.activeNetwork as NetworkId
+      const appId = this.rewardsAppIds[currentNetwork]
+
+      if (!appId) {
+        throw new Error(`App ID not configured for network: ${currentNetwork}`)
+      }
 
       atc.addMethodCall({
         appID: appId,
-        method: contract.getMethodByName('add_allocations'),
+        method: this.contract.getMethodByName('add_allocations'),
         methodArgs: [addresses, amounts],
         sender: this.wallet.activeAccount.address,
         signer: this.wallet.transactionSigner,
@@ -75,10 +86,16 @@ export class AirdropClient {
     try {
       const suggestedParams = await this.algodClient.getTransactionParams().do()
       const atc = new AtomicTransactionComposer()
+      const currentNetwork = this.manager.activeNetwork as NetworkId
+      const appId = this.rewardsAppIds[currentNetwork]
+
+      if (!appId) {
+        throw new Error(`App ID not configured for network: ${currentNetwork}`)
+      }
 
       atc.addMethodCall({
         appID: appId,
-        method: contract.getMethodByName('reclaim_allocation'),
+        method: this.contract.getMethodByName('reclaim_allocation'),
         methodArgs: [userAddress],
         sender: this.wallet.activeAccount.address,
         signer: this.wallet.transactionSigner,
@@ -105,20 +122,53 @@ export class AirdropClient {
     try {
       const suggestedParams = await this.algodClient.getTransactionParams().do()
       const atc = new AtomicTransactionComposer()
+      const sender = this.wallet.activeAccount.address
+      const signer = this.wallet.transactionSigner
+      const currentNetwork = this.manager.activeNetwork as NetworkId
+      const appId = this.rewardsAppIds[currentNetwork]
 
-      // The claim method might require a foreign asset, let's assume token_id is 1 for now
-      // You might need to fetch this dynamically
-      const tokenId = 1;
+      if (!appId) {
+        throw new Error(`App ID not configured for network: ${currentNetwork}`)
+      }
 
+      // Fetch the token_id from the contract's global state
+      const appInfo = await this.algodClient.getApplicationByID(appId).do();
+      const globalState = appInfo.params.globalState;
+      if (!globalState || globalState.length === 0) {
+        throw new Error("Contract global state is empty or not found");
+      }
+      const tokenIdEncoded = btoa('token_id');
+      const tokenIdValue = globalState.find((state: any) => state['key'] === tokenIdEncoded);
+      if (!tokenIdValue) {
+        throw new Error("token_id not found in contract's global state");
+      }
+      const tokenId = tokenIdValue['value']['uint'];
+
+      // 1. Create the asset opt-in transaction
+      const optInTxn = makeAssetTransferTxnWithSuggestedParamsFromObject({
+        sender: sender,
+        receiver: sender,
+        amount: 0,
+        assetIndex: tokenId,
+        suggestedParams: suggestedParams,
+      });
+
+      // Wrap it in a TransactionWithSigner
+      const tws = { txn: optInTxn, signer: signer };
+
+      // 2. Add the opt-in transaction to our atomic group
+      atc.addTransaction(tws);
+
+      // 3. Add the method call to 'claim' to our atomic group
       atc.addMethodCall({
         appID: appId,
-        method: contract.getMethodByName('claim'),
+        method: this.contract.getMethodByName('claim'),
         methodArgs: [],
-        sender: this.wallet.activeAccount.address,
-        signer: this.wallet.transactionSigner,
+        sender: sender,
+        signer: signer,
         suggestedParams,
         appForeignAssets: [tokenId]
-      })
+      });
 
       const result = await atc.execute(this.algodClient, 4)
       console.info(`[AirdropClient] ✅ Successfully sent claim transaction!`, {

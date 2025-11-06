@@ -3,7 +3,7 @@
   "sources": [
     "../contract.py"
   ],
-  "mappings": ";;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;AAyBA;;AAAA;;;AAAA;;AAAA;AAAA;AAAA;;AAAA;AAAA;;;;;;;;;;;;;;;;;;;;;;AAAA;;;AAAA;;;;;;;;;;AAAA;AAAA;AAAA;;AAAA;;AAAA;;;;;;AAAA;AA2CK;;AAAA;AAKU;;AAAc;AAAA;AAAA;AAAA;AAAd;AAAP;AALH;AAAA;AAXA;;AAAA;AAAA;AAOG;AAA2B;;AAA3B;AACA;AAAsB;AAAtB;AACA;AAAmC;AAAnC;AATH;AAAA;AAkBA;;;AAAA;AAAA;AAAA;AAAA;AAAA;AAAA;AAAA;;;AAAA;AAAA;AAAA;AAAA;AAAA;AAAA;AAYU;;AAAc;AAAA;AAAA;AAAA;AAAd;AAAP;AACO;AAAA;AAAA;AAAA;AAAA;AAAP;AACA;AAAA;;AAAA;AACA;AAAA;AAAA;AAGA;AACe;AAAA;AAAA;AAAA;AACI;;AACF;;;;;;;AAHjB;;;AAAA;;;AAAA;AAlBH;AAAA;AAwBA;;;AAAA;;AAAA;AAAA;AAAA;AAAA;;AAAA;AAAA;;AAAA;AAAA;;AAAA;AAAA;;AAAA;AAAA;AAAA;AAAA;;;AAAA;AAAA;;AAAA;AAAA;AAAA;AAAA;AAAA;AAAA;AAAA;;AAAA;AAAA;;AAAA;AAAA;AAAA;AAgBU;;AAAc;AAAA;AAAA;AAAA;AAAd;AAAP;AAEI;AADJ;AAIa;;AAA0B;AAAA;AAAA;AAAA;AAA1B;AACJ;AAAjB;AAAA;;AAAA;AAAA;;;AACsB;;AAAA;;;AAAA;;AAAA;AAAA;;AAAA;;AAAA;AAAA;;AAAA;AACD;;AAAA;;;AAAA;;AAAA;AAAA;AAAA;AAAA;AACQ;AAAA;AAAA;AAAA;AAAA;;AACd;AAAA;;AAAf;;;AAEsC;AAAA;AAAA;AAAA;AACtB;AAAA;AAAA;AAAA;;AAAA;AAAA;AAAA;;AACA;;AAAA;AAAA;;AACA;AATC;AAAA;AAAA;;;;;;AAaM;AAAA;AAAA;;AAAA;AAAP;AACuB;AAAA;AAAA;;AAAA;AAAA;AAAvB;;;;AApCX;AAAA;AA+CY;;AAAA;AACQ;AAAA;;AAAA;AAAA;AAAA;;AACV;AAAA;AAAA;;AAAP;AAEa;AAAA;AAAA;AAET;;AAA2B;;AAAA;AAAA;AAA3B;AADJ;AAIkB;AAAA;AAAA;;AAGlB;;AAIY;AAAA;AAAA;AAAA;AADQ;;AAAA;;AAIjB;;;AAEC;AACe;AAAA;AAAA;AAAA;AAEE;;;;;;;;;AAHjB;;;AAAA;;;AAAA;AAOJ;AACe;AAAA;AAAA;AAAA;;;;;;;;;;;AADf;;;AAAA;;;AAAA;AAOA;;AAAA;;AA5CH;AAAA;AA8CA;;;AAAA;AAAA;AAAA;;AAAA;AAAA;AAQU;;AAAc;AAAA;AAAA;AAAA;AAAd;AAAA;;AAAA;AAAP;AACiB;AAAA;;AAAA;AACV;AAAA;AAAA;;AAAP;AACa;AAAA;AAAA;AAET;;AAA0B;;AAAA;AAAA;AAA1B;AADJ;AAKA;AACe;AAAA;AAAA;AAAA;AAEE;AAAA;AAAA;;;;;;;;;AAHjB;;;AAAA;;;AAAA;AAOA;;AAxBH;AAAA",
+  "mappings": ";;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;AAyBA;;AAAA;;;AAAA;;AAAA;AAAA;AAAA;;AAAA;AAAA;;;;;;;;;;;;;;;;;;;;;;AAAA;;;AAAA;;;;;;;;;;AAAA;AAAA;AAAA;;AAAA;;AAAA;;;;;;AAAA;AA2CK;;AAAA;AAKU;;AAAc;AAAA;AAAA;AAAA;AAAd;AAAP;AALH;AAAA;AAXA;;AAAA;AAAA;AAOG;AAA2B;;AAA3B;AACA;AAAsB;AAAtB;AACA;AAAmC;AAAnC;AATH;AAAA;AAkBA;;;AAAA;AAAA;AAAA;AAAA;AAAA;AAAA;AAAA;;;AAAA;AAAA;AAAA;AAAA;AAAA;AAAA;AAYU;;AAAc;AAAA;AAAA;AAAA;AAAd;AAAP;AACO;AAAA;AAAA;AAAA;AAAA;AAAP;AACA;AAAA;;AAAA;AACA;AAAA;AAAA;AAGA;AACe;AAAA;AAAA;AAAA;AACI;;AACF;;;;;;;AAHjB;;;AAAA;;;AAAA;AAlBH;AAAA;AAwBA;;;AAAA;;AAAA;AAAA;AAAA;AAAA;;AAAA;AAAA;;AAAA;AAAA;;AAAA;AAAA;;AAAA;AAAA;AAAA;AAAA;;;AAAA;AAAA;;AAAA;AAAA;AAAA;AAAA;AAAA;AAAA;AAAA;;AAAA;AAAA;;AAAA;AAAA;AAAA;AAgBU;;AAAc;AAAA;AAAA;AAAA;AAAd;AAAP;AAEI;AADJ;AAIa;;AAA0B;AAAA;AAAA;AAAA;AAA1B;AACJ;AAAjB;AAAA;;AAAA;AAAA;;;AACsB;;AAAA;;;AAAA;;AAAA;AAAA;;AAAA;;AAAA;AAAA;;AAAA;AACD;;AAAA;;;AAAA;;AAAA;AAAA;AAAA;AAAA;AACQ;AAAA;AAAA;AAAA;AAAA;;AACd;AAAA;;AAAf;;;AAEsC;AAAA;AAAA;AAAA;AACtB;AAAA;AAAA;AAAA;;AAAA;AAAA;AAAA;;AACA;;AAAA;AAAA;;AACA;AATC;AAAA;AAAA;;;;;;AAaM;AAAA;AAAA;;AAAA;AAAP;AACuB;AAAA;AAAA;;AAAA;AAAA;AAAvB;;;;AApCX;AAAA;AA+CY;;AAAA;AACQ;AAAA;;AAAA;AACV;AAAA;AAAA;;AAAP;AAEa;AAAA;AAAA;AAET;;AAA2B;;AAAA;AAAA;AAA3B;AADJ;AAIkB;AAAA;AAAA;;AAGlB;;AAIY;AAAA;AAAA;AAAA;AADQ;;AAAA;;AAIjB;;;AAEC;AACe;AAAA;AAAA;AAAA;AAEE;;;;;;;;;AAHjB;;;AAAA;;;AAAA;AAOJ;AACe;AAAA;AAAA;AAAA;;;;;;;;;;;AADf;;;AAAA;;;AAAA;AArCH;AAAA;AA2CA;;;AAAA;AAAA;AAAA;;AAAA;AAAA;AAQU;;AAAc;AAAA;AAAA;AAAA;AAAd;AAAA;;AAAA;AAAP;AACiB;AAAA;;AAAA;AACV;AAAA;AAAA;;AAAP;AACa;AAAA;AAAA;AAET;;AAA0B;;AAAA;AAAA;AAA1B;AADJ;AAKA;AACe;AAAA;AAAA;AAAA;AAEE;AAAA;AAAA;;;;;;;;;AAHjB;;;AAAA;;;AAAA;AAOA;;AAxBH;AAAA",
   "op_pc_offset": 0,
   "pc_events": {
     "1": {
@@ -2587,28 +2587,6 @@
     },
     "375": {
       "op": "dup",
-      "stack_out": [
-        "sender#0",
-        "sender#0",
-        "allocation_box#0",
-        "allocation_box#0"
-      ]
-    },
-    "376": {
-      "op": "cover 2",
-      "defined_out": [
-        "allocation_box#0",
-        "sender#0"
-      ],
-      "stack_out": [
-        "sender#0",
-        "allocation_box#0",
-        "sender#0",
-        "allocation_box#0"
-      ]
-    },
-    "378": {
-      "op": "dup",
       "defined_out": [
         "allocation_box#0",
         "allocation_box#0 (copy)",
@@ -2616,13 +2594,12 @@
       ],
       "stack_out": [
         "sender#0",
-        "allocation_box#0",
         "sender#0",
         "allocation_box#0",
         "allocation_box#0 (copy)"
       ]
     },
-    "379": {
+    "376": {
       "op": "box_len",
       "defined_out": [
         "_%0#0",
@@ -2632,44 +2609,40 @@
       ],
       "stack_out": [
         "sender#0",
-        "allocation_box#0",
         "sender#0",
         "allocation_box#0",
         "_%0#0",
         "maybe_exists%0#0"
       ]
     },
-    "380": {
+    "377": {
       "op": "bury 1",
       "stack_out": [
         "sender#0",
-        "allocation_box#0",
         "sender#0",
         "allocation_box#0",
         "maybe_exists%0#0"
       ]
     },
-    "382": {
+    "379": {
       "error": "Sender has no allocation",
       "op": "assert // Sender has no allocation",
       "stack_out": [
         "sender#0",
-        "allocation_box#0",
         "sender#0",
         "allocation_box#0"
       ]
     },
-    "383": {
+    "380": {
       "op": "dup",
       "stack_out": [
         "sender#0",
-        "allocation_box#0",
         "sender#0",
         "allocation_box#0",
         "allocation_box#0 (copy)"
       ]
     },
-    "384": {
+    "381": {
       "op": "box_get",
       "defined_out": [
         "aggregate%box_get%1#0",
@@ -2679,24 +2652,22 @@
       ],
       "stack_out": [
         "sender#0",
-        "allocation_box#0",
         "sender#0",
         "allocation_box#0",
         "allocation#0",
         "aggregate%box_get%1#0"
       ]
     },
-    "385": {
+    "382": {
       "op": "pop",
       "stack_out": [
         "sender#0",
-        "allocation_box#0",
         "sender#0",
         "allocation_box#0",
         "allocation#0"
       ]
     },
-    "386": {
+    "383": {
       "op": "global LatestTimestamp",
       "defined_out": [
         "allocation#0",
@@ -2706,14 +2677,13 @@
       ],
       "stack_out": [
         "sender#0",
-        "allocation_box#0",
         "sender#0",
         "allocation_box#0",
         "allocation#0",
         "tmp%1#0"
       ]
     },
-    "388": {
+    "385": {
       "op": "dig 1",
       "defined_out": [
         "allocation#0",
@@ -2724,7 +2694,6 @@
       ],
       "stack_out": [
         "sender#0",
-        "allocation_box#0",
         "sender#0",
         "allocation_box#0",
         "allocation#0",
@@ -2732,7 +2701,7 @@
         "allocation#0 (copy)"
       ]
     },
-    "390": {
+    "387": {
       "op": "intc_2 // 8",
       "defined_out": [
         "8",
@@ -2744,7 +2713,6 @@
       ],
       "stack_out": [
         "sender#0",
-        "allocation_box#0",
         "sender#0",
         "allocation_box#0",
         "allocation#0",
@@ -2753,7 +2721,7 @@
         "8"
       ]
     },
-    "391": {
+    "388": {
       "op": "extract_uint64",
       "defined_out": [
         "allocation#0",
@@ -2764,7 +2732,6 @@
       ],
       "stack_out": [
         "sender#0",
-        "allocation_box#0",
         "sender#0",
         "allocation_box#0",
         "allocation#0",
@@ -2772,7 +2739,7 @@
         "values%0#0"
       ]
     },
-    "392": {
+    "389": {
       "op": "<=",
       "defined_out": [
         "allocation#0",
@@ -2782,36 +2749,33 @@
       ],
       "stack_out": [
         "sender#0",
-        "allocation_box#0",
         "sender#0",
         "allocation_box#0",
         "allocation#0",
         "tmp%2#0"
       ]
     },
-    "393": {
+    "390": {
       "error": "Claim period has ended",
       "op": "assert // Claim period has ended",
       "stack_out": [
         "sender#0",
-        "allocation_box#0",
         "sender#0",
         "allocation_box#0",
         "allocation#0"
       ]
     },
-    "394": {
+    "391": {
       "op": "intc_0 // 0",
       "stack_out": [
         "sender#0",
-        "allocation_box#0",
         "sender#0",
         "allocation_box#0",
         "allocation#0",
         "0"
       ]
     },
-    "395": {
+    "392": {
       "op": "extract_uint64",
       "defined_out": [
         "allocation_box#0",
@@ -2820,13 +2784,12 @@
       ],
       "stack_out": [
         "sender#0",
-        "allocation_box#0",
         "sender#0",
         "allocation_box#0",
         "amount_to_claim#0"
       ]
     },
-    "396": {
+    "393": {
       "op": "cover 2",
       "defined_out": [
         "allocation_box#0",
@@ -2835,69 +2798,61 @@
       ],
       "stack_out": [
         "sender#0",
-        "allocation_box#0",
         "amount_to_claim#0",
         "sender#0",
         "allocation_box#0"
       ]
     },
-    "398": {
+    "395": {
       "op": "box_del",
       "defined_out": [
-        "allocation_box#0",
         "amount_to_claim#0",
         "sender#0",
         "{box_del}"
       ],
       "stack_out": [
         "sender#0",
-        "allocation_box#0",
         "amount_to_claim#0",
         "sender#0",
         "{box_del}"
       ]
     },
-    "399": {
+    "396": {
       "op": "pop",
       "stack_out": [
         "sender#0",
-        "allocation_box#0",
         "amount_to_claim#0",
         "sender#0"
       ]
     },
-    "400": {
+    "397": {
       "op": "intc_0 // 0",
       "stack_out": [
         "sender#0",
-        "allocation_box#0",
         "amount_to_claim#0",
         "sender#0",
         "0"
       ]
     },
-    "401": {
+    "398": {
       "op": "bytec_0 // \"token_id\"",
       "defined_out": [
         "\"token_id\"",
         "0",
-        "allocation_box#0",
         "amount_to_claim#0",
         "sender#0"
       ],
       "stack_out": [
         "sender#0",
-        "allocation_box#0",
         "amount_to_claim#0",
         "sender#0",
         "0",
         "\"token_id\""
       ]
     },
-    "402": {
+    "399": {
       "op": "app_global_get_ex",
       "defined_out": [
-        "allocation_box#0",
         "amount_to_claim#0",
         "maybe_exists%1#0",
         "maybe_value%0#0",
@@ -2905,28 +2860,25 @@
       ],
       "stack_out": [
         "sender#0",
-        "allocation_box#0",
         "amount_to_claim#0",
         "sender#0",
         "maybe_value%0#0",
         "maybe_exists%1#0"
       ]
     },
-    "403": {
+    "400": {
       "error": "check self.token_id exists",
       "op": "assert // check self.token_id exists",
       "stack_out": [
         "sender#0",
-        "allocation_box#0",
         "amount_to_claim#0",
         "sender#0",
         "maybe_value%0#0"
       ]
     },
-    "404": {
+    "401": {
       "op": "asset_holding_get AssetBalance",
       "defined_out": [
-        "allocation_box#0",
         "amount_to_claim#0",
         "balance#0",
         "opted_in#0",
@@ -2934,55 +2886,49 @@
       ],
       "stack_out": [
         "sender#0",
-        "allocation_box#0",
         "amount_to_claim#0",
         "balance#0",
         "opted_in#0"
       ]
     },
-    "406": {
+    "403": {
       "op": "bury 1",
       "stack_out": [
         "sender#0",
-        "allocation_box#0",
         "amount_to_claim#0",
         "opted_in#0"
       ]
     },
-    "408": {
+    "405": {
       "op": "bnz claim_after_if_else@4",
       "stack_out": [
         "sender#0",
-        "allocation_box#0",
         "amount_to_claim#0"
       ]
     },
-    "411": {
+    "408": {
       "op": "itxn_begin"
     },
-    "412": {
+    "409": {
       "op": "intc_0 // 0",
       "stack_out": [
         "sender#0",
-        "allocation_box#0",
         "amount_to_claim#0",
         "0"
       ]
     },
-    "413": {
+    "410": {
       "op": "bytec_0 // \"token_id\"",
       "stack_out": [
         "sender#0",
-        "allocation_box#0",
         "amount_to_claim#0",
         "0",
         "\"token_id\""
       ]
     },
-    "414": {
+    "411": {
       "op": "app_global_get_ex",
       "defined_out": [
-        "allocation_box#0",
         "amount_to_claim#0",
         "maybe_exists%2#0",
         "maybe_value%1#0",
@@ -2990,133 +2936,119 @@
       ],
       "stack_out": [
         "sender#0",
-        "allocation_box#0",
         "amount_to_claim#0",
         "maybe_value%1#0",
         "maybe_exists%2#0"
       ]
     },
-    "415": {
+    "412": {
       "error": "check self.token_id exists",
       "op": "assert // check self.token_id exists",
       "stack_out": [
         "sender#0",
-        "allocation_box#0",
         "amount_to_claim#0",
         "maybe_value%1#0"
       ]
     },
-    "416": {
+    "413": {
       "op": "intc_0 // 0",
       "stack_out": [
         "sender#0",
-        "allocation_box#0",
         "amount_to_claim#0",
         "maybe_value%1#0",
         "0"
       ]
     },
-    "417": {
+    "414": {
       "op": "itxn_field AssetAmount",
       "stack_out": [
         "sender#0",
-        "allocation_box#0",
         "amount_to_claim#0",
         "maybe_value%1#0"
       ]
     },
-    "419": {
-      "op": "dig 3",
+    "416": {
+      "op": "dig 2",
       "stack_out": [
         "sender#0",
-        "allocation_box#0",
         "amount_to_claim#0",
         "maybe_value%1#0",
         "sender#0"
       ]
     },
-    "421": {
+    "418": {
       "op": "itxn_field AssetReceiver",
       "stack_out": [
         "sender#0",
-        "allocation_box#0",
         "amount_to_claim#0",
         "maybe_value%1#0"
       ]
     },
-    "423": {
+    "420": {
       "op": "itxn_field XferAsset",
       "stack_out": [
         "sender#0",
-        "allocation_box#0",
         "amount_to_claim#0"
       ]
     },
-    "425": {
+    "422": {
       "op": "intc_3 // axfer",
       "defined_out": [
-        "allocation_box#0",
         "amount_to_claim#0",
         "axfer",
         "sender#0"
       ],
       "stack_out": [
         "sender#0",
-        "allocation_box#0",
         "amount_to_claim#0",
         "axfer"
       ]
     },
-    "426": {
+    "423": {
       "op": "itxn_field TypeEnum",
       "stack_out": [
         "sender#0",
-        "allocation_box#0",
         "amount_to_claim#0"
       ]
     },
-    "428": {
+    "425": {
       "op": "intc_0 // 0",
       "stack_out": [
         "sender#0",
-        "allocation_box#0",
         "amount_to_claim#0",
         "0"
       ]
     },
-    "429": {
+    "426": {
       "op": "itxn_field Fee",
       "stack_out": [
         "sender#0",
-        "allocation_box#0",
         "amount_to_claim#0"
       ]
     },
-    "431": {
+    "428": {
       "op": "itxn_submit"
     },
-    "432": {
+    "429": {
       "block": "claim_after_if_else@4",
       "stack_in": [
         "sender#0",
-        "allocation_box#0",
         "amount_to_claim#0"
       ],
       "op": "itxn_begin"
     },
-    "433": {
+    "430": {
       "op": "intc_0 // 0",
       "defined_out": [
         "0"
       ],
       "stack_out": [
         "sender#0",
-        "allocation_box#0",
         "amount_to_claim#0",
         "0"
       ]
     },
-    "434": {
+    "431": {
       "op": "bytec_0 // \"token_id\"",
       "defined_out": [
         "\"token_id\"",
@@ -3124,13 +3056,12 @@
       ],
       "stack_out": [
         "sender#0",
-        "allocation_box#0",
         "amount_to_claim#0",
         "0",
         "\"token_id\""
       ]
     },
-    "435": {
+    "432": {
       "op": "app_global_get_ex",
       "defined_out": [
         "maybe_exists%3#0",
@@ -3138,23 +3069,21 @@
       ],
       "stack_out": [
         "sender#0",
-        "allocation_box#0",
         "amount_to_claim#0",
         "maybe_value%2#0",
         "maybe_exists%3#0"
       ]
     },
-    "436": {
+    "433": {
       "error": "check self.token_id exists",
       "op": "assert // check self.token_id exists",
       "stack_out": [
         "sender#0",
-        "allocation_box#0",
         "amount_to_claim#0",
         "maybe_value%2#0"
       ]
     },
-    "437": {
+    "434": {
       "op": "dig 1",
       "defined_out": [
         "amount_to_claim#0",
@@ -3162,23 +3091,21 @@
       ],
       "stack_out": [
         "sender#0",
-        "allocation_box#0",
         "amount_to_claim#0",
         "maybe_value%2#0",
         "amount_to_claim#0"
       ]
     },
-    "439": {
+    "436": {
       "op": "itxn_field AssetAmount",
       "stack_out": [
         "sender#0",
-        "allocation_box#0",
         "amount_to_claim#0",
         "maybe_value%2#0"
       ]
     },
-    "441": {
-      "op": "dig 3",
+    "438": {
+      "op": "dig 2",
       "defined_out": [
         "amount_to_claim#0",
         "maybe_value%2#0",
@@ -3186,30 +3113,27 @@
       ],
       "stack_out": [
         "sender#0",
-        "allocation_box#0",
         "amount_to_claim#0",
         "maybe_value%2#0",
         "sender#0"
       ]
     },
-    "443": {
+    "440": {
       "op": "itxn_field AssetReceiver",
       "stack_out": [
         "sender#0",
-        "allocation_box#0",
         "amount_to_claim#0",
         "maybe_value%2#0"
       ]
     },
-    "445": {
+    "442": {
       "op": "itxn_field XferAsset",
       "stack_out": [
         "sender#0",
-        "allocation_box#0",
         "amount_to_claim#0"
       ]
     },
-    "447": {
+    "444": {
       "op": "intc_3 // axfer",
       "defined_out": [
         "amount_to_claim#0",
@@ -3218,100 +3142,56 @@
       ],
       "stack_out": [
         "sender#0",
-        "allocation_box#0",
         "amount_to_claim#0",
         "axfer"
       ]
     },
-    "448": {
+    "445": {
       "op": "itxn_field TypeEnum",
       "stack_out": [
         "sender#0",
-        "allocation_box#0",
         "amount_to_claim#0"
       ]
     },
-    "450": {
+    "447": {
       "op": "intc_0 // 0",
       "stack_out": [
         "sender#0",
-        "allocation_box#0",
         "amount_to_claim#0",
         "0"
       ]
     },
-    "451": {
+    "448": {
       "op": "itxn_field Fee",
       "stack_out": [
         "sender#0",
-        "allocation_box#0",
         "amount_to_claim#0"
       ]
     },
-    "453": {
+    "450": {
       "op": "itxn_submit"
     },
-    "454": {
-      "op": "dig 1",
-      "defined_out": [
-        "allocation_box#0",
-        "amount_to_claim#0",
-        "sender#0"
-      ],
-      "stack_out": [
-        "sender#0",
-        "allocation_box#0",
-        "amount_to_claim#0",
-        "allocation_box#0"
-      ]
-    },
-    "456": {
-      "op": "box_del",
-      "defined_out": [
-        "allocation_box#0",
-        "amount_to_claim#0",
-        "sender#0",
-        "{box_del}"
-      ],
-      "stack_out": [
-        "sender#0",
-        "allocation_box#0",
-        "amount_to_claim#0",
-        "{box_del}"
-      ]
-    },
-    "457": {
-      "op": "pop",
-      "stack_out": [
-        "sender#0",
-        "allocation_box#0",
-        "amount_to_claim#0"
-      ]
-    },
-    "458": {
+    "451": {
       "op": "intc_1 // 1",
       "defined_out": [
         "1",
-        "allocation_box#0",
         "amount_to_claim#0",
         "sender#0"
       ],
       "stack_out": [
         "sender#0",
-        "allocation_box#0",
         "amount_to_claim#0",
         "1"
       ]
     },
-    "459": {
+    "452": {
       "op": "return",
       "stack_out": [
         "sender#0",
-        "allocation_box#0",
         "amount_to_claim#0"
       ]
     },
-    "460": {
+    "453": {
       "subroutine": "contract.contract.Rewards.reclaim_allocation[routing]",
       "params": {},
       "block": "reclaim_allocation",
@@ -3324,7 +3204,7 @@
         "user_address#0"
       ]
     },
-    "463": {
+    "456": {
       "op": "dup",
       "defined_out": [
         "user_address#0",
@@ -3335,7 +3215,7 @@
         "user_address#0 (copy)"
       ]
     },
-    "464": {
+    "457": {
       "op": "len",
       "defined_out": [
         "len%0#0",
@@ -3346,7 +3226,7 @@
         "len%0#0"
       ]
     },
-    "465": {
+    "458": {
       "op": "pushint 32 // 32",
       "defined_out": [
         "32",
@@ -3359,7 +3239,7 @@
         "32"
       ]
     },
-    "467": {
+    "460": {
       "op": "==",
       "defined_out": [
         "eq%0#0",
@@ -3370,14 +3250,14 @@
         "eq%0#0"
       ]
     },
-    "468": {
+    "461": {
       "error": "invalid number of bytes for arc4.static_array<arc4.uint8, 32>",
       "op": "assert // invalid number of bytes for arc4.static_array<arc4.uint8, 32>",
       "stack_out": [
         "user_address#0"
       ]
     },
-    "469": {
+    "462": {
       "op": "txn Sender",
       "defined_out": [
         "tmp%0#1",
@@ -3388,7 +3268,7 @@
         "tmp%0#1"
       ]
     },
-    "471": {
+    "464": {
       "op": "intc_0 // 0",
       "defined_out": [
         "0",
@@ -3401,7 +3281,7 @@
         "0"
       ]
     },
-    "472": {
+    "465": {
       "op": "bytec_1 // \"admin_address\"",
       "defined_out": [
         "\"admin_address\"",
@@ -3416,7 +3296,7 @@
         "\"admin_address\""
       ]
     },
-    "473": {
+    "466": {
       "op": "app_global_get_ex",
       "defined_out": [
         "maybe_exists%0#0",
@@ -3431,7 +3311,7 @@
         "maybe_exists%0#0"
       ]
     },
-    "474": {
+    "467": {
       "error": "check self.admin_address exists",
       "op": "assert // check self.admin_address exists",
       "stack_out": [
@@ -3440,7 +3320,7 @@
         "maybe_value%0#0"
       ]
     },
-    "475": {
+    "468": {
       "op": "swap",
       "stack_out": [
         "user_address#0",
@@ -3448,7 +3328,7 @@
         "tmp%0#1"
       ]
     },
-    "476": {
+    "469": {
       "op": "dig 1",
       "defined_out": [
         "maybe_value%0#0",
@@ -3463,7 +3343,7 @@
         "maybe_value%0#0 (copy)"
       ]
     },
-    "478": {
+    "471": {
       "op": "==",
       "defined_out": [
         "maybe_value%0#0",
@@ -3476,7 +3356,7 @@
         "tmp%1#1"
       ]
     },
-    "479": {
+    "472": {
       "error": "Sender is not the admin",
       "op": "assert // Sender is not the admin",
       "stack_out": [
@@ -3484,7 +3364,7 @@
         "maybe_value%0#0"
       ]
     },
-    "480": {
+    "473": {
       "op": "bytec_3 // \"allocations\"",
       "defined_out": [
         "\"allocations\"",
@@ -3497,7 +3377,7 @@
         "\"allocations\""
       ]
     },
-    "481": {
+    "474": {
       "op": "uncover 2",
       "stack_out": [
         "maybe_value%0#0",
@@ -3505,7 +3385,7 @@
         "user_address#0"
       ]
     },
-    "483": {
+    "476": {
       "op": "concat",
       "defined_out": [
         "allocation_box#0",
@@ -3516,7 +3396,7 @@
         "allocation_box#0"
       ]
     },
-    "484": {
+    "477": {
       "op": "dup",
       "defined_out": [
         "allocation_box#0",
@@ -3529,7 +3409,7 @@
         "allocation_box#0 (copy)"
       ]
     },
-    "485": {
+    "478": {
       "op": "box_len",
       "defined_out": [
         "_%0#0",
@@ -3544,7 +3424,7 @@
         "maybe_exists%1#0"
       ]
     },
-    "486": {
+    "479": {
       "op": "bury 1",
       "stack_out": [
         "maybe_value%0#0",
@@ -3552,7 +3432,7 @@
         "maybe_exists%1#0"
       ]
     },
-    "488": {
+    "481": {
       "error": "User has no allocation",
       "op": "assert // User has no allocation",
       "stack_out": [
@@ -3560,7 +3440,7 @@
         "allocation_box#0"
       ]
     },
-    "489": {
+    "482": {
       "op": "dup",
       "stack_out": [
         "maybe_value%0#0",
@@ -3568,7 +3448,7 @@
         "allocation_box#0 (copy)"
       ]
     },
-    "490": {
+    "483": {
       "op": "box_get",
       "defined_out": [
         "aggregate%box_get%1#0",
@@ -3583,7 +3463,7 @@
         "aggregate%box_get%1#0"
       ]
     },
-    "491": {
+    "484": {
       "op": "pop",
       "stack_out": [
         "maybe_value%0#0",
@@ -3591,7 +3471,7 @@
         "allocation#0"
       ]
     },
-    "492": {
+    "485": {
       "op": "global LatestTimestamp",
       "defined_out": [
         "allocation#0",
@@ -3606,7 +3486,7 @@
         "tmp%2#0"
       ]
     },
-    "494": {
+    "487": {
       "op": "dig 1",
       "defined_out": [
         "allocation#0",
@@ -3623,7 +3503,7 @@
         "allocation#0 (copy)"
       ]
     },
-    "496": {
+    "489": {
       "op": "intc_2 // 8",
       "defined_out": [
         "8",
@@ -3642,7 +3522,7 @@
         "8"
       ]
     },
-    "497": {
+    "490": {
       "op": "extract_uint64",
       "defined_out": [
         "allocation#0",
@@ -3659,7 +3539,7 @@
         "values%0#0"
       ]
     },
-    "498": {
+    "491": {
       "op": ">",
       "defined_out": [
         "allocation#0",
@@ -3674,7 +3554,7 @@
         "tmp%3#0"
       ]
     },
-    "499": {
+    "492": {
       "error": "Claim period has not ended for this user",
       "op": "assert // Claim period has not ended for this user",
       "stack_out": [
@@ -3683,10 +3563,10 @@
         "allocation#0"
       ]
     },
-    "500": {
+    "493": {
       "op": "itxn_begin"
     },
-    "501": {
+    "494": {
       "op": "intc_0 // 0",
       "stack_out": [
         "maybe_value%0#0",
@@ -3695,7 +3575,7 @@
         "0"
       ]
     },
-    "502": {
+    "495": {
       "op": "bytec_0 // \"token_id\"",
       "defined_out": [
         "\"token_id\"",
@@ -3712,7 +3592,7 @@
         "\"token_id\""
       ]
     },
-    "503": {
+    "496": {
       "op": "app_global_get_ex",
       "defined_out": [
         "allocation#0",
@@ -3729,7 +3609,7 @@
         "maybe_exists%2#0"
       ]
     },
-    "504": {
+    "497": {
       "error": "check self.token_id exists",
       "op": "assert // check self.token_id exists",
       "stack_out": [
@@ -3739,7 +3619,7 @@
         "maybe_value%1#0"
       ]
     },
-    "505": {
+    "498": {
       "op": "swap",
       "stack_out": [
         "maybe_value%0#0",
@@ -3748,7 +3628,7 @@
         "allocation#0"
       ]
     },
-    "506": {
+    "499": {
       "op": "intc_0 // 0",
       "stack_out": [
         "maybe_value%0#0",
@@ -3758,7 +3638,7 @@
         "0"
       ]
     },
-    "507": {
+    "500": {
       "op": "extract_uint64",
       "defined_out": [
         "allocation_box#0",
@@ -3773,7 +3653,7 @@
         "values%1#0"
       ]
     },
-    "508": {
+    "501": {
       "op": "itxn_field AssetAmount",
       "stack_out": [
         "maybe_value%0#0",
@@ -3781,7 +3661,7 @@
         "maybe_value%1#0"
       ]
     },
-    "510": {
+    "503": {
       "op": "uncover 2",
       "stack_out": [
         "allocation_box#0",
@@ -3789,20 +3669,20 @@
         "maybe_value%0#0"
       ]
     },
-    "512": {
+    "505": {
       "op": "itxn_field AssetReceiver",
       "stack_out": [
         "allocation_box#0",
         "maybe_value%1#0"
       ]
     },
-    "514": {
+    "507": {
       "op": "itxn_field XferAsset",
       "stack_out": [
         "allocation_box#0"
       ]
     },
-    "516": {
+    "509": {
       "op": "intc_3 // axfer",
       "defined_out": [
         "allocation_box#0",
@@ -3813,29 +3693,29 @@
         "axfer"
       ]
     },
-    "517": {
+    "510": {
       "op": "itxn_field TypeEnum",
       "stack_out": [
         "allocation_box#0"
       ]
     },
-    "519": {
+    "512": {
       "op": "intc_0 // 0",
       "stack_out": [
         "allocation_box#0",
         "0"
       ]
     },
-    "520": {
+    "513": {
       "op": "itxn_field Fee",
       "stack_out": [
         "allocation_box#0"
       ]
     },
-    "522": {
+    "515": {
       "op": "itxn_submit"
     },
-    "523": {
+    "516": {
       "op": "box_del",
       "defined_out": [
         "{box_del}"
@@ -3844,11 +3724,11 @@
         "{box_del}"
       ]
     },
-    "524": {
+    "517": {
       "op": "pop",
       "stack_out": []
     },
-    "525": {
+    "518": {
       "op": "intc_1 // 1",
       "defined_out": [
         "1"
@@ -3857,7 +3737,7 @@
         "1"
       ]
     },
-    "526": {
+    "519": {
       "op": "return",
       "stack_out": []
     }

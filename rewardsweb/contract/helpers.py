@@ -45,6 +45,7 @@ def environment_variables():
         "rewards_token_id_mainnet": os.getenv("REWARDS_TOKEN_ID_MAINNET"),
         "rewards_dapp_name": os.getenv("REWARDS_DAPP_NAME"),
         "claim_period_duration": os.getenv("CLAIM_PERIOD_DURATION"),
+        "dapp_minimum_algo": os.getenv("DAPP_MINIMUM_ALGO"),
     }
 
 

@@ -79,6 +79,7 @@ class TestContractHelpersFunctions:
             "rewards_token_id_mainnet",
             "rewards_dapp_name",
             "claim_period_duration",
+            "dapp_minimum_algo",
         ):
             mocks[var] = mocker.MagicMock()
         mocked_load_dotenv = mocker.patch("contract.helpers.load_dotenv")

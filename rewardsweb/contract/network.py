@@ -60,10 +60,6 @@ def add_allocations(network, addresses, amounts):
     print(f"Allocations added in transaction {response.tx_ids[0]}")
 
 
-# def check_app_balances(client, private_key, approval_program, clear_program, contract_json):
-#     app_address = get_application_address(app_id)
-
-
 def create_app(client, private_key, approval_program, clear_program, contract_json):
     """Create a new smart contract application on the Algorand blockchain.
 
@@ -167,7 +163,7 @@ def delete_app(client, private_key, app_id):
     print("Deleted app-id: ", transaction_response["txn"]["txn"]["apid"])
 
 
-def fund_app(app_id, network, amount=100_000):
+def fund_app(app_id, network, amount=None):
     """Fund the application escrow account with 0.2 Algo.
 
     Creates an Algod client and sends a payment transaction from the
@@ -200,6 +196,9 @@ def fund_app(app_id, network, amount=100_000):
     :type tx_id: int
     """
     env = environment_variables()
+
+    if amount is None:
+        amount = env.get("dapp_minimum_algo", 100_000)
 
     client = AlgodClient(
         env.get(f"algod_token_{network}"), env.get(f"algod_address_{network}")

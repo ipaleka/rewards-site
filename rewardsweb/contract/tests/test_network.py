@@ -219,7 +219,7 @@ class TestContractNetworkFunctions:
         client.send_transactions.assert_called_once_with([mock_signed])
         mocked_wait.assert_called_once_with(client, "tx123")
 
-    def test_contract_network_fund_app_functionality(self, mocker):
+    def test_contract_network_fund_app_for_no_env_variable(self, mocker):
         app_id = 5059
         network = "testnet"
 
@@ -283,6 +283,76 @@ class TestContractNetworkFunctions:
             sp=suggested_params,
             receiver=app_address,
             amt=100000,
+        )
+
+        client.send_transactions.assert_called_once_with([mock_signed])
+        mocked_wait.assert_called_once_with(client, "tx123")
+
+    def test_contract_network_fund_app_functionality(self, mocker):
+        app_id = 5059
+        network = "testnet"
+
+        env = {
+            "algod_token_testnet": "token",
+            "algod_address_testnet": "address",
+            "creator_mnemonic_testnet": "mnemonic",
+            "dapp_minimum_algo": 250_000,
+        }
+
+        mocked_env = mocker.patch(
+            "contract.network.environment_variables", return_value=env
+        )
+
+        client = mocker.MagicMock()
+        mocked_client = mocker.patch(
+            "contract.network.AlgodClient", return_value=client
+        )
+
+        creator_private_key = mocker.MagicMock()
+        mocked_private_key = mocker.patch(
+            "contract.network.private_key_from_mnemonic",
+            return_value=creator_private_key,
+        )
+
+        sender = "sender-address"
+        mocked_address = mocker.patch(
+            "contract.network.address_from_private_key",
+            return_value=sender,
+        )
+
+        app_address = "app-escrow-address"
+        mocked_app_address = mocker.patch(
+            "contract.network.get_application_address", return_value=app_address
+        )
+
+        suggested_params = mocker.MagicMock()
+        client.suggested_params.return_value = suggested_params
+
+        mock_tx = mocker.MagicMock()
+        mock_signed = mocker.MagicMock()
+        mock_signed.transaction.get_txid.return_value = "tx123"
+
+        mocked_payment = mocker.patch(
+            "contract.network.PaymentTxn", return_value=mock_tx
+        )
+        mock_tx.sign.return_value = mock_signed
+
+        mocked_wait = mocker.patch("contract.network.wait_for_confirmation")
+        mocker.patch("builtins.print")  # suppress output
+
+        fund_app(app_id, network)
+
+        mocked_env.assert_called_once_with()
+        mocked_client.assert_called_once_with("token", "address")
+        mocked_private_key.assert_called_once_with("mnemonic")
+        mocked_address.assert_called_once_with(creator_private_key)
+        mocked_app_address.assert_called_once_with(app_id)
+
+        mocked_payment.assert_called_once_with(
+            sender=sender,
+            sp=suggested_params,
+            receiver=app_address,
+            amt=250_000,
         )
 
         client.send_transactions.assert_called_once_with([mock_signed])

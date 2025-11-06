@@ -33,7 +33,13 @@ APP_SPEC_PATH = CONTRACT_PATH / f"{dapp_name}.arc56.json"
 @pytest.fixture(scope="session")
 def app_spec() -> Arc56Contract:
     """Get the application specification from the compiled artifact."""
-    return Arc56Contract.from_json(APP_SPEC_PATH.read_text())
+    import json
+
+    spec = json.loads(APP_SPEC_PATH.read_text())
+    for network in spec["networks"].values():
+        if "appID" in network:
+            network["appId"] = network.pop("appID")
+    return Arc56Contract.from_dict(spec)
 
 
 @pytest.fixture(scope="session")

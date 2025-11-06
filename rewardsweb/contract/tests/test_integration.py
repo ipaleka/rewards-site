@@ -1,4 +1,4 @@
-"""ASA Stats Rewards smart contract integration tests module."""
+"""Rewards smart contract integration tests module."""
 
 import pytest
 from algosdk.account import address_from_private_key
@@ -7,83 +7,91 @@ from algosdk.error import AlgodHTTPError
 from algosdk.v2client.algod import AlgodClient
 
 from contract.helpers import (
-    box_name_from_address,
     environment_variables,
     private_key_from_mnemonic,
 )
+from contract.network import add_allocations, reclaim_allocation
+
+# This should be set to the ID of a deployed Rewards contract on TestNet
+REWARDS_APP_ID_TESTNET = environment_variables().get("REWARDS_APP_ID_TESTNET")
 
 
-# # VALUES
-class TestContractIntegrationForNonCreator:
-    """Testing class for ASA Stats Rewards smart contract integration tests."""
+class TestRewardsIntegration:
+    """Integration tests for the Rewards smart contract."""
 
-    # # # delete_box
-    # def test_contract_integration_delete_box_raises_error_for_non_creator_caller(self):
-    #     env = environment_variables()
-    #     client = AlgodClient(
-    #         env.get("algod_token_testnet"), env.get("algod_address_testnet")
-    #     )
-    #     app_id = PERMISSION_APP_ID_TESTNET
-    #     address = "KGTSKYBFYC4WHYQ5PLP7FAMGET7OUWPE6AZXJWQAKTMCI4BMZ6FGCPSHPQ"
-    #     env["creator_mnemonic_testnet"] = env["user_mnemonic"]
-    #     writing_parameters = box_writing_parameters(env, network_suffix="_testnet")
-    #     with pytest.raises(AlgodHTTPError) as exception:
-    #         delete_box(client, app_id, writing_parameters, address)
-    #     assert "logic eval error" in str(exception.value)
+    def test_add_allocations_and_reclaim_expired(self):
+        """
+        Tests the full lifecycle of an allocation:
+        1. Admin adds an allocation for a user.
+        2. Admin attempts to reclaim the allocation before it expires, which should fail.
+        3. Admin reclaims the allocation after it expires, which should succeed.
+        """
+        env = environment_variables()
+        client = AlgodClient(
+            env.get("algod_token_testnet"), env.get("algod_address_testnet")
+        )
+        creator_private_key = private_key_from_mnemonic(
+            env.get("creator_mnemonic_testnet")
+        )
+        user_account = Account()
 
-    # def test_contract_integration_delete_box_for_creator_caller(self):
-    #     env = environment_variables()
-    #     client = AlgodClient(
-    #         env.get("algod_token_testnet"), env.get("algod_address_testnet")
-    #     )
-    #     app_id = PERMISSION_APP_ID_TESTNET
-    #     address = "KGTSKYBFYC4WHYQ5PLP7FAMGET7OUWPE6AZXJWQAKTMCI4BMZ6FGCPSHPQ"
-    #     values = [1, 2, 3, 4, 5, 6, 7, 8, 9, 10, 11, 12]
-    #     value = serialize_values(values)
-    #     writing_parameters = box_writing_parameters(env, network_suffix="_testnet")
-    #     write_box(client, app_id, writing_parameters, address, value)
-    #     box_name = box_name_from_address(address)
-    #     returned = deserialized_permission_dapp_box_value(client, app_id, box_name)
-    #     assert returned == values
-    #     delete_box(client, app_id, writing_parameters, address)
-    #     returned = deserialized_permission_dapp_box_value(client, app_id, box_name)
-    #     assert returned is None
+        # 1. Add allocation
+        add_allocations(
+            client,
+            creator_private_key,
+            REWARDS_APP_ID_TESTNET,
+            [user_account.address],
+            [100],
+        )
 
-    # # # write_box
-    # def test_contract_integration_write_box_raises_error_for_non_creator_caller(self):
-    #     env = environment_variables()
-    #     client = AlgodClient(
-    #         env.get("algod_token_testnet"), env.get("algod_address_testnet")
-    #     )
-    #     app_id = PERMISSION_APP_ID_TESTNET
-    #     user_private_key = private_key_from_mnemonic(env.get("user_mnemonic"))
-    #     sender = address_from_private_key(user_private_key)
-    #     signer = AccountTransactionSigner(user_private_key)
-    #     contract = load_contract()
-    #     writing_parameters = {"sender": sender, "signer": signer, "contract": contract}
-    #     address = "2EVGZ4BGOSL3J64UYDE2BUGTNTBZZZLI54VUQQNZZLYCDODLY33UGXNSIU"
-    #     value = serialize_values([1, 2, 3, 4, 5, 6, 7, 8, 9, 10, 11, 12])
-    #     with pytest.raises(AlgodHTTPError) as exception:
-    #         write_box(client, app_id, writing_parameters, address, value)
-    #     assert "logic eval error" in str(exception.value)
+        # 2. Attempt to reclaim before expiry (should fail)
+        with pytest.raises(AlgodHTTPError) as exception:
+            reclaim_allocation(
+                client,
+                creator_private_key,
+                REWARDS_APP_ID_TESTNET,
+                user_account.address,
+            )
+        assert "Claim period has not ended" in str(exception.value)
 
-    # def test_contract_integration_write_box_for_creator_caller(self):
-    #     env = environment_variables()
-    #     client = AlgodClient(
-    #         env.get("algod_token_testnet"), env.get("algod_address_testnet")
-    #     )
-    #     app_id = PERMISSION_APP_ID_TESTNET
-    #     writing_parameters = box_writing_parameters(env, network_suffix="_testnet")
-    #     address = "2EVGZ4BGOSL3J64UYDE2BUGTNTBZZZLI54VUQQNZZLYCDODLY33UGXNSIU"
-    #     box_name = box_name_from_address(address)
-    #     returned = deserialized_permission_dapp_box_value(client, app_id, box_name)
-    #     if returned:
-    #         delete_box(client, app_id, writing_parameters, address)
-    #     returned = deserialized_permission_dapp_box_value(client, app_id, box_name)
-    #     assert returned is None
-    #     values = [1, 2, 3, 4, 5, 6, 7, 8, 9, 10, 11, 12]
-    #     value = serialize_values(values)
-    #     write_box(client, app_id, writing_parameters, address, value)
-    #     returned = deserialized_permission_dapp_box_value(client, app_id, box_name)
-    #     assert returned == values
-    #     delete_box(client, app_id, writing_parameters, address)
+        # 3. Reclaim after expiry (requires waiting for the claim period to pass)
+        # Note: This part of the test is commented out as it would require a long wait.
+        # To test this, you would need to set a short claim_period_duration when setting up the contract.
+        # import time
+        # time.sleep(CLAIM_PERIOD_DURATION + 1)
+        # reclaim_allocation(
+        #     client,
+        #     creator_private_key,
+        #     REWARDS_APP_ID_TESTNET,
+        #     user_account.address,
+        # )
+
+    def test_non_admin_cannot_call_admin_methods(self):
+        """
+        Tests that a non-admin user cannot call admin-only methods.
+        """
+        env = environment_variables()
+        client = AlgodClient(
+            env.get("algod_token_testnet"), env.get("algod_address_testnet")
+        )
+        user_private_key = private_key_from_mnemonic(env.get("user_mnemonic_testnet"))
+        user_account = Account()
+
+        with pytest.raises(AlgodHTTPError) as exception:
+            add_allocations(
+                client,
+                user_private_key,
+                REWARDS_APP_ID_TESTNET,
+                [user_account.address],
+                [100],
+            )
+        assert "Sender is not the admin" in str(exception.value)
+
+        with pytest.raises(AlgodHTTPError) as exception:
+            reclaim_allocation(
+                client,
+                user_private_key,
+                REWARDS_APP_ID_TESTNET,
+                user_account.address,
+            )
+        assert "Sender is not the admin" in str(exception.value)

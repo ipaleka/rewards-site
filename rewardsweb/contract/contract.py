@@ -147,7 +147,16 @@ class Rewards(arc4.ARC4Contract):
         sender = Txn.sender
         allocation_box = self.allocations.box(sender)
         assert allocation_box, "Sender has no allocation"
-        amount_to_claim = allocation_box.value.amount
+
+        allocation = allocation_box.value.copy()
+        assert (
+            Global.latest_timestamp <= allocation.expires_at
+        ), "Claim period has ended"
+
+        amount_to_claim = allocation.amount
+
+        # Delete the allocation to prevent claiming again
+        del allocation_box.value
 
         # Check if the user is already opted-in to the asset
         balance, opted_in = op.AssetHoldingGet.asset_balance(

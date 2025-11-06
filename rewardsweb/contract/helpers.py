@@ -4,7 +4,11 @@ import base64
 import json
 import os
 import time
+from pathlib import Path
 
+from algosdk.abi.contract import Contract
+from algosdk.account import address_from_private_key
+from algosdk.atomic_transaction_composer import AccountTransactionSigner
 from algosdk.encoding import decode_address
 from algosdk.mnemonic import to_private_key
 from algosdk.transaction import StateSchema
@@ -127,6 +131,64 @@ def compile_program(client, source_code):
 
 
 # # NETWORK
+def atc_method_stub(client, network):
+    """Return instances needed for calling a method with AtomicTransactionComposer.
+
+    :param client: Algorand Node client instance.
+    :type client: :class:`AlgodClient`
+    :param network: The network to connect to (e.g., "testnet").
+    :type network: str
+    :var env: Environment variables.
+    :type env: dict
+    :var creator_private_key: The private key of the application creator.
+    :type creator_private_key: str
+    :var sender: The address of the transaction sender.
+    :type sender: str
+    :var signer: The transaction signer.
+    :type signer: :class:`algosdk.atomic_transaction_composer.AccountTransactionSigner`
+    :var dapp_name: name of the smart contract application
+    :type dapp_name: str
+    :var contract_json: The ARC-56 smart contract specification.
+    :type contract_json: dict
+    :var contract: Algorand ABI contract instance
+    :type contract: :class:`algosdk.abi.contract.Contract`
+    :var sp: suggested transaction params
+    :type sp: :class:`transaction.SuggestedParams`
+    :var app_id: Rewards dApp unique identifier
+    :type app_id: int
+    :return: A dictionary with sender, signer, and contract.
+    :rtype: dict
+    """
+    env = environment_variables()
+
+    creator_private_key = private_key_from_mnemonic(
+        env.get(f"creator_mnemonic_{network}")
+    )
+    sender = address_from_private_key(creator_private_key)
+
+    signer = AccountTransactionSigner(creator_private_key)
+
+    dapp_name = env.get("rewards_dapp_name")
+    contract_json = read_json(
+        Path(__file__).resolve().parent / "artifacts" / f"{dapp_name}.arc56.json"
+    )
+    contract = Contract.from_json(json.dumps(contract_json))
+
+    sp = client.suggested_params()
+    sp.flat_fee = True
+    sp.fee = 2000
+
+    app_id = contract_json["networks"][sp.gh]["appID"]
+
+    return {
+        "sender": sender,
+        "signer": signer,
+        "contract": contract,
+        "sp": sp,
+        "app_id": app_id,
+    }
+    
+
 def wait_for_confirmation(client, txid):
     """Wait for a blockchain transaction to be confirmed.
 

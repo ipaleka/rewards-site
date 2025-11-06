@@ -268,73 +268,6 @@ class TestContractDeployFunctions:
             client, creator_private_key, approval_program, clear_program, contract_json
         )
 
-    def test_contract_deploy_fund_app_functionality(self, mocker):
-        app_id = 5059
-        network = "testnet"
-
-        env = {
-            "algod_token_testnet": "token",
-            "algod_address_testnet": "address",
-            "creator_mnemonic_testnet": "mnemonic",
-        }
-
-        mocked_env = mocker.patch(
-            "contract.deploy.environment_variables", return_value=env
-        )
-
-        client = mocker.MagicMock()
-        mocked_client = mocker.patch("contract.deploy.AlgodClient", return_value=client)
-
-        creator_private_key = mocker.MagicMock()
-        mocked_private_key = mocker.patch(
-            "contract.deploy.private_key_from_mnemonic",
-            return_value=creator_private_key,
-        )
-
-        sender = "sender-address"
-        mocked_address = mocker.patch(
-            "contract.deploy.address_from_private_key",
-            return_value=sender,
-        )
-
-        app_address = "app-escrow-address"
-        mocked_app_address = mocker.patch(
-            "contract.deploy.get_application_address", return_value=app_address
-        )
-
-        suggested_params = mocker.MagicMock()
-        client.suggested_params.return_value = suggested_params
-
-        mock_tx = mocker.MagicMock()
-        mock_signed = mocker.MagicMock()
-        mock_signed.transaction.get_txid.return_value = "tx123"
-
-        mocked_payment = mocker.patch(
-            "contract.deploy.PaymentTxn", return_value=mock_tx
-        )
-        mock_tx.sign.return_value = mock_signed
-
-        mocked_wait = mocker.patch("contract.deploy.wait_for_confirmation")
-        mocker.patch("builtins.print")  # suppress output
-
-        fund_app(app_id, network)
-
-        mocked_env.assert_called_once_with()
-        mocked_client.assert_called_once_with("token", "address")
-        mocked_private_key.assert_called_once_with("mnemonic")
-        mocked_address.assert_called_once_with(creator_private_key)
-        mocked_app_address.assert_called_once_with(app_id)
-
-        mocked_payment.assert_called_once_with(
-            sender=sender,
-            sp=suggested_params,
-            receiver=app_address,
-            amt=200000,  # 0.2 Algo in microAlgos
-        )
-
-        client.send_transactions.assert_called_once_with([mock_signed])
-        mocked_wait.assert_called_once_with(client, "tx123")
-
     # # setup_app
     def test_contract_deploy_setup_app_uses_default_network(self, mocker):
         env = {
@@ -438,6 +371,6 @@ class TestContractDeployFunctions:
         mocked_setup = mocker.patch("contract.deploy.setup_app")
         returned = deploy_and_setup("mainnet")
         mocked_deploy.assert_called_once_with("mainnet")
-        mocked_fund.assert_called_once_with(app_id, "mainnet")
+        mocked_fund.assert_called_once_with(app_id, "mainnet", amount=500_000)
         mocked_setup.assert_called_once_with("mainnet")
         assert returned == app_id

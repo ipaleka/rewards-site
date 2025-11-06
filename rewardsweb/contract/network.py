@@ -1,22 +1,17 @@
 """Module with functions for retrieving and saving blockchain data."""
 
-import json
-from pathlib import Path
-
 from algosdk import transaction
-from algosdk.abi.contract import Contract
 from algosdk.account import address_from_private_key
-from algosdk.atomic_transaction_composer import (
-    AccountTransactionSigner,
-    AtomicTransactionComposer,
-)
+from algosdk.atomic_transaction_composer import AtomicTransactionComposer
+from algosdk.logic import get_application_address
+from algosdk.transaction import PaymentTxn
 from algosdk.v2client.algod import AlgodClient
 
 from contract.helpers import (
     app_schemas,
+    atc_method_stub,
     environment_variables,
     private_key_from_mnemonic,
-    read_json,
     wait_for_confirmation,
 )
 
@@ -65,62 +60,8 @@ def add_allocations(network, addresses, amounts):
     print(f"Allocations added in transaction {response.tx_ids[0]}")
 
 
-def atc_method_stub(client, network):
-    """Return instances needed for calling a method with AtomicTransactionComposer.
-
-    :param client: Algorand Node client instance.
-    :type client: :class:`AlgodClient`
-    :param network: The network to connect to (e.g., "testnet").
-    :type network: str
-    :var env: Environment variables.
-    :type env: dict
-    :var creator_private_key: The private key of the application creator.
-    :type creator_private_key: str
-    :var sender: The address of the transaction sender.
-    :type sender: str
-    :var signer: The transaction signer.
-    :type signer: :class:`algosdk.atomic_transaction_composer.AccountTransactionSigner`
-    :var dapp_name: name of the smart contract application
-    :type dapp_name: str
-    :var contract_json: The ARC-56 smart contract specification.
-    :type contract_json: dict
-    :var contract: Algorand ABI contract instance
-    :type contract: :class:`algosdk.abi.contract.Contract`
-    :var sp: suggested transaction params
-    :type sp: :class:`transaction.SuggestedParams`
-    :var app_id: Rewards dApp unique identifier
-    :type app_id: int
-    :return: A dictionary with sender, signer, and contract.
-    :rtype: dict
-    """
-    env = environment_variables()
-
-    creator_private_key = private_key_from_mnemonic(
-        env.get(f"creator_mnemonic_{network}")
-    )
-    sender = address_from_private_key(creator_private_key)
-
-    signer = AccountTransactionSigner(creator_private_key)
-
-    dapp_name = env.get("rewards_dapp_name")
-    contract_json = read_json(
-        Path(__file__).resolve().parent / "artifacts" / f"{dapp_name}.arc56.json"
-    )
-    contract = Contract.from_json(json.dumps(contract_json))
-
-    sp = client.suggested_params()
-    sp.flat_fee = True
-    sp.fee = 2000
-
-    app_id = contract_json["networks"][sp.gh]["appID"]
-
-    return {
-        "sender": sender,
-        "signer": signer,
-        "contract": contract,
-        "sp": sp,
-        "app_id": app_id,
-    }
+# def check_app_balances(client, private_key, approval_program, clear_program, contract_json):
+#     app_address = get_application_address(app_id)
 
 
 def create_app(client, private_key, approval_program, clear_program, contract_json):
@@ -224,6 +165,66 @@ def delete_app(client, private_key, app_id):
     # display results
     transaction_response = client.pending_transaction_info(tx_id)
     print("Deleted app-id: ", transaction_response["txn"]["txn"]["apid"])
+
+
+def fund_app(app_id, network, amount=100_000):
+    """Fund the application escrow account with 0.2 Algo.
+
+    Creates an Algod client and sends a payment transaction from the
+    creator's account to the application escrow address. Waits for
+    confirmation before returning.
+
+    :param app_id: The smart contract application ID.
+    :type app_id: int
+    :param network: Network where the app is deployed (e.g., ``"testnet"``).
+    :type network: str
+    :var amount: amount in microAlgos to send to application's escrow
+    :type amount: int
+    :var env: environment variables collection
+    :type env: dict
+    :var client: Algorand Node client instance
+    :type client: :class:`AlgodClient`
+    :var creator_private_key: The private key of the application creator
+    :type creator_private_key: str
+    :var sender: Derived Algorand wallet address from private key
+    :type sender: str
+    :var app_address: Application escrow account address
+    :type app_address: str
+    :var sp: suggested transaction params
+    :type sp: :class:`transaction.SuggestedParams`
+    :var txn: payment transaction params
+    :type txn: :class:`transaction.PaymentTxn`
+    :var signed_txn: signed transaction instance
+    :type signed_txn: :class:`transaction.SignedTransaction`
+    :var tx_id: transaction's unique identifier
+    :type tx_id: int
+    """
+    env = environment_variables()
+
+    client = AlgodClient(
+        env.get(f"algod_token_{network}"), env.get(f"algod_address_{network}")
+    )
+    creator_private_key = private_key_from_mnemonic(
+        env.get(f"creator_mnemonic_{network}")
+    )
+    sender = address_from_private_key(creator_private_key)
+    app_address = get_application_address(app_id)
+    sp = client.suggested_params()
+    sp.flat_fee = True
+    sp.fee = 1000
+
+    txn = PaymentTxn(
+        sender=sender,
+        sp=sp,
+        receiver=app_address,
+        amt=amount,
+    )
+
+    signed_txn = txn.sign(creator_private_key)
+    tx_id = signed_txn.transaction.get_txid()
+    client.send_transactions([signed_txn])
+    wait_for_confirmation(client, tx_id)
+    print(f"Funded app {app_id} with {amount / 1_000_000} Algo in transaction {tx_id}")
 
 
 def reclaim_allocation(network, user_address):

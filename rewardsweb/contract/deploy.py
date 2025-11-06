@@ -3,20 +3,17 @@
 import json
 from pathlib import Path
 
-from algosdk.account import address_from_private_key
 from algosdk.atomic_transaction_composer import AtomicTransactionComposer
-from algosdk.logic import get_application_address
-from algosdk.transaction import PaymentTxn
 from algosdk.v2client.algod import AlgodClient
 
 from contract.helpers import (
+    atc_method_stub,
     compile_program,
     environment_variables,
     private_key_from_mnemonic,
     read_json,
-    wait_for_confirmation,
 )
-from contract.network import atc_method_stub, create_app, delete_app
+from contract.network import create_app, delete_app, fund_app
 
 
 def delete_dapp(network, app_id):
@@ -136,61 +133,6 @@ def deploy_app(network="testnet"):
     return app_id
 
 
-def fund_app(app_id, network):
-    """Fund the application escrow account with 0.2 Algo.
-
-    Creates an Algod client and sends a payment transaction from the
-    creator's account to the application escrow address. Waits for
-    confirmation before returning.
-
-    :param app_id: The smart contract application ID.
-    :type app_id: int
-    :param network: Network where the app is deployed (e.g., ``"testnet"``).
-    :type network: str
-    :var env: environment variables collection
-    :type env: dict
-    :var client: Algorand Node client instance
-    :type client: :class:`AlgodClient`
-    :var creator_private_key: The private key of the application creator
-    :type creator_private_key: str
-    :var sender: Derived Algorand wallet address from private key
-    :type sender: str
-    :var app_address: Application escrow account address
-    :type app_address: str
-    :return: None
-    :rtype: None
-    """
-    env = environment_variables()
-
-    client = AlgodClient(
-        env.get(f"algod_token_{network}"), env.get(f"algod_address_{network}")
-    )
-    creator_private_key = private_key_from_mnemonic(
-        env.get(f"creator_mnemonic_{network}")
-    )
-    sender = address_from_private_key(creator_private_key)
-    app_address = get_application_address(app_id)
-    suggested_params = client.suggested_params()
-    suggested_params.flat_fee = True
-    suggested_params.fee = 1000
-
-    # Amount to send: 0.2 Algo (200,000 microAlgos)
-    amount = 200000
-
-    txn = PaymentTxn(
-        sender=sender,
-        sp=suggested_params,
-        receiver=app_address,
-        amt=amount,
-    )
-
-    signed_txn = txn.sign(creator_private_key)
-    tx_id = signed_txn.transaction.get_txid()
-    client.send_transactions([signed_txn])
-    wait_for_confirmation(client, tx_id)
-    print(f"Funded app {app_id} with {amount / 1_000_000} Algo in transaction {tx_id}")
-
-
 def deploy_and_setup(network):
     """Deploy smart contract on `network`, fund the app's escrow, and setup application.
 
@@ -201,7 +143,7 @@ def deploy_and_setup(network):
     :return: int
     """
     app_id = deploy_app(network)
-    fund_app(app_id, network)
+    fund_app(app_id, network, amount=500_000)
     setup_app(network)
     return app_id
 

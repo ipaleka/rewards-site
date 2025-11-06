@@ -8,7 +8,6 @@ import pytest
 
 from contract.helpers import (
     app_schemas,
-    atc_method_stub,
     box_name_from_address,
     compile_program,
     environment_variables,
@@ -232,68 +231,6 @@ class TestContractHelpersContractFunctions:
 # # NETWORK
 class TestContractHelpersNetworkFunctions:
     """Testing class for :py:mod:`contract.helpers`network helper functions."""
-
-    # # atc_method_stub
-    def test_contract_helpers_atc_method_stub_functionality(self, mocker):
-        network = "testnet"
-        genesis_hash = "genesis_hash"
-        # ---- mock environment variables ----
-        env = {"creator_mnemonic_testnet": "mnemonic-words-go-here"}
-        mocked_env = mocker.patch(
-            "contract.helpers.environment_variables", return_value=env
-        )
-
-        # ---- mock private_key_from_mnemonic ----
-        creator_private_key = mocker.MagicMock()
-        mocked_private_key = mocker.patch(
-            "contract.helpers.private_key_from_mnemonic",
-            return_value=creator_private_key,
-        )
-
-        # ---- mock address_from_private_key ----
-        sender_address = "SENDER_ADDRESS"
-        mocked_address = mocker.patch(
-            "contract.helpers.address_from_private_key", return_value=sender_address
-        )
-
-        # ---- mock AccountTransactionSigner ----
-        signer_obj = mocker.MagicMock()
-        mocked_signer = mocker.patch(
-            "contract.helpers.AccountTransactionSigner", return_value=signer_obj
-        )
-
-        # ---- mock contract JSON ----
-        app_id = 5050
-        contract_json = {
-            "name": "TestContract",
-            "networks": {genesis_hash: {"appID": app_id}},
-        }
-        mocked_read_json = mocker.patch(
-            "contract.helpers.read_json", return_value=contract_json
-        )
-
-        # ---- mock Contract.from_json ----
-        contract_obj = mocker.MagicMock()
-        mocked_contract = mocker.patch(
-            "contract.helpers.Contract.from_json", return_value=contract_obj
-        )
-
-        returned = atc_method_stub(network, genesis_hash)
-
-        # ---- Assertions ----
-        assert returned == {
-            "sender": sender_address,
-            "signer": signer_obj,
-            "contract": contract_obj,
-            "app_id": app_id,
-        }
-
-        mocked_env.assert_called_once_with()
-        mocked_private_key.assert_called_once_with(env["creator_mnemonic_testnet"])
-        mocked_address.assert_called_once_with(creator_private_key)
-        mocked_signer.assert_called_once_with(creator_private_key)
-        mocked_read_json.assert_called_once()
-        mocked_contract.assert_called_once_with(json.dumps(contract_json))
 
     # # wait_for_confirmation
     def test_contract_helpers_wait_for_confirmation_functionality(self, mocker):

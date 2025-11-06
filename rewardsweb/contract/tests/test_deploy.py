@@ -351,10 +351,12 @@ class TestContractDeployFunctions:
         client.suggested_params.return_value.gh = genesis_hash
         mocked_client = mocker.patch("contract.deploy.AlgodClient", return_value=client)
         app_id = 5050
+        sp = mocker.MagicMock()
         atc_method_stub = {
             "sender": "SENDER",
             "signer": "SIGNER",
             "contract": mocker.MagicMock(),
+            "sp": sp,
             "app_id": app_id,
         }
         mocked_atc_stub = mocker.patch(
@@ -368,13 +370,13 @@ class TestContractDeployFunctions:
         setup_app("testnet")
         mocked_env.assert_called_once_with()
         mocked_client.assert_called_once_with("token_test", "address_test")
-        mocked_atc_stub.assert_called_once_with("testnet", genesis_hash)
+        mocked_atc_stub.assert_called_once_with(client, "testnet")
         mocked_atc.assert_called_once_with()
         atc.add_method_call.assert_called_once_with(
             app_id=app_id,
             method=atc_method_stub["contract"].get_method_by_name.return_value,
             sender=atc_method_stub["sender"],
-            sp=client.suggested_params.return_value,
+            sp=sp,
             signer=atc_method_stub["signer"],
             method_args=[502, 3600],
             foreign_assets=[502],
@@ -396,10 +398,12 @@ class TestContractDeployFunctions:
         client.suggested_params.return_value.gh = genesis_hash
         mocked_client = mocker.patch("contract.deploy.AlgodClient", return_value=client)
         app_id = 5050
+        sp = mocker.MagicMock()
         atc_method_stub = {
             "sender": "SENDER",
             "signer": "SIGNER",
             "contract": mocker.MagicMock(),
+            "sp": sp,
             "app_id": app_id,
         }
         mocked_atc_stub = mocker.patch(
@@ -413,13 +417,13 @@ class TestContractDeployFunctions:
         setup_app("mainnet")
         mocked_env.assert_called_once_with()
         mocked_client.assert_called_once_with("mainnet_token", "mainnet_address")
-        mocked_atc_stub.assert_called_once_with("mainnet", genesis_hash)
+        mocked_atc_stub.assert_called_once_with(client, "mainnet")
         mocked_atc.assert_called_once_with()
         atc.add_method_call.assert_called_once_with(
             app_id=app_id,
             method=atc_method_stub["contract"].get_method_by_name.return_value,
             sender=atc_method_stub["sender"],
-            sp=client.suggested_params.return_value,
+            sp=sp,
             signer=atc_method_stub["signer"],
             method_args=[503, 7200],
             foreign_assets=[503],

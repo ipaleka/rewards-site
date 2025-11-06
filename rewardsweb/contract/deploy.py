@@ -10,14 +10,13 @@ from algosdk.transaction import PaymentTxn
 from algosdk.v2client.algod import AlgodClient
 
 from contract.helpers import (
-    atc_method_stub,
     compile_program,
     environment_variables,
     private_key_from_mnemonic,
     read_json,
     wait_for_confirmation,
 )
-from contract.network import create_app, delete_app
+from contract.network import atc_method_stub, create_app, delete_app
 
 
 def delete_dapp(network, app_id):
@@ -31,7 +30,7 @@ def delete_dapp(network, app_id):
     :type network: str
     :param app_id: The application ID to delete.
     :type app_id: int
-    :var env: Environment variables collection
+    :var env: environment variables collection
     :type env: dict
     :var client: Algorand Node client instance
     :type client: :class:`AlgodClient`
@@ -148,7 +147,7 @@ def fund_app(app_id, network):
     :type app_id: int
     :param network: Network where the app is deployed (e.g., ``"testnet"``).
     :type network: str
-    :var env: Environment variables collection
+    :var env: environment variables collection
     :type env: dict
     :var client: Algorand Node client instance
     :type client: :class:`AlgodClient`
@@ -226,8 +225,6 @@ def setup_app(network):
     :type atc_stub: dict
     :var atc: clear program source code
     :type atc: :class:`AtomicTransactionComposer`
-    :var sp: suggested transaction params
-    :type sp: :class:`transaction.SuggestedParams`
     :var response: atomic transaction creation response
     :type response: :class:`AtomicTransactionResponse`
     """
@@ -237,17 +234,14 @@ def setup_app(network):
     )
     token_id = int(env.get(f"rewards_token_id_{network}"))
     claim_period_duration = int(env.get("claim_period_duration"))
-    genesis_hash = client.suggested_params().gh
-    atc_stub = atc_method_stub(network, genesis_hash)
+    atc_stub = atc_method_stub(client, network)
     atc = AtomicTransactionComposer()
-    sp = client.suggested_params()
-    sp.flat_fee = True
-    sp.fee = 2000
+
     atc.add_method_call(
         app_id=atc_stub.get("app_id"),
         method=atc_stub.get("contract").get_method_by_name("setup"),
         sender=atc_stub.get("sender"),
-        sp=sp,
+        sp=atc_stub.get("sp"),
         signer=atc_stub.get("signer"),
         method_args=[token_id, claim_period_duration],
         foreign_assets=[token_id],

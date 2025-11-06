@@ -6,12 +6,15 @@ from pathlib import Path
 
 import pytest
 from algokit_utils import (
+    AlgoAmount,
     AlgorandClient,
     Arc56Contract,
     LogicError,
+    PaymentParams,
+    SendParams,
     SigningAccount,
 )
-from algokit_utils.applications import AppClient
+from algokit_utils.applications import AppClient, AppClientMethodCallParams
 from algosdk.account import generate_account
 from algosdk.atomic_transaction_composer import (
     AtomicTransactionComposer,
@@ -81,26 +84,43 @@ def create_asset(algod_client: AlgodClient, account: SigningAccount) -> int:
     return tx_info["asset-index"]
 
 
+def make_payment(admin_account, receiver, amount=200_000):
+    algorand = AlgorandClient.from_environment()
+    algorand.send.payment(
+        PaymentParams(
+            sender=admin_account.address,
+            receiver=receiver,
+            amount=AlgoAmount(micro_algo=amount),
+            signer=admin_account.signer,
+        ),
+        SendParams(max_rounds_to_wait_for_confirmation=5, suppress_log=False),
+    )
+
+
 class TestContractContractRewards:
     """Testing class for :py:mod:`contract.rewards.contract` classes."""
 
     def test_contract_rewards_setup(
-        self, rewards_client: AppClient, admin_account: SigningAccount
+        self,
+        rewards_client: AppClient,
+        admin_account: SigningAccount,
     ) -> None:
         """Test the setup method."""
         # Fund the app account with enough ALGO to opt into an asset
-        rewards_client.fund(200_000)
+        make_payment(admin_account, rewards_client.app_address)
 
-        asset_id = create_asset(rewards_client.algod_client, admin_account)
+        asset_id = create_asset(rewards_client.algorand.client.algod, admin_account)
         claim_duration = 3600  # 1 hour
 
         # Call the setup method
-        rewards_client.call(
-            "setup",
-            token_id=asset_id,
-            claim_period_duration=claim_duration,
+        rewards_client.send.call(
+            AppClientMethodCallParams(
+                method="setup",
+                args=[asset_id, claim_duration],
+                sender=admin_account.address,
+                signer=admin_account.signer,
+            )
         )
-
         # Verify the global state
         global_state = rewards_client.get_global_state()
         assert global_state["token_id"] == asset_id
@@ -110,12 +130,13 @@ class TestContractContractRewards:
         self, rewards_client: AppClient, admin_account: SigningAccount
     ) -> None:
         """Test adding allocations and a successful claim."""
-        rewards_client.fund(200_000)
-        asset_id = create_asset(rewards_client.algod_client, admin_account)
+        make_payment(admin_account, rewards_client.app_address)
+
+        asset_id = create_asset(rewards_client.algorand.client.algod, admin_account)
         rewards_client.call("setup", token_id=asset_id, claim_period_duration=3600)
 
         # Fund the contract with the asset
-        sp = rewards_client.algod_client.suggested_params()
+        sp = rewards_client.algorand.client.algod.suggested_params()
         atc = AtomicTransactionComposer()
         atc.add_transaction(
             TransactionWithSigner(
@@ -140,7 +161,7 @@ class TestContractContractRewards:
                 signer=admin_account.signer,
             )
         )
-        atc.execute(rewards_client.algod_client, 4)
+        atc.execute(rewards_client.algorand.client.algod, 4)
 
         # Add an allocation for a new user
         user_account = SigningAccount.new_account()
@@ -159,7 +180,7 @@ class TestContractContractRewards:
         )
 
         # Verify the user received the asset
-        user_asset_info = rewards_client.algod_client.account_asset_info(
+        user_asset_info = rewards_client.algorand.client.algod.account_asset_info(
             user_account.address, asset_id
         )
         assert user_asset_info["asset-holding"]["amount"] == 100
@@ -168,8 +189,9 @@ class TestContractContractRewards:
         self, rewards_client: AppClient, admin_account: SigningAccount
     ) -> None:
         """Test reclaiming an expired allocation."""
-        rewards_client.fund(200_000)
-        asset_id = create_asset(rewards_client.algod_client, admin_account)
+        make_payment(admin_account, rewards_client.app_address)
+
+        asset_id = create_asset(rewards_client.algorand.client.algod, admin_account)
         # Set a very short claim period
         rewards_client.call("setup", token_id=asset_id, claim_period_duration=1)
 
@@ -192,12 +214,12 @@ class TestContractContractRewards:
         )
 
         # # Verify the admin's balance increased (or check contract's balance)
-        # admin_asset_info = rewards_client.algod_client.account_asset_info(
+        # admin_asset_info = rewards_client.algorand.client.algod.account_asset_info(
         #     admin_account.address, asset_id
         # )
         # This assertion is tricky without knowing the initial balance,
         # but we can assert the box is deleted.
-        box = rewards_client.algod_client.application_box_by_name(
+        box = rewards_client.algorand.client.algod.application_box_by_name(
             rewards_client.app_id, user_account.address.encode()
         )
         assert box is None
@@ -206,8 +228,9 @@ class TestContractContractRewards:
         self, rewards_client: AppClient, admin_account: SigningAccount
     ) -> None:
         """Test that reclaiming before expiry fails."""
-        rewards_client.fund(200_000)
-        asset_id = create_asset(rewards_client.algod_client, admin_account)
+        make_payment(admin_account, rewards_client.app_address)
+
+        asset_id = create_asset(rewards_client.algorand.client.algod, admin_account)
         rewards_client.call("setup", token_id=asset_id, claim_period_duration=3600)
 
         user_account = SigningAccount(private_key=generate_account()[0])

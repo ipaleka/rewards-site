@@ -334,7 +334,7 @@ def fund_app(app_id, network, amount=None):
         env.get(f"algod_token_{network}"), env.get(f"algod_address_{network}")
     )
     creator_private_key = private_key_from_mnemonic(
-        env.get(f"creator_mnemonic_{network}")
+        env.get(f"admin_{network}_mnemonic")
     )
     sender = address_from_private_key(creator_private_key)
     app_address = get_application_address(app_id)

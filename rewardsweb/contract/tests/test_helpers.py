@@ -71,10 +71,10 @@ class TestContractHelpersFunctions:
             "algod_token_mainnet",
             "algod_address_testnet",
             "algod_address_mainnet",
-            "creator_mnemonic_testnet",
-            "creator_mnemonic_mainnet",
-            "user_mnemonic_testnet",
-            "user_mnemonic_mainnet",
+            "admin_testnet_mnemonic",
+            "admin_mainnet_mnemonic",
+            "user_testnet_mnemonic",
+            "user_mainnet_mnemonic",
             "rewards_token_id_testnet",
             "rewards_token_id_mainnet",
             "rewards_dapp_name",
@@ -239,7 +239,7 @@ class TestContractHelpersNetworkFunctions:
         network = "testnet"
         genesis_hash = "genesis_hash"
 
-        env = {"creator_mnemonic_testnet": "mnemonic-words-go-here"}
+        env = {"admin_testnet_mnemonic": "mnemonic-words-go-here"}
         mocked_env = mocker.patch(
             "contract.helpers.environment_variables", return_value=env
         )
@@ -292,7 +292,7 @@ class TestContractHelpersNetworkFunctions:
         }
 
         mocked_env.assert_called_once_with()
-        mocked_private_key.assert_called_once_with(env["creator_mnemonic_testnet"])
+        mocked_private_key.assert_called_once_with(env["admin_testnet_mnemonic"])
         mocked_address.assert_called_once_with(creator_private_key)
         mocked_signer.assert_called_once_with(creator_private_key)
         mocked_read_json.assert_called_once()

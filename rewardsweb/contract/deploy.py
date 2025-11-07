@@ -41,7 +41,7 @@ def delete_dapp(network, app_id):
         env.get(f"algod_token_{network}"), env.get(f"algod_address_{network}")
     )
     creator_private_key = private_key_from_mnemonic(
-        env.get(f"creator_mnemonic_{network}")
+        env.get(f"admin_{network}_mnemonic")
     )
     delete_app(client, creator_private_key, app_id)
 
@@ -90,7 +90,7 @@ def deploy_app(network="testnet"):
         env.get(f"algod_token_{network}"), env.get(f"algod_address_{network}")
     )
     creator_private_key = private_key_from_mnemonic(
-        env.get(f"creator_mnemonic_{network}")
+        env.get(f"admin_{network}_mnemonic")
     )
 
     approval_program_source = (

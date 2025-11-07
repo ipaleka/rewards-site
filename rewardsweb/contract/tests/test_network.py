@@ -388,7 +388,7 @@ class TestContractNetworkPublicFunctions:
         env = {
             "algod_token_testnet": "token",
             "algod_address_testnet": "address",
-            "creator_mnemonic_testnet": "mnemonic",
+            "admin_testnet_mnemonic": "mnemonic",
         }
 
         mocked_env = mocker.patch(
@@ -457,7 +457,7 @@ class TestContractNetworkPublicFunctions:
         env = {
             "algod_token_testnet": "token",
             "algod_address_testnet": "address",
-            "creator_mnemonic_testnet": "mnemonic",
+            "admin_testnet_mnemonic": "mnemonic",
         }
 
         mocked_env = mocker.patch(
@@ -526,7 +526,7 @@ class TestContractNetworkPublicFunctions:
         env = {
             "algod_token_testnet": "token",
             "algod_address_testnet": "address",
-            "creator_mnemonic_testnet": "mnemonic",
+            "admin_testnet_mnemonic": "mnemonic",
             "dapp_minimum_algo": 250_000,
         }
 

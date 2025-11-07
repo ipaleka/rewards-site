@@ -37,10 +37,10 @@ def environment_variables():
         "algod_token_mainnet": os.getenv("ALGOD_TOKEN_MAINNET"),
         "algod_address_testnet": os.getenv("ALGOD_ADDRESS_TESTNET"),
         "algod_address_mainnet": os.getenv("ALGOD_ADDRESS_MAINNET"),
-        "creator_mnemonic_testnet": os.getenv("CREATOR_MNEMONIC_TESTNET"),
-        "creator_mnemonic_mainnet": os.getenv("CREATOR_MNEMONIC_MAINNET"),
-        "user_mnemonic_testnet": os.getenv("USER_MNEMONIC_TESTNET"),
-        "user_mnemonic_mainnet": os.getenv("USER_MNEMONIC_MAINNET"),
+        "admin_testnet_mnemonic": os.getenv("ADMIN_TESTNET_MNEMONIC"),
+        "admin_mainnet_mnemonic": os.getenv("ADMIN_MAINNET_MNEMONIC"),
+        "user_testnet_mnemonic": os.getenv("USER_TESTNET_MNEMONIC"),
+        "user_mainnet_mnemonic": os.getenv("USER_MAINNET_MNEMONIC"),
         "rewards_token_id_testnet": os.getenv("REWARDS_TOKEN_ID_TESTNET"),
         "rewards_token_id_mainnet": os.getenv("REWARDS_TOKEN_ID_MAINNET"),
         "rewards_dapp_name": os.getenv("REWARDS_DAPP_NAME"),
@@ -163,7 +163,7 @@ def atc_method_stub(client, network):
     env = environment_variables()
 
     creator_private_key = private_key_from_mnemonic(
-        env.get(f"creator_mnemonic_{network}")
+        env.get(f"admin_{network}_mnemonic")
     )
     sender = address_from_private_key(creator_private_key)
 

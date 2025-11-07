@@ -24,7 +24,7 @@ class TestContractDeployFunctions:
         env = {
             "algod_token_testnet": "token",
             "algod_address_testnet": "address",
-            "creator_mnemonic_testnet": "mnemonic",
+            "admin_testnet_mnemonic": "mnemonic",
         }
 
         mocked_env = mocker.patch(
@@ -56,7 +56,7 @@ class TestContractDeployFunctions:
         env = {
             "algod_token_mainnet": "TOKEN_MAIN",
             "algod_address_mainnet": "ADDRESS_MAIN",
-            "creator_mnemonic_mainnet": "MNEMONIC_MAIN",
+            "admin_mainnet_mnemonic": "MNEMONIC_MAIN",
         }
 
         mocker.patch("contract.deploy.environment_variables", return_value=env)
@@ -87,10 +87,10 @@ class TestContractDeployFunctions:
         env = {
             "algod_token_mainnet": algod_token,
             "algod_address_mainnet": algod_address,
-            "creator_mnemonic_mainnet": creator_mnemonic,
+            "admin_mainnet_mnemonic": creator_mnemonic,
             "algod_token_testnet": mocker.MagicMock(),
             "algod_address_testnet": mocker.MagicMock(),
-            "creator_mnemonic_testnet": mocker.MagicMock(),
+            "admin_testnet_mnemonic": mocker.MagicMock(),
             "rewards_dapp_name": dapp_name,
         }
         mocked_env = mocker.patch(
@@ -179,10 +179,10 @@ class TestContractDeployFunctions:
         env = {
             "algod_token_mainnet": mocker.MagicMock(),
             "algod_address_mainnet": mocker.MagicMock(),
-            "creator_mnemonic_mainnet": mocker.MagicMock(),
+            "admin_mainnet_mnemonic": mocker.MagicMock(),
             "algod_token_testnet": algod_token,
             "algod_address_testnet": algod_address,
-            "creator_mnemonic_testnet": creator_mnemonic,
+            "admin_testnet_mnemonic": creator_mnemonic,
             "rewards_dapp_name": dapp_name,
         }
         mocked_env = mocker.patch(

@@ -1,10 +1,10 @@
 import { ClaimComponent } from "./ClaimComponent";
-import { AirdropClient } from "./AirdropClient";
+import { RewardsClient } from "./RewardsClient";
 
-// Mock AirdropClient
-jest.mock("./AirdropClient", () => {
+// Mock RewardsClient
+jest.mock("./RewardsClient", () => {
   return {
-    AirdropClient: jest.fn().mockImplementation(() => {
+    RewardsClient: jest.fn().mockImplementation(() => {
       return {
         fetchClaimableStatus: jest.fn(),
         claim: jest.fn(),
@@ -14,17 +14,17 @@ jest.mock("./AirdropClient", () => {
 });
 
 describe("ClaimComponent", () => {
-  let mockAirdropClient: jest.Mocked<AirdropClient>;
+  let mockRewardsClient: jest.Mocked<RewardsClient>;
   let mockWalletManager: jest.Mocked<WalletManager>;
   let claimComponent: ClaimComponent;
   let alertSpy: jest.SpyInstance;
 
   beforeEach(() => {
     alertSpy = jest.spyOn(window, "alert").mockImplementation(() => {});
-    mockAirdropClient = new AirdropClient(
+    mockRewardsClient = new RewardsClient(
       null as any,
       null as any
-    ) as jest.Mocked<AirdropClient>;
+    ) as jest.Mocked<RewardsClient>;
     mockWalletManager = {
       activeAccount: { address: "test-address" },
       subscribe: jest.fn(),
@@ -37,11 +37,11 @@ describe("ClaimComponent", () => {
   });
 
   it('should render with "No Claim Available" button when not claimable', async () => {
-    (mockAirdropClient.fetchClaimableStatus as jest.Mock).mockResolvedValue({
+    (mockRewardsClient.fetchClaimableStatus as jest.Mock).mockResolvedValue({
       claimable: false,
     });
 
-    claimComponent = new ClaimComponent(mockAirdropClient, mockWalletManager);
+    claimComponent = new ClaimComponent(mockRewardsClient, mockWalletManager);
     document.body.appendChild(claimComponent.element);
 
     // Allow microtasks to run
@@ -52,17 +52,17 @@ describe("ClaimComponent", () => {
     ) as HTMLButtonElement;
     expect(button.textContent?.trim()).toBe("No Claim Available");
     expect(button.disabled).toBe(true);
-    expect(mockAirdropClient.fetchClaimableStatus).toHaveBeenCalledWith(
+    expect(mockRewardsClient.fetchClaimableStatus).toHaveBeenCalledWith(
       "test-address"
     );
   });
 
   it('should render with "Claim" button when claimable', async () => {
-    (mockAirdropClient.fetchClaimableStatus as jest.Mock).mockResolvedValue({
+    (mockRewardsClient.fetchClaimableStatus as jest.Mock).mockResolvedValue({
       claimable: true,
     });
 
-    claimComponent = new ClaimComponent(mockAirdropClient, mockWalletManager);
+    claimComponent = new ClaimComponent(mockRewardsClient, mockWalletManager);
     document.body.appendChild(claimComponent.element);
 
     await new Promise(process.nextTick);
@@ -72,16 +72,16 @@ describe("ClaimComponent", () => {
     ) as HTMLButtonElement;
     expect(button.textContent?.trim()).toBe("Claim");
     expect(button.disabled).toBe(false);
-    expect(mockAirdropClient.fetchClaimableStatus).toHaveBeenCalledWith(
+    expect(mockRewardsClient.fetchClaimableStatus).toHaveBeenCalledWith(
       "test-address"
     );
   });
 
-  it("should call airdropClient.claim when claim button is clicked", async () => {
-    (mockAirdropClient.fetchClaimableStatus as jest.Mock).mockResolvedValue({
+  it("should call rewardsClient.claim when claim button is clicked", async () => {
+    (mockRewardsClient.fetchClaimableStatus as jest.Mock).mockResolvedValue({
       claimable: true,
     });
-    claimComponent = new ClaimComponent(mockAirdropClient, mockWalletManager);
+    claimComponent = new ClaimComponent(mockRewardsClient, mockWalletManager);
     document.body.appendChild(claimComponent.element);
     await new Promise(process.nextTick);
 
@@ -90,20 +90,20 @@ describe("ClaimComponent", () => {
     ) as HTMLButtonElement;
     button.click();
 
-    expect(mockAirdropClient.claim).toHaveBeenCalled();
+    expect(mockRewardsClient.claim).toHaveBeenCalled();
   });
 
   it("should re-check claimable status after a successful claim", async () => {
-    (mockAirdropClient.fetchClaimableStatus as jest.Mock).mockResolvedValueOnce(
+    (mockRewardsClient.fetchClaimableStatus as jest.Mock).mockResolvedValueOnce(
       { claimable: true }
     );
-    claimComponent = new ClaimComponent(mockAirdropClient, mockWalletManager);
+    claimComponent = new ClaimComponent(mockRewardsClient, mockWalletManager);
     document.body.appendChild(claimComponent.element);
     await new Promise(process.nextTick);
 
     // Mock a successful claim, then set next status to not claimable
-    (mockAirdropClient.claim as jest.Mock).mockResolvedValue(undefined);
-    (mockAirdropClient.fetchClaimableStatus as jest.Mock).mockResolvedValueOnce(
+    (mockRewardsClient.claim as jest.Mock).mockResolvedValue(undefined);
+    (mockRewardsClient.fetchClaimableStatus as jest.Mock).mockResolvedValueOnce(
       { claimable: false }
     );
 
@@ -112,22 +112,22 @@ describe("ClaimComponent", () => {
     ) as HTMLButtonElement;
     await button.click();
 
-    expect(mockAirdropClient.claim).toHaveBeenCalledTimes(1);
+    expect(mockRewardsClient.claim).toHaveBeenCalledTimes(1);
     // fetchClaimableStatus is called once on init and once after claim
-    expect(mockAirdropClient.fetchClaimableStatus).toHaveBeenCalledTimes(2);
+    expect(mockRewardsClient.fetchClaimableStatus).toHaveBeenCalledTimes(2);
   });
 
   it("should not fetch status if no active account", async () => {
     mockWalletManager.activeAccount = null;
-    claimComponent = new ClaimComponent(mockAirdropClient, mockWalletManager);
+    claimComponent = new ClaimComponent(mockRewardsClient, mockWalletManager);
     document.body.appendChild(claimComponent.element);
     await new Promise(process.nextTick);
 
-    expect(mockAirdropClient.fetchClaimableStatus).not.toHaveBeenCalled();
+    expect(mockRewardsClient.fetchClaimableStatus).not.toHaveBeenCalled();
   });
 
   describe("ClaimComponent Error Scenarios", () => {
-    let mockAirdropClient: jest.Mocked<AirdropClient>;
+    let mockRewardsClient: jest.Mocked<RewardsClient>;
     let mockWalletManager: jest.Mocked<WalletManager>;
     let claimComponent: ClaimComponent;
     let alertSpy: jest.SpyInstance;
@@ -139,10 +139,10 @@ describe("ClaimComponent", () => {
         .spyOn(console, "error")
         .mockImplementation(() => {});
 
-      mockAirdropClient = new AirdropClient(
+      mockRewardsClient = new RewardsClient(
         null as any,
         null as any
-      ) as jest.Mocked<AirdropClient>;
+      ) as jest.Mocked<RewardsClient>;
 
       mockWalletManager = {
         activeAccount: { address: "test-address" },
@@ -159,12 +159,12 @@ describe("ClaimComponent", () => {
     describe("checkClaimableStatus error handling", () => {
       it("should handle fetchClaimableStatus errors and set claimable to false", async () => {
         const error = new Error("API error");
-        (mockAirdropClient.fetchClaimableStatus as jest.Mock).mockRejectedValue(
+        (mockRewardsClient.fetchClaimableStatus as jest.Mock).mockRejectedValue(
           error
         );
 
         claimComponent = new ClaimComponent(
-          mockAirdropClient,
+          mockRewardsClient,
           mockWalletManager
         );
         document.body.appendChild(claimComponent.element);
@@ -186,12 +186,12 @@ describe("ClaimComponent", () => {
 
       it("should handle fetchClaimableStatus network errors", async () => {
         const networkError = new Error("Network request failed");
-        (mockAirdropClient.fetchClaimableStatus as jest.Mock).mockRejectedValue(
+        (mockRewardsClient.fetchClaimableStatus as jest.Mock).mockRejectedValue(
           networkError
         );
 
         claimComponent = new ClaimComponent(
-          mockAirdropClient,
+          mockRewardsClient,
           mockWalletManager
         );
         document.body.appendChild(claimComponent.element);
@@ -211,12 +211,12 @@ describe("ClaimComponent", () => {
 
       it("should handle fetchClaimableStatus HTTP errors", async () => {
         const httpError = new Error("HTTP error! status: 500");
-        (mockAirdropClient.fetchClaimableStatus as jest.Mock).mockRejectedValue(
+        (mockRewardsClient.fetchClaimableStatus as jest.Mock).mockRejectedValue(
           httpError
         );
 
         claimComponent = new ClaimComponent(
-          mockAirdropClient,
+          mockRewardsClient,
           mockWalletManager
         );
         document.body.appendChild(claimComponent.element);
@@ -238,13 +238,13 @@ describe("ClaimComponent", () => {
     describe("handleClaim error handling", () => {
       beforeEach(async () => {
         // Set up claimable state
-        (mockAirdropClient.fetchClaimableStatus as jest.Mock).mockResolvedValue(
+        (mockRewardsClient.fetchClaimableStatus as jest.Mock).mockResolvedValue(
           {
             claimable: true,
           }
         );
         claimComponent = new ClaimComponent(
-          mockAirdropClient,
+          mockRewardsClient,
           mockWalletManager
         );
         document.body.appendChild(claimComponent.element);
@@ -255,7 +255,7 @@ describe("ClaimComponent", () => {
         const claimError = new Error(
           "Transaction failed: insufficient balance"
         );
-        (mockAirdropClient.claim as jest.Mock).mockRejectedValue(claimError);
+        (mockRewardsClient.claim as jest.Mock).mockRejectedValue(claimError);
 
         const button = claimComponent.element.querySelector(
           "#claim-button"
@@ -273,7 +273,7 @@ describe("ClaimComponent", () => {
 
       it("should handle claim network errors", async () => {
         const networkError = new Error("Network connection lost");
-        (mockAirdropClient.claim as jest.Mock).mockRejectedValue(networkError);
+        (mockRewardsClient.claim as jest.Mock).mockRejectedValue(networkError);
 
         const button = claimComponent.element.querySelector(
           "#claim-button"
@@ -291,7 +291,7 @@ describe("ClaimComponent", () => {
 
       it("should handle claim contract execution errors", async () => {
         const contractError = new Error("Smart contract execution reverted");
-        (mockAirdropClient.claim as jest.Mock).mockRejectedValue(contractError);
+        (mockRewardsClient.claim as jest.Mock).mockRejectedValue(contractError);
 
         const button = claimComponent.element.querySelector(
           "#claim-button"
@@ -309,7 +309,7 @@ describe("ClaimComponent", () => {
 
       it("should handle non-Error objects in claim errors", async () => {
         const stringError = "Unknown error occurred";
-        (mockAirdropClient.claim as jest.Mock).mockRejectedValue(stringError);
+        (mockRewardsClient.claim as jest.Mock).mockRejectedValue(stringError);
 
         const button = claimComponent.element.querySelector(
           "#claim-button"
@@ -327,10 +327,10 @@ describe("ClaimComponent", () => {
 
       it("should re-check claimable status even after claim failure", async () => {
         const claimError = new Error("Claim failed");
-        (mockAirdropClient.claim as jest.Mock).mockRejectedValue(claimError);
+        (mockRewardsClient.claim as jest.Mock).mockRejectedValue(claimError);
 
         // Clear the initial fetch call count from constructor
-        (mockAirdropClient.fetchClaimableStatus as jest.Mock).mockClear();
+        (mockRewardsClient.fetchClaimableStatus as jest.Mock).mockClear();
 
         const button = claimComponent.element.querySelector(
           "#claim-button"
@@ -338,7 +338,7 @@ describe("ClaimComponent", () => {
         await button.click();
 
         // Should still attempt to re-check status even after failure
-        expect(mockAirdropClient.fetchClaimableStatus).toHaveBeenCalledTimes(1);
+        expect(mockRewardsClient.fetchClaimableStatus).toHaveBeenCalledTimes(1);
         expect(alertSpy).toHaveBeenCalledWith("Claim failed: Claim failed");
       });
     });
@@ -346,12 +346,12 @@ describe("ClaimComponent", () => {
     describe("Wallet subscription error scenarios", () => {
       it("should handle wallet manager subscription callback errors", async () => {
         const subscriptionError = new Error("Subscription callback failed");
-        (mockAirdropClient.fetchClaimableStatus as jest.Mock).mockRejectedValue(
+        (mockRewardsClient.fetchClaimableStatus as jest.Mock).mockRejectedValue(
           subscriptionError
         );
 
         claimComponent = new ClaimComponent(
-          mockAirdropClient,
+          mockRewardsClient,
           mockWalletManager
         );
 
@@ -367,12 +367,12 @@ describe("ClaimComponent", () => {
 
       it("should handle wallet changes gracefully when fetch fails", async () => {
         const fetchError = new Error("Failed to fetch status");
-        (mockAirdropClient.fetchClaimableStatus as jest.Mock).mockRejectedValue(
+        (mockRewardsClient.fetchClaimableStatus as jest.Mock).mockRejectedValue(
           fetchError
         );
 
         claimComponent = new ClaimComponent(
-          mockAirdropClient,
+          mockRewardsClient,
           mockWalletManager
         );
 

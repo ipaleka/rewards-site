@@ -1,7 +1,7 @@
 import { NetworkId, WalletId, WalletManager } from '@txnlab/use-wallet'
 import { ActiveNetwork } from './ActiveNetwork'
 import { WalletComponent } from './WalletComponent'
-import { AirdropClient } from './AirdropClient'
+import { RewardsClient } from './RewardsClient'
 import { ClaimComponent } from './ClaimComponent'
 import { AddAllocationsComponent } from './AddAllocationsComponent'
 import { ReclaimAllocationsComponent } from './ReclaimAllocationsComponent'
@@ -36,16 +36,16 @@ walletComponents.forEach((walletComponent) => {
   appDiv.appendChild(walletComponent.element)
 })
 
-// Add Airdrop client and Claim component
-const airdropClient = new AirdropClient(walletManager.wallets[0], walletManager) // Assuming the first wallet is the active one for now
-const claimComponent = new ClaimComponent(airdropClient, walletManager)
+// Add Rewards client and Claim component
+const rewardsClient = new RewardsClient(walletManager.wallets[0], walletManager) // Assuming the first wallet is the active one for now
+const claimComponent = new ClaimComponent(rewardsClient, walletManager)
 appDiv.appendChild(claimComponent.element)
 
 // Add superuser components
-const addAllocationsComponent = new AddAllocationsComponent(airdropClient, walletManager)
+const addAllocationsComponent = new AddAllocationsComponent(rewardsClient, walletManager)
 appDiv.appendChild(addAllocationsComponent.element)
 
-const reclaimAllocationsComponent = new ReclaimAllocationsComponent(airdropClient, walletManager)
+const reclaimAllocationsComponent = new ReclaimAllocationsComponent(rewardsClient, walletManager)
 appDiv.appendChild(reclaimAllocationsComponent.element)
 
 // Resume sessions on load

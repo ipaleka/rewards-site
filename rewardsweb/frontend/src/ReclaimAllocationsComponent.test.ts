@@ -1,10 +1,10 @@
 import { ReclaimAllocationsComponent } from "./ReclaimAllocationsComponent";
-import { AirdropClient } from "./AirdropClient";
+import { RewardsClient } from "./RewardsClient";
 
-// Mock AirdropClient
-jest.mock("./AirdropClient", () => {
+// Mock RewardsClient
+jest.mock("./RewardsClient", () => {
   return {
-    AirdropClient: jest.fn().mockImplementation(() => {
+    RewardsClient: jest.fn().mockImplementation(() => {
       return {
         fetchReclaimAllocationsData: jest.fn(),
         reclaimAllocation: jest.fn(),
@@ -14,17 +14,17 @@ jest.mock("./AirdropClient", () => {
 });
 
 describe("ReclaimAllocationsComponent", () => {
-  let mockAirdropClient: jest.Mocked<AirdropClient>;
+  let mockRewardsClient: jest.Mocked<RewardsClient>;
   let mockWalletManager: jest.Mocked<WalletManager>;
   let reclaimAllocationsComponent: ReclaimAllocationsComponent;
   let alertSpy: jest.SpyInstance;
 
   beforeEach(() => {
     alertSpy = jest.spyOn(window, "alert").mockImplementation(() => {});
-    mockAirdropClient = new AirdropClient(
+    mockRewardsClient = new RewardsClient(
       null as any,
       null as any
-    ) as jest.Mocked<AirdropClient>;
+    ) as jest.Mocked<RewardsClient>;
     mockWalletManager = {
       activeAccount: { address: "test-address" },
       subscribe: jest.fn(),
@@ -39,11 +39,11 @@ describe("ReclaimAllocationsComponent", () => {
   it("should fetch and display reclaimable addresses on initialization", async () => {
     const data = { addresses: ["addr1", "addr2"] };
     (
-      mockAirdropClient.fetchReclaimAllocationsData as jest.Mock
+      mockRewardsClient.fetchReclaimAllocationsData as jest.Mock
     ).mockResolvedValue(data);
 
     reclaimAllocationsComponent = new ReclaimAllocationsComponent(
-      mockAirdropClient,
+      mockRewardsClient,
       mockWalletManager
     );
     document.body.appendChild(reclaimAllocationsComponent.element);
@@ -54,7 +54,7 @@ describe("ReclaimAllocationsComponent", () => {
     expect(listItems.length).toBe(2);
     expect(listItems[0].textContent).toContain("addr1");
     expect(listItems[1].textContent).toContain("addr2");
-    expect(mockAirdropClient.fetchReclaimAllocationsData).toHaveBeenCalledWith(
+    expect(mockRewardsClient.fetchReclaimAllocationsData).toHaveBeenCalledWith(
       "test-address"
     );
   });
@@ -62,11 +62,11 @@ describe("ReclaimAllocationsComponent", () => {
   it("should display a message when no reclaimable allocations are found", async () => {
     const data = { addresses: [] };
     (
-      mockAirdropClient.fetchReclaimAllocationsData as jest.Mock
+      mockRewardsClient.fetchReclaimAllocationsData as jest.Mock
     ).mockResolvedValue(data);
 
     reclaimAllocationsComponent = new ReclaimAllocationsComponent(
-      mockAirdropClient,
+      mockRewardsClient,
       mockWalletManager
     );
     document.body.appendChild(reclaimAllocationsComponent.element);
@@ -79,10 +79,10 @@ describe("ReclaimAllocationsComponent", () => {
   it("should call reclaimAllocation with the correct address when a reclaim button is clicked", async () => {
     const data = { addresses: ["addr-to-reclaim"] };
     (
-      mockAirdropClient.fetchReclaimAllocationsData as jest.Mock
+      mockRewardsClient.fetchReclaimAllocationsData as jest.Mock
     ).mockResolvedValue(data);
     reclaimAllocationsComponent = new ReclaimAllocationsComponent(
-      mockAirdropClient,
+      mockRewardsClient,
       mockWalletManager
     );
     document.body.appendChild(reclaimAllocationsComponent.element);
@@ -93,7 +93,7 @@ describe("ReclaimAllocationsComponent", () => {
     ) as HTMLButtonElement;
     await button.click();
 
-    expect(mockAirdropClient.reclaimAllocation).toHaveBeenCalledWith(
+    expect(mockRewardsClient.reclaimAllocation).toHaveBeenCalledWith(
       "addr-to-reclaim"
     );
   });
@@ -101,20 +101,20 @@ describe("ReclaimAllocationsComponent", () => {
   it("should re-fetch data after a successful reclaim call", async () => {
     const data = { addresses: ["addr1"] };
     (
-      mockAirdropClient.fetchReclaimAllocationsData as jest.Mock
+      mockRewardsClient.fetchReclaimAllocationsData as jest.Mock
     ).mockResolvedValueOnce(data);
     reclaimAllocationsComponent = new ReclaimAllocationsComponent(
-      mockAirdropClient,
+      mockRewardsClient,
       mockWalletManager
     );
     document.body.appendChild(reclaimAllocationsComponent.element);
     await new Promise(process.nextTick);
 
-    (mockAirdropClient.reclaimAllocation as jest.Mock).mockResolvedValue(
+    (mockRewardsClient.reclaimAllocation as jest.Mock).mockResolvedValue(
       undefined
     );
     (
-      mockAirdropClient.fetchReclaimAllocationsData as jest.Mock
+      mockRewardsClient.fetchReclaimAllocationsData as jest.Mock
     ).mockResolvedValueOnce({ addresses: [] });
 
     const button = reclaimAllocationsComponent.element.querySelector(
@@ -122,9 +122,9 @@ describe("ReclaimAllocationsComponent", () => {
     ) as HTMLButtonElement;
     await button.click();
 
-    expect(mockAirdropClient.reclaimAllocation).toHaveBeenCalledTimes(1);
+    expect(mockRewardsClient.reclaimAllocation).toHaveBeenCalledTimes(1);
     // fetch is called once on init and once after reclaiming
-    expect(mockAirdropClient.fetchReclaimAllocationsData).toHaveBeenCalledTimes(
+    expect(mockRewardsClient.fetchReclaimAllocationsData).toHaveBeenCalledTimes(
       2
     );
   });
@@ -132,19 +132,19 @@ describe("ReclaimAllocationsComponent", () => {
   it("should not fetch data if no active account", async () => {
     mockWalletManager.activeAccount = null;
     reclaimAllocationsComponent = new ReclaimAllocationsComponent(
-      mockAirdropClient,
+      mockRewardsClient,
       mockWalletManager
     );
     document.body.appendChild(reclaimAllocationsComponent.element);
     await new Promise(process.nextTick);
 
     expect(
-      mockAirdropClient.fetchReclaimAllocationsData
+      mockRewardsClient.fetchReclaimAllocationsData
     ).not.toHaveBeenCalled();
   });
 
   describe("ReclaimAllocationsComponent Error Scenarios", () => {
-    let mockAirdropClient: jest.Mocked<AirdropClient>;
+    let mockRewardsClient: jest.Mocked<RewardsClient>;
     let mockWalletManager: jest.Mocked<WalletManager>;
     let reclaimAllocationsComponent: ReclaimAllocationsComponent;
     let alertSpy: jest.SpyInstance;
@@ -156,10 +156,10 @@ describe("ReclaimAllocationsComponent", () => {
         .spyOn(console, "error")
         .mockImplementation(() => {});
 
-      mockAirdropClient = new AirdropClient(
+      mockRewardsClient = new RewardsClient(
         null as any,
         null as any
-      ) as jest.Mocked<AirdropClient>;
+      ) as jest.Mocked<RewardsClient>;
 
       mockWalletManager = {
         activeAccount: { address: "test-address" },
@@ -177,11 +177,11 @@ describe("ReclaimAllocationsComponent", () => {
       it("should handle fetchReclaimAllocationsData errors and show alert", async () => {
         const error = new Error("API error");
         (
-          mockAirdropClient.fetchReclaimAllocationsData as jest.Mock
+          mockRewardsClient.fetchReclaimAllocationsData as jest.Mock
         ).mockRejectedValue(error);
 
         reclaimAllocationsComponent = new ReclaimAllocationsComponent(
-          mockAirdropClient,
+          mockRewardsClient,
           mockWalletManager
         );
         document.body.appendChild(reclaimAllocationsComponent.element);
@@ -200,11 +200,11 @@ describe("ReclaimAllocationsComponent", () => {
       it("should handle fetchReclaimAllocationsData network errors", async () => {
         const networkError = new Error("Network request failed");
         (
-          mockAirdropClient.fetchReclaimAllocationsData as jest.Mock
+          mockRewardsClient.fetchReclaimAllocationsData as jest.Mock
         ).mockRejectedValue(networkError);
 
         reclaimAllocationsComponent = new ReclaimAllocationsComponent(
-          mockAirdropClient,
+          mockRewardsClient,
           mockWalletManager
         );
         document.body.appendChild(reclaimAllocationsComponent.element);
@@ -223,11 +223,11 @@ describe("ReclaimAllocationsComponent", () => {
       it("should handle fetchReclaimAllocationsData HTTP errors", async () => {
         const httpError = new Error("HTTP error! status: 500");
         (
-          mockAirdropClient.fetchReclaimAllocationsData as jest.Mock
+          mockRewardsClient.fetchReclaimAllocationsData as jest.Mock
         ).mockRejectedValue(httpError);
 
         reclaimAllocationsComponent = new ReclaimAllocationsComponent(
-          mockAirdropClient,
+          mockRewardsClient,
           mockWalletManager
         );
         document.body.appendChild(reclaimAllocationsComponent.element);
@@ -246,11 +246,11 @@ describe("ReclaimAllocationsComponent", () => {
       it("should handle non-Error objects in fetch errors", async () => {
         const stringError = "Unknown fetch error";
         (
-          mockAirdropClient.fetchReclaimAllocationsData as jest.Mock
+          mockRewardsClient.fetchReclaimAllocationsData as jest.Mock
         ).mockRejectedValue(stringError);
 
         reclaimAllocationsComponent = new ReclaimAllocationsComponent(
-          mockAirdropClient,
+          mockRewardsClient,
           mockWalletManager
         );
         document.body.appendChild(reclaimAllocationsComponent.element);
@@ -269,11 +269,11 @@ describe("ReclaimAllocationsComponent", () => {
       it("should clear reclaimable addresses and render when fetch fails", async () => {
         const error = new Error("Fetch failed");
         (
-          mockAirdropClient.fetchReclaimAllocationsData as jest.Mock
+          mockRewardsClient.fetchReclaimAllocationsData as jest.Mock
         ).mockRejectedValue(error);
 
         reclaimAllocationsComponent = new ReclaimAllocationsComponent(
-          mockAirdropClient,
+          mockRewardsClient,
           mockWalletManager
         );
         document.body.appendChild(reclaimAllocationsComponent.element);
@@ -293,11 +293,11 @@ describe("ReclaimAllocationsComponent", () => {
         // Set up with reclaimable addresses
         const data = { addresses: ["addr-to-reclaim", "addr-to-reclaim-2"] };
         (
-          mockAirdropClient.fetchReclaimAllocationsData as jest.Mock
+          mockRewardsClient.fetchReclaimAllocationsData as jest.Mock
         ).mockResolvedValue(data);
 
         reclaimAllocationsComponent = new ReclaimAllocationsComponent(
-          mockAirdropClient,
+          mockRewardsClient,
           mockWalletManager
         );
         document.body.appendChild(reclaimAllocationsComponent.element);
@@ -308,7 +308,7 @@ describe("ReclaimAllocationsComponent", () => {
         const reclaimError = new Error(
           "Transaction failed: insufficient balance"
         );
-        (mockAirdropClient.reclaimAllocation as jest.Mock).mockRejectedValue(
+        (mockRewardsClient.reclaimAllocation as jest.Mock).mockRejectedValue(
           reclaimError
         );
 
@@ -328,7 +328,7 @@ describe("ReclaimAllocationsComponent", () => {
 
       it("should handle reclaimAllocation network errors", async () => {
         const networkError = new Error("Network connection lost");
-        (mockAirdropClient.reclaimAllocation as jest.Mock).mockRejectedValue(
+        (mockRewardsClient.reclaimAllocation as jest.Mock).mockRejectedValue(
           networkError
         );
 
@@ -348,7 +348,7 @@ describe("ReclaimAllocationsComponent", () => {
 
       it("should handle reclaimAllocation contract execution errors", async () => {
         const contractError = new Error("Smart contract execution reverted");
-        (mockAirdropClient.reclaimAllocation as jest.Mock).mockRejectedValue(
+        (mockRewardsClient.reclaimAllocation as jest.Mock).mockRejectedValue(
           contractError
         );
 
@@ -368,7 +368,7 @@ describe("ReclaimAllocationsComponent", () => {
 
       it("should handle non-Error objects in reclaim errors", async () => {
         const stringError = "Unknown reclaim error";
-        (mockAirdropClient.reclaimAllocation as jest.Mock).mockRejectedValue(
+        (mockRewardsClient.reclaimAllocation as jest.Mock).mockRejectedValue(
           stringError
         );
 
@@ -388,13 +388,13 @@ describe("ReclaimAllocationsComponent", () => {
 
       it("should NOT re-fetch data after a failed reclaim call", async () => {
         const reclaimError = new Error("Reclaim failed");
-        (mockAirdropClient.reclaimAllocation as jest.Mock).mockRejectedValue(
+        (mockRewardsClient.reclaimAllocation as jest.Mock).mockRejectedValue(
           reclaimError
         );
 
         // Clear the initial fetch call count
         (
-          mockAirdropClient.fetchReclaimAllocationsData as jest.Mock
+          mockRewardsClient.fetchReclaimAllocationsData as jest.Mock
         ).mockClear();
 
         const button = reclaimAllocationsComponent.element.querySelector(
@@ -404,7 +404,7 @@ describe("ReclaimAllocationsComponent", () => {
 
         // Should NOT re-fetch data after failure
         expect(
-          mockAirdropClient.fetchReclaimAllocationsData
+          mockRewardsClient.fetchReclaimAllocationsData
         ).not.toHaveBeenCalled();
       });
     });
@@ -413,11 +413,11 @@ describe("ReclaimAllocationsComponent", () => {
       it("should handle wallet manager subscription callback errors", async () => {
         const subscriptionError = new Error("Subscription callback failed");
         (
-          mockAirdropClient.fetchReclaimAllocationsData as jest.Mock
+          mockRewardsClient.fetchReclaimAllocationsData as jest.Mock
         ).mockRejectedValue(subscriptionError);
 
         reclaimAllocationsComponent = new ReclaimAllocationsComponent(
-          mockAirdropClient,
+          mockRewardsClient,
           mockWalletManager
         );
 
@@ -437,11 +437,11 @@ describe("ReclaimAllocationsComponent", () => {
       it("should handle wallet changes gracefully when fetch fails", async () => {
         const fetchError = new Error("Failed to fetch data");
         (
-          mockAirdropClient.fetchReclaimAllocationsData as jest.Mock
+          mockRewardsClient.fetchReclaimAllocationsData as jest.Mock
         ).mockRejectedValue(fetchError);
 
         reclaimAllocationsComponent = new ReclaimAllocationsComponent(
-          mockAirdropClient,
+          mockRewardsClient,
           mockWalletManager
         );
 

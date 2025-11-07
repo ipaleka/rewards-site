@@ -1,5 +1,5 @@
 /**
- * Full, updated test suite (25 tests) for the new AirdropClient
+ * Full, updated test suite (25 tests) for the new RewardsClient
  * - Mocks Rewards ABI
  * - Mocks getApplicationByID() to provide token_id
  * - Mocks makeAssetTransferTxnWithSuggestedParamsFromObject
@@ -45,7 +45,7 @@ jest.mock(
 );
 
 // Now import the actual modules
-import { AirdropClient } from "./AirdropClient";
+import { RewardsClient } from "./RewardsClient";
 import { BaseWallet, WalletManager } from "@txnlab/use-wallet";
 import * as algosdk from "algosdk";
 import { getAlgodClient } from "./ActiveNetwork";
@@ -77,10 +77,10 @@ jest.mock("algosdk", () => {
   };
 });
 
-describe("AirdropClient", () => {
+describe("RewardsClient", () => {
   let mockWallet: jest.Mocked<BaseWallet>;
   let mockManager: jest.Mocked<WalletManager>;
-  let airdropClient: AirdropClient;
+  let rewardsClient: RewardsClient;
 
   beforeEach(() => {
     jest.clearAllMocks();
@@ -119,14 +119,14 @@ describe("AirdropClient", () => {
       }),
     });
 
-    airdropClient = new AirdropClient(mockWallet, mockManager);
+    rewardsClient = new RewardsClient(mockWallet, mockManager);
   });
 
   describe("Smart Contract Interactions", () => {
     it("should call addAllocations method on the smart contract", async () => {
       const addresses = ["addr1"];
       const amounts = [100];
-      await airdropClient.addAllocations(addresses, amounts);
+      await rewardsClient.addAllocations(addresses, amounts);
 
       expect(mockAddMethodCall).toHaveBeenCalledWith(
         expect.objectContaining({
@@ -141,7 +141,7 @@ describe("AirdropClient", () => {
 
     it("should call reclaimAllocation method on the smart contract", async () => {
       const userAddress = "addr-to-reclaim";
-      await airdropClient.reclaimAllocation(userAddress);
+      await rewardsClient.reclaimAllocation(userAddress);
 
       expect(mockAddMethodCall).toHaveBeenCalledWith(
         expect.objectContaining({
@@ -154,7 +154,7 @@ describe("AirdropClient", () => {
     });
 
     it("should call claim method on the smart contract", async () => {
-      await airdropClient.claim();
+      await rewardsClient.claim();
 
       // Opt-in txn created
       expect(
@@ -175,15 +175,15 @@ describe("AirdropClient", () => {
 
     it("should throw an error if no active account is selected", async () => {
       mockWallet.activeAccount = null;
-      airdropClient = new AirdropClient(mockWallet, mockManager);
+      rewardsClient = new RewardsClient(mockWallet, mockManager);
 
       await expect(
-        airdropClient.addAllocations(["addr1"], [100])
+        rewardsClient.addAllocations(["addr1"], [100])
       ).rejects.toThrow("No active account selected.");
-      await expect(airdropClient.reclaimAllocation("addr1")).rejects.toThrow(
+      await expect(rewardsClient.reclaimAllocation("addr1")).rejects.toThrow(
         "No active account selected."
       );
-      await expect(airdropClient.claim()).rejects.toThrow(
+      await expect(rewardsClient.claim()).rejects.toThrow(
         "No active account selected."
       );
     });
@@ -200,7 +200,7 @@ describe("AirdropClient", () => {
         json: () => Promise.resolve({ claimable: true }),
       });
 
-      const result = await airdropClient.fetchClaimableStatus("test-address");
+      const result = await rewardsClient.fetchClaimableStatus("test-address");
       expect(result).toEqual({ claimable: true });
       expect(fetch).toHaveBeenCalledWith(
         "/api/wallet/claim-allocation/",
@@ -218,7 +218,7 @@ describe("AirdropClient", () => {
         json: () => Promise.resolve(data),
       });
 
-      const result = await airdropClient.fetchAddAllocationsData(
+      const result = await rewardsClient.fetchAddAllocationsData(
         "test-address"
       );
       expect(result).toEqual(data);
@@ -238,7 +238,7 @@ describe("AirdropClient", () => {
         json: () => Promise.resolve(data),
       });
 
-      const result = await airdropClient.fetchReclaimAllocationsData(
+      const result = await rewardsClient.fetchReclaimAllocationsData(
         "test-address"
       );
       expect(result).toEqual(data);
@@ -254,19 +254,19 @@ describe("AirdropClient", () => {
     it("should handle API errors", async () => {
       (fetch as jest.Mock).mockResolvedValue({ ok: false, status: 404 });
       await expect(
-        airdropClient.fetchClaimableStatus("test-address")
+        rewardsClient.fetchClaimableStatus("test-address")
       ).rejects.toThrow("HTTP error! status: 404");
     });
   });
 
-  describe("AirdropClient Error Scenarios", () => {
+  describe("RewardsClient Error Scenarios", () => {
     describe("addAllocations", () => {
       it("should throw error when addresses and amounts arrays have different lengths", async () => {
         const addresses = ["addr1", "addr2"];
         const amounts = [100];
 
         await expect(
-          airdropClient.addAllocations(addresses, amounts)
+          rewardsClient.addAllocations(addresses, amounts)
         ).rejects.toThrow(
           "Addresses and amounts arrays must have the same non-zero length."
         );
@@ -277,7 +277,7 @@ describe("AirdropClient", () => {
         const amounts: number[] = [];
 
         await expect(
-          airdropClient.addAllocations(addresses, amounts)
+          rewardsClient.addAllocations(addresses, amounts)
         ).rejects.toThrow(
           "Addresses and amounts arrays must have the same non-zero length."
         );
@@ -292,7 +292,7 @@ describe("AirdropClient", () => {
         );
 
         await expect(
-          airdropClient.addAllocations(addresses, amounts)
+          rewardsClient.addAllocations(addresses, amounts)
         ).rejects.toThrow("Contract execution failed");
 
         expect(mockExecute).toHaveBeenCalled();
@@ -309,11 +309,11 @@ describe("AirdropClient", () => {
         mockExecute.mockRejectedValueOnce(error);
 
         await expect(
-          airdropClient.addAllocations(addresses, amounts)
+          rewardsClient.addAllocations(addresses, amounts)
         ).rejects.toThrow("Contract execution failed");
 
         expect(consoleErrorSpy).toHaveBeenCalledWith(
-          "[AirdropClient] Error adding allocations:",
+          "[RewardsClient] Error adding allocations:",
           error
         );
 
@@ -330,7 +330,7 @@ describe("AirdropClient", () => {
         );
 
         await expect(
-          airdropClient.reclaimAllocation(userAddress)
+          rewardsClient.reclaimAllocation(userAddress)
         ).rejects.toThrow("Reclaim execution failed");
 
         expect(mockExecute).toHaveBeenCalled();
@@ -346,11 +346,11 @@ describe("AirdropClient", () => {
         mockExecute.mockRejectedValueOnce(error);
 
         await expect(
-          airdropClient.reclaimAllocation(userAddress)
+          rewardsClient.reclaimAllocation(userAddress)
         ).rejects.toThrow("Reclaim execution failed");
 
         expect(consoleErrorSpy).toHaveBeenCalledWith(
-          "[AirdropClient] Error reclaiming allocation:",
+          "[RewardsClient] Error reclaiming allocation:",
           error
         );
 
@@ -362,7 +362,7 @@ describe("AirdropClient", () => {
       it("should throw error when contract call fails", async () => {
         mockExecute.mockRejectedValueOnce(new Error("Claim execution failed"));
 
-        await expect(airdropClient.claim()).rejects.toThrow(
+        await expect(rewardsClient.claim()).rejects.toThrow(
           "Claim execution failed"
         );
 
@@ -377,12 +377,12 @@ describe("AirdropClient", () => {
 
         mockExecute.mockRejectedValueOnce(error);
 
-        await expect(airdropClient.claim()).rejects.toThrow(
+        await expect(rewardsClient.claim()).rejects.toThrow(
           "Claim execution failed"
         );
 
         expect(consoleErrorSpy).toHaveBeenCalledWith(
-          "[AirdropClient] Error claiming allocation:",
+          "[RewardsClient] Error claiming allocation:",
           error
         );
 
@@ -398,7 +398,7 @@ describe("AirdropClient", () => {
         });
 
         await expect(
-          airdropClient.fetchClaimableStatus("test-address")
+          rewardsClient.fetchClaimableStatus("test-address")
         ).rejects.toThrow("HTTP error! status: 500");
       });
 
@@ -411,11 +411,11 @@ describe("AirdropClient", () => {
         (fetch as jest.Mock).mockRejectedValueOnce(error);
 
         await expect(
-          airdropClient.fetchClaimableStatus("test-address")
+          rewardsClient.fetchClaimableStatus("test-address")
         ).rejects.toThrow("Network error");
 
         expect(consoleErrorSpy).toHaveBeenCalledWith(
-          "[AirdropClient] Error fetching claimable status:",
+          "[RewardsClient] Error fetching claimable status:",
           error
         );
 
@@ -431,7 +431,7 @@ describe("AirdropClient", () => {
         });
 
         await expect(
-          airdropClient.fetchAddAllocationsData("test-address")
+          rewardsClient.fetchAddAllocationsData("test-address")
         ).rejects.toThrow("HTTP error! status: 400");
       });
 
@@ -444,11 +444,11 @@ describe("AirdropClient", () => {
         (fetch as jest.Mock).mockRejectedValueOnce(error);
 
         await expect(
-          airdropClient.fetchAddAllocationsData("test-address")
+          rewardsClient.fetchAddAllocationsData("test-address")
         ).rejects.toThrow("Network error");
 
         expect(consoleErrorSpy).toHaveBeenCalledWith(
-          "[AirdropClient] Error fetching add allocations data:",
+          "[RewardsClient] Error fetching add allocations data:",
           error
         );
 
@@ -464,7 +464,7 @@ describe("AirdropClient", () => {
         });
 
         await expect(
-          airdropClient.fetchReclaimAllocationsData("test-address")
+          rewardsClient.fetchReclaimAllocationsData("test-address")
         ).rejects.toThrow("HTTP error! status: 403");
       });
 
@@ -477,11 +477,11 @@ describe("AirdropClient", () => {
         (fetch as jest.Mock).mockRejectedValueOnce(error);
 
         await expect(
-          airdropClient.fetchReclaimAllocationsData("test-address")
+          rewardsClient.fetchReclaimAllocationsData("test-address")
         ).rejects.toThrow("Network error");
 
         expect(consoleErrorSpy).toHaveBeenCalledWith(
-          "[AirdropClient] Error fetching reclaim allocations data:",
+          "[RewardsClient] Error fetching reclaim allocations data:",
           error
         );
 
@@ -492,27 +492,27 @@ describe("AirdropClient", () => {
     describe("No active account scenarios", () => {
       it("should throw error when no active account for addAllocations", async () => {
         mockWallet.activeAccount = null;
-        airdropClient = new AirdropClient(mockWallet, mockManager);
+        rewardsClient = new RewardsClient(mockWallet, mockManager);
 
         await expect(
-          airdropClient.addAllocations(["addr1"], [100])
+          rewardsClient.addAllocations(["addr1"], [100])
         ).rejects.toThrow("No active account selected.");
       });
 
       it("should throw error when no active account for reclaimAllocation", async () => {
         mockWallet.activeAccount = null;
-        airdropClient = new AirdropClient(mockWallet, mockManager);
+        rewardsClient = new RewardsClient(mockWallet, mockManager);
 
-        await expect(airdropClient.reclaimAllocation("addr1")).rejects.toThrow(
+        await expect(rewardsClient.reclaimAllocation("addr1")).rejects.toThrow(
           "No active account selected."
         );
       });
 
       it("should throw error when no active account for claim", async () => {
         mockWallet.activeAccount = null;
-        airdropClient = new AirdropClient(mockWallet, mockManager);
+        rewardsClient = new RewardsClient(mockWallet, mockManager);
 
-        await expect(airdropClient.claim()).rejects.toThrow(
+        await expect(rewardsClient.claim()).rejects.toThrow(
           "No active account selected."
         );
       });
@@ -522,27 +522,27 @@ describe("AirdropClient", () => {
   describe("App ID Missing & Global State Error Scenarios", () => {
     it("should throw error when App ID is not configured for addAllocations()", async () => {
       mockManager.activeNetwork = "betanet"; // betanet has no AppId configured
-      airdropClient = new AirdropClient(mockWallet, mockManager);
+      rewardsClient = new RewardsClient(mockWallet, mockManager);
 
       await expect(
-        airdropClient.addAllocations(["addr1"], [100])
+        rewardsClient.addAllocations(["addr1"], [100])
       ).rejects.toThrow("App ID not configured for network: betanet");
     });
 
     it("should throw error when App ID is not configured for reclaimAllocation()", async () => {
       mockManager.activeNetwork = "betanet";
-      airdropClient = new AirdropClient(mockWallet, mockManager);
+      rewardsClient = new RewardsClient(mockWallet, mockManager);
 
       await expect(
-        airdropClient.reclaimAllocation("addr1")
+        rewardsClient.reclaimAllocation("addr1")
       ).rejects.toThrow("App ID not configured for network: betanet");
     });
 
     it("should throw error when App ID is not configured for claim()", async () => {
       mockManager.activeNetwork = "betanet";
-      airdropClient = new AirdropClient(mockWallet, mockManager);
+      rewardsClient = new RewardsClient(mockWallet, mockManager);
 
-      await expect(airdropClient.claim()).rejects.toThrow(
+      await expect(rewardsClient.claim()).rejects.toThrow(
         "App ID not configured for network: betanet"
       );
     });
@@ -568,9 +568,9 @@ describe("AirdropClient", () => {
         }),
       });
 
-      airdropClient = new AirdropClient(mockWallet, mockManager);
+      rewardsClient = new RewardsClient(mockWallet, mockManager);
 
-      await expect(airdropClient.claim()).rejects.toThrow(
+      await expect(rewardsClient.claim()).rejects.toThrow(
         "Contract global state is empty or not found"
       );
     });
@@ -599,9 +599,9 @@ describe("AirdropClient", () => {
         }),
       });
 
-      airdropClient = new AirdropClient(mockWallet, mockManager);
+      rewardsClient = new RewardsClient(mockWallet, mockManager);
 
-      await expect(airdropClient.claim()).rejects.toThrow(
+      await expect(rewardsClient.claim()).rejects.toThrow(
         "token_id not found in contract's global state"
       );
     });

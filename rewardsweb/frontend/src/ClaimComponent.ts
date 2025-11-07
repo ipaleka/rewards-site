@@ -1,14 +1,14 @@
-import { AirdropClient } from './AirdropClient'
+import { RewardsClient } from './RewardsClient'
 import { WalletManager } from '@txnlab/use-wallet'
 
 export class ClaimComponent {
   element: HTMLElement
-  private airdropClient: AirdropClient
+  private rewardsClient: RewardsClient
   private walletManager: WalletManager
   private claimable: boolean = false
 
-  constructor(airdropClient: AirdropClient, walletManager: WalletManager) {
-    this.airdropClient = airdropClient
+  constructor(rewardsClient: RewardsClient, walletManager: WalletManager) {
+    this.rewardsClient = rewardsClient
     this.walletManager = walletManager
     this.element = document.createElement('div')
     this.render()
@@ -26,7 +26,7 @@ export class ClaimComponent {
     }
 
     try {
-      const status = await this.airdropClient.fetchClaimableStatus(activeAddress)
+      const status = await this.rewardsClient.fetchClaimableStatus(activeAddress)
       this.claimable = status.claimable
       this.render()
     } catch (error) {
@@ -39,7 +39,7 @@ export class ClaimComponent {
   private async handleClaim() {
     try {
       console.info('[ClaimComponent] Initiating claim...')
-      await this.airdropClient.claim()
+      await this.rewardsClient.claim()
       alert('Claim transaction sent successfully!')
       // Re-check status after successful claim
       await this.checkClaimableStatus()
@@ -54,7 +54,7 @@ export class ClaimComponent {
   render() {
     this.element.innerHTML = `
       <div class="space-y-4 p-4 rounded-lg bg-base-200 mt-4">
-        <h4 class="font-semibold text-lg">Claim Your Airdrop</h4>
+        <h4 class="font-semibold text-lg">Claim Your Rewards</h4>
         <button
           id="claim-button"
           type="button"

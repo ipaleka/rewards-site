@@ -8,7 +8,7 @@ import { BaseWallet, WalletManager, NetworkId } from '@txnlab/use-wallet'
 import { getAlgodClient } from './ActiveNetwork'
 import rewardsABI from '../../contract/artifacts/Rewards.arc56.json'
 
-export class AirdropClient {
+export class RewardsClient {
   private wallet: BaseWallet
   private manager: WalletManager
   private algodClient: Algodv2
@@ -67,13 +67,13 @@ export class AirdropClient {
       })
 
       const result = await atc.execute(this.algodClient, 4)
-      console.info(`[AirdropClient] ✅ Successfully sent add_allocations transaction!`, {
+      console.info(`[RewardsClient] ✅ Successfully sent add_allocations transaction!`, {
         confirmedRound: result.confirmedRound,
         txIDs: result.txIDs
       })
       return result
     } catch (error) {
-      console.error('[AirdropClient] Error adding allocations:', error)
+      console.error('[RewardsClient] Error adding allocations:', error)
       throw error
     }
   }
@@ -103,13 +103,13 @@ export class AirdropClient {
       })
 
       const result = await atc.execute(this.algodClient, 4)
-      console.info(`[AirdropClient] ✅ Successfully sent reclaim_allocation transaction!`, {
+      console.info(`[RewardsClient] ✅ Successfully sent reclaim_allocation transaction!`, {
         confirmedRound: result.confirmedRound,
         txIDs: result.txIDs
       })
       return result
     } catch (error) {
-      console.error('[AirdropClient] Error reclaiming allocation:', error)
+      console.error('[RewardsClient] Error reclaiming allocation:', error)
       throw error
     }
   }
@@ -171,13 +171,13 @@ export class AirdropClient {
       });
 
       const result = await atc.execute(this.algodClient, 4)
-      console.info(`[AirdropClient] ✅ Successfully sent claim transaction!`, {
+      console.info(`[RewardsClient] ✅ Successfully sent claim transaction!`, {
         confirmedRound: result.confirmedRound,
         txIDs: result.txIDs
       })
       return result
     } catch (error) {
-      console.error('[AirdropClient] Error claiming allocation:', error)
+      console.error('[RewardsClient] Error claiming allocation:', error)
       throw error
     }
   }
@@ -195,7 +195,7 @@ export class AirdropClient {
       const data = await response.json()
       return data
     } catch (error) {
-      console.error('[AirdropClient] Error fetching claimable status:', error)
+      console.error('[RewardsClient] Error fetching claimable status:', error)
       throw error
     }
   }
@@ -213,7 +213,7 @@ export class AirdropClient {
       const data = await response.json()
       return data
     } catch (error) {
-      console.error('[AirdropClient] Error fetching add allocations data:', error)
+      console.error('[RewardsClient] Error fetching add allocations data:', error)
       throw error
     }
   }
@@ -231,7 +231,7 @@ export class AirdropClient {
       const data = await response.json()
       return data
     } catch (error) {
-      console.error('[AirdropClient] Error fetching reclaim allocations data:', error)
+      console.error('[RewardsClient] Error fetching reclaim allocations data:', error)
       throw error
     }
   }

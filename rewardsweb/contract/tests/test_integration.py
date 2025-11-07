@@ -1,14 +1,12 @@
 """Testing module for :py:mod:`contract.contract` module."""
 
 import os
-import time
 from pathlib import Path
 
 import pytest
 from algokit_utils import (
     AlgoAmount,
     AlgorandClient,
-    AppCallParams,
     Arc56Contract,
     AssetTransferParams,
     LogicError,
@@ -22,7 +20,7 @@ from algosdk.atomic_transaction_composer import (
     TransactionWithSigner,
 )
 from algosdk.error import AlgodHTTPError
-from algosdk.transaction import AssetCreateTxn, OnComplete
+from algosdk.transaction import AssetCreateTxn
 from algosdk.v2client.algod import AlgodClient
 from dotenv import load_dotenv
 
@@ -115,7 +113,7 @@ def make_transfer(admin_account, receiver, amount):
 
 
 class TestContractRewardsIntegration:
-    """Testing class for :class:`contract.contract.Rewards` add_allocations method."""
+    """Testing class for :class:`contract.contract.Rewards` methods."""
 
     @pytest.mark.order(1)
     def test_contract_rewards_add_alocations_for_no_admin(

@@ -1,4 +1,4 @@
-import { BaseWallet, WalletId, WalletManager } from "@txnlab/use-wallet";
+import { BaseWallet, WalletManager } from "@txnlab/use-wallet";
 import {
   AtomicTransactionComposer,
   makePaymentTxnWithSuggestedParamsFromObject,
@@ -9,29 +9,90 @@ import {
 export class WalletComponent {
   wallet: BaseWallet;
   manager: WalletManager;
-  element: HTMLElement;
   private unsubscribe?: () => void;
-  private magicEmail: string = "";
+  private element: HTMLElement | null = null;
 
   constructor(wallet: BaseWallet, manager: WalletManager) {
     this.wallet = wallet;
     this.manager = manager;
-    this.element = document.createElement("div");
-    this.unsubscribe = wallet.subscribe((state) => {
-      console.info("[App] State change:", state);
-      this.render();
+    this.unsubscribe = wallet.subscribe(() => {
+      console.info(`[${this.wallet.metadata.name}] State change detected. New state:`, this.wallet);
+      this.render(this.wallet as any);
     });
-    this.render();
-    this.addEventListeners();
   }
 
-  connect = (args?: Record<string, any>) => this.wallet?.connect(args);
-  disconnect = () => this.wallet?.disconnect();
-  setActive = () => this.wallet?.setActive();
+  bind(element: HTMLElement) {
+    this.element = element;
+    this.addEventListeners();
+    this.render(this.wallet as any);
+  }
+
+  private render(state: { isConnected: boolean, isActive: boolean, accounts: any[], activeAccount: any }) {
+    if (!this.element) return;
+
+    const { isConnected, isActive, accounts, activeAccount } = state;
+
+    const connectBtn = this.element.querySelector<HTMLButtonElement>(`#connect-button-${this.wallet.id}`)!;
+    const disconnectBtn = this.element.querySelector<HTMLButtonElement>(`#disconnect-button-${this.wallet.id}`)!;
+    const setActiveBtn = this.element.querySelector<HTMLButtonElement>(`#set-active-button-${this.wallet.id}`)!;
+    const authBtn = this.element.querySelector<HTMLButtonElement>(`#auth-button-${this.wallet.id}`)!;
+    const txnBtn = this.element.querySelector<HTMLButtonElement>(`#transaction-button-${this.wallet.id}`)!;
+    const accountSelect = this.element.querySelector<HTMLSelectElement>('select')!;
+    const nameHeader = this.element.querySelector<HTMLHeadingElement>('h4')!;
+
+    // Toggle button visibility and state
+    connectBtn.style.display = isConnected ? 'none' : 'block';
+    disconnectBtn.style.display = isConnected ? 'block' : 'none';
+    setActiveBtn.style.display = isConnected && !isActive ? 'block' : 'none';
+    authBtn.style.display = isConnected && isActive ? 'block' : 'none';
+    txnBtn.style.display = isConnected && isActive ? 'block' : 'none';
+
+    // Active badge
+    let activeBadge = nameHeader.querySelector('.badge');
+    if (isActive && !activeBadge) {
+      activeBadge = document.createElement('span');
+      activeBadge.className = 'badge badge-success';
+      activeBadge.textContent = 'Active';
+      nameHeader.appendChild(activeBadge);
+    } else if (!isActive && activeBadge) {
+      activeBadge.remove();
+    }
+
+    // Accounts dropdown
+    if (isConnected) {
+      accountSelect.innerHTML = '';
+      if (accounts.length > 0) {
+        accounts.forEach(account => {
+          const option = document.createElement('option');
+          option.value = account.address;
+          option.textContent = `${account.address.substring(0, 6)}...${account.address.substring(account.address.length - 6)}`;
+          option.selected = account.address === activeAccount?.address;
+          accountSelect.appendChild(option);
+        });
+      } else {
+        const option = document.createElement('option');
+        option.textContent = 'No accounts';
+        option.disabled = true;
+        accountSelect.appendChild(option);
+      }
+    }
+  }
+
+  connect = async () => {
+    await this.wallet?.connect();
+  };
+
+  disconnect = async () => {
+    await this.wallet?.disconnect();
+  };
+
+  setActive = async () => {
+    await this.wallet?.setActive();
+  };
 
   sendTransaction = async () => {
-    const txnButton = this.element.querySelector(
-      "#transaction-button"
+    const txnButton = this.element?.querySelector(
+      `#transaction-button-${this.wallet.id}`
     ) as HTMLButtonElement;
     if (!txnButton) return;
 
@@ -41,7 +102,6 @@ export class WalletComponent {
         throw new Error("[App] No active account");
       }
 
-      // Validate address format before creating transaction
       if (!isValidAddress(activeAddress)) {
         throw new Error(`[App] Invalid address format: ${activeAddress}`);
       }
@@ -80,15 +140,15 @@ export class WalletComponent {
   };
 
   auth = async () => {
-    const activeAddress = this.wallet?.activeAccount?.address;
-    if (!activeAddress || !isValidAddress(activeAddress)) {
-      throw new Error(
-        `[App] Invalid or missing address: ${activeAddress || "undefined"}`
-      );
-    }
-    console.info(`[App] Authenticating with address: ${activeAddress}`);
     try {
-      // Get CSRF token
+      const activeAddress = this.wallet?.activeAccount?.address;
+      if (!activeAddress || !isValidAddress(activeAddress)) {
+        throw new Error(
+          `[App] Invalid or missing address: ${activeAddress || "undefined"}`
+        );
+      }
+      console.info(`[App] Authenticating with address: ${activeAddress}`);
+
       const getCsrfToken = () => {
         const name = "csrftoken";
         const cookieValue =
@@ -110,7 +170,6 @@ export class WalletComponent {
         "X-CSRFToken": getCsrfToken(),
       };
 
-      // Fetch nonce
       console.info("[App] Fetching nonce for address:", activeAddress);
       const nonceResponse = await fetch("/api/wallet/nonce/", {
         method: "POST",
@@ -125,7 +184,6 @@ export class WalletComponent {
       const prefix = nonceData.prefix;
       console.info("[App] Received nonce:", nonce);
 
-      // Create a transaction with a note
       const message = `${prefix}${nonce}`;
       const note = new TextEncoder().encode(message);
       const suggestedParams = await this.manager.algodClient
@@ -143,24 +201,22 @@ export class WalletComponent {
       console.info("[App] Signing transaction with note:", message);
       const signedTxs = await this.wallet.signTransactions([encodedTx]);
 
-      // Extract signed transaction bytes
       if (!signedTxs[0]) {
         throw new Error("[App] No signed transaction returned");
       }
-      const signedTxBytes = signedTxs[0]; // Already bytes from signTransactions
-      const signedTxBase64 = btoa(String.fromCharCode(...signedTxBytes)); // Convert to base64 for JSON
+      const signedTxBytes = signedTxs[0];
+      const signedTxBase64 = btoa(String.fromCharCode(...signedTxBytes));
       console.info(
         "[App] Signed transaction base64 length:",
         signedTxBase64.length
       );
 
-      // Send to verify
       const verifyResponse = await fetch("/api/wallet/verify/", {
         method: "POST",
         headers,
         body: JSON.stringify({
           address: activeAddress,
-          signedTransaction: signedTxBase64, // Send full signed txn as base64
+          signedTransaction: signedTxBase64,
           nonce,
         }),
       });
@@ -172,199 +228,47 @@ export class WalletComponent {
       console.info(
         `[App] ✅ Successfully authenticated with ${this.wallet.metadata.name}!`
       );
-      // Use backend redirect URL if provided, fallback to root
       window.location.href = verifyData.redirect_url || "/";
     } catch (error: unknown) {
-      /* istanbul ignore next */
       const errorMessage = error instanceof Error ? error.message : String(error);
       console.error("[App] Error signing data:", error);
-      // Display error to user
-      const errorDiv = document.createElement("div");
-      errorDiv.className = "error-message";
-      errorDiv.style.color = "red";
-      errorDiv.textContent = errorMessage;
-      this.element.appendChild(errorDiv);
-      setTimeout(() => errorDiv.remove(), 5000);
+      if (this.element) {
+        const errorDiv = document.createElement("div");
+        errorDiv.className = "alert alert-error mt-4";
+        errorDiv.textContent = errorMessage;
+        this.element.appendChild(errorDiv);
+        setTimeout(() => errorDiv.remove(), 5000);
+      }
     }
   };
 
-  setActiveAccount = (event: Event) => {
+  setActiveAccount = async (event: Event) => {
     const target = event.target as HTMLSelectElement;
-    this.wallet?.setActiveAccount(target.value);
-  };
-
-  isMagicLink = () => this.wallet?.id === WalletId.MAGIC;
-
-  isEmailValid = () =>
-    /^[a-zA-Z0-9.!#$%&'*+/=?^_`{|}~-]+@[a-zA-Z0-9](?:[a-zA-Z0-9-]{0,61}[a-zA-Z0-9])?(?:\.[a-zA-Z0-9](?:[a-zA-Z0-9-]{0,61}[a-zA-Z0-9])?)*$/.test(
-      this.magicEmail
-    );
-
-  isConnectDisabled = () =>
-    !this.wallet ||
-    this.wallet.isConnected ||
-    (this.isMagicLink() && !this.isEmailValid());
-
-  getConnectArgs = () =>
-    this.isMagicLink() ? { email: this.magicEmail } : undefined;
-
-  sanitizeText(text: string): string {
-    if (!text) return "";
-    const div = document.createElement("div");
-    div.textContent = text;
-    return div.innerHTML; // Escapes HTML
-  }
-
-  render() {
-    const walletName = this.sanitizeText(
-      this.wallet?.metadata?.name || "Unknown Wallet"
-    );
-    const sanitizedEmail = this.sanitizeText(this.magicEmail);
-
-    this.element.innerHTML = `
-      <div class="space-y-4 p-4 rounded-lg bg-base-200">
-        <h4 class="font-semibold text-lg flex items-center gap-2">
-          ${walletName}
-          ${
-            this.wallet?.isActive
-              ? '<span class="badge badge-success">Active</span>'
-              : ""
-          }
-        </h4>
-        <div class="flex flex-wrap gap-2">
-          <button
-            id="connect-button"
-            type="button"
-            class="btn btn-primary btn-sm"
-            ${this.isConnectDisabled() ? "disabled" : ""}
-          >
-            Connect
-          </button>
-          <button
-            id="disconnect-button"
-            type="button"
-            class="btn btn-error btn-sm"
-            ${!this.wallet?.isConnected ? "disabled" : ""}
-          >
-            Disconnect
-          </button>
-          ${
-            this.wallet?.isActive
-              ? `
-              <button id="transaction-button" type="button" class="btn btn-accent btn-sm">
-                Send Transaction
-              </button>
-              <button id="auth-button" type="button" class="btn btn-secondary btn-sm">
-                Authenticate
-              </button>
-            `
-              : `
-              <button
-                id="set-active-button"
-                type="button"
-                class="btn btn-outline btn-sm"
-                ${!this.wallet?.isConnected ? "disabled" : ""}
-              >
-                Set Active
-              </button>
-            `
-          }
-        </div>
-        ${
-          this.isMagicLink()
-            ? `
-          <div class="form-control w-full">
-            <label for="magic-email" class="label">
-              <span class="label-text">Email</span>
-            </label>
-            <input
-              id="magic-email"
-              type="email"
-              value="${sanitizedEmail}"
-              placeholder="Enter email to connect..."
-              class="input input-bordered w-full"
-              ${this.wallet?.isConnected ? "disabled" : ""}
-            />
-          </div>
-          `
-            : ""
-        }
-        ${
-          this.wallet?.isActive && this.wallet.accounts?.length
-            ? `
-          <div class="form-control">
-            <label class="label">
-              <span class="label-text">Active Account</span>
-            </label>
-            <select class="select select-bordered w-full">
-              ${this.wallet.accounts
-                .map(
-                  (account) => `
-                  <option value="${this.sanitizeText(account.address)}"
-                    ${
-                      account.address === this.wallet.activeAccount?.address
-                        ? "selected"
-                        : ""
-                    }>
-                    ${this.sanitizeText(account.address)}
-                  </option>
-                `
-                )
-                .join("")}
-            </select>
-          </div>
-          `
-            : ""
-        }
-      </div>
-    `;
-  }
-
-  updateEmailInput = () => {
-    const emailInput = this.element.querySelector(
-      "#magic-email"
-    ) as HTMLInputElement;
-    if (emailInput) {
-      emailInput.value = this.magicEmail;
-    }
-
-    const connectButton = this.element.querySelector(
-      "#connect-button"
-    ) as HTMLButtonElement;
-    if (connectButton) {
-      connectButton.disabled = this.isConnectDisabled();
-    }
+    await this.wallet?.setActiveAccount(target.value);
   };
 
   addEventListeners() {
-    this.element.addEventListener("click", (e: Event) => {
+    if (!this.element) return;
+
+    this.element.addEventListener("click", async (e: Event) => {
       const target = e.target as HTMLElement;
-      if (target.id === "connect-button") {
-        const args = this.getConnectArgs();
-        this.connect(args);
-      } else if (target.id === "disconnect-button") {
-        this.disconnect();
-      } else if (target.id === "set-active-button") {
-        this.setActive();
-      } else if (target.id === "transaction-button") {
-        this.sendTransaction();
-      } else if (target.id === "auth-button") {
-        this.auth();
+      if (target.id === `connect-button-${this.wallet.id}`) {
+        await this.connect();
+      } else if (target.id === `disconnect-button-${this.wallet.id}`) {
+        await this.disconnect();
+      } else if (target.id === `set-active-button-${this.wallet.id}`) {
+        await this.setActive();
+      } else if (target.id === `transaction-button-${this.wallet.id}`) {
+        await this.sendTransaction();
+      } else if (target.id === `auth-button-${this.wallet.id}`) {
+        await this.auth();
       }
     });
 
-    this.element.addEventListener("change", (e: Event) => {
+    this.element.addEventListener("change", async (e: Event) => {
       const target = e.target as HTMLElement;
       if (target.tagName.toLowerCase() === "select") {
-        this.setActiveAccount(e);
-      }
-    });
-
-    this.element.addEventListener("input", (e: Event) => {
-      const target = e.target as HTMLInputElement;
-      if (target.id === "magic-email") {
-        this.magicEmail = target.value;
-        this.updateEmailInput();
+        await this.setActiveAccount(e);
       }
     });
   }
@@ -373,13 +277,11 @@ export class WalletComponent {
     if (this.unsubscribe) {
       this.unsubscribe();
     }
-    if (this.element && this.element.removeEventListener) {
+    if (this.element) {
       try {
-        this.element.removeEventListener("click", this.addEventListeners);
-        this.element.removeEventListener("change", this.addEventListeners);
-        this.element.removeEventListener("input", this.addEventListeners);
+        this.element.removeEventListener("click", this.addEventListeners as EventListener);
+        this.element.removeEventListener("change", this.addEventListeners as EventListener);
       } catch (error) {
-        // Silently handle any errors during event listener removal
         console.debug(
           "[WalletComponent] Error during event listener cleanup:",
           error

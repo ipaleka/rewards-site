@@ -5,7 +5,6 @@ import {
   Algodv2
 } from 'algosdk'
 import { BaseWallet, WalletManager, NetworkId } from '@txnlab/use-wallet'
-import { getAlgodClient } from './ActiveNetwork'
 import rewardsABI from '../../contract/artifacts/Rewards.arc56.json'
 
 export class RewardsClient {
@@ -18,7 +17,7 @@ export class RewardsClient {
   constructor(wallet: BaseWallet, manager: WalletManager) {
     this.wallet = wallet
     this.manager = manager
-    this.algodClient = getAlgodClient(this.manager.activeNetwork as NetworkId)
+    this.algodClient = this.manager.algodClient
     this.contract = new ABIContract(rewardsABI as any)
 
     // Hardcoded App IDs for different networks

@@ -7,16 +7,60 @@ from secrets import token_hex
 import msgpack
 from algosdk.encoding import is_valid_address
 from algosdk.transaction import SignedTransaction
-from django.contrib.auth import get_user_model, login
+from django.contrib.auth import get_user_model, login, authenticate
 from django.http import JsonResponse
 from django.views import View
 
 from core.models import Contributor, Profile
-from utils.constants.core import WALLET_CONNECT_NONCE_PREFIX
+from rest_framework.views import APIView
+from rest_framework.response import Response
+from utils.constants.core import (
+    WALLET_CONNECT_NONCE_PREFIX,
+    WALLET_CONNECT_NETWORK_OPTIONS,
+)
 from utils.helpers import verify_signed_transaction
 from walletauth.models import WalletNonce
 
 User = get_user_model()
+
+
+class WalletsAPIView(APIView):
+    """Provide a list of supported wallets."""
+
+    def get(self, request, *args, **kwargs):
+        wallets = [
+            {
+                "id": "pera",
+                "name": "Pera Wallet",
+                "is_magic_link": False,
+            },
+            {
+                "id": "defly",
+                "name": "Defly Wallet",
+                "is_magic_link": False,
+            },
+            {
+                "id": "lute",
+                "name": "Lute Wallet",
+                "is_magic_link": False,
+            },
+        ]
+        return Response(wallets)
+
+
+class ActiveNetworkAPIView(APIView):
+    """Get or set the active network in the session."""
+
+    def get(self, request, *args, **kwargs):
+        active_network = request.session.get("active_network", "testnet")
+        return Response({"network": active_network})
+
+    def post(self, request, *args, **kwargs):
+        network = request.data.get("network")
+        if network not in WALLET_CONNECT_NETWORK_OPTIONS:
+            return Response({"error": "Invalid network"}, status=400)
+        request.session["active_network"] = network
+        return Response({"success": True, "network": network})
 
 
 class ClaimAllocationView(View):
@@ -251,6 +295,12 @@ class WalletVerifyView(View):
 
         print(f"[WalletVerifyView] Logged in user: {user.username}")
 
-        login(request, user)
+        # Authenticate the user to attach the correct backend
+        authenticated_user = authenticate(request, user=user)
+        if authenticated_user:
+            login(request, authenticated_user)
+        else:
+            # Handle case where authentication fails, though it shouldn't with a valid user
+            return JsonResponse({"success": False, "error": "Authentication failed"}, status=400)
 
         return JsonResponse({"success": True, "redirect_url": "/"})

@@ -68,3 +68,5 @@ GITHUB_LABELS = (
 GITHUB_ISSUES_EXCLUDED_CONTRIBUTORS = ["ipaleka"]
 
 WALLET_CONNECT_NONCE_PREFIX = "Login to ASA Stats Rewards website: "
+
+WALLET_CONNECT_NETWORK_OPTIONS = ["testnet", "mainnet"]

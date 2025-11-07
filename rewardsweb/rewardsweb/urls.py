@@ -29,9 +29,11 @@ from django.urls import include, path
 
 from api import urls as api_urls
 from core import urls as core_urls
+from core.views import LoginView
 from walletauth import urls as walletauth_urls
 
 urlpatterns = [
+    path("accounts/login/", LoginView.as_view(), name="account_login"),
     path("admin/", admin.site.urls),
     path("api/wallet/", include(walletauth_urls)),
     path("api/", include(api_urls)),

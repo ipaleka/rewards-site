@@ -3,6 +3,7 @@
 import logging
 from datetime import datetime
 
+from allauth.account.views import LoginView as AllauthLoginView
 from django.conf import settings
 from django.contrib import messages
 from django.contrib.auth.decorators import login_required, user_passes_test
@@ -975,3 +976,17 @@ class ProfileEditView(View):
         """
         view = ProfileUpdate.as_view()
         return view(request, *args, **kwargs)
+
+
+class LoginView(AllauthLoginView):
+    def get_context_data(self, **kwargs):
+        context = super().get_context_data(**kwargs)
+        context["wallets"] = [
+            {"id": "pera", "name": "Pera Wallet", "is_magic_link": False},
+            {"id": "defly", "name": "Defly Wallet", "is_magic_link": False},
+            {"id": "lute", "name": "Lute Wallet", "is_magic_link": False},
+        ]
+        context["active_network"] = self.request.session.get(
+            "active_network", "testnet"
+        )
+        return context

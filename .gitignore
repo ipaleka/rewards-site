@@ -24,5 +24,6 @@ rewardsweb/rewardsbot/.env
 rewardsweb/rewardsbot/*.log
 rewardsweb/frontend/coverage
 rewardsweb/contract/.env
+rewardsweb/contract/coverage.xml
 deploy/.env.*
 deploy/.ansible/

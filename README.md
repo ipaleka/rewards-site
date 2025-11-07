@@ -48,6 +48,6 @@ INITIAL_SUPERUSER_PASSWORDS=password1,password2
 - [x] Create methods for CRUD operations
 - [x] Implement authentication by connecting a wallet
 - [x] Create deploy workflow
-- [ ] Setup a server and deploy the application
 - [ ] Create smart contract for rewards allocation and claiming
 - [ ] Develop UI for rewards allocation and claiming
+- [ ] Setup a server and deploy the application

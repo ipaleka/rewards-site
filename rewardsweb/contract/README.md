@@ -1,6 +1,6 @@
-# Airdrop Smart Contract
+# ASA Stats Rewards Smart Contract
 
-This directory contains an example of an airdrop smart contract written in Puya for the Algorand blockchain.
+This directory contains smart contract written in Puya for the Algorand blockchain that is used for allocation of rewards on the ASA Stats Rewards website.
 
 ## Features
 
@@ -44,7 +44,7 @@ This directory contains an example of an airdrop smart contract written in Puya 
 
 1.  **Deployment:** The admin deploys the contract. Their address is automatically saved as the admin.
 2.  **Setup:** The admin calls the `setup` method, providing the ASA ID and the duration for the claim period.
-3.  **Funding:** The admin transfers the total amount of the ASA to be airdropped into the smart contract's account.
+3.  **Funding:** The admin transfers the total amount of the ASA to be rewardsped into the smart contract's account.
 4.  **Allocation:** The admin calls `add_allocations` one or more times to register the users and their respective claimable amounts. This sets an expiration date for each allocation.
 5.  **Claiming:** Users who have been allocated tokens can call the `claim` method to receive their funds before their allocation expires.
 6.  **Reclaiming:** If a user does not claim their tokens before the expiration date, the admin can call `reclaim_allocation` to retrieve that specific user's unclaimed tokens.

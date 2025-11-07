@@ -1,14 +1,14 @@
-import { AirdropClient } from './AirdropClient'
+import { RewardsClient } from './RewardsClient'
 import { WalletManager } from '@txnlab/use-wallet'
 
 export class ReclaimAllocationsComponent {
   element: HTMLElement
-  private airdropClient: AirdropClient
+  private rewardsClient: RewardsClient
   private walletManager: WalletManager
   private reclaimableAddresses: string[] = []
 
-  constructor(airdropClient: AirdropClient, walletManager: WalletManager) {
-    this.airdropClient = airdropClient
+  constructor(rewardsClient: RewardsClient, walletManager: WalletManager) {
+    this.rewardsClient = rewardsClient
     this.walletManager = walletManager
     this.element = document.createElement('div')
     this.render()
@@ -26,7 +26,7 @@ export class ReclaimAllocationsComponent {
     }
 
     try {
-      const data = await this.airdropClient.fetchReclaimAllocationsData(activeAddress)
+      const data = await this.rewardsClient.fetchReclaimAllocationsData(activeAddress)
       this.reclaimableAddresses = data.addresses
       this.render()
     } catch (error) {
@@ -38,7 +38,7 @@ export class ReclaimAllocationsComponent {
   private async handleReclaimAllocation(address: string) {
     try {
       console.info(`[ReclaimAllocationsComponent] Initiating reclaim for ${address}...`)
-      await this.airdropClient.reclaimAllocation(address)
+      await this.rewardsClient.reclaimAllocation(address)
       alert(`Reclaim transaction for ${address} sent successfully!`)
       // Re-fetch data after successful transaction
       await this.fetchReclaimAllocationsData()

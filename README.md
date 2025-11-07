@@ -20,6 +20,9 @@ SECRET_KEY=mysecretkey
 DATABASE_NAME=rewards_db
 DATABASE_USER=rewards_user
 DATABASE_PASSWORD=mypassword
+GITHUB_BOT_CLIENT_ID=111111111
+GITHUB_BOT_PRIVATE_KEY_FILENAME=rewards-bot.private-key.pem
+GITHUB_BOT_INSTALLATION_ID=111111111
 INITIAL_SUPERUSERS=username1,username2
 INITIAL_SUPERUSER_ADDRESSES=SUPERUSER1ADDRESS,SUPERUSER2ADDRESS
 INITIAL_SUPERUSER_PASSWORDS=password1,password2
@@ -45,6 +48,6 @@ INITIAL_SUPERUSER_PASSWORDS=password1,password2
 - [x] Create methods for CRUD operations
 - [x] Implement authentication by connecting a wallet
 - [x] Create deploy workflow
-- [ ] Setup a server and deploy the application
 - [ ] Create smart contract for rewards allocation and claiming
 - [ ] Develop UI for rewards allocation and claiming
+- [ ] Setup a server and deploy the application

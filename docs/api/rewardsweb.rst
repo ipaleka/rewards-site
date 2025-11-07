@@ -34,6 +34,69 @@
   :show-inheritance:
 
 
+:mod:`contract` -- Rewards smart contract package
+*************************************************
+
+.. automodule:: contract
+  :members:
+  :undoc-members:
+  :show-inheritance:
+
+
+:mod:`contract.artifacts` -- Rewards smart contract artifacts
+-------------------------------------------------------------
+
+.. automodule:: contract.artifacts
+  :members:
+  :undoc-members:
+  :show-inheritance:
+
+
+:mod:`contract.contract` -- Rewards smart contract module
+---------------------------------------------------------
+
+.. automodule:: contract.contract
+  :members:
+  :undoc-members:
+  :show-inheritance:
+
+
+:mod:`contract.deploy` -- Module with functions for smart contract deployment
+-----------------------------------------------------------------------------
+
+.. automodule:: contract.deploy
+  :members:
+  :undoc-members:
+  :show-inheritance:
+
+
+:mod:`contract.helpers` -- Rewards smart contract helpers functions module
+--------------------------------------------------------------------------
+
+.. automodule:: contract.helpers
+  :members:
+  :undoc-members:
+  :show-inheritance:
+
+
+:mod:`contract.network` -- Module for functions to communicate with blockchain
+------------------------------------------------------------------------------
+
+.. automodule:: contract.network
+  :members:
+  :undoc-members:
+  :show-inheritance:
+
+
+:mod:`contract.tests` -- Rewards smart contract unit-tests package
+------------------------------------------------------------------
+
+.. automodule:: contract.tests
+  :members:
+  :undoc-members:
+  :show-inheritance:
+
+
 :mod:`core` -- Main application package
 ***************************************
 

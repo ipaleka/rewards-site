@@ -1,15 +1,15 @@
-import { AirdropClient } from './AirdropClient'
+import { RewardsClient } from './RewardsClient'
 import { WalletManager } from '@txnlab/use-wallet'
 
 export class AddAllocationsComponent {
   element: HTMLElement
-  private airdropClient: AirdropClient
+  private rewardsClient: RewardsClient
   private walletManager: WalletManager
   private addresses: string[] = []
   private amounts: number[] = []
 
-  constructor(airdropClient: AirdropClient, walletManager: WalletManager) {
-    this.airdropClient = airdropClient
+  constructor(rewardsClient: RewardsClient, walletManager: WalletManager) {
+    this.rewardsClient = rewardsClient
     this.walletManager = walletManager
     this.element = document.createElement('div')
     this.render()
@@ -28,7 +28,7 @@ export class AddAllocationsComponent {
     }
 
     try {
-      const data = await this.airdropClient.fetchAddAllocationsData(activeAddress)
+      const data = await this.rewardsClient.fetchAddAllocationsData(activeAddress)
       this.addresses = data.addresses
       this.amounts = data.amounts
       this.render()
@@ -41,7 +41,7 @@ export class AddAllocationsComponent {
   private async handleAddAllocations() {
     try {
       console.info('[AddAllocationsComponent] Initiating add allocations...')
-      await this.airdropClient.addAllocations(this.addresses, this.amounts)
+      await this.rewardsClient.addAllocations(this.addresses, this.amounts)
       alert('Add allocations transaction sent successfully!')
       // Re-fetch data after successful transaction
       await this.fetchAllocationsData()

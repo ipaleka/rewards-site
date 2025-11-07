@@ -111,9 +111,9 @@ jest.mock("./ReclaimAllocationsComponent", () => ({
   ReclaimAllocationsComponent: jest.fn(() => mockReclaimAllocationsComponent),
 }));
 
-// Mock AirdropClient
-jest.mock("./AirdropClient", () => ({
-  AirdropClient: jest.fn().mockImplementation(() => ({
+// Mock RewardsClient
+jest.mock("./RewardsClient", () => ({
+  RewardsClient: jest.fn().mockImplementation(() => ({
     fetchClaimableStatus: jest.fn(),
     claim: jest.fn(),
     addAllocations: jest.fn(),

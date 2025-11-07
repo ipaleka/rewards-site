@@ -1,4 +1,4 @@
-import typing
+"""ASA Stats Rewards smart contract module."""
 
 from algopy import (
     Account,
@@ -23,9 +23,9 @@ class Allocation(Struct):
     expires_at: UInt64
 
 
-class Airdrop(arc4.ARC4Contract):
+class Rewards(arc4.ARC4Contract):
     """
-    An airdrop smart contract for distributing an ASA (Algorand Standard Asset).
+    A rewards smart contract for distributing an ASA (Algorand Standard Asset).
 
     The contract is managed by an admin who can:
     1. Fund the contract with the ASA.
@@ -46,7 +46,7 @@ class Airdrop(arc4.ARC4Contract):
         self.admin_address = GlobalState(Account)
 
         # The ID of the ASA being distributed
-        self.token_id = GlobalState(Asset)
+        self.token_id = GlobalState(UInt64)
 
         # The duration of the claim period in seconds
         self.claim_period_duration = GlobalState(UInt64)
@@ -63,22 +63,31 @@ class Airdrop(arc4.ARC4Contract):
         It sets the sender of the creation transaction as the admin.
         """
         self.admin_address.value = Txn.sender
+        self.token_id.value = UInt64(0)
+        self.claim_period_duration.value = UInt64(0)
+
+    @arc4.baremethod(allow_actions=["DeleteApplication"])
+    def delete_application(self) -> None:
+        """
+        Allows the admin to delete the application.
+        """
+        assert Txn.sender == self.admin_address.value, "Sender is not the admin"
 
     @arc4.abimethod
-    def setup(self, token_id: Asset, claim_period_duration: UInt64) -> None:
+    def setup(self, token: Asset, claim_period_duration: UInt64) -> None:
         """
         Sets up the contract with the token ID and the claim period duration.
         This method can only be called by the admin and only once.
         It also makes the contract account opt-in to the specified ASA.
 
         Args:
-            token_id: The ASA to be distributed.
+            token: The ASA to be distributed.
             claim_period_duration: The duration of the claim period in seconds.
         """
 
         assert Txn.sender == self.admin_address.value, "Sender is not the admin"
-        assert self.token_id.value.id == 0, "Contract already set up"
-        self.token_id.value = token_id
+        assert self.token_id.value == 0, "Contract already set up"
+        self.token_id.value = token.id
         self.claim_period_duration.value = claim_period_duration
 
         # Contract opts-in to the ASA
@@ -130,28 +139,27 @@ class Airdrop(arc4.ARC4Contract):
     def claim(self) -> None:
         """
         Allows a user to claim their allocated tokens.
-        If the user has not opted-in to the ASA, the contract will create an opt-in transaction
-        for them in the same atomic group as the transfer.
+        The user must opt-in to the ASA in a separate transaction within the same atomic group
+        as the call to this method.
         The contract then transfers the allocated ASA amount to the user and
         removes their allocation to prevent re-claiming.
         """
         sender = Txn.sender
         allocation_box = self.allocations.box(sender)
         assert allocation_box, "Sender has no allocation"
-        amount_to_claim = allocation_box.value.amount
+
+        allocation = allocation_box.value.copy()
+        assert (
+            Global.latest_timestamp <= allocation.expires_at
+        ), "Claim period has ended"
+
+        amount_to_claim = allocation.amount
 
         # Check if the user is already opted-in to the asset
         balance, opted_in = op.AssetHoldingGet.asset_balance(
-            sender, self.token_id.value.id
+            sender, self.token_id.value
         )
-
-        if not opted_in:
-            # Create an opt-in transaction for the user
-            itxn.AssetTransfer(
-                xfer_asset=self.token_id.value,
-                asset_receiver=sender,
-                asset_amount=0,
-            ).submit()
+        assert opted_in, "Sender has not opted-in to the asset"
 
         # Create the transaction to transfer the allocated amount
         itxn.AssetTransfer(

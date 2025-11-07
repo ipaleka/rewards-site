@@ -151,6 +151,32 @@ For additional information read the scanner `documentation`_.
 .. _download: https://docs.sonarsource.com/sonarqube-server/latest/analyzing-source-code/scanners/sonarscanner/
 
 
+Smart contract
+--------------
+
+Compile
+^^^^^^^
+
+After you activated the Python environment, you can compile smart contract by issuing the following commands:
+
+.. code-block:: bash
+
+  cd rewardsweb
+  algokit compile py contract/contract.py --out-dir artifacts
+
+
+Deploy, fund, and setup dApp
+^^^^^^^^^^^^^^^^^^^^^^^^^^^^
+
+Here's a shortcat Django management command that will deploy generated smart contract on the blockchain,
+fund the related account with required ALGO, and finally set up the dApp with rewards token ID and
+claim period duration values retrieved from the environemnt variables:
+
+.. code-block:: bash
+
+  python manage.py deploy_dapp testnet
+
+
 Tests
 -----
 

@@ -3,7 +3,7 @@ name: build
 on:
   push:
     branches: [ "main" ]
-  pull_request:
+  pull_request_target:
     branches: [ "main" ]
   workflow_call:
   workflow_dispatch:
@@ -19,7 +19,7 @@ jobs:
     strategy:
       max-parallel: 1
       matrix:
-        python-version: ["3.11", "3.12", "3.13"]
+        python-version: ["3.12", "3.13"]
 
     services:
       postgres:
@@ -47,6 +47,7 @@ jobs:
         run: |
           python -m pip install --upgrade pip
           python -m pip install -r rewardsweb/requirements/development.txt
+          python -m pip install -r rewardsweb/contract/requirements.txt
 
       - name: "Create env file"
         run: |
@@ -57,6 +58,18 @@ jobs:
           echo DATABASE_PASSWORD="postgres" >> rewardsweb/.env
           echo DISCORD_GUILD_IDS="906917846754418770" >> rewardsweb/.env
           echo DISCORD_BOT_TOKEN=${{ secrets.DISCORD_BOT_TOKEN }} >> rewardsweb/.env
+
+      - name: "Create Rewards contract env file"
+        run: |
+          touch rewardsweb/contract/.env
+          echo ALGOD_TOKEN_TESTNET="" >> rewardsweb/contract/.env
+          echo ALGOD_ADDRESS_TESTNET="https://testnet-api.4160.nodely.dev" >> rewardsweb/contract/.env
+          echo ADMIN_TESTNET_MNEMONIC="${{ secrets.ADMIN_TESTNET_MNEMONIC }}" >> rewardsweb/contract/.env
+          echo REWARDS_TOKEN_ID_TESTNET="123755640" >> rewardsweb/contract/.env
+          echo REWARDS_DAPP_NAME="Rewards" >> rewardsweb/contract/.env
+          echo CLAIM_PERIOD_DURATION=3600 >> rewardsweb/contract/.env
+          echo ALGOD_SERVER="https://testnet-api.4160.nodely.dev" >> rewardsweb/contract/.env
+          echo ALGOD_TOKEN="" >> rewardsweb/contract/.env
 
       - name: Wait for PostgreSQL to be ready
         run: |

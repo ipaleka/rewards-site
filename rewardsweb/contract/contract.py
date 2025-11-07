@@ -74,20 +74,20 @@ class Rewards(arc4.ARC4Contract):
         assert Txn.sender == self.admin_address.value, "Sender is not the admin"
 
     @arc4.abimethod
-    def setup(self, token_id: Asset, claim_period_duration: UInt64) -> None:
+    def setup(self, token: Asset, claim_period_duration: UInt64) -> None:
         """
         Sets up the contract with the token ID and the claim period duration.
         This method can only be called by the admin and only once.
         It also makes the contract account opt-in to the specified ASA.
 
         Args:
-            token_id: The ASA to be distributed.
+            token: The ASA to be distributed.
             claim_period_duration: The duration of the claim period in seconds.
         """
 
         assert Txn.sender == self.admin_address.value, "Sender is not the admin"
         assert self.token_id.value == 0, "Contract already set up"
-        self.token_id.value = token_id.id
+        self.token_id.value = token.id
         self.claim_period_duration.value = claim_period_duration
 
         # Contract opts-in to the ASA

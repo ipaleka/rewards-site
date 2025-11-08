@@ -43,10 +43,15 @@ class TestRewardsWebUrls:
         assert isinstance(url, URLResolver)
         assert "allauth.urls" in str(url.urlconf_name)
 
+    def test_rewardsweb_urlsrewards_app(self):
+        url = self._url_from_pattern("rewards/")
+        assert isinstance(url, URLResolver)
+        assert "rewards.urls" in str(url.urlconf_name)
+
     def test_rewardsweb_urls_core_app(self):
         url = self._url_from_pattern("")
         assert isinstance(url, URLResolver)
         assert "core.urls" in str(url.urlconf_name)
 
     def test_rewardsweb_urls_pattern_count(self):
-        assert len(urls.urlpatterns) == 9
+        assert len(urls.urlpatterns) == 10

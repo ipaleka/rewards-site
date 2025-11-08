@@ -1,0 +1,11 @@
+<div class="space-y-4 p-4 rounded-lg bg-base-200 mt-4">
+  <h4 class="font-semibold text-lg">Claim Your Rewards</h4>
+  <button
+    id="claim-button"
+    type="button"
+    class="btn btn-success btn-sm"
+    {% if not claimable %}disabled{% endif %}
+  >
+    {% if claimable %}Claim{% else %}No Claim Available{% endif %}
+  </button>
+</div>

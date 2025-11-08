@@ -56,8 +56,12 @@ class App {
       // Add Rewards client and other components
       if (this.walletManager && this.walletManager.wallets.length > 0) {
         const rewardsClient = new RewardsClient(this.walletManager.wallets[0], this.walletManager)
-        const claimComponent = new ClaimComponent(rewardsClient, this.walletManager)
-        appDiv.appendChild(claimComponent.element)
+
+        const claimContainer = document.getElementById('claim-container')
+        if (claimContainer) {
+          const claimComponent = new ClaimComponent(rewardsClient, this.walletManager)
+          claimComponent.bind(claimContainer)
+        }
 
         const addAllocationsComponent = new AddAllocationsComponent(rewardsClient, this.walletManager)
         appDiv.appendChild(addAllocationsComponent.element)

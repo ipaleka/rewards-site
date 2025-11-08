@@ -38,6 +38,7 @@ ALLOWED_HOSTS = []
 INSTALLED_APPS = [
     "core.apps.CoreConfig",
     "walletauth.apps.WalletauthConfig",
+    "rewards.apps.RewardsConfig",
     "template_partials",
     "django.contrib.admin",
     "django.contrib.auth",

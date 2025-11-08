@@ -30,6 +30,7 @@ from django.urls import include, path
 from api import urls as api_urls
 from core import urls as core_urls
 from core.views import LoginView, SignupView
+from rewards import urls as rewards_urls
 from walletauth import urls as walletauth_urls
 
 urlpatterns = [
@@ -42,7 +43,9 @@ urlpatterns = [
     path("accounts/login/", LoginView.as_view(), name="account_login"),
     path("accounts/signup/", SignupView.as_view(), name="account_signup"),
     path("accounts/", include("allauth.urls")),
-    # core urls
+    # rewards app urls
+    path("rewards/", include(rewards_urls)),
+    # core app urls
     path("", include(core_urls)),
 ]
 

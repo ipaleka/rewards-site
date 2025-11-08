@@ -1,0 +1,22 @@
+{% extends "base_generic.html" %}
+{% load static %}
+
+{% block head_title %}
+  Claim Rewards
+{% endblock head_title %}
+
+{% block content %}
+  <div class="container mx-auto px-4 py-8">
+    <h1 class="text-3xl font-bold mb-6">Claim Your Rewards</h1>
+
+    <div id="claim-container">
+      {% include "rewards/snippets/claim_rewards.html" %}
+    </div>
+
+    <p class="mt-4 text-sm text-base-content/70">
+      This page allows you to claim your rewards from the smart contract.
+      Click the "Claim" button if it is enabled. You will be prompted to sign
+      a transaction with your wallet.
+    </p>
+  </div>
+{% endblock content %}

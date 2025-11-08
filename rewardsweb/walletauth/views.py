@@ -13,6 +13,7 @@ from rest_framework.views import APIView
 
 from core.models import Contributor, Profile
 from utils.constants.core import (
+    ALGORAND_WALLETS,
     WALLET_CONNECT_NETWORK_OPTIONS,
     WALLET_CONNECT_NONCE_PREFIX,
 )
@@ -36,25 +37,8 @@ class WalletsAPIView(APIView):
         :return: JSON list of supported wallets, each containing:
             - id (str): wallet identifier
             - name (str): user-friendly wallet name
-            - is_magic_link (bool): whether wallet supports magic-link login
         """
-        wallets = [
-            {
-                "id": "pera",
-                "name": "Pera Wallet",
-                "is_magic_link": False,
-            },
-            {
-                "id": "defly",
-                "name": "Defly Wallet",
-                "is_magic_link": False,
-            },
-            {
-                "id": "lute",
-                "name": "Lute Wallet",
-                "is_magic_link": False,
-            },
-        ]
+        wallets = ALGORAND_WALLETS
         return Response(wallets)
 
 

@@ -43,6 +43,7 @@ from utils.bot import (
     message_from_url,
 )
 from utils.constants.core import (
+    ALGORAND_WALLETS,
     DISCORD_EMOJIS,
     ISSUE_CREATION_LABEL_CHOICES,
     ISSUE_PRIORITY_CHOICES,
@@ -993,11 +994,7 @@ class LoginView(AllauthLoginView):
         :rtype: dict
         """
         context = super().get_context_data(**kwargs)
-        context["wallets"] = [
-            {"id": "pera", "name": "Pera Wallet", "is_magic_link": False},
-            {"id": "defly", "name": "Defly Wallet", "is_magic_link": False},
-            {"id": "lute", "name": "Lute Wallet", "is_magic_link": False},
-        ]
+        context["wallets"] = ALGORAND_WALLETS
         context["active_network"] = self.request.session.get(
             "active_network", "testnet"
         )
@@ -1018,11 +1015,7 @@ class SignupView(AllauthSignupView):
         :rtype: dict
         """
         context = super().get_context_data(**kwargs)
-        context["wallets"] = [
-            {"id": "pera", "name": "Pera Wallet", "is_magic_link": False},
-            {"id": "defly", "name": "Defly Wallet", "is_magic_link": False},
-            {"id": "lute", "name": "Lute Wallet", "is_magic_link": False},
-        ]
+        context["wallets"] = ALGORAND_WALLETS 
         context["active_network"] = self.request.session.get(
             "active_network", "testnet"
         )

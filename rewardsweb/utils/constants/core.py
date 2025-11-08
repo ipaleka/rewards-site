@@ -67,6 +67,12 @@ GITHUB_LABELS = (
 
 GITHUB_ISSUES_EXCLUDED_CONTRIBUTORS = ["ipaleka"]
 
+ALGORAND_WALLETS = [
+    {"id": "pera", "name": "Pera Wallet"},
+    {"id": "defly", "name": "Defly Wallet"},
+    {"id": "lute", "name": "Lute Wallet"},
+]
+
 WALLET_CONNECT_NONCE_PREFIX = "Login to ASA Stats Rewards website: "
 
 WALLET_CONNECT_NETWORK_OPTIONS = ["testnet", "mainnet"]

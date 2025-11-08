@@ -52,7 +52,7 @@ class TestWalletsAPIView:
 
         assert isinstance(data, list)
         assert len(data) > 0
-        assert {"id", "name", "is_magic_link"}.issubset(data[0].keys())
+        assert {"id", "name"}.issubset(data[0].keys())
 
 
 class TestActiveNetworkAPIView:

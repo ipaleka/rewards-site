@@ -61,18 +61,6 @@
           </button>
         </div>
 
-        {% if wallet.is_magic_link %}
-          <div class="form-control w-full">
-            <label for="magic-email-{{ wallet.id }}" class="label">
-              <span class="label-text">Email</span>
-            </label>
-            <input id="magic-email-{{ wallet.id }}"
-                   type="email"
-                   placeholder="Enter email to connect..."
-                   class="input input-bordered w-full"/>
-          </div>
-        {% endif %}
-
         <div class="form-control">
           <label class="label">
             <span class="label-text">Active Account</span>

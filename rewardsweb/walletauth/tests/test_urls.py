@@ -26,31 +26,31 @@ class TestWalletauthUrls:
     def test_walletauth_urls_nonce(self):
         url = self._url_from_pattern("nonce/")
         assert isinstance(url, URLPattern)
-        assert url.lookup_str == "walletauth.views.WalletNonceView"
+        assert url.lookup_str == "walletauth.views.WalletNonceAPIView"
         assert url.name == "wallet_nonce"
 
     def test_walletauth_urls_verify(self):
         url = self._url_from_pattern("verify/")
         assert isinstance(url, URLPattern)
-        assert url.lookup_str == "walletauth.views.WalletVerifyView"
+        assert url.lookup_str == "walletauth.views.WalletVerifyAPIView"
         assert url.name == "wallet_verify"
 
     def test_walletauth_urls_claim_allocation(self):
         url = self._url_from_pattern("claim-allocation/")
         assert isinstance(url, URLPattern)
-        assert url.lookup_str == "walletauth.views.ClaimAllocationView"
+        assert url.lookup_str == "walletauth.views.ClaimAllocationAPIView"
         assert url.name == "claim_allocation"
 
     def test_walletauth_urls_add_allocations(self):
         url = self._url_from_pattern("add-allocations/")
         assert isinstance(url, URLPattern)
-        assert url.lookup_str == "walletauth.views.AddAllocationsView"
+        assert url.lookup_str == "walletauth.views.AddAllocationsAPIView"
         assert url.name == "add_allocations"
 
     def test_walletauth_urls_reclaim_allocations(self):
         url = self._url_from_pattern("reclaim-allocations/")
         assert isinstance(url, URLPattern)
-        assert url.lookup_str == "walletauth.views.ReclaimAllocationsView"
+        assert url.lookup_str == "walletauth.views.ReclaimAllocationsAPIView"
         assert url.name == "reclaim_allocations"
 
     def test_walletauth_urls_patterns_count(self):

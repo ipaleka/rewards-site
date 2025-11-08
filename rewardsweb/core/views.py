@@ -3,7 +3,8 @@
 import logging
 from datetime import datetime
 
-from allauth.account.views import LoginView as AllauthLoginView, SignupView as AllauthSignupView
+from allauth.account.views import LoginView as AllauthLoginView
+from allauth.account.views import SignupView as AllauthSignupView
 from django.conf import settings
 from django.contrib import messages
 from django.contrib.auth.decorators import login_required, user_passes_test

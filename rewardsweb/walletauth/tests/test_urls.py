@@ -11,6 +11,18 @@ class TestWalletauthUrls:
     def _url_from_pattern(self, pattern):
         return next(url for url in urls.urlpatterns if str(url.pattern) == pattern)
 
+    def test_walletauth_urls_wallets(self):
+        url = self._url_from_pattern("wallets/")
+        assert isinstance(url, URLPattern)
+        assert url.lookup_str == "walletauth.views.WalletsAPIView"
+        assert url.name == "wallets_api"
+
+    def test_walletauth_urls_active_network(self):
+        url = self._url_from_pattern("active-network/")
+        assert isinstance(url, URLPattern)
+        assert url.lookup_str == "walletauth.views.ActiveNetworkAPIView"
+        assert url.name == "active_network_api"
+
     def test_walletauth_urls_nonce(self):
         url = self._url_from_pattern("nonce/")
         assert isinstance(url, URLPattern)
@@ -42,4 +54,4 @@ class TestWalletauthUrls:
         assert url.name == "reclaim_allocations"
 
     def test_walletauth_urls_patterns_count(self):
-        assert len(urls.urlpatterns) == 5
+        assert len(urls.urlpatterns) == 7

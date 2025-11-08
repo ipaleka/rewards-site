@@ -1,4 +1,4 @@
-import { WalletManager, NetworkId, WalletId } from '@txnlab/use-wallet'
+import { WalletManager, WalletId } from '@txnlab/use-wallet'
 import { ActiveNetwork } from './ActiveNetwork'
 import { WalletComponent } from './WalletComponent'
 import { RewardsClient } from './RewardsClient'
@@ -25,8 +25,6 @@ class App {
       }
 
       const walletsData = await walletsResponse.json()
-      const networkData = await networkResponse.json()
-
       const walletIds = walletsData.map((w: any) => w.id as WalletId)
 
       this.walletManager = new WalletManager({

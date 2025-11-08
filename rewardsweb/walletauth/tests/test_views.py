@@ -8,11 +8,14 @@ from algosdk.transaction import SignedTransaction
 from django.contrib.auth import get_user_model
 from django.test import RequestFactory
 from django.views import View
+from rest_framework.views import APIView
 
 from core.models import Contributor, Profile
 from utils.constants.core import WALLET_CONNECT_NONCE_PREFIX
 from walletauth.models import WalletNonce
 from walletauth.views import (
+    WalletsAPIView,
+    ActiveNetworkAPIView,
     AddAllocationsView,
     ClaimAllocationView,
     ReclaimAllocationsView,
@@ -23,58 +26,98 @@ from walletauth.views import (
 User = get_user_model()
 
 
-class TestClaimAllocationView:
-    """Test suite for ClaimAllocationView."""
+class TestWalletsAPIView:
+    """Test suite for WalletsAPIView."""
 
     @pytest.fixture
     def view(self):
-        return ClaimAllocationView()
+        return WalletsAPIView()
 
     @pytest.fixture
     def rf(self):
         return RequestFactory()
 
-    @pytest.fixture
-    def valid_address(self):
-        return "2EVGZ4BGOSL3J64UYDE2BUGTNTBZZZLI54VUQQNZZLYCDODLY33UGXNSIU"
+    def test_walletauth_walletsapiview_is_subclass_of_apiview(self):
+        assert issubclass(WalletsAPIView, APIView)
 
-    def test_walletauth_claimallocationview_is_subclass_of_view(self):
-        assert issubclass(ClaimAllocationView, View)
+    def test_walletauth_walletsapiview_get_returns_wallets(self, view, rf):
+        """Test that GET returns a list of supported wallets."""
+        request = rf.get("/wallets/")
+        response = view.get(request)
+
+        assert response.status_code == 200
+        data = response.data
+
+        assert isinstance(data, list)
+        assert len(data) > 0
+        assert {"id", "name", "is_magic_link"}.issubset(data[0].keys())
+
+
+class TestActiveNetworkAPIView:
+    """Test suite for ActiveNetworkAPIView."""
+
+    @pytest.fixture
+    def view(self):
+        return ActiveNetworkAPIView()
+
+    @pytest.fixture
+    def rf(self):
+        return RequestFactory()
+
+    def test_walletauth_activenetworkapiview_is_subclass_of_apiview(self):
+        assert issubclass(ActiveNetworkAPIView, APIView)
 
     @pytest.mark.django_db
-    def test_walletauth_claimallocationview_valid_request(
-        self, view, rf, valid_address, mocker
+    def test_walletauth_activenetworkapiview_get_returns_default_network(
+        self, view, rf
     ):
-        """Test successful claimable status check for valid address."""
-        mocker.patch("walletauth.views.is_valid_address", return_value=True)
-        data = {"address": valid_address}
-        request = rf.post(
-            "/claim-allocation/", data=json.dumps(data), content_type="application/json"
+        """Test GET returns default network when none stored in session."""
+        request = rf.get("/active-network/")
+        request.session = {}
+
+        response = view.get(request)
+
+        assert response.status_code == 200
+        assert response.data == {"network": "testnet"}
+
+    @pytest.mark.django_db
+    def test_walletauth_activenetworkapiview_post_valid_network(self, view, rf, mocker):
+        """Test POST sets active network."""
+        mocker.patch(
+            "walletauth.views.WALLET_CONNECT_NETWORK_OPTIONS", ["mainnet", "testnet"]
         )
+        request = rf.post(
+            "/active-network/",
+            data={"network": "mainnet"},
+            content_type="application/json",
+        )
+        request.session = {}
 
         response = view.post(request)
 
         assert response.status_code == 200
-        response_data = json.loads(response.content)
-        assert "claimable" in response_data
+        assert response.data == {"success": True, "network": "mainnet"}
+        assert request.session["active_network"] == "mainnet"
 
-    def test_walletauth_claimallocationview_invalid_json(self, view, rf):
-        """Test handling of invalid JSON."""
-        request = rf.post(
-            "/claim-allocation/", data="invalid json", content_type="application/json"
+    @pytest.mark.django_db
+    def test_walletauth_activenetworkapiview_post_invalid_network(
+        self, view, rf, mocker
+    ):
+        """Test POST rejects invalid network."""
+        mocker.patch(
+            "walletauth.views.WALLET_CONNECT_NETWORK_OPTIONS", ["mainnet", "testnet"]
         )
-        response = view.post(request)
-        assert response.status_code == 400
-        assert json.loads(response.content) == {"error": "Invalid JSON"}
+        request = rf.post(
+            "/active-network/",
+            data={"network": "unknown"},
+            content_type="application/json",
+        )
+        request.session = {}
 
-    def test_walletauth_claimallocationview_missing_address(self, view, rf):
-        """Test handling of missing address."""
-        request = rf.post(
-            "/claim-allocation/", data=json.dumps({}), content_type="application/json"
-        )
         response = view.post(request)
+
         assert response.status_code == 400
-        assert "Invalid or missing address" in json.loads(response.content)["error"]
+        assert response.data == {"error": "Invalid network"}
 
 
 class TestAddAllocationsView:
@@ -126,6 +169,60 @@ class TestAddAllocationsView:
         """Test handling of missing address."""
         request = rf.post(
             "/add-allocations/", data=json.dumps({}), content_type="application/json"
+        )
+        response = view.post(request)
+        assert response.status_code == 400
+        assert "Invalid or missing address" in json.loads(response.content)["error"]
+
+
+class TestClaimAllocationView:
+    """Test suite for ClaimAllocationView."""
+
+    @pytest.fixture
+    def view(self):
+        return ClaimAllocationView()
+
+    @pytest.fixture
+    def rf(self):
+        return RequestFactory()
+
+    @pytest.fixture
+    def valid_address(self):
+        return "2EVGZ4BGOSL3J64UYDE2BUGTNTBZZZLI54VUQQNZZLYCDODLY33UGXNSIU"
+
+    def test_walletauth_claimallocationview_is_subclass_of_view(self):
+        assert issubclass(ClaimAllocationView, View)
+
+    @pytest.mark.django_db
+    def test_walletauth_claimallocationview_valid_request(
+        self, view, rf, valid_address, mocker
+    ):
+        """Test successful claimable status check for valid address."""
+        mocker.patch("walletauth.views.is_valid_address", return_value=True)
+        data = {"address": valid_address}
+        request = rf.post(
+            "/claim-allocation/", data=json.dumps(data), content_type="application/json"
+        )
+
+        response = view.post(request)
+
+        assert response.status_code == 200
+        response_data = json.loads(response.content)
+        assert "claimable" in response_data
+
+    def test_walletauth_claimallocationview_invalid_json(self, view, rf):
+        """Test handling of invalid JSON."""
+        request = rf.post(
+            "/claim-allocation/", data="invalid json", content_type="application/json"
+        )
+        response = view.post(request)
+        assert response.status_code == 400
+        assert json.loads(response.content) == {"error": "Invalid JSON"}
+
+    def test_walletauth_claimallocationview_missing_address(self, view, rf):
+        """Test handling of missing address."""
+        request = rf.post(
+            "/claim-allocation/", data=json.dumps({}), content_type="application/json"
         )
         response = view.post(request)
         assert response.status_code == 400
@@ -700,7 +797,8 @@ class TestWalletVerifyView:
         response_data = json.loads(response.content)
         assert response_data == {"success": True, "redirect_url": "/"}
         mock_wallet_nonce.mark_used.assert_called_once()
-        mock_login.assert_called_once()
+        assert mock_user.backend == "django.contrib.auth.backends.ModelBackend"
+        mock_login.assert_called_once_with(request, mock_user)
 
     @pytest.mark.django_db
     def test_walletauth_walletverifyview_integration_success(

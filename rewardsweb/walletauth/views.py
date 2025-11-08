@@ -7,13 +7,13 @@ from secrets import token_hex
 import msgpack
 from algosdk.encoding import is_valid_address
 from algosdk.transaction import SignedTransaction
-from django.contrib.auth import get_user_model, login, authenticate
+from django.contrib.auth import get_user_model, login
 from django.http import JsonResponse
 from django.views import View
-
-from core.models import Contributor, Profile
 from rest_framework.views import APIView
 from rest_framework.response import Response
+
+from core.models import Contributor, Profile
 from utils.constants.core import (
     WALLET_CONNECT_NONCE_PREFIX,
     WALLET_CONNECT_NETWORK_OPTIONS,
@@ -25,9 +25,21 @@ User = get_user_model()
 
 
 class WalletsAPIView(APIView):
-    """Provide a list of supported wallets."""
+    """Retrieve a list of supported wallets.
+
+    :param request: HTTP request object
+    :return: JSON response containing supported wallets
+    """
 
     def get(self, request, *args, **kwargs):
+        """Handle GET request to return supported wallets.
+
+        :param request: HTTP request object
+        :return: JSON list of supported wallets, each containing:
+            - id (str): wallet identifier
+            - name (str): user-friendly wallet name
+            - is_magic_link (bool): whether wallet supports magic-link login
+        """
         wallets = [
             {
                 "id": "pera",
@@ -49,45 +61,51 @@ class WalletsAPIView(APIView):
 
 
 class ActiveNetworkAPIView(APIView):
-    """Get or set the active network in the session."""
+    """Get or update the active network stored in the session.
+
+    - `GET` returns the currently active network (default: `testnet`)
+    - `POST` sets a new active network
+
+    :param request: HTTP request object
+    :return: JSON response with network information or error
+    """
 
     def get(self, request, *args, **kwargs):
+        """Handle GET request to retrieve the active network.
+
+        :param request: HTTP request object
+        :return: JSON response with:
+            - network (str): current active network name
+        """
         active_network = request.session.get("active_network", "testnet")
         return Response({"network": active_network})
 
     def post(self, request, *args, **kwargs):
-        network = request.data.get("network")
-        if network not in WALLET_CONNECT_NETWORK_OPTIONS:
-            return Response({"error": "Invalid network"}, status=400)
-        request.session["active_network"] = network
-        return Response({"success": True, "network": network})
+        """Handle POST request to set the active network.
 
-
-class ClaimAllocationView(View):
-    """Check if a user has a claimable allocation."""
-
-    def post(self, request, *args, **kwargs):
-        """Return claimable status for the given address.
+        Expects JSON with:
+            - network (str): network to set (must be in `WALLET_CONNECT_NETWORK_OPTIONS`)
 
         :param request: HTTP request object
-        :return: JSON response with claimable status
+        :return: JSON response with:
+            - success (bool): True if network was updated
+            - network (str): network that was set
+            OR
+            - error (str): message if invalid input provided
         """
         try:
-            data = json.loads(request.body)
-            address = data.get("address")
-        except (json.JSONDecodeError, KeyError):
-            return JsonResponse({"error": "Invalid JSON"}, status=400)
+            # DRF Request gives request.data. Django Request gives request.body.
+            data = getattr(request, "data", None) or json.loads(request.body)
+            network = data.get("network")
 
-        if not address or not is_valid_address(address):
-            return JsonResponse(
-                {"error": f"Invalid or missing address: {address}"}, status=400
-            )
+        except Exception:
+            return Response({"error": "Invalid JSON"}, status=400)
 
-        # This is a placeholder for the actual logic to check the Algorand box.
-        # You will need to implement this using the Algorand SDK.
-        has_claimable_allocation = False  # Replace with actual check
+        if network not in WALLET_CONNECT_NETWORK_OPTIONS:
+            return Response({"error": "Invalid network"}, status=400)
 
-        return JsonResponse({"claimable": has_claimable_allocation})
+        request.session["active_network"] = network
+        return Response({"success": True, "network": network})
 
 
 class AddAllocationsView(View):
@@ -115,6 +133,33 @@ class AddAllocationsView(View):
         allocations = {"addresses": [], "amounts": []}  # Replace with actual data
 
         return JsonResponse(allocations)
+
+
+class ClaimAllocationView(View):
+    """Check if a user has a claimable allocation."""
+
+    def post(self, request, *args, **kwargs):
+        """Return claimable status for the given address.
+
+        :param request: HTTP request object
+        :return: JSON response with claimable status
+        """
+        try:
+            data = json.loads(request.body)
+            address = data.get("address")
+        except (json.JSONDecodeError, KeyError):
+            return JsonResponse({"error": "Invalid JSON"}, status=400)
+
+        if not address or not is_valid_address(address):
+            return JsonResponse(
+                {"error": f"Invalid or missing address: {address}"}, status=400
+            )
+
+        # This is a placeholder for the actual logic to check the Algorand box.
+        # You will need to implement this using the Algorand SDK.
+        has_claimable_allocation = False  # Replace with actual check
+
+        return JsonResponse({"claimable": has_claimable_allocation})
 
 
 class ReclaimAllocationsView(View):
@@ -295,12 +340,8 @@ class WalletVerifyView(View):
 
         print(f"[WalletVerifyView] Logged in user: {user.username}")
 
-        # Authenticate the user to attach the correct backend
-        authenticated_user = authenticate(request, user=user)
-        if authenticated_user:
-            login(request, authenticated_user)
-        else:
-            # Handle case where authentication fails, though it shouldn't with a valid user
-            return JsonResponse({"success": False, "error": "Authentication failed"}, status=400)
+        # Set the backend and log in the user
+        user.backend = "django.contrib.auth.backends.ModelBackend"
+        login(request, user)
 
         return JsonResponse({"success": True, "redirect_url": "/"})

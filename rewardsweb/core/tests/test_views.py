@@ -3,7 +3,7 @@
 import time
 
 import pytest
-from allauth.account.forms import LoginForm
+from allauth.account.forms import LoginForm, SignupForm
 from django.contrib.auth import get_user_model
 from django.contrib.auth.models import User
 from django.test import RequestFactory, TestCase
@@ -16,9 +16,11 @@ from core.forms import ProfileFormSet, UpdateUserForm
 from core.models import Contribution, Contributor, Cycle
 from core.views import (
     IndexView,
+    LoginView,
     ProfileDisplay,
     ProfileEditView,
     ProfileUpdate,
+    SignupView,
 )
 
 user_model = get_user_model()
@@ -78,9 +80,6 @@ class BaseUserCreatedView(BaseView):
 
 
 class IndexPageTest(TestCase):
-    def post_invalid_input(self):
-        return self.client.post(reverse("index"), data={"address": "foobar"})
-
     def test_index_page_renders_index_template(self):
         response = self.client.get("/")
 
@@ -219,42 +218,6 @@ class EditProfilePageTest(TestCase):
         self.assertIsInstance(response.context["form"], UpdateUserForm)
 
 
-class LoginPageTest(TestCase):
-    def post_invalid_input(self):
-        return self.client.post(
-            reverse("account_login"), data={"login": "logn", "password": "12345"}
-        )
-
-    def test_login_page_renders_login_template(self):
-        response = self.client.get(reverse("account_login"))
-
-        self.assertEqual(response.status_code, 200)
-        self.assertTemplateUsed(response, "account/login.html")
-
-    def test_login_view_renders_loginform(self):
-        response = self.client.get(reverse("account_login"))
-        self.assertIsInstance(response.context["form"], LoginForm)
-
-    def test_for_invalid_input_renders_login_template(self):
-        response = self.post_invalid_input()
-        self.assertEqual(response.status_code, 200)
-        self.assertTemplateUsed(response, "account/login.html")
-
-    def test_login_page_for_invalid_input_passes_form_to_template(self):
-        response = self.post_invalid_input()
-        self.assertIsInstance(response.context["form"], LoginForm)
-
-    def test_for_invalid_input_shows_errors_on_page(self):
-        response = self.post_invalid_input()
-        self.assertContains(
-            response, "The username and/or password you specified are not correct."
-        )
-
-    def test_login_page_links_to_forget_password_page(self):
-        response = self.client.get(reverse("account_login"))
-        self.assertContains(response, reverse("account_reset_password"))
-
-
 class TestProfileDisplay:
     """Testing class for :class:`core.views.ProfileDisplay`."""
 
@@ -379,3 +342,137 @@ class TestDbProfileEditView(BaseUserCreatedView):
         )
         # Check.
         assert isinstance(view_method.context_data["view"], ProfileUpdate)
+
+
+class LoginPageTest(TestCase):
+    def post_invalid_input(self):
+        return self.client.post(
+            reverse("account_login"), data={"login": "logn", "password": "12345"}
+        )
+
+    def test_login_page_renders_login_template(self):
+        response = self.client.get(reverse("account_login"))
+
+        self.assertEqual(response.status_code, 200)
+        self.assertTemplateUsed(response, "account/login.html")
+
+    def test_login_view_renders_loginform(self):
+        response = self.client.get(reverse("account_login"))
+        self.assertIsInstance(response.context["form"], LoginForm)
+
+    def test_login_page_or_invalid_input_renders_login_template(self):
+        response = self.post_invalid_input()
+        self.assertEqual(response.status_code, 200)
+        self.assertTemplateUsed(response, "account/login.html")
+
+    def test_login_page_for_invalid_input_passes_form_to_template(self):
+        response = self.post_invalid_input()
+        self.assertIsInstance(response.context["form"], LoginForm)
+
+    def test_login_page_for_invalid_input_shows_errors_on_page(self):
+        response = self.post_invalid_input()
+        self.assertContains(
+            response, "The username and/or password you specified are not correct."
+        )
+
+    def test_login_page_links_to_forget_password_page(self):
+        response = self.client.get(reverse("account_login"))
+        self.assertContains(response, reverse("account_reset_password"))
+
+
+@pytest.mark.django_db
+class TestLoginViewDb(BaseUserCreatedView):
+    """Testing class for :class:`core.views.LoginView`."""
+
+    def test_loginview_get_context_data(self, rf):
+        """Verify that the context contains wallet and network data."""
+        request = rf.get(reverse("account_login"))
+        request.session = {}
+        view = LoginView()
+        view.setup(request)
+        view.request = request
+
+        context = view.get_context_data()
+
+        assert "wallets" in context
+        assert len(context["wallets"]) == 3
+        assert context["active_network"] == "testnet"
+
+    def test_loginview_get_context_data_with_session_network(self, rf):
+        """Verify that the active_network is correctly read from the session."""
+        request = rf.get(reverse("account_login"))
+        request.session = {"active_network": "mainnet"}
+        view = LoginView()
+        view.setup(request)
+        view.request = request
+
+        context = view.get_context_data()
+
+        assert context["active_network"] == "mainnet"
+
+
+class SignupPageTest(TestCase):
+    def post_invalid_input(self):
+        return self.client.post(
+            reverse("account_signup"), data={"username": "logn", "password1": "12345"}
+        )
+
+    def test_signup_page_renders_signup_template(self):
+        response = self.client.get(reverse("account_signup"))
+
+        self.assertEqual(response.status_code, 200)
+        self.assertTemplateUsed(response, "account/signup.html")
+
+    def test_signup_view_renders_signupform(self):
+        response = self.client.get(reverse("account_signup"))
+        self.assertIsInstance(response.context["form"], SignupForm)
+
+    def test_signup_page_for_invalid_input_renders_signuo_template(self):
+        response = self.post_invalid_input()
+        self.assertEqual(response.status_code, 200)
+        self.assertTemplateUsed(response, "account/signup.html")
+
+    def test_signup_page_for_invalid_input_passes_form_to_template(self):
+        response = self.post_invalid_input()
+        self.assertIsInstance(response.context["form"], SignupForm)
+
+    def test_signup_page_for_invalid_input_shows_errors_on_page(self):
+        response = self.post_invalid_input()
+        self.assertContains(response, "This field is required.")
+
+    def test_signup_page_links_to_login_page(self):
+        response = self.client.get(reverse("account_signup"))
+        self.assertContains(response, reverse("account_login"))
+
+
+@pytest.mark.django_db
+class TestSignupView(BaseUserCreatedView):
+    """Testing class for :class:`core.views.SignupView`."""
+
+    def test_signupview_get_context_data(self, rf):
+        """Verify that the context contains wallet and network data."""
+        request = rf.get(reverse("account_signup"))
+        request.session = {}
+        view = SignupView()
+        view.setup(request)
+        view.request = request
+
+        context = view.get_context_data()
+
+        assert "wallets" in context
+        assert len(context["wallets"]) == 3
+        assert context["active_network"] == "testnet"
+
+    def test_signupview_get_context_data_with_session_network(self, rf):
+        """Verify that the active_network is correctly read from the session."""
+        request = rf.get(reverse("account_signup"))
+
+        request = rf.get(reverse("account_signup"))
+        request.session = {"active_network": "mainnet"}
+        view = LoginView()
+        view.setup(request)
+        view.request = request
+
+        context = view.get_context_data()
+
+        assert context["active_network"] == "mainnet"

@@ -75,6 +75,12 @@ export class WalletComponent {
         option.disabled = true;
         accountSelect.appendChild(option);
       }
+    } else {
+      accountSelect.innerHTML = '';
+      const option = document.createElement('option');
+      option.textContent = 'No accounts';
+      option.disabled = true;
+      accountSelect.appendChild(option);
     }
   }
 

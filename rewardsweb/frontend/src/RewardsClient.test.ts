@@ -92,6 +92,29 @@ describe("RewardsClient", () => {
 
     mockManager = {
       activeNetwork: "testnet",
+      algodClient: {
+        getTransactionParams: jest.fn().mockReturnValue({
+          do: jest.fn().mockResolvedValue({
+            fee: 1000,
+            firstRound: 1,
+            lastRound: 1001,
+            genesisHash: "test-hash",
+            genesisID: "test-id",
+          }),
+        }),
+        getApplicationByID: jest.fn().mockReturnValue({
+          do: jest.fn().mockResolvedValue({
+            params: {
+              globalState: [
+                {
+                  key: btoa("token_id"),
+                  value: { uint: 1 }
+                }
+              ]
+            }
+          })
+        })
+      }
     } as any;
 
     // Provide full algod mock (params + app global state)

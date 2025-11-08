@@ -43,6 +43,7 @@ describe("WalletComponent", () => {
   let mockManager: jest.Mocked<WalletManager>;
   let walletComponent: WalletComponent;
   let element: HTMLElement;
+  let consoleErrorSpy: jest.SpyInstance; // Declare consoleErrorSpy here
 
   beforeEach(() => {
     jest.clearAllMocks();
@@ -91,15 +92,20 @@ describe("WalletComponent", () => {
     walletComponent = new WalletComponent(mockWallet, mockManager);
 
     // Create a mock DOM element for binding
-    element = document.createElement("div");
+    element = document.createElement("div"); // Initialize element here
     element.id = `wallet-${mockWallet.id}`;
     element.innerHTML = `
+      <h4 id="wallet-name-${mockWallet.id}">${mockWallet.metadata.name}</h4>
+      <div id="wallet-accounts-${mockWallet.id}"></div>
+      <div id="wallet-balance-${mockWallet.id}"></div>
+      <div id="wallet-status-${mockWallet.id}"></div>
+      <div id="wallet-error-${mockWallet.id}"></div>
       <button id="connect-button-${mockWallet.id}"></button>
       <button id="disconnect-button-${mockWallet.id}"></button>
       <button id="set-active-button-${mockWallet.id}"></button>
       <button id="transaction-button-${mockWallet.id}"></button>
       <button id="auth-button-${mockWallet.id}"></button>
-      <select></select>
+      <select id="account-select-${mockWallet.id}"></select>
     `;
     document.body.appendChild(element);
     walletComponent.bind(element);
@@ -107,12 +113,14 @@ describe("WalletComponent", () => {
     // Spy on dispatchEvent after binding
     jest.spyOn(element, "dispatchEvent");
     jest.spyOn(document.body, "dispatchEvent");
+    consoleErrorSpy = jest.spyOn(console, "error").mockImplementation(() => {});
   });
 
   afterEach(() => {
     walletComponent.destroy();
     document.body.innerHTML = "";
     jest.resetModules();
+    consoleErrorSpy.mockRestore();
   });
 
   describe("Constructor and Binding", () => {
@@ -128,6 +136,16 @@ describe("WalletComponent", () => {
     it("should bind event listeners to the provided element", () => {
       const addEventListenerSpy = jest.spyOn(element, "addEventListener");
       const newElement = document.createElement("div");
+      newElement.id = `wallet-${mockWallet.id}`;
+      newElement.innerHTML = `
+        <button id="connect-button-${mockWallet.id}"></button>
+        <button id="disconnect-button-${mockWallet.id}"></button>
+        <button id="set-active-button-${mockWallet.id}"></button>
+        <button id="transaction-button-${mockWallet.id}"></button>
+        <button id="auth-button-${mockWallet.id}"></button>
+        <select id="account-select-${mockWallet.id}"></select>
+      `;
+      document.body.appendChild(newElement);
       walletComponent.bind(newElement);
       expect(addEventListenerSpy).toHaveBeenCalledWith(
         "click",
@@ -137,6 +155,7 @@ describe("WalletComponent", () => {
         "change",
         expect.any(Function)
       );
+      document.body.removeChild(newElement);
     });
   });
 
@@ -209,7 +228,10 @@ describe("WalletComponent", () => {
     });
 
     it("should call setActiveAccount on select change", async () => {
-      const selectElement = element.querySelector("select") as HTMLSelectElement;
+      const selectElement = element.querySelector(
+        `#account-select-${mockWallet.id}`
+      ) as HTMLSelectElement;
+      selectElement.innerHTML = `<option value="new-address">new-address</option>`;
       selectElement.value = "new-address";
       await selectElement.dispatchEvent(new Event("change"));
       expect(mockWallet.setActiveAccount).toHaveBeenCalledWith("new-address");
@@ -220,11 +242,6 @@ describe("WalletComponent", () => {
     beforeEach(() => {
       mockWallet.activeAccount = { address: "test-address" };
       jest.spyOn(element, "dispatchEvent"); // Spy on dispatchEvent
-      jest.spyOn(console, "error").mockImplementation(() => {}); // Suppress console error
-    });
-
-    afterEach(() => {
-      (console.error as jest.Mock).mockRestore();
     });
 
     it("should display error message on auth failure", async () => {
@@ -235,7 +252,9 @@ describe("WalletComponent", () => {
 
       await walletComponent.auth();
 
-      expect(element.querySelector(".alert-error")).toBeTruthy();
+      const errorDiv = element.querySelector(`#wallet-error-${mockWallet.id}`);
+      expect(errorDiv).toBeTruthy();
+      expect(errorDiv?.textContent).toContain("Auth failed");
     });
 
     it("should remove error message after timeout", async () => {
@@ -247,11 +266,12 @@ describe("WalletComponent", () => {
 
       await walletComponent.auth();
 
-      expect(element.querySelector(".alert-error")).toBeTruthy();
+      const errorDiv = element.querySelector(`#wallet-error-${mockWallet.id}`);
+      expect(errorDiv).toBeTruthy();
 
       jest.runAllTimers();
 
-      expect(element.querySelector(".alert-error")).toBeFalsy();
+      expect(element.querySelector(`#wallet-error-${mockWallet.id}`)).toBeFalsy();
       jest.useRealTimers();
     });
   });
@@ -263,6 +283,21 @@ describe("WalletComponent", () => {
 
       const wc = new WalletComponent(mockWallet, mockManager);
       const el = document.createElement("div");
+      el.id = `wallet-${mockWallet.id}`;
+      el.innerHTML = `
+        <h4 id="wallet-name-${mockWallet.id}">${mockWallet.metadata.name}</h4>
+        <div id="wallet-accounts-${mockWallet.id}"></div>
+        <div id="wallet-balance-${mockWallet.id}"></div>
+        <div id="wallet-status-${mockWallet.id}"></div>
+        <div id="wallet-error-${mockWallet.id}"></div>
+        <button id="connect-button-${mockWallet.id}"></button>
+        <button id="disconnect-button-${mockWallet.id}"></button>
+        <button id="set-active-button-${mockWallet.id}"></button>
+        <button id="transaction-button-${mockWallet.id}"></button>
+        <button id="auth-button-${mockWallet.id}"></button>
+        <select id="account-select-${mockWallet.id}"></select>
+      `;
+      document.body.appendChild(el);
       wc.bind(el);
 
       const removeEventListenerSpy = jest.spyOn(el, "removeEventListener");
@@ -278,6 +313,7 @@ describe("WalletComponent", () => {
         "change",
         expect.any(Function)
       );
+      document.body.removeChild(el);
     });
 
     it("should handle destroy gracefully if element is null", () => {

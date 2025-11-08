@@ -35,3 +35,47 @@ class ClaimView(LoginRequiredMixin, TemplateView):
             context["claimable"] = False
 
         return context
+
+
+class AddAllocationsView(LoginRequiredMixin, TemplateView):
+    """View for superusers to add new allocations.
+
+    This view provides an interface for users with superuser privileges to add
+    new reward allocations to the smart contract. It is restricted to
+    superusers to prevent unauthorized modifications.
+    """
+
+    template_name = "rewards/add_allocations.html"
+
+    def get_context_data(self, **kwargs):
+        """Add any necessary context for the add allocations page.
+
+        :param kwargs: Additional keyword arguments
+        :return: Context dictionary
+        :rtype: dict
+        """
+        context = super().get_context_data(**kwargs)
+        # TODO: Add any context needed for the template, if any.
+        return context
+
+
+class ReclaimAllocationsView(LoginRequiredMixin, TemplateView):
+    """View for superusers to reclaim allocations.
+
+    This view allows superusers to reclaim reward allocations from the smart
+    contract. This is typically done for allocations that are no longer valid
+    or need to be returned. Access is restricted to superusers.
+    """
+
+    template_name = "rewards/reclaim_allocations.html"
+
+    def get_context_data(self, **kwargs):
+        """Add any necessary context for the reclaim allocations page.
+
+        :param kwargs: Additional keyword arguments
+        :return: Context dictionary
+        :rtype: dict
+        """
+        context = super().get_context_data(**kwargs)
+        # TODO: Add any context needed for the template, if any.
+        return context

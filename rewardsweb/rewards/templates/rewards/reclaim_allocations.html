@@ -1,0 +1,23 @@
+{% extends "base_generic.html" %}
+{% load static %}
+
+{% block head_title %}
+  Reclaim Allocations
+{% endblock head_title %}
+
+{% block content %}
+  <div class="container mx-auto px-4 py-8">
+    <h1 class="text-3xl font-bold mb-6">Reclaim Allocations (Superuser Only)</h1>
+
+    <div id="reclaim-allocations-container">
+      <div class="space-y-4 p-4 rounded-lg bg-base-200 mt-4">
+        <h4 class="font-semibold text-lg">Reclaim Allocations (Superuser Only)</h4>
+        <div id="reclaim-list"></div>
+      </div>
+    </div>
+
+    <p class="mt-4 text-sm text-base-content/70">
+      This page allows a superuser to reclaim allocations from the smart contract.
+    </p>
+  </div>
+{% endblock content %}

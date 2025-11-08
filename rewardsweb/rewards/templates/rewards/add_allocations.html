@@ -1,0 +1,41 @@
+{% extends "base_generic.html" %}
+{% load static %}
+
+{% block head_title %}
+  Add Allocations
+{% endblock head_title %}
+
+{% block content %}
+  <div class="container mx-auto px-4 py-8">
+    <h1 class="text-3xl font-bold mb-6">Add Allocations (Superuser Only)</h1>
+
+    <div id="add-allocations-container">
+      <div class="space-y-4 p-4 rounded-lg bg-base-200 mt-4">
+        <h4 class="font-semibold text-lg">Add Allocations (Superuser Only)</h4>
+        <div class="form-control">
+          <label class="label"><span class="label-text">Addresses</span></label>
+          <textarea id="addresses-input" class="textarea textarea-bordered h-24" placeholder="Enter addresses, one per line"></textarea>
+        </div>
+        <div class="form-control">
+          <label class="label"><span class="label-text">Amounts</span></label>
+          <textarea id="amounts-input" class="textarea textarea-bordered h-24" placeholder="Enter amounts, one per line"></textarea>
+        </div>
+        <button
+          id="add-allocations-button"
+          type="button"
+          class="btn btn-primary btn-sm"
+        >
+          Add Allocations
+        </button>
+        <div class="mt-4">
+          <h5 class="font-semibold">Current Allocations Data (from backend):</h5>
+          <pre id="allocations-data"></pre>
+        </div>
+      </div>
+    </div>
+
+    <p class="mt-4 text-sm text-base-content/70">
+      This page allows a superuser to add new allocations to the smart contract.
+    </p>
+  </div>
+{% endblock content %}

@@ -32,8 +32,6 @@ class App {
         defaultNetwork: 'testnet'
       })
 
-      const appDiv = document.querySelector<HTMLDivElement>('#app')!
-
       // Bind network selector
       const activeNetworkEl = document.getElementById('active-network')
       if (activeNetworkEl && this.walletManager) {
@@ -63,19 +61,27 @@ class App {
           claimComponent.bind(claimContainer)
         }
 
-        const addAllocationsComponent = new AddAllocationsComponent(rewardsClient, this.walletManager)
-        appDiv.appendChild(addAllocationsComponent.element)
+        const addAllocationsContainer = document.getElementById('add-allocations-container')
+        if (addAllocationsContainer) {
+          const addAllocationsComponent = new AddAllocationsComponent(rewardsClient, this.walletManager)
+          addAllocationsComponent.bind(addAllocationsContainer)
+        }
 
-        const reclaimAllocationsComponent = new ReclaimAllocationsComponent(rewardsClient, this.walletManager)
-        appDiv.appendChild(reclaimAllocationsComponent.element)
+        const reclaimAllocationsContainer = document.getElementById('reclaim-allocations-container')
+        if (reclaimAllocationsContainer) {
+          const reclaimAllocationsComponent = new ReclaimAllocationsComponent(rewardsClient, this.walletManager)
+          reclaimAllocationsComponent.bind(reclaimAllocationsContainer)
+        }
       }
 
       await this.walletManager.resumeSessions()
 
     } catch (error) {
       console.error('Error initializing app:', error)
-      const appDiv = document.querySelector<HTMLDivElement>('#app')!
-      appDiv.innerHTML = '<div class="alert alert-error">Could not initialize wallet application. Please try again later.</div>'
+      const errorDiv = document.getElementById('app-error')
+      if (errorDiv) {
+        errorDiv.style.display = 'block'
+      }
     }
   }
 }

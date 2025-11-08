@@ -37,16 +37,22 @@ export class ReclaimAllocationsComponent {
     }
   }
 
+  private handleReclaimError(address: string, error: unknown) {
+    console.error(`[ReclaimAllocationsComponent] Error during reclaim for ${address}:`, error)
+    alert(`Reclaim for ${address} failed: ${error instanceof Error ? error.message : String(error)}`)
+  }
+
   private async handleReclaimAllocation(address: string) {
     try {
       console.info(`[ReclaimAllocationsComponent] Initiating reclaim for ${address}...`)
       await this.rewardsClient.reclaimAllocation(address)
       alert(`Reclaim transaction for ${address} sent successfully!`)
+
       // Re-fetch data after successful transaction
       await this.fetchReclaimAllocationsData()
+
     } catch (error) {
-      console.error(`[ReclaimAllocationsComponent] Error during reclaim for ${address}:`, error)
-      alert(`Reclaim for ${address} failed: ${error instanceof Error ? error.message : String(error)}`)
+      this.handleReclaimError(address, error)
     }
   }
 
@@ -62,8 +68,8 @@ export class ReclaimAllocationsComponent {
       reclaimList.innerHTML = `
         <ul class="list-disc pl-5">
           ${this.reclaimableAddresses
-            .map(
-              (address) => `
+          .map(
+            (address) => `
             <li class="flex items-center justify-between py-1">
               <span>${address}</span>
               <button
@@ -76,8 +82,8 @@ export class ReclaimAllocationsComponent {
               </button>
             </li>
           `,
-            )
-            .join('')}
+          )
+          .join('')}
         </ul>
       `
     }

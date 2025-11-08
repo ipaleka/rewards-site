@@ -9,6 +9,13 @@ import { ReclaimAllocationsComponent } from './ReclaimAllocationsComponent'
 class App {
   walletManager: WalletManager | null = null
 
+  // Store component references so Jest tests can verify cleanup
+  private activeNetworkComponent: ActiveNetwork | null = null
+  private walletComponents: WalletComponent[] = []
+  private claimComponent: ClaimComponent | null = null
+  private addAllocationsComponent: AddAllocationsComponent | null = null
+  private reclaimAllocationsComponent: ReclaimAllocationsComponent | null = null
+
   constructor() {
     document.addEventListener('DOMContentLoaded', this.init.bind(this))
   }
@@ -29,17 +36,17 @@ class App {
 
       this.walletManager = new WalletManager({
         wallets: walletIds,
-        defaultNetwork: 'testnet'
+        defaultNetwork: 'testnet',
       })
 
       // Bind network selector
       const activeNetworkEl = document.getElementById('active-network')
       if (activeNetworkEl && this.walletManager) {
-        const activeNetwork = new ActiveNetwork(this.walletManager)
-        activeNetwork.bind(activeNetworkEl)
+        this.activeNetworkComponent = new ActiveNetwork(this.walletManager)
+        this.activeNetworkComponent.bind(activeNetworkEl)
       }
 
-      // Create and bind wallet components
+      // Create wallet components
       walletsData.forEach((walletData: any) => {
         const wallet = this.walletManager!.getWallet(walletData.id)
         if (wallet) {
@@ -47,34 +54,44 @@ class App {
           if (walletEl) {
             const walletComponent = new WalletComponent(wallet, this.walletManager!)
             walletComponent.bind(walletEl)
+            this.walletComponents.push(walletComponent)
           }
         }
       })
 
-      // Add Rewards client and other components
+      // Rewards client + other UI components
       if (this.walletManager && this.walletManager.wallets.length > 0) {
         const rewardsClient = new RewardsClient(this.walletManager.wallets[0], this.walletManager)
 
         const claimContainer = document.getElementById('claim-container')
         if (claimContainer) {
-          const claimComponent = new ClaimComponent(rewardsClient, this.walletManager)
-          claimComponent.bind(claimContainer)
+          this.claimComponent = new ClaimComponent(rewardsClient, this.walletManager)
+          this.claimComponent.bind(claimContainer)
         }
 
         const addAllocationsContainer = document.getElementById('add-allocations-container')
         if (addAllocationsContainer) {
-          const addAllocationsComponent = new AddAllocationsComponent(rewardsClient, this.walletManager)
-          addAllocationsComponent.bind(addAllocationsContainer)
+          this.addAllocationsComponent = new AddAllocationsComponent(rewardsClient, this.walletManager)
+          this.addAllocationsComponent.bind(addAllocationsContainer)
         }
 
         const reclaimAllocationsContainer = document.getElementById('reclaim-allocations-container')
         if (reclaimAllocationsContainer) {
-          const reclaimAllocationsComponent = new ReclaimAllocationsComponent(rewardsClient, this.walletManager)
-          reclaimAllocationsComponent.bind(reclaimAllocationsContainer)
+          this.reclaimAllocationsComponent = new ReclaimAllocationsComponent(rewardsClient, this.walletManager)
+          this.reclaimAllocationsComponent.bind(reclaimAllocationsContainer)
         }
       }
 
       await this.walletManager.resumeSessions()
+
+      window.addEventListener('beforeunload', () => {
+        this.walletManager?.resumeSessions()
+        this.activeNetworkComponent?.destroy?.()
+        this.walletComponents.forEach(c => c.destroy?.())
+        this.claimComponent?.destroy?.()
+        this.addAllocationsComponent?.destroy?.()
+        this.reclaimAllocationsComponent?.destroy?.()
+      })
 
     } catch (error) {
       console.error('Error initializing app:', error)

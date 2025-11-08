@@ -4,7 +4,7 @@ export class ActiveNetwork {
   private element: HTMLElement | null = null
   private unsubscribe: (() => void) | null = null
 
-  constructor(private manager: WalletManager) {}
+  constructor(private manager: WalletManager) { }
 
   bind(element: HTMLElement) {
     this.element = element
@@ -64,9 +64,11 @@ export class ActiveNetwork {
   destroy() {
     if (this.unsubscribe) {
       this.unsubscribe()
+      this.unsubscribe = null // Prevent multiple calls
     }
     if (this.element) {
       this.element.removeEventListener('click', this.handleClick)
+      // Don't nullify element as it might be needed for other cleanup
     }
   }
 }

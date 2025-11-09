@@ -28,8 +28,7 @@ export class RewardsClient {
   }
 
   private getCsrfToken = () => {
-    const name = 'csrftoken'
-    const cookieValue = document.cookie.match('(^|;)\s*' + name + '\s*=\s*([^;]+)')?.pop() || ''
+    const cookieValue = document.cookie.match(/(^|;)\s*csrftoken\s*=\s*([^;]+)/)?.pop() || ''
     return cookieValue || (document.querySelector('input[name="csrfmiddlewaretoken"]') as HTMLInputElement)?.value || ''
   }
 

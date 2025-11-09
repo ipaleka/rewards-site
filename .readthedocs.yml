@@ -30,3 +30,4 @@ sphinx:
 python:
   install:
     - requirements: rewardsweb/requirements/development.txt
+    - requirements: rewardsweb/contract/requirements.txt

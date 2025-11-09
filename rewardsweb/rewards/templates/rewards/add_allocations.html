@@ -20,8 +20,13 @@
                 <th>Amount</th>
               </tr>
             </thead>
-            <tbody id="allocations-table-body">
-              <!-- Rows will be inserted here by AddAllocationsComponent.ts -->
+            <tbody>
+              {% for address, amount in allocations %}
+                <tr>
+                  <td>{{ address }}</td>
+                  <td>{{ amount }}</td>
+                </tr>
+              {% endfor %}
             </tbody>
           </table>
         </div>

@@ -175,7 +175,15 @@ class TestAddAllocationsAPIView:
         self, view, rf, valid_address, mocker
     ):
         """Test successful data retrieval for valid address."""
-        mocker.patch("walletauth.views.is_valid_address", return_value=True)
+        mocked_address = mocker.patch(
+            "walletauth.views.is_valid_address", return_value=True
+        )
+        addresses, amounts = mocker.MagicMock(), mocker.MagicMock()
+        mocked_contribs = mocker.patch(
+            "walletauth.views.Contribution.objects.addressed_contributions",
+            return_value=(addresses, amounts),
+        )
+
         data = {"address": valid_address}
         request = rf.post("/add-allocations/", data=data, format="json")
 
@@ -185,11 +193,18 @@ class TestAddAllocationsAPIView:
         response_data = response.data
         assert "addresses" in response_data
         assert "amounts" in response_data
+        mocked_address.assert_called_once_with(valid_address)
+        mocked_contribs.assert_called_once_with()
 
     @pytest.mark.django_db
     def test_walletauth_addallocationsapiview_fallback_to_json_body(self, mocker):
         """Test fallback data parsing when `request.data` is missing (WSGIRequest)."""
         mocker.patch("walletauth.views.is_valid_address", return_value=True)
+        addresses, amounts = mocker.MagicMock(), mocker.MagicMock()
+        mocked_contribs = mocker.patch(
+            "walletauth.views.Contribution.objects.addressed_contributions",
+            return_value=(addresses, amounts),
+        )
 
         rf = RequestFactory()  # <-- forces WSGIRequest (no request.data)
         json_body = (
@@ -203,7 +218,8 @@ class TestAddAllocationsAPIView:
         response = AddAllocationsAPIView().post(request)  # call .post(), not view()
 
         assert response.status_code == 200
-        assert response.data == {"addresses": [], "amounts": []}
+        assert response.data == {"addresses": addresses, "amounts": amounts}
+        mocked_contribs.assert_called_once_with()
 
     def test_walletauth_addllocationsapiview_invalid_json(self, view, rf):
         """Test handling of invalid JSON."""
@@ -309,19 +325,29 @@ class TestReclaimAllocationsAPIView:
         self, view, rf, valid_address, mocker
     ):
         """Test successful data retrieval for valid address."""
-        mocker.patch("walletauth.views.is_valid_address", return_value=True)
+        mocked_address = mocker.patch(
+            "walletauth.views.is_valid_address", return_value=True
+        )
+        addresses = ["ADDR1", "ADDR2"]
+        mocked_addresses = mocker.patch(
+            "walletauth.views.reclaimable_addresses", return_value=addresses
+        )
         data = {"address": valid_address}
         request = rf.post("/reclaim-allocations/", data=data, format="json")
         response = view(request)
 
         assert response.status_code == 200
         response_data = response.data
-        assert "addresses" in response_data
+        assert response_data["addresses"] == addresses
+        mocked_address.assert_called_once_with(valid_address)
+        mocked_addresses.assert_called_once_with()
 
     @pytest.mark.django_db
     def test_walletauth_reclaimallocationsapiview_fallback_to_json_body(self, mocker):
         """Test JSON parsing when DRF Request is NOT used."""
         mocker.patch("walletauth.views.is_valid_address", return_value=True)
+        addresses = ["ADDR1", "ADDR2"]
+        mocker.patch("walletauth.views.reclaimable_addresses", return_value=addresses)
 
         rf = RequestFactory()
         json_body = (
@@ -335,7 +361,7 @@ class TestReclaimAllocationsAPIView:
         response = ReclaimAllocationsAPIView().post(request)
 
         assert response.status_code == 200
-        assert "addresses" in response.data
+        assert response.data["addresses"] == addresses
 
     def test_walletauth_reclaimallocationsapiview_invalid_json(self, view, rf):
         """Test handling of invalid JSON."""

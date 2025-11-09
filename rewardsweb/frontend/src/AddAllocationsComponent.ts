@@ -63,8 +63,13 @@ export class AddAllocationsComponent {
 
     try {
       const data = await this.rewardsClient.fetchAddAllocationsData(activeAddress)
-      this.addresses = data.addresses
-      this.amounts = data.amounts
+      if (data) {
+        this.addresses = data.addresses
+        this.amounts = data.amounts
+      } else {
+        this.addresses = []
+        this.amounts = []
+      }
       this.render()
     } catch (error) {
       console.error('[AddAllocationsComponent] Error fetching add allocations data:', error)
@@ -101,24 +106,8 @@ export class AddAllocationsComponent {
    * @private
    */
   render() {
-    if (!this.element) return
-
-    const tableBody = this.element.querySelector<HTMLTableSectionElement>('#allocations-table-body')
-
-    if (tableBody) {
-      // Clear existing rows
-      tableBody.innerHTML = ''
-
-      // Populate table with new data
-      this.addresses.forEach((address, index) => {
-        const row = tableBody.insertRow()
-        const addressCell = row.insertCell()
-        const amountCell = row.insertCell()
-
-        addressCell.textContent = address
-        amountCell.textContent = this.amounts[index].toString()
-      })
-    }
+    // No longer responsible for rendering the table, as it's now done by Django template.
+    // The data is still fetched and held in this.addresses and this.amounts for submission.
   }
 
   /**

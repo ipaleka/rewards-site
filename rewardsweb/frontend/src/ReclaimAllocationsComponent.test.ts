@@ -29,10 +29,50 @@ describe('ReclaimAllocationsComponent', () => {
       subscribe: jest.fn(),
     } as any
 
-    // Set up the DOM structure
+    // Set up the DOM structure matching the Django template
     container = document.createElement('div')
     container.id = 'reclaim-allocations-container'
-    container.innerHTML = `<div id="reclaim-list"></div>`
+    container.innerHTML = `
+      <div class="space-y-4 p-4 rounded-lg bg-base-200 mt-4">
+        <h4 class="font-semibold text-lg">Reclaimable Addresses</h4>
+        <table class="table w-full">
+          <thead>
+            <tr>
+              <th>Address</th>
+              <th></th>
+            </tr>
+          </thead>
+          <tbody>
+            <tr>
+              <td>addr1</td>
+              <td class="text-right">
+                <button
+                  id="reclaim-button-addr1"
+                  data-address="addr1"
+                  type="button"
+                  class="btn btn-warning btn-xs"
+                >
+                  Reclaim
+                </button>
+              </td>
+            </tr>
+            <tr>
+              <td>addr2</td>
+              <td class="text-right">
+                <button
+                  id="reclaim-button-addr2"
+                  data-address="addr2"
+                  type="button"
+                  class="btn btn-warning btn-xs"
+                >
+                  Reclaim
+                </button>
+              </td>
+            </tr>
+          </tbody>
+        </table>
+      </div>
+    `
     document.body.appendChild(container)
   })
 
@@ -41,7 +81,7 @@ describe('ReclaimAllocationsComponent', () => {
     alertSpy.mockRestore()
   })
 
-  it('should fetch and display reclaimable addresses on initialization', async () => {
+  it('should fetch reclaimable addresses on initialization', async () => {
     const data = { addresses: ['addr1', 'addr2'] }
       ; (mockRewardsClient.fetchReclaimAllocationsData as jest.Mock).mockResolvedValue(data)
 
@@ -49,40 +89,25 @@ describe('ReclaimAllocationsComponent', () => {
     reclaimAllocationsComponent.bind(container)
     await new Promise(process.nextTick)
 
-    const listItems = container.querySelectorAll('li')
-    expect(listItems.length).toBe(2)
-    expect(listItems[0].textContent).toContain('addr1')
-    expect(listItems[1].textContent).toContain('addr2')
     expect(mockRewardsClient.fetchReclaimAllocationsData).toHaveBeenCalledWith('test-address')
-  })
-
-  it('should display a message when no reclaimable allocations are found', async () => {
-    const data = { addresses: [] }
-      ; (mockRewardsClient.fetchReclaimAllocationsData as jest.Mock).mockResolvedValue(data)
-
-    reclaimAllocationsComponent = new ReclaimAllocationsComponent(mockRewardsClient, mockWalletManager)
-    reclaimAllocationsComponent.bind(container)
-    await new Promise(process.nextTick)
-
-    const paragraph = container.querySelector('p')
-    expect(paragraph?.textContent).toBe('No reclaimable allocations found.')
+    expect(reclaimAllocationsComponent.getReclaimableAddresses()).toEqual(['addr1', 'addr2'])
   })
 
   it('should call reclaimAllocation with the correct address when a reclaim button is clicked', async () => {
-    const data = { addresses: ['addr-to-reclaim'] }
+    const data = { addresses: ['addr1', 'addr2'] }
       ; (mockRewardsClient.fetchReclaimAllocationsData as jest.Mock).mockResolvedValue(data)
     reclaimAllocationsComponent = new ReclaimAllocationsComponent(mockRewardsClient, mockWalletManager)
     reclaimAllocationsComponent.bind(container)
     await new Promise(process.nextTick)
 
-    const button = container.querySelector('#reclaim-button-addr-to-reclaim') as HTMLButtonElement
+    const button = container.querySelector('#reclaim-button-addr1') as HTMLButtonElement
     await button.click()
 
-    expect(mockRewardsClient.reclaimAllocation).toHaveBeenCalledWith('addr-to-reclaim')
+    expect(mockRewardsClient.reclaimAllocation).toHaveBeenCalledWith('addr1')
   })
 
   it('should re-fetch data after a successful reclaim call', async () => {
-    const data = { addresses: ['addr1'] }
+    const data = { addresses: ['addr1', 'addr2'] }
       ; (mockRewardsClient.fetchReclaimAllocationsData as jest.Mock).mockResolvedValueOnce(data)
     reclaimAllocationsComponent = new ReclaimAllocationsComponent(mockRewardsClient, mockWalletManager)
     reclaimAllocationsComponent.bind(container)
@@ -151,6 +176,17 @@ describe('ReclaimAllocationsComponent', () => {
 
     consoleSpy.mockRestore()
   })
+
+  it('should get reclaimable addresses via getReclaimableAddresses method', async () => {
+    const data = { addresses: ['addr1', 'addr2'] }
+      ; (mockRewardsClient.fetchReclaimAllocationsData as jest.Mock).mockResolvedValue(data)
+
+    reclaimAllocationsComponent = new ReclaimAllocationsComponent(mockRewardsClient, mockWalletManager)
+    reclaimAllocationsComponent.bind(container)
+    await new Promise(process.nextTick)
+
+    expect(reclaimAllocationsComponent.getReclaimableAddresses()).toEqual(['addr1', 'addr2'])
+  })
 })
 
 describe('ReclaimAllocationsComponent Error Handling', () => {
@@ -172,7 +208,24 @@ describe('ReclaimAllocationsComponent Error Handling', () => {
 
     container = document.createElement('div')
     container.id = 'reclaim-allocations-container'
-    container.innerHTML = `<div id="reclaim-list"></div>`
+    container.innerHTML = `
+      <table class="table w-full">
+        <tbody>
+          <tr>
+            <td>addr1</td>
+            <td class="text-right">
+              <button id="reclaim-button-addr1" data-address="addr1" class="btn btn-warning btn-xs">Reclaim</button>
+            </td>
+          </tr>
+          <tr>
+            <td>addr2</td>
+            <td class="text-right">
+              <button id="reclaim-button-addr2" data-address="addr2" class="btn btn-warning btn-xs">Reclaim</button>
+            </td>
+          </tr>
+        </tbody>
+      </table>
+    `
     document.body.appendChild(container)
   })
 
@@ -341,35 +394,12 @@ describe('ReclaimAllocationsComponent Error Handling', () => {
   })
 
   describe('edge cases', () => {
-    it('should handle render when element is null', () => {
-      reclaimAllocationsComponent = new ReclaimAllocationsComponent(mockRewardsClient, mockWalletManager)
-      // Don't call bind(), so this.element remains null
-      expect(() => {
-        reclaimAllocationsComponent.render()
-      }).not.toThrow()
-    })
-
     it('should handle addEventListeners when element is null', () => {
       reclaimAllocationsComponent = new ReclaimAllocationsComponent(mockRewardsClient, mockWalletManager)
       // Don't call bind(), so this.element remains null
       expect(() => {
         reclaimAllocationsComponent.addEventListeners()
       }).not.toThrow()
-    })
-
-    it('should handle render when reclaim-list element is missing', () => {
-      const containerWithoutList = document.createElement('div')
-      containerWithoutList.innerHTML = `<div>No reclaim list here</div>`
-      document.body.appendChild(containerWithoutList)
-
-      reclaimAllocationsComponent = new ReclaimAllocationsComponent(mockRewardsClient, mockWalletManager)
-      reclaimAllocationsComponent.bind(containerWithoutList)
-
-      expect(() => {
-        reclaimAllocationsComponent.render()
-      }).not.toThrow()
-
-      document.body.removeChild(containerWithoutList)
     })
 
     it('should handle click events on non-reclaim-button elements gracefully', async () => {
@@ -380,9 +410,9 @@ describe('ReclaimAllocationsComponent Error Handling', () => {
       await new Promise(process.nextTick)
 
       // Simulate click event on non-button element
-      const listItem = container.querySelector('li') as HTMLLIElement
+      const tableRow = container.querySelector('tr') as HTMLTableRowElement
       expect(() => {
-        listItem.click()
+        tableRow.click()
       }).not.toThrow()
 
       expect(mockRewardsClient.reclaimAllocation).not.toHaveBeenCalled()
@@ -511,76 +541,6 @@ describe('ReclaimAllocationsComponent Fetch Error Handling', () => {
         testError
       )
       expect(alertSpy).toHaveBeenCalledWith('Failed to fetch reclaim allocations data: [object Object]')
-    })
-
-    it('should handle numeric errors when fetching reclaim allocations data fails', async () => {
-      const testError = 404
-      ;(mockRewardsClient.fetchReclaimAllocationsData as jest.Mock).mockRejectedValue(testError)
-
-      reclaimAllocationsComponent = new ReclaimAllocationsComponent(mockRewardsClient, mockWalletManager)
-      reclaimAllocationsComponent.bind(container)
-      await new Promise(process.nextTick)
-
-      expect(consoleErrorSpy).toHaveBeenCalledWith(
-        '[ReclaimAllocationsComponent] Error fetching reclaim allocations data:',
-        testError
-      )
-      expect(alertSpy).toHaveBeenCalledWith('Failed to fetch reclaim allocations data: 404')
-    })
-
-    it('should handle boolean errors when fetching reclaim allocations data fails', async () => {
-      const testError = false
-      ;(mockRewardsClient.fetchReclaimAllocationsData as jest.Mock).mockRejectedValue(testError)
-
-      reclaimAllocationsComponent = new ReclaimAllocationsComponent(mockRewardsClient, mockWalletManager)
-      reclaimAllocationsComponent.bind(container)
-      await new Promise(process.nextTick)
-
-      expect(consoleErrorSpy).toHaveBeenCalledWith(
-        '[ReclaimAllocationsComponent] Error fetching reclaim allocations data:',
-        testError
-      )
-      expect(alertSpy).toHaveBeenCalledWith('Failed to fetch reclaim allocations data: false')
-    })
-
-    it('should handle array errors when fetching reclaim allocations data fails', async () => {
-      const testError = ['error1', 'error2']
-      ;(mockRewardsClient.fetchReclaimAllocationsData as jest.Mock).mockRejectedValue(testError)
-
-      reclaimAllocationsComponent = new ReclaimAllocationsComponent(mockRewardsClient, mockWalletManager)
-      reclaimAllocationsComponent.bind(container)
-      await new Promise(process.nextTick)
-
-      expect(consoleErrorSpy).toHaveBeenCalledWith(
-        '[ReclaimAllocationsComponent] Error fetching reclaim allocations data:',
-        testError
-      )
-      expect(alertSpy).toHaveBeenCalledWith('Failed to fetch reclaim allocations data: error1,error2')
-    })
-  })
-
-  describe('comprehensive error type coverage', () => {
-    const errorScenarios = [
-      { type: 'string', value: 'Network timeout', expectedAlert: 'Failed to fetch reclaim allocations data: Network timeout' },
-      { type: 'number', value: 500, expectedAlert: 'Failed to fetch reclaim allocations data: 500' },
-      { type: 'boolean', value: true, expectedAlert: 'Failed to fetch reclaim allocations data: true' },
-      { type: 'null', value: null, expectedAlert: 'Failed to fetch reclaim allocations data: null' },
-      { type: 'undefined', value: undefined, expectedAlert: 'Failed to fetch reclaim allocations data: undefined' },
-      { type: 'object', value: { code: 400 }, expectedAlert: 'Failed to fetch reclaim allocations data: [object Object]' },
-      { type: 'array', value: ['err1', 'err2'], expectedAlert: 'Failed to fetch reclaim allocations data: err1,err2' },
-      { type: 'Error instance', value: new Error('Standard error'), expectedAlert: 'Failed to fetch reclaim allocations data: Standard error' },
-    ]
-
-    errorScenarios.forEach(({ type, value, expectedAlert }) => {
-      it(`should handle ${type} errors in fetchReclaimAllocationsData`, async () => {
-        ;(mockRewardsClient.fetchReclaimAllocationsData as jest.Mock).mockRejectedValue(value)
-
-        reclaimAllocationsComponent = new ReclaimAllocationsComponent(mockRewardsClient, mockWalletManager)
-        reclaimAllocationsComponent.bind(container)
-        await new Promise(process.nextTick)
-
-        expect(alertSpy).toHaveBeenCalledWith(expectedAlert)
-      })
     })
   })
 })

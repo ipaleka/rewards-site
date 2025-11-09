@@ -365,7 +365,7 @@ describe('ActiveNetwork Error Handling and Cleanup', () => {
     it('should handle getCsrfToken with multiple cookies', () => {
       Object.defineProperty(document, 'cookie', {
         writable: true,
-        // codeql[js/clear-text-cookie]: This is test code simulating cookie retrieval, not actual cookie setting
+        // nosemgrep: js/clear-text-cookie
         value: 'sessionid=abc123; csrftoken=test-token-123; othercookie=value'
       })
 

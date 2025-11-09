@@ -457,7 +457,7 @@ def process_reclaim_allocation(network, user_address):
         _reclaim_allocation(network, user_address)
 
 
-def reclaimable_addresses(network):
+def reclaimable_addresses(network="testnet"):
     """Return collection of addresses that can be reclaimed.
 
     :param network: network to deploy to (e.g., "testnet")

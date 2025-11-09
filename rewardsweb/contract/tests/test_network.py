@@ -878,16 +878,18 @@ class TestContractNetworkPublicFunctions:
     def test_contract_network_reclaimable_addresses_returns_only_expired_with_amount(
         self, mocker
     ):
-        network = "testnet"
+        network = "mainnet"
 
         env = {
-            "algod_token_testnet": "token",
-            "algod_address_testnet": "address",
+            "algod_token_mainnet": "token",
+            "algod_address_mainnet": "address",
         }
         mocker.patch("contract.network.environment_variables", return_value=env)
 
         client = mocker.MagicMock()
-        mocker.patch("contract.network.AlgodClient", return_value=client)
+        mocked_client = mocker.patch(
+            "contract.network.AlgodClient", return_value=client
+        )
 
         atc_stub = {"app_id": 123}
         mocker.patch("contract.network.atc_method_stub", return_value=atc_stub)
@@ -930,6 +932,64 @@ class TestContractNetworkPublicFunctions:
             ]
         )
         assert len(returned) == 1
+        mocked_client.assert_called_once_with("token", "address")
+
+    def test_contract_network_reclaimable_addresses_for_default_network(self, mocker):
+        env = {
+            "algod_token_testnet": "token",
+            "algod_address_testnet": "address",
+            "algod_token_mainnet": "token-mainnet",
+            "algod_address_mainnet": "address-mainnet",
+        }
+        mocker.patch("contract.network.environment_variables", return_value=env)
+
+        client = mocker.MagicMock()
+        mocked_client = mocker.patch(
+            "contract.network.AlgodClient", return_value=client
+        )
+
+        atc_stub = {"app_id": 123}
+        mocker.patch("contract.network.atc_method_stub", return_value=atc_stub)
+
+        # Simulate three application boxes
+        box1 = {"name": b"BOX1"}  # expired, amount > 0 → reclaimable
+        box2 = {"name": b"BOX2"}  # expired, amount == 0 → not reclaimable
+        box3 = {"name": b"BOX3"}  # not expired → not reclaimable
+
+        client.application_boxes.return_value = {"boxes": [box1, box2, box3]}
+
+        # encode three different user addresses
+        mocked_encode = mocker.patch(
+            "contract.network.encode_address",
+            side_effect=["ADDR1", "ADDR2", "ADDR3"],
+        )
+
+        now = int(time.time())
+
+        encoded_data = [
+            struct.pack(">QQ", 100, now - 50),  # expired & reclaimable
+            struct.pack(">QQ", 0, now - 50),  # expired but no amount
+            struct.pack(">QQ", 10, now + 10000),  # not expired
+        ]
+
+        client.application_box_by_name.side_effect = [
+            {"value": base64.b64encode(encoded_data[0])},
+            {"value": base64.b64encode(encoded_data[1])},
+            {"value": base64.b64encode(encoded_data[2])},
+        ]
+
+        returned = reclaimable_addresses()
+
+        assert returned == ["ADDR1"]
+        mocked_encode.assert_has_calls(
+            [
+                mocker.call(b"BOX1"),
+                mocker.call(b"BOX2"),
+                mocker.call(b"BOX3"),
+            ]
+        )
+        assert len(returned) == 1
+        mocked_client.assert_called_once_with("token", "address")
 
     def test_contract_network_reclaimable_addresses_returns_empty_when_no_boxes(
         self, mocker

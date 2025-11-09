@@ -2,16 +2,12 @@
 
 import pytest
 from django.contrib.auth import get_user_model
-from django.test import RequestFactory
 from django.contrib.auth.models import AnonymousUser
+from django.test import RequestFactory
 from django.urls import reverse
 
 from core.models import Contributor
-from rewards.views import (
-    ClaimView,
-    AddAllocationsView,
-    ReclaimAllocationsView,
-)
+from rewards.views import AddAllocationsView, ClaimView, ReclaimAllocationsView
 
 User = get_user_model()
 
@@ -51,7 +47,9 @@ class TestRewardsViews:
     def test_claimview_context_claimable_true(self, rf, user, mocker):
         """User has contributor address → claimable=True"""
 
-        contributor = Contributor.objects.create(name="claimview", address="SOMEADDRESS")
+        contributor = Contributor.objects.create(
+            name="claimview", address="SOMEADDRESS"
+        )
         user.profile.contributor = contributor
 
         request = rf.get(reverse("claim"))

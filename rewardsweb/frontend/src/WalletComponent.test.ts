@@ -186,6 +186,27 @@ describe("WalletComponent transactions", () => {
 // ─────────────────────────────────────────────────────────────
 describe("WalletComponent authentication flow", () => {
 
+  it("auth sends nextUrl to backend if present", async () => {
+    (isValidAddress as jest.Mock).mockReturnValue(true);
+    mockWallet.activeAccount = { address: "VALID_NEXT_ADDRESS" };
+
+    const testNextUrl = "/rewards/claim/";
+    root.querySelector<HTMLButtonElement>("#auth-button-testwallet")!.dataset.nextUrl = testNextUrl;
+
+    global.fetch = jest
+      .fn()
+      .mockResolvedValueOnce({ json: async () => ({ nonce: "NONCE_NEXT", prefix: "MSG_" }) })
+      .mockResolvedValueOnce({ json: async () => ({ success: true, redirect_url: testNextUrl }) }) as any;
+
+    await component.auth(testNextUrl);
+
+    expect(fetch).toHaveBeenCalledTimes(2);
+    const verifyFetchCall = (fetch as jest.Mock).mock.calls[1];
+    const requestBody = JSON.parse(verifyFetchCall[1].body);
+
+    expect(requestBody.next).toBe(testNextUrl);
+  });
+
   it("auth success triggers signing and 2 fetch calls", async () => {
     (isValidAddress as jest.Mock).mockReturnValue(true);       // ✅ allow auth() to proceed
     mockWallet.activeAccount = { address: "VALID123ADDRESS" }; // ✅ required

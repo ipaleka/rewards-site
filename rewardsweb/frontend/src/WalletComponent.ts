@@ -212,7 +212,7 @@ export class WalletComponent {
    * 3. Verifies the signature with the backend
    * 4. Redirects on successful authentication
    */
-  auth = async () => {
+  auth = async (nextUrl?: string) => {
     try {
       const activeAddress = this.wallet?.activeAccount?.address;
       if (!activeAddress || !isValidAddress(activeAddress)) {
@@ -284,14 +284,25 @@ export class WalletComponent {
         signedTxBase64.length
       );
 
+      const body: {
+        address: string;
+        signedTransaction: string;
+        nonce: string;
+        next?: string;
+      } = {
+        address: activeAddress,
+        signedTransaction: signedTxBase64,
+        nonce,
+      };
+
+      if (nextUrl) {
+        body.next = nextUrl;
+      }
+
       const verifyResponse = await fetch("/api/wallet/verify/", {
         method: "POST",
         headers,
-        body: JSON.stringify({
-          address: activeAddress,
-          signedTransaction: signedTxBase64,
-          nonce,
-        }),
+        body: JSON.stringify(body),
       });
       const verifyData = await verifyResponse.json();
       if (!verifyData.success) {
@@ -350,7 +361,8 @@ export class WalletComponent {
       } else if (target.id === `transaction-button-${this.wallet.id}`) {
         await this.sendTransaction();
       } else if (target.id === `auth-button-${this.wallet.id}`) {
-        await this.auth();
+        const nextUrl = target.dataset.nextUrl;
+        await this.auth(nextUrl);
       }
     });
 

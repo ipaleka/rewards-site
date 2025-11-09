@@ -9,6 +9,8 @@ jobs:
   molecule:
     name: Run Molecule tests
     runs-on: ubuntu-latest
+    permissions:
+      contents: read
     defaults:
       run:
         working-directory: deploy

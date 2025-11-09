@@ -49,6 +49,9 @@ MESSAGE_STORAGE = "django.contrib.messages.storage.session.SessionStorage"
 
 COOKIE_ARGUMENTS = {"domain": "rewards.asastats.com"}
 
+CSRF_COOKIE_SAMESITE = 'Lax'  # or 'Strict'
+SESSION_COOKIE_SAMESITE = 'Lax'
+
 ACCOUNT_DEFAULT_HTTP_PROTOCOL = "https"
 
 LOGGING = {

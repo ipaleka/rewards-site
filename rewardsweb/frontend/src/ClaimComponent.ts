@@ -1,24 +1,56 @@
 import { RewardsClient } from './RewardsClient'
 import { WalletManager } from '@txnlab/use-wallet'
 
+/**
+ * Component for handling reward claim operations.
+ * 
+ * Manages the UI and logic for checking claimable status and submitting
+ * claim transactions to the blockchain. Automatically updates when wallet
+ * state changes.
+ * 
+ * @example
+ * ```typescript
+ * const claimComponent = new ClaimComponent(rewardsClient, walletManager)
+ * claimComponent.bind(document.getElementById('claim-container'))
+ * ```
+ */
 export class ClaimComponent {
   private element: HTMLElement | null = null
   private rewardsClient: RewardsClient
   private walletManager: WalletManager
   private claimable: boolean = false
 
+  /**
+   * Creates an instance of ClaimComponent.
+   *
+   * @param rewardsClient - The client for interacting with rewards contract
+   * @param walletManager - The wallet manager for account state management
+   */
   constructor(rewardsClient: RewardsClient, walletManager: WalletManager) {
     this.rewardsClient = rewardsClient
     this.walletManager = walletManager
     this.walletManager.subscribe(() => this.checkClaimableStatus())
   }
 
+  /**
+   * Binds the component to a DOM element and initializes event listeners.
+   *
+   * @param element - The HTML element to bind the component to
+   */
   bind(element: HTMLElement) {
     this.element = element
     this.addEventListeners()
     this.checkClaimableStatus()
   }
 
+  /**
+   * Checks if the current account has any claimable rewards.
+   *
+   * Fetches claimable status from the backend API and updates the UI accordingly.
+   * Handles errors by setting claimable to false and re-rendering.
+   *
+   * @private
+   */
   private async checkClaimableStatus() {
     const activeAddress = this.walletManager.activeAccount?.address
     if (!activeAddress) {
@@ -38,6 +70,14 @@ export class ClaimComponent {
     }
   }
 
+  /**
+   * Handles the claim transaction submission.
+   *
+   * Submits a claim transaction to the blockchain and updates the UI
+   * based on the result. Re-checks claimable status after completion.
+   *
+   * @private
+   */
   private async handleClaim() {
     try {
       console.info('[ClaimComponent] Initiating claim...')
@@ -53,6 +93,14 @@ export class ClaimComponent {
     }
   }
 
+  /**
+   * Renders the current claimable status to the UI.
+   *
+   * Updates the claim button state and text based on whether rewards
+   * are currently claimable.
+   *
+   * @private
+   */
   render() {
     if (!this.element) return
 
@@ -63,6 +111,13 @@ export class ClaimComponent {
     }
   }
 
+  /**
+   * Adds event listeners for user interactions.
+   *
+   * Listens for click events on the claim button.
+   *
+   * @private
+   */
   addEventListeners() {
     if (!this.element) return
 
@@ -74,6 +129,11 @@ export class ClaimComponent {
     })
   }
 
+  /**
+   * Cleans up the component.
+   *
+   * Currently no specific cleanup needed, but provided for interface consistency.
+   */
   destroy() {
     // No specific cleanup needed for now
   }

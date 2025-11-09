@@ -6,12 +6,33 @@ import {
   isValidAddress,
 } from "algosdk";
 
+/**
+ * Component for managing individual wallet connections and interactions.
+ * 
+ * Handles the UI and logic for connecting/disconnecting wallets, setting
+ * active accounts, sending transactions, and authentication. Each wallet
+ * instance gets its own WalletComponent.
+ * 
+ * @example
+ * ```typescript
+ * const walletComponent = new WalletComponent(wallet, walletManager)
+ * walletComponent.bind(document.getElementById('wallet-pera'))
+ * ```
+ */
 export class WalletComponent {
+  /** The wallet instance this component manages */
   wallet: BaseWallet;
+  /** The wallet manager for broader wallet state management */
   manager: WalletManager;
   private unsubscribe?: () => void;
   private element: HTMLElement | null = null;
 
+  /**
+   * Creates an instance of WalletComponent.
+   *
+   * @param wallet - The wallet instance to manage
+   * @param manager - The wallet manager for broader state management
+   */
   constructor(wallet: BaseWallet, manager: WalletManager) {
     this.wallet = wallet;
     this.manager = manager;
@@ -21,12 +42,26 @@ export class WalletComponent {
     });
   }
 
+  /**
+   * Binds the component to a DOM element and initializes event listeners.
+   *
+   * @param element - The HTML element to bind the component to
+   */
   bind(element: HTMLElement) {
     this.element = element;
     this.addEventListeners();
     this.render(this.wallet as any);
   }
 
+  /**
+   * Renders the current wallet state to the UI.
+   *
+   * Updates button visibility, active status badges, and account dropdown
+   * based on the wallet's connection and active state.
+   *
+   * @param state - The current wallet state
+   * @private
+   */
   private render(state: { isConnected: boolean, isActive: boolean, accounts: any[], activeAccount: any }) {
     /* istanbul ignore next */
     if (!this.element) return;
@@ -85,18 +120,39 @@ export class WalletComponent {
     }
   }
 
+  /**
+   * Connects the wallet.
+   *
+   * Initiates the wallet connection process.
+   */
   connect = async () => {
     await this.wallet?.connect();
   };
 
+  /**
+   * Disconnects the wallet.
+   *
+   * Terminates the wallet connection and clears session data.
+   */
   disconnect = async () => {
     await this.wallet?.disconnect();
   };
 
+  /**
+   * Sets this wallet as the active wallet.
+   *
+   * Makes this wallet the primary wallet for transactions and operations.
+   */
   setActive = async () => {
     await this.wallet?.setActive();
   };
 
+  /**
+   * Sends a test transaction using the wallet.
+   *
+   * Creates and sends a zero-amount payment transaction to the active account
+   * as a test of transaction signing capabilities.
+   */
   sendTransaction = async () => {
     const txnButton = this.element?.querySelector(
       `#transaction-button-${this.wallet.id}`
@@ -147,6 +203,15 @@ export class WalletComponent {
     }
   };
 
+  /**
+   * Authenticates the user with the backend using wallet signing.
+   *
+   * Performs a cryptographic authentication flow:
+   * 1. Fetches a nonce from the backend
+   * 2. Signs the nonce with the wallet
+   * 3. Verifies the signature with the backend
+   * 4. Redirects on successful authentication
+   */
   auth = async () => {
     try {
       const activeAddress = this.wallet?.activeAccount?.address;
@@ -253,11 +318,23 @@ export class WalletComponent {
     }
   };
 
+  /**
+   * Sets the active account for the wallet.
+   *
+   * @param event - The change event from the account selection dropdown
+   */
   setActiveAccount = async (event: Event) => {
     const target = event.target as HTMLSelectElement;
     await this.wallet?.setActiveAccount(target.value);
   };
 
+  /**
+   * Adds event listeners for user interactions.
+   *
+   * Handles clicks on connection buttons and changes to account selection.
+   *
+   * @private
+   */
   addEventListeners() {
     /* istanbul ignore next */
     if (!this.element) return;
@@ -285,6 +362,12 @@ export class WalletComponent {
     });
   }
 
+  /**
+   * Cleans up the component by removing event listeners and subscriptions.
+   *
+   * Should be called when the component is no longer needed to prevent
+   * memory leaks and unwanted behavior.
+   */
   destroy() {
     if (this.unsubscribe) {
       this.unsubscribe();

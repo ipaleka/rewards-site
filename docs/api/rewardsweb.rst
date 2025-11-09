@@ -169,6 +169,15 @@
   :show-inheritance:
 
 
+:mod:`core.management` -- Project's management commands package
+---------------------------------------------------------------
+
+.. automodule:: core.management
+  :members:
+  :undoc-members:
+  :show-inheritance:
+
+
 :mod:`core.migrations` -- Main application database migrations package
 ----------------------------------------------------------------------
 
@@ -218,6 +227,60 @@
 ***********************************
 
 .. automodule:: manage
+  :members:
+  :undoc-members:
+  :show-inheritance:
+
+
+:mod:`rewards` -- Frontend application to the Rewards smart contract
+********************************************************************
+
+.. automodule:: rewards
+  :members:
+  :undoc-members:
+  :show-inheritance:
+
+
+:mod:`rewards.apps` -- Configuration module for the smart contract frontend application
+---------------------------------------------------------------------------------------
+
+.. automodule:: rewards.apps
+  :members:
+  :undoc-members:
+  :show-inheritance:
+
+
+:mod:`rewards.urls` -- Smart contract frontend application URL configuration module
+-----------------------------------------------------------------------------------
+
+.. automodule:: rewards.urls
+  :members:
+  :undoc-members:
+  :show-inheritance:
+
+
+:mod:`rewards.templates` -- Directory holding Smart contract frontend applicatio Django template files
+------------------------------------------------------------------------------------------------------
+
+.. automodule:: rewards.templates
+  :members:
+  :undoc-members:
+  :show-inheritance:
+
+
+:mod:`rewards.views` -- Smart contract frontend application views
+-----------------------------------------------------------------
+
+.. automodule:: rewards.views
+  :members:
+  :undoc-members:
+  :show-inheritance:
+
+
+:mod:`rewards.tests` -- Smart contract frontend application unit-tests package
+------------------------------------------------------------------------------
+
+.. automodule:: rewards.tests
   :members:
   :undoc-members:
   :show-inheritance:

@@ -704,6 +704,22 @@ class Issue(models.Model):
             else str(self.number)
         )
 
+    objects = IssueManager()
+
+
+class ContributionManager(models.Manager):
+    """ASA Stats contribution data manager.
+
+    TODO: implement, docstring and tests, also .objects
+    """
+
+    def addressed_contributions(self):
+        """Create collection of addressed contributions to be aded to smart contract.
+
+        :return: list
+        """
+        return [(), ()]
+
 
 class Contribution(models.Model):
     """Community member contributions data model."""
@@ -721,6 +737,8 @@ class Contribution(models.Model):
     confirmed = models.BooleanField(default=False)
     created_at = models.DateTimeField(auto_now_add=True)
     updated_at = models.DateTimeField(auto_now=True)
+
+    objects = ContributionManager()
 
     class Meta:
         """Define model's ordering."""

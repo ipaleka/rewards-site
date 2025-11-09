@@ -103,18 +103,21 @@ export class AddAllocationsComponent {
   render() {
     if (!this.element) return
 
-    const addressesInput = this.element.querySelector<HTMLTextAreaElement>('#addresses-input')
-    const amountsInput = this.element.querySelector<HTMLTextAreaElement>('#amounts-input')
-    const allocationsData = this.element.querySelector<HTMLPreElement>('#allocations-data')
+    const tableBody = this.element.querySelector<HTMLTableSectionElement>('#allocations-table-body')
 
-    if (addressesInput) {
-      addressesInput.value = this.addresses.join('\n')
-    }
-    if (amountsInput) {
-      amountsInput.value = this.amounts.join('\n')
-    }
-    if (allocationsData) {
-      allocationsData.textContent = JSON.stringify({ addresses: this.addresses, amounts: this.amounts }, null, 2)
+    if (tableBody) {
+      // Clear existing rows
+      tableBody.innerHTML = ''
+
+      // Populate table with new data
+      this.addresses.forEach((address, index) => {
+        const row = tableBody.insertRow()
+        const addressCell = row.insertCell()
+        const amountCell = row.insertCell()
+
+        addressCell.textContent = address
+        amountCell.textContent = this.amounts[index].toString()
+      })
     }
   }
 
@@ -132,11 +135,6 @@ export class AddAllocationsComponent {
     this.element.addEventListener('click', (e: Event) => {
       const target = e.target as HTMLElement
       if (target.id === 'add-allocations-button') {
-        // Update internal state from textareas before sending
-        const addressesInput = this.element!.querySelector('#addresses-input') as HTMLTextAreaElement
-        const amountsInput = this.element!.querySelector('#amounts-input') as HTMLTextAreaElement
-        this.addresses = addressesInput.value.split('\n').map(s => s.trim()).filter(s => s !== '')
-        this.amounts = amountsInput.value.split('\n').map(s => parseInt(s.trim(), 10)).filter(n => !isNaN(n))
         this.handleAddAllocations()
       }
     })

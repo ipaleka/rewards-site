@@ -33,10 +33,17 @@ describe('AddAllocationsComponent', () => {
     container = document.createElement('div')
     container.id = 'add-allocations-container'
     container.innerHTML = `
-      <textarea id="addresses-input"></textarea>
-      <textarea id="amounts-input"></textarea>
+      <table class="table w-full">
+        <thead>
+          <tr>
+            <th>Address</th>
+            <th>Amount</th>
+          </tr>
+        </thead>
+        <tbody id="allocations-table-body">
+        </tbody>
+      </table>
       <button id="add-allocations-button"></button>
-      <pre id="allocations-data"></pre>
     `
     document.body.appendChild(container)
   })
@@ -54,30 +61,22 @@ describe('AddAllocationsComponent', () => {
     addAllocationsComponent.bind(container)
     await new Promise(process.nextTick)
 
-    const addressesInput = container.querySelector('#addresses-input') as HTMLTextAreaElement
-    const amountsInput = container.querySelector('#amounts-input') as HTMLTextAreaElement
-    const allocationsData = container.querySelector('#allocations-data') as HTMLPreElement
-
-    expect(addressesInput.value).toBe('addr1')
-    expect(amountsInput.value).toBe('100')
-    expect(allocationsData.textContent).toBe(JSON.stringify(data, null, 2))
+    const tableBody = container.querySelector('#allocations-table-body')
+    const rows = tableBody!.querySelectorAll('tr')
+    expect(rows.length).toBe(1)
+    const cells = rows[0].querySelectorAll('td')
+    expect(cells.length).toBe(2)
+    expect(cells[0].textContent).toBe('addr1')
+    expect(cells[1].textContent).toBe('100')
     expect(mockRewardsClient.fetchAddAllocationsData).toHaveBeenCalledWith('test-address')
   })
 
-  it('should call addAllocations with data from textareas when button is clicked', async () => {
-    ;(mockRewardsClient.fetchAddAllocationsData as jest.Mock).mockResolvedValue({
-      addresses: [],
-      amounts: [],
-    })
+  it('should call addAllocations with fetched data when button is clicked', async () => {
+    const data = { addresses: ['addr1', 'addr2'], amounts: [100, 200] }
+    ;(mockRewardsClient.fetchAddAllocationsData as jest.Mock).mockResolvedValue(data)
     addAllocationsComponent = new AddAllocationsComponent(mockRewardsClient, mockWalletManager)
     addAllocationsComponent.bind(container)
     await new Promise(process.nextTick)
-
-    const addressesInput = container.querySelector('#addresses-input') as HTMLTextAreaElement
-    const amountsInput = container.querySelector('#amounts-input') as HTMLTextAreaElement
-
-    addressesInput.value = 'addr1\naddr2'
-    amountsInput.value = '100\n200'
 
     const button = container.querySelector('#add-allocations-button') as HTMLButtonElement
     await button.click()
@@ -119,7 +118,7 @@ describe('AddAllocationsComponent Error Handling', () => {
   let mockWalletManager: jest.Mocked<WalletManager>
   let addAllocationsComponent: AddAllocationsComponent
   let alertSpy: jest.SpyInstance
-  let consoleErrorSpy: jest.SpyInstance
+  let consoleErrorSpy: jest.SpyInstance | undefined = undefined
   let container: HTMLElement
 
   beforeEach(() => {
@@ -134,10 +133,17 @@ describe('AddAllocationsComponent Error Handling', () => {
     container = document.createElement('div')
     container.id = 'add-allocations-container'
     container.innerHTML = `
-      <textarea id="addresses-input"></textarea>
-      <textarea id="amounts-input"></textarea>
+      <table class="table w-full">
+        <thead>
+          <tr>
+            <th>Address</th>
+            <th>Amount</th>
+          </tr>
+        </thead>
+        <tbody id="allocations-table-body">
+        </tbody>
+      </table>
       <button id="add-allocations-button"></button>
-      <pre id="allocations-data"></pre>
     `
     document.body.appendChild(container)
   })
@@ -181,22 +187,13 @@ describe('AddAllocationsComponent Error Handling', () => {
 
     it('should clear data and render when no active account', async () => {
       mockWalletManager.activeAccount = null
-      ;(mockRewardsClient.fetchAddAllocationsData as jest.Mock).mockResolvedValue({
-        addresses: ['addr1'],
-        amounts: [100]
-      })
-
       addAllocationsComponent = new AddAllocationsComponent(mockRewardsClient, mockWalletManager)
       addAllocationsComponent.bind(container)
       await new Promise(process.nextTick)
 
-      const addressesInput = container.querySelector('#addresses-input') as HTMLTextAreaElement
-      const amountsInput = container.querySelector('#amounts-input') as HTMLTextAreaElement
-      const allocationsData = container.querySelector('#allocations-data') as HTMLPreElement
-
-      expect(addressesInput.value).toBe('')
-      expect(amountsInput.value).toBe('')
-      expect(allocationsData.textContent).toBe(JSON.stringify({ addresses: [], amounts: [] }, null, 2))
+      const tableBody = container.querySelector('#allocations-table-body')
+      const rows = tableBody!.querySelectorAll('tr')
+      expect(rows.length).toBe(0)
       expect(mockRewardsClient.fetchAddAllocationsData).not.toHaveBeenCalled()
     })
   })
@@ -259,47 +256,7 @@ describe('AddAllocationsComponent Error Handling', () => {
   })
 
   describe('edge cases', () => {
-    it('should handle empty textarea inputs gracefully', async () => {
-      ;(mockRewardsClient.fetchAddAllocationsData as jest.Mock).mockResolvedValue({
-        addresses: [],
-        amounts: [],
-      })
-      addAllocationsComponent = new AddAllocationsComponent(mockRewardsClient, mockWalletManager)
-      addAllocationsComponent.bind(container)
-      await new Promise(process.nextTick)
 
-      const addressesInput = container.querySelector('#addresses-input') as HTMLTextAreaElement
-      const amountsInput = container.querySelector('#amounts-input') as HTMLTextAreaElement
-
-      addressesInput.value = ''
-      amountsInput.value = ''
-
-      const button = container.querySelector('#add-allocations-button') as HTMLButtonElement
-      await button.click()
-
-      expect(mockRewardsClient.addAllocations).toHaveBeenCalledWith([], [])
-    })
-
-    it('should filter out invalid amounts from textarea input', async () => {
-      ;(mockRewardsClient.fetchAddAllocationsData as jest.Mock).mockResolvedValue({
-        addresses: [],
-        amounts: [],
-      })
-      addAllocationsComponent = new AddAllocationsComponent(mockRewardsClient, mockWalletManager)
-      addAllocationsComponent.bind(container)
-      await new Promise(process.nextTick)
-
-      const addressesInput = container.querySelector('#addresses-input') as HTMLTextAreaElement
-      const amountsInput = container.querySelector('#amounts-input') as HTMLTextAreaElement
-
-      addressesInput.value = 'addr1\naddr2\naddr3'
-      amountsInput.value = '100\ninvalid\n300'
-
-      const button = container.querySelector('#add-allocations-button') as HTMLButtonElement
-      await button.click()
-
-      expect(mockRewardsClient.addAllocations).toHaveBeenCalledWith(['addr1', 'addr2', 'addr3'], [100, 300])
-    })
   })
 })
 
@@ -319,10 +276,17 @@ describe('AddAllocationsComponent Edge Cases', () => {
     container = document.createElement('div')
     container.id = 'add-allocations-container'
     container.innerHTML = `
-      <textarea id="addresses-input"></textarea>
-      <textarea id="amounts-input"></textarea>
+      <table class="table w-full">
+        <thead>
+          <tr>
+            <th>Address</th>
+            <th>Amount</th>
+          </tr>
+        </thead>
+        <tbody id="allocations-table-body">
+        </tbody>
+      </table>
       <button id="add-allocations-button"></button>
-      <pre id="allocations-data"></pre>
     `
     document.body.appendChild(container)
   })
@@ -333,42 +297,26 @@ describe('AddAllocationsComponent Edge Cases', () => {
 
   describe('render method edge cases', () => {
     it('should return early from render when element is null', () => {
-      ;(mockRewardsClient.fetchAddAllocationsData as jest.Mock).mockResolvedValue({
-        addresses: ['addr1'],
-        amounts: [100]
-      })
-
       addAllocationsComponent = new AddAllocationsComponent(mockRewardsClient, mockWalletManager)
-      
+
       // Don't call bind(), so this.element remains null
       expect(() => {
         addAllocationsComponent.render()
       }).not.toThrow()
-      
-      // Verify no DOM operations were attempted
-      const addressesInput = container.querySelector('#addresses-input') as HTMLTextAreaElement
-      const amountsInput = container.querySelector('#amounts-input') as HTMLTextAreaElement
-      const allocationsData = container.querySelector('#allocations-data') as HTMLPreElement
 
-      expect(addressesInput.value).toBe('')
-      expect(amountsInput.value).toBe('')
-      expect(allocationsData.textContent).toBe('')
+      // Verify no DOM operations were attempted
+      const tableBody = container.querySelector('#allocations-table-body')
+      expect(tableBody!.innerHTML.trim()).toBe('')
     })
 
     it('should handle render when element is bound but querySelectors return null', async () => {
-      ;(mockRewardsClient.fetchAddAllocationsData as jest.Mock).mockResolvedValue({
-        addresses: ['addr1'],
-        amounts: [100]
-      })
-
       addAllocationsComponent = new AddAllocationsComponent(mockRewardsClient, mockWalletManager)
-      
+
       // Create container with missing elements
       const brokenContainer = document.createElement('div')
       brokenContainer.id = 'broken-container'
-      // No textareas or pre element inside
       document.body.appendChild(brokenContainer)
-      
+
       addAllocationsComponent.bind(brokenContainer)
       await new Promise(process.nextTick)
 
@@ -409,18 +357,13 @@ describe('AddAllocationsComponent Edge Cases', () => {
     })
 
     it('should handle click events on non-button elements gracefully', () => {
-      ;(mockRewardsClient.fetchAddAllocationsData as jest.Mock).mockResolvedValue({
-        addresses: [],
-        amounts: [],
-      })
-
       addAllocationsComponent = new AddAllocationsComponent(mockRewardsClient, mockWalletManager)
       addAllocationsComponent.bind(container)
 
       // Click on a non-button element
-      const addressesInput = container.querySelector('#addresses-input') as HTMLTextAreaElement
+      const tableBody = container.querySelector('#allocations-table-body') as HTMLTableSectionElement
       expect(() => {
-        addressesInput.click()
+        tableBody.click()
       }).not.toThrow()
 
       expect(mockRewardsClient.addAllocations).not.toHaveBeenCalled()
@@ -439,12 +382,12 @@ describe('AddAllocationsComponent Edge Cases', () => {
 
     it('should handle multiple bind calls', () => {
       addAllocationsComponent = new AddAllocationsComponent(mockRewardsClient, mockWalletManager)
-      
+
       const firstContainer = document.createElement('div')
-      firstContainer.innerHTML = '<textarea id="addresses-input"></textarea>'
-      
-      const secondContainer = document.createElement('div')  
-      secondContainer.innerHTML = '<textarea id="addresses-input"></textarea>'
+      firstContainer.innerHTML = '<table id="allocations-table-body"></table>'
+
+      const secondContainer = document.createElement('div')
+      secondContainer.innerHTML = '<table id="allocations-table-body"></table>'
 
       expect(() => {
         addAllocationsComponent.bind(firstContainer)

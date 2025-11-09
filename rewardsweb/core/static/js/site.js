@@ -31,8 +31,8 @@ function closeModal() {
 /************************************************************
  *  ✅ GLOBAL HTMX TOP PROGRESS BAR (GitHub-style)
  ************************************************************/
-let progressInterval = null;
-let htmxRequestBlocking = false;
+var progressInterval = null;
+var htmxRequestBlocking = false;
 
 
 /**

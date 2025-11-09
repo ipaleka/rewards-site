@@ -29,9 +29,7 @@ class TestRewardsViews:
         """Create a superuser."""
         return User.objects.create_superuser(username="admin", password="pass123")
 
-    # ---------------------------------------------------------------------
-    # ✅ ClaimView Tests
-    # ---------------------------------------------------------------------
+    # # ClaimView
     @pytest.mark.django_db
     def test_claimview_requires_login(self, rf):
         request = rf.get(reverse("claim"))
@@ -72,22 +70,22 @@ class TestRewardsViews:
 
         assert context["claimable"] is False
 
-    # ---------------------------------------------------------------------
-    # ✅ AddAllocationsView Tests
-    # ---------------------------------------------------------------------
+    # # AddAllocationsView
     @pytest.mark.django_db
-    def test_addallocationsview_requires_login(self, rf):
-        request = rf.get(reverse("add_allocations"))
+    def test_addallocationsview_requires_login(self,rf):
+        """Ensure the view redirects anonymous users to login page."""
+        request = rf.get("/rewards/add-allocations/")
         request.user = AnonymousUser()
 
         response = AddAllocationsView.as_view()(request)
 
-        assert response.status_code == 302
+        assert response.status_code == 302  # redirect
         assert "/login" in response.url.lower()
 
     @pytest.mark.django_db
-    def test_addallocationsview_superuser_can_access(self, rf, superuser):
-        request = rf.get(reverse("add_allocations"))
+    def test_addallocationsview_superuser_can_access(self,rf, superuser):
+        """Superusers should be able to access the page."""
+        request = rf.get("/rewards/add-allocations/")
         request.user = superuser
 
         response = AddAllocationsView.as_view()(request)
@@ -95,9 +93,43 @@ class TestRewardsViews:
         assert response.status_code == 200
         assert response.template_name == ["rewards/add_allocations.html"]
 
-    # ---------------------------------------------------------------------
-    # ✅ ReclaimAllocationsView Tests
-    # ---------------------------------------------------------------------
+    @pytest.mark.django_db
+    def test_addallocationsview_context_contains_addresses_and_amounts(
+        self,rf, superuser, mocker
+    ):
+        """Ensure addresses + amounts from queryset are added to context."""
+
+        # Mock database call
+        mocked_contribs = mocker.patch(
+            "rewards.views.Contribution.objects.addressed_contributions",
+            return_value=(["ADDR1", "ADDR2"], [10, 20]),
+        )
+
+        request = rf.get("/rewards/add-allocations/")
+        request.user = superuser
+
+        response = AddAllocationsView.as_view()(request)
+
+        context = response.context_data
+
+        assert context["addresses"] == ["ADDR1", "ADDR2"]
+        assert context["amounts"] == [10, 20]
+        # Ensures function was called exactly once
+        mocked_contribs.assert_called_once_with()
+
+    @pytest.mark.django_db
+    def test_addallocationsview_normal_user_blocked(self,rf, user):
+        """Non-superusers should NOT be allowed to access the page."""
+        request = rf.get("/rewards/add-allocations/")
+        request.user = user
+
+        response = AddAllocationsView.as_view()(request)
+
+        # LoginRequiredMixin lets login first, so user gets 302 to login
+        assert response.status_code in (302, 403)
+
+
+    # # ReclaimAllocationsView
     @pytest.mark.django_db
     def test_reclaimallocationsview_requires_login(self, rf):
         request = rf.get(reverse("reclaim_allocations"))

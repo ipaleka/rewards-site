@@ -1,7 +1,12 @@
 """Module containing the views for the rewards app."""
 
+from django.contrib.auth.decorators import user_passes_test
 from django.contrib.auth.mixins import LoginRequiredMixin
+from django.utils.decorators import method_decorator
 from django.views.generic import TemplateView
+
+from core.models import Contribution
+
 
 
 class ClaimView(LoginRequiredMixin, TemplateView):
@@ -37,6 +42,7 @@ class ClaimView(LoginRequiredMixin, TemplateView):
         return context
 
 
+@method_decorator(user_passes_test(lambda user: user.is_superuser), name="dispatch")
 class AddAllocationsView(LoginRequiredMixin, TemplateView):
     """View for superusers to add new allocations.
 
@@ -55,10 +61,13 @@ class AddAllocationsView(LoginRequiredMixin, TemplateView):
         :rtype: dict
         """
         context = super().get_context_data(**kwargs)
-        # TODO: Add any context needed for the template, if any.
+        addresses, amounts = Contribution.objects.addressed_contributions()
+        context["addresses"] = addresses
+        context["amounts"] = amounts
         return context
 
 
+@method_decorator(user_passes_test(lambda user: user.is_superuser), name="dispatch")
 class ReclaimAllocationsView(LoginRequiredMixin, TemplateView):
     """View for superusers to reclaim allocations.
 

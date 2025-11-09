@@ -16,11 +16,7 @@
 
     <!-- ✅ Your Algorand wallet login -->
     <div class="mt-2">
-      <h3 class="text-lg font-semibold mb-3">{% trans "Login with Algorand Wallet" %}</h3>
-      <div class="p-4 rounded-lg bg-base-200 mb-6">
-        <div id="app"></div>
-        <script type="module" src="{% static 'js/bundle.js' %}"></script>
-      </div>
+      {% include "account/snippets/algorand_connect.html" with method="Login" %}
     </div>
 
     {% if not SOCIALACCOUNT_ONLY %}

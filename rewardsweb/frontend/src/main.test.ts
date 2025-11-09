@@ -1,29 +1,38 @@
-// Mock everything at the top
-jest.mock("@txnlab/use-wallet", () => {
-  const mockSubscribe = jest.fn();
-  const mockResumeSessions = jest.fn();
+import { WalletManager, WalletId } from '@txnlab/use-wallet'
+import { ActiveNetwork } from './ActiveNetwork'
+import { WalletComponent } from './WalletComponent'
+import { ClaimComponent } from './ClaimComponent'
+import { AddAllocationsComponent } from './AddAllocationsComponent'
+import { ReclaimAllocationsComponent } from './ReclaimAllocationsComponent'
+import { RewardsClient } from './RewardsClient'
 
-  const mockWalletManager = {
+// Mock everything at the top
+jest.mock('@txnlab/use-wallet', () => {
+  const mockSubscribe = jest.fn()
+  const mockResumeSessions = jest.fn()
+
+  const mockWalletManagerInstance = {
     wallets: [
       {
-        id: "pera",
-        metadata: { name: "Pera Wallet" },
-        activeAccount: { address: "test-address" },
+        id: 'pera',
+        metadata: { name: 'Pera Wallet' },
+        activeAccount: { address: 'test-address' },
       },
       {
-        id: "defly",
-        metadata: { name: "Defly Wallet" },
+        id: 'defly',
+        metadata: { name: 'Defly Wallet' },
         activeAccount: null,
       },
       {
-        id: "lute",
-        metadata: { name: "Lute Wallet" },
+        id: 'lute',
+        metadata: { name: 'Lute Wallet' },
         activeAccount: null,
       },
     ],
+    getWallet: jest.fn((id) => mockWalletManagerInstance.wallets.find(w => w.id === id)),
     resumeSessions: mockResumeSessions,
     subscribe: mockSubscribe,
-    activeNetwork: "mainnet",
+    activeNetwork: 'testnet',
     activeWallet: null,
     setActiveNetwork: jest.fn(),
     getAlgodClient: jest.fn().mockReturnValue({
@@ -32,87 +41,86 @@ jest.mock("@txnlab/use-wallet", () => {
           fee: 1000,
           firstRound: 1000,
           lastRound: 2000,
-          genesisID: "testnet-v1.0",
-          genesisHash: "SGO1GKSzyE7IEPItTxCByw9x8FmnrCDexi9/cOUJOiI=",
+          genesisID: 'testnet-v1.0',
+          genesisHash: 'SGO1GKSzyE7IEPItTxCByw9x8FmnrCDexi9/cOUJOiI=',
         }),
       }),
     }),
-  };
+  }
 
   return {
     NetworkId: {
-      TESTNET: "testnet",
-      MAINNET: "mainnet",
+      TESTNET: 'testnet',
+      MAINNET: 'mainnet',
     },
     WalletId: {
-      PERA: "pera",
-      DEFLY: "defly",
-      LUTE: "lute",
+      PERA: 'pera',
+      DEFLY: 'defly',
+      LUTE: 'lute',
     },
-    WalletManager: jest.fn(() => mockWalletManager),
-  };
-});
+    WalletManager: jest.fn(() => mockWalletManagerInstance),
+  }
+})
 
-// Mock the components
-const mockActiveNetwork = {
-  element: document.createElement("div"),
+const mockActiveNetworkInstance = {
+  bind: jest.fn(),
   destroy: jest.fn(),
-};
+}
 
-const mockWalletComponent = {
-  element: document.createElement("div"),
+const mockWalletComponentInstance = {
+  bind: jest.fn(),
   destroy: jest.fn(),
-};
+}
 
-const mockClaimComponent = {
-  element: document.createElement("div"),
+const mockClaimComponentInstance = {
+  bind: jest.fn(),
   destroy: jest.fn(),
-};
+}
 
-const mockAddAllocationsComponent = {
-  element: document.createElement("div"),
+const mockAddAllocationsComponentInstance = {
+  bind: jest.fn(),
   destroy: jest.fn(),
-};
+}
 
-const mockReclaimAllocationsComponent = {
-  element: document.createElement("div"),
+const mockReclaimAllocationsComponentInstance = {
+  bind: jest.fn(),
   destroy: jest.fn(),
-};
+}
 
 // Mock the ActiveNetwork component
-jest.mock("./ActiveNetwork", () => ({
-  ActiveNetwork: jest.fn().mockImplementation(() => mockActiveNetwork),
+jest.mock('./ActiveNetwork', () => ({
+  ActiveNetwork: jest.fn(() => mockActiveNetworkInstance),
   getAlgodClient: jest.fn().mockReturnValue({
     getTransactionParams: jest.fn().mockReturnValue({
       do: jest.fn().mockResolvedValue({
         fee: 1000,
         firstRound: 1000,
         lastRound: 2000,
-        genesisID: "testnet-v1.0",
-        genesisHash: "SGO1GKSzyE7IEPItTxCByw9x8FmnrCDexi9/cOUJOiI=",
+        genesisID: 'testnet-v1.0',
+        genesisHash: 'SGO1GKSzyE7IEPItTxCByw9x8FmnrCDexi9/cOUJOiI=',
       }),
     }),
   }),
-}));
+}))
 
-jest.mock("./WalletComponent", () => ({
-  WalletComponent: jest.fn(() => mockWalletComponent),
-}));
+jest.mock('./WalletComponent', () => ({
+  WalletComponent: jest.fn(() => mockWalletComponentInstance),
+}))
 
-jest.mock("./ClaimComponent", () => ({
-  ClaimComponent: jest.fn(() => mockClaimComponent),
-}));
+jest.mock('./ClaimComponent', () => ({
+  ClaimComponent: jest.fn(() => mockClaimComponentInstance),
+}))
 
-jest.mock("./AddAllocationsComponent", () => ({
-  AddAllocationsComponent: jest.fn(() => mockAddAllocationsComponent),
-}));
+jest.mock('./AddAllocationsComponent', () => ({
+  AddAllocationsComponent: jest.fn(() => mockAddAllocationsComponentInstance),
+}))
 
-jest.mock("./ReclaimAllocationsComponent", () => ({
-  ReclaimAllocationsComponent: jest.fn(() => mockReclaimAllocationsComponent),
-}));
+jest.mock('./ReclaimAllocationsComponent', () => ({
+  ReclaimAllocationsComponent: jest.fn(() => mockReclaimAllocationsComponentInstance),
+}))
 
 // Mock RewardsClient
-jest.mock("./RewardsClient", () => ({
+jest.mock('./RewardsClient', () => ({
   RewardsClient: jest.fn().mockImplementation(() => ({
     fetchClaimableStatus: jest.fn(),
     claim: jest.fn(),
@@ -121,173 +129,197 @@ jest.mock("./RewardsClient", () => ({
     fetchAddAllocationsData: jest.fn(),
     fetchReclaimAllocationsData: jest.fn(),
   })),
-}));
+}))
 
-describe("main.ts", () => {
-  let mockAppDiv: HTMLDivElement;
-  let originalQuerySelector: typeof document.querySelector;
+describe('main.ts', () => {
+  let mockAppDiv: HTMLDivElement
+  let mockActiveNetworkEl: HTMLDivElement
+  let mockClaimContainer: HTMLDivElement
+  let mockAddAllocationsContainer: HTMLDivElement
+  let mockReclaimAllocationsContainer: HTMLDivElement
+  let mockWalletEls: { [key: string]: HTMLDivElement }
+  let mockAppErrorDiv: HTMLDivElement
+
+  let originalQuerySelector: typeof document.querySelector
+  let consoleErrorSpy: jest.SpyInstance
 
   beforeEach(() => {
-    // Clear all mocks
-    jest.clearAllMocks();
+    jest.clearAllMocks()
+    jest.resetModules() // Reset modules to ensure fresh mocks for each test
 
     // Set up DOM
-    mockAppDiv = document.createElement("div");
-    mockAppDiv.id = "app";
-    document.body.appendChild(mockAppDiv);
+    mockAppDiv = document.createElement('div')
+    mockAppDiv.id = 'app'
+    document.body.appendChild(mockAppDiv)
+
+    mockActiveNetworkEl = document.createElement('div')
+    mockActiveNetworkEl.id = 'active-network'
+    document.body.appendChild(mockActiveNetworkEl)
+
+    mockClaimContainer = document.createElement('div')
+    mockClaimContainer.id = 'claim-container'
+    document.body.appendChild(mockClaimContainer)
+
+    mockAddAllocationsContainer = document.createElement('div')
+    mockAddAllocationsContainer.id = 'add-allocations-container'
+    document.body.appendChild(mockAddAllocationsContainer)
+
+    mockReclaimAllocationsContainer = document.createElement('div')
+    mockReclaimAllocationsContainer.id = 'reclaim-allocations-container'
+    document.body.appendChild(mockReclaimAllocationsContainer)
+
+    mockWalletEls = {
+      pera: document.createElement('div'),
+      defly: document.createElement('div'),
+      lute: document.createElement('div'),
+    }
+    mockWalletEls.pera.id = 'wallet-pera'
+    mockWalletEls.defly.id = 'wallet-defly'
+    mockWalletEls.lute.id = 'wallet-lute'
+    document.body.appendChild(mockWalletEls.pera)
+    document.body.appendChild(mockWalletEls.defly)
+    document.body.appendChild(mockWalletEls.lute)
+
+    mockAppErrorDiv = document.createElement('div')
+    mockAppErrorDiv.id = 'app-error'
+    mockAppErrorDiv.style.display = 'none'
+    document.body.appendChild(mockAppErrorDiv)
 
     // Mock document.querySelector
-    originalQuerySelector = document.querySelector;
+    originalQuerySelector = document.querySelector
     document.querySelector = jest.fn((selector: string) => {
-      if (selector === "#app") return mockAppDiv;
-      return null;
-    });
-  });
+      if (selector === '#app') return mockAppDiv
+      return originalQuerySelector.call(document, selector)
+    })
+
+    // Mock document.getElementById
+    jest.spyOn(document, 'getElementById').mockImplementation((id: string) => {
+      if (id === 'active-network') return mockActiveNetworkEl
+      if (id === 'claim-container') return mockClaimContainer
+      if (id === 'add-allocations-container') return mockAddAllocationsContainer
+      if (id === 'reclaim-allocations-container') return mockReclaimAllocationsContainer
+      if (id === 'wallet-pera') return mockWalletEls.pera
+      if (id === 'wallet-defly') return mockWalletEls.defly
+      if (id === 'wallet-lute') return mockWalletEls.lute
+      if (id === 'app-error') return mockAppErrorDiv
+      return null
+    })
+
+    consoleErrorSpy = jest.spyOn(console, 'error').mockImplementation(() => { })
+
+    // Mock fetch for initial data
+    global.fetch = jest.fn((url) => {
+      if (url === '/api/wallet/wallets/') {
+        return Promise.resolve({
+          ok: true,
+          json: () =>
+            Promise.resolve([
+              { id: 'pera' },
+              { id: 'defly' },
+              { id: 'lute' },
+            ]),
+        })
+      }
+      if (url === '/api/wallet/active-network/') {
+        return Promise.resolve({
+          ok: true,
+          json: () => Promise.resolve({ network: 'testnet' }),
+        })
+      }
+      return Promise.reject(new Error(`Unhandled fetch for ${url}`))
+    }) as jest.Mock
+  })
 
   afterEach(() => {
-    document.querySelector = originalQuerySelector;
-    if (document.body.contains(mockAppDiv)) {
-      document.body.removeChild(mockAppDiv);
-    }
-    jest.resetModules();
-  });
+    document.querySelector = originalQuerySelector
+    document.body.innerHTML = ''
+    consoleErrorSpy.mockRestore()
+    jest.restoreAllMocks()
+  })
 
-  it("should initialize the application without errors", () => {
-    // This test just verifies the module can load without throwing
-    expect(() => {
-      require("./main");
-    }).not.toThrow();
+  it('should initialize the application without errors', async () => {
+    const { WalletManager } = require('@txnlab/use-wallet')
+    const { ActiveNetwork } = require('./ActiveNetwork')
+    const { WalletComponent } = require('./WalletComponent')
+    const { ClaimComponent } = require('./ClaimComponent')
+    const { AddAllocationsComponent } = require('./AddAllocationsComponent')
+    const { ReclaimAllocationsComponent } = require('./ReclaimAllocationsComponent')
+    const { RewardsClient } = require('./RewardsClient')
 
-    // Verify basic setup occurred
-    const { WalletManager } = require("@txnlab/use-wallet");
+    require('./main')
+
+    // Simulate DOMContentLoaded
+    const event = new Event('DOMContentLoaded')
+    document.dispatchEvent(event)
+
+    await new Promise(process.nextTick) // Allow promises to resolve
+
     expect(WalletManager).toHaveBeenCalledWith({
-      wallets: ["pera", "defly", "lute"],
-      defaultNetwork: "mainnet",
-    });
-  });
+      wallets: ['pera', 'defly', 'lute'],
+      defaultNetwork: 'testnet',
+    })
+    expect(ActiveNetwork).toHaveBeenCalledTimes(1)
+    expect(ActiveNetwork().bind).toHaveBeenCalledWith(mockActiveNetworkEl)
+    expect(WalletComponent).toHaveBeenCalledTimes(3)
+    expect(WalletComponent().bind).toHaveBeenCalledWith(mockWalletEls.pera)
+    expect(WalletComponent().bind).toHaveBeenCalledWith(mockWalletEls.defly)
+    expect(WalletComponent().bind).toHaveBeenCalledWith(mockWalletEls.lute)
+    expect(RewardsClient).toHaveBeenCalledTimes(1)
+    expect(ClaimComponent).toHaveBeenCalledTimes(1)
+    expect(ClaimComponent().bind).toHaveBeenCalledWith(mockClaimContainer)
+    expect(AddAllocationsComponent).toHaveBeenCalledTimes(1)
+    expect(AddAllocationsComponent().bind).toHaveBeenCalledWith(mockAddAllocationsContainer)
+    expect(ReclaimAllocationsComponent).toHaveBeenCalledTimes(1)
+    expect(ReclaimAllocationsComponent().bind).toHaveBeenCalledWith(mockReclaimAllocationsContainer)
+    expect(consoleErrorSpy).not.toHaveBeenCalled()
+  })
 
-  it("should render the application content", () => {
-    require("./main");
+  it('should handle initialization errors gracefully', async () => {
+    // Force fetch to fail
+    (global.fetch as jest.Mock).mockImplementationOnce(() =>
+      Promise.resolve({ ok: false, status: 500 }),
+    )
 
-    expect(document.querySelector).toHaveBeenCalledWith("#app");
-    expect(mockAppDiv.innerHTML).toContain("Connect your wallet below");
-  });
+    require('./main')
 
-  it("should handle DOMContentLoaded event", async () => {
-    const { WalletManager } = require("@txnlab/use-wallet");
-    const mockResumeSessions = WalletManager().resumeSessions;
+    const event = new Event('DOMContentLoaded')
+    document.dispatchEvent(event)
 
-    require("./main");
-
-    // Simulate DOMContentLoaded
-    const event = new Event("DOMContentLoaded");
-    document.dispatchEvent(event);
-
-    // Wait for async operations
-    await new Promise(process.nextTick);
-
-    expect(mockResumeSessions).toHaveBeenCalled();
-  });
-
-  it("should handle resumeSessions errors", async () => {
-    const consoleErrorSpy = jest.spyOn(console, "error").mockImplementation();
-    const { WalletManager } = require("@txnlab/use-wallet");
-    const mockResumeSessions = WalletManager().resumeSessions;
-    mockResumeSessions.mockRejectedValue(new Error("Session error"));
-
-    require("./main");
-
-    // Simulate DOMContentLoaded
-    const event = new Event("DOMContentLoaded");
-    document.dispatchEvent(event);
-
-    // Wait for async operations
-    await new Promise(process.nextTick);
+    await new Promise(process.nextTick)
 
     expect(consoleErrorSpy).toHaveBeenCalledWith(
-      "Error resuming sessions:",
-      expect.any(Error)
-    );
-    consoleErrorSpy.mockRestore();
-  });
+      'Error initializing app:',
+      expect.any(Error),
+    )
+    expect(mockAppErrorDiv.style.display).toBe('block')
+  })
 
-  it("should handle beforeunload event cleanup", () => {
-    // Create specific mock instances for this test
-    const mockDestroy1 = jest.fn();
-    const mockDestroy2 = jest.fn();
-    const mockDestroy3 = jest.fn();
+  it('should handle beforeunload event cleanup', async () => {
+    const { WalletManager } = require('@txnlab/use-wallet')
+    const { ActiveNetwork } = require('./ActiveNetwork')
+    const { WalletComponent } = require('./WalletComponent')
+    const { ClaimComponent } = require('./ClaimComponent')
+    const { AddAllocationsComponent } = require('./AddAllocationsComponent')
+    const { ReclaimAllocationsComponent } = require('./ReclaimAllocationsComponent')
 
-    const { WalletComponent } = require("./WalletComponent");
-    WalletComponent.mockImplementationOnce(() => ({
-      element: document.createElement("div"),
-      destroy: mockDestroy1,
-    }))
-      .mockImplementationOnce(() => ({
-        element: document.createElement("div"),
-        destroy: mockDestroy2,
-      }))
-      .mockImplementationOnce(() => ({
-        element: document.createElement("div"),
-        destroy: mockDestroy3,
-      }));
+    require('./main')
 
-    require("./main");
-
-    // Get all created wallet components
-    const walletInstances = [
-      WalletComponent.mock.results[0].value,
-      WalletComponent.mock.results[1].value,
-      WalletComponent.mock.results[2].value,
-    ];
-
-    // Simulate beforeunload by calling destroy on all instances
-    walletInstances.forEach((instance) => instance.destroy());
-
-    expect(mockDestroy1).toHaveBeenCalled();
-    expect(mockDestroy2).toHaveBeenCalled();
-    expect(mockDestroy3).toHaveBeenCalled();
-  });
-
-  it("should handle beforeunload event with wallet components", () => {
-    // Create specific mock wallet components
-    const mockWalletComponents = [
-      { element: document.createElement("div"), destroy: jest.fn() },
-      { element: document.createElement("div"), destroy: jest.fn() },
-      { element: document.createElement("div"), destroy: jest.fn() },
-    ];
-
-    const { WalletComponent } = require("./WalletComponent");
-    let callCount = 0;
-    WalletComponent.mockImplementation(() => mockWalletComponents[callCount++]);
-
-    require("./main");
+    const event = new Event('DOMContentLoaded')
+    document.dispatchEvent(event)
+    await new Promise(process.nextTick)
 
     // Trigger beforeunload event
-    const beforeUnloadEvent = new Event("beforeunload");
-    window.dispatchEvent(beforeUnloadEvent);
+    const beforeUnloadEvent = new Event('beforeunload')
+    window.dispatchEvent(beforeUnloadEvent)
 
-    // Verify all wallet components had destroy called
-    mockWalletComponents.forEach((component) => {
-      expect(component.destroy).toHaveBeenCalled();
-    });
-  });
+    // Just verify they were called without counting exact times
+    expect(WalletManager().resumeSessions).toHaveBeenCalled()
+    expect(ActiveNetwork().destroy).toHaveBeenCalled()
+    expect(WalletComponent().destroy).toHaveBeenCalled()
+    expect(ClaimComponent().destroy).toHaveBeenCalled()
+    expect(AddAllocationsComponent().destroy).toHaveBeenCalled()
+    expect(ReclaimAllocationsComponent().destroy).toHaveBeenCalled()
+  })
 
-  it("should handle main.ts execution with missing app element", () => {
-    // Mock querySelector to return null (app element not found)
-    document.querySelector = jest.fn(() => null);
 
-    // This should not throw - we'll handle it gracefully
-    // The module will try to execute but fail gracefully when app element is null
-    let errorThrown = false;
-    try {
-      require("./main");
-    } catch (error) {
-      errorThrown = true;
-      // It's okay if it throws - we're testing the edge case
-    }
-
-    expect(document.querySelector).toHaveBeenCalledWith("#app");
-    // The test passes as long as we verified the querySelector was called
-    // We don't care if it throws or not for this edge case
-  });
-});
+})

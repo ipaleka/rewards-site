@@ -2,7 +2,7 @@ import { RewardsClient } from './RewardsClient'
 import { WalletManager } from '@txnlab/use-wallet'
 
 export class AddAllocationsComponent {
-  element: HTMLElement
+  private element: HTMLElement | null = null
   private rewardsClient: RewardsClient
   private walletManager: WalletManager
   private addresses: string[] = []
@@ -11,10 +11,12 @@ export class AddAllocationsComponent {
   constructor(rewardsClient: RewardsClient, walletManager: WalletManager) {
     this.rewardsClient = rewardsClient
     this.walletManager = walletManager
-    this.element = document.createElement('div')
-    this.render()
-    this.addEventListeners()
     this.walletManager.subscribe(() => this.fetchAllocationsData())
+  }
+
+  bind(element: HTMLElement) {
+    this.element = element
+    this.addEventListeners()
     this.fetchAllocationsData()
   }
 
@@ -52,47 +54,32 @@ export class AddAllocationsComponent {
   }
 
   render() {
-    this.element.innerHTML = `
-      <div class="space-y-4 p-4 rounded-lg bg-base-200 mt-4">
-        <h4 class="font-semibold text-lg">Add Allocations (Superuser Only)</h4>
-        <div class="form-control">
-          <label class="label"><span class="label-text">Addresses</span></label>
-          <textarea id="addresses-input" class="textarea textarea-bordered h-24" placeholder="Enter addresses, one per line"></textarea>
-        </div>
-        <div class="form-control">
-          <label class="label"><span class="label-text">Amounts</span></label>
-          <textarea id="amounts-input" class="textarea textarea-bordered h-24" placeholder="Enter amounts, one per line"></textarea>
-        </div>
-        <button
-          id="add-allocations-button"
-          type="button"
-          class="btn btn-primary btn-sm"
-        >
-          Add Allocations
-        </button>
-        <div class="mt-4">
-          <h5 class="font-semibold">Current Allocations Data (from backend):</h5>
-          <pre>${JSON.stringify({ addresses: this.addresses, amounts: this.amounts }, null, 2)}</pre>
-        </div>
-      </div>
-    `
-    const addressesInput = this.element.querySelector('#addresses-input') as HTMLTextAreaElement
+    if (!this.element) return
+
+    const addressesInput = this.element.querySelector<HTMLTextAreaElement>('#addresses-input')
+    const amountsInput = this.element.querySelector<HTMLTextAreaElement>('#amounts-input')
+    const allocationsData = this.element.querySelector<HTMLPreElement>('#allocations-data')
+
     if (addressesInput) {
       addressesInput.value = this.addresses.join('\n')
     }
-    const amountsInput = this.element.querySelector('#amounts-input') as HTMLTextAreaElement
     if (amountsInput) {
       amountsInput.value = this.amounts.join('\n')
+    }
+    if (allocationsData) {
+      allocationsData.textContent = JSON.stringify({ addresses: this.addresses, amounts: this.amounts }, null, 2)
     }
   }
 
   addEventListeners() {
+    if (!this.element) return
+
     this.element.addEventListener('click', (e: Event) => {
       const target = e.target as HTMLElement
       if (target.id === 'add-allocations-button') {
         // Update internal state from textareas before sending
-        const addressesInput = this.element.querySelector('#addresses-input') as HTMLTextAreaElement
-        const amountsInput = this.element.querySelector('#amounts-input') as HTMLTextAreaElement
+        const addressesInput = this.element!.querySelector('#addresses-input') as HTMLTextAreaElement
+        const amountsInput = this.element!.querySelector('#amounts-input') as HTMLTextAreaElement
         this.addresses = addressesInput.value.split('\n').map(s => s.trim()).filter(s => s !== '')
         this.amounts = amountsInput.value.split('\n').map(s => parseInt(s.trim(), 10)).filter(n => !isNaN(n))
         this.handleAddAllocations()

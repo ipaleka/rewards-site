@@ -2,7 +2,7 @@ import { RewardsClient } from './RewardsClient'
 import { WalletManager } from '@txnlab/use-wallet'
 
 export class ClaimComponent {
-  element: HTMLElement
+  private element: HTMLElement | null = null
   private rewardsClient: RewardsClient
   private walletManager: WalletManager
   private claimable: boolean = false
@@ -10,10 +10,12 @@ export class ClaimComponent {
   constructor(rewardsClient: RewardsClient, walletManager: WalletManager) {
     this.rewardsClient = rewardsClient
     this.walletManager = walletManager
-    this.element = document.createElement('div')
-    this.render()
-    this.addEventListeners()
     this.walletManager.subscribe(() => this.checkClaimableStatus())
+  }
+
+  bind(element: HTMLElement) {
+    this.element = element
+    this.addEventListeners()
     this.checkClaimableStatus()
   }
 
@@ -52,22 +54,18 @@ export class ClaimComponent {
   }
 
   render() {
-    this.element.innerHTML = `
-      <div class="space-y-4 p-4 rounded-lg bg-base-200 mt-4">
-        <h4 class="font-semibold text-lg">Claim Your Rewards</h4>
-        <button
-          id="claim-button"
-          type="button"
-          class="btn btn-success btn-sm"
-          ${!this.claimable ? 'disabled' : ''}
-        >
-          ${this.claimable ? 'Claim' : 'No Claim Available'}
-        </button>
-      </div>
-    `
+    if (!this.element) return
+
+    const claimButton = this.element.querySelector<HTMLButtonElement>('#claim-button')
+    if (claimButton) {
+      claimButton.disabled = !this.claimable
+      claimButton.textContent = this.claimable ? 'Claim' : 'No Claim Available'
+    }
   }
 
   addEventListeners() {
+    if (!this.element) return
+
     this.element.addEventListener('click', (e: Event) => {
       const target = e.target as HTMLElement
       if (target.id === 'claim-button') {

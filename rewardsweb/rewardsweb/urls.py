@@ -29,13 +29,23 @@ from django.urls import include, path
 
 from api import urls as api_urls
 from core import urls as core_urls
+from core.views import LoginView, SignupView
+from rewards import urls as rewards_urls
 from walletauth import urls as walletauth_urls
 
 urlpatterns = [
+    # admin
     path("admin/", admin.site.urls),
+    # Dicord bot and wallet connection API endpoints
     path("api/wallet/", include(walletauth_urls)),
     path("api/", include(api_urls)),
+    # authentication
+    path("accounts/login/", LoginView.as_view(), name="account_login"),
+    path("accounts/signup/", SignupView.as_view(), name="account_signup"),
     path("accounts/", include("allauth.urls")),
+    # rewards app urls
+    path("rewards/", include(rewards_urls)),
+    # core app urls
     path("", include(core_urls)),
 ]
 

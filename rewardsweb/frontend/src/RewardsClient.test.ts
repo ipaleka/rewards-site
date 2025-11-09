@@ -92,6 +92,29 @@ describe("RewardsClient", () => {
 
     mockManager = {
       activeNetwork: "testnet",
+      algodClient: {
+        getTransactionParams: jest.fn().mockReturnValue({
+          do: jest.fn().mockResolvedValue({
+            fee: 1000,
+            firstRound: 1,
+            lastRound: 1001,
+            genesisHash: "test-hash",
+            genesisID: "test-id",
+          }),
+        }),
+        getApplicationByID: jest.fn().mockReturnValue({
+          do: jest.fn().mockResolvedValue({
+            params: {
+              globalState: [
+                {
+                  key: btoa("token_id"),
+                  value: { uint: 1 }
+                }
+              ]
+            }
+          })
+        })
+      }
     } as any;
 
     // Provide full algod mock (params + app global state)
@@ -548,23 +571,12 @@ describe("RewardsClient", () => {
     });
 
     it("should throw error if contract global state is empty", async () => {
-      // Override algod mock: globalState = []
-      (getAlgodClient as jest.Mock).mockReturnValue({
-        getTransactionParams: jest.fn().mockReturnValue({
-          do: jest.fn().mockResolvedValue({
-            fee: 1000,
-            firstRound: 1,
-            lastRound: 1001,
-            genesisHash: "test-hash",
-            genesisID: "test-id",
-          }),
-        }),
-        getApplicationByID: jest.fn().mockReturnValue({
-          do: jest.fn().mockResolvedValue({
-            params: {
-              globalState: [], // ❌ Empty global state triggers expected error
-            },
-          }),
+      // ✅ Override the ALGOD client on the manager, not getAlgodClient()
+      mockManager.algodClient.getApplicationByID = jest.fn().mockReturnValue({
+        do: jest.fn().mockResolvedValue({
+          params: {
+            globalState: [], // <-- simulate empty state
+          },
         }),
       });
 
@@ -574,28 +586,14 @@ describe("RewardsClient", () => {
         "Contract global state is empty or not found"
       );
     });
-
     it("should throw error when token_id key is missing in global state", async () => {
-      // Override globalState to omit token_id
-      (getAlgodClient as jest.Mock).mockReturnValue({
-        getTransactionParams: jest.fn().mockReturnValue({
-          do: jest.fn().mockResolvedValue({
-            fee: 1000,
-            firstRound: 1,
-            lastRound: 1001,
-            genesisHash: "test-hash",
-            genesisID: "test-id",
-          }),
-        }),
-        getApplicationByID: jest.fn().mockReturnValue({
-          do: jest.fn().mockResolvedValue({
-            params: {
-              globalState: [
-                // ❌ Missing token_id
-                { key: btoa("other_key"), value: { uint: 999 } },
-              ],
-            },
-          }),
+      mockManager.algodClient.getApplicationByID = jest.fn().mockReturnValue({
+        do: jest.fn().mockResolvedValue({
+          params: {
+            globalState: [
+              { key: btoa("something_else"), value: { uint: 55 } }, // <-- no token_id here
+            ],
+          },
         }),
       });
 
@@ -606,6 +604,4 @@ describe("RewardsClient", () => {
       );
     });
   });
-
-
 });

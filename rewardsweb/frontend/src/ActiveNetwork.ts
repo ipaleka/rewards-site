@@ -1,93 +1,74 @@
 import { NetworkId, WalletManager } from '@txnlab/use-wallet'
-import algosdk from 'algosdk'
-
-// Placeholder Algorand node configurations
-const algodTestnetConfig = {
-  token: '', // Replace with your Testnet Algod token
-  server: 'https://testnet-api.algonode.cloud', // Replace with your Testnet Algod server
-  port: '',
-}
-
-const algodMainnetConfig = {
-  token: '', // Replace with your Mainnet Algod token
-  server: 'https://mainnet-api.algonode.cloud', // Replace with your Mainnet Algod server
-  port: '',
-}
-
-export function getAlgodClient(network: NetworkId): algosdk.Algodv2 {
-  switch (network) {
-    case NetworkId.TESTNET:
-      return new algosdk.Algodv2(algodTestnetConfig.token, algodTestnetConfig.server, algodTestnetConfig.port)
-    case NetworkId.MAINNET:
-      return new algosdk.Algodv2(algodMainnetConfig.token, algodMainnetConfig.server, algodMainnetConfig.port)
-    default:
-      // Fallback to Testnet or throw an error
-      return new algosdk.Algodv2(algodTestnetConfig.token, algodTestnetConfig.server, algodTestnetConfig.port)
-  }
-}
 
 export class ActiveNetwork {
-  manager: WalletManager
-  element: HTMLElement
+  private element: HTMLElement | null = null
+  private unsubscribe: (() => void) | null = null
 
-  constructor(manager: WalletManager) {
-    this.manager = manager
-    this.element = document.createElement('div')
-    this.element.className = 'network-group'
-    this.render()
-    this.addEventListeners()
+  constructor(private manager: WalletManager) { }
+
+  bind(element: HTMLElement) {
+    this.element = element
+    this.unsubscribe = this.manager.subscribe((state) => {
+      this.render(state.activeNetwork)
+    })
+    this.element.addEventListener('click', this.handleClick)
+    this.render(this.manager.activeNetwork)
   }
 
-  setActiveNetwork = (network: NetworkId) => {
+  private handleClick = async (e: Event) => {
+    const btn = e.target as HTMLElement
+    const network = btn.dataset.network as NetworkId
+
+    if (!network) return
+
     this.manager.setActiveNetwork(network)
-    this.render()
+
+    try {
+      const csrfToken = this.getCsrfToken()
+      await fetch('/api/wallet/active-network/', {
+        method: 'POST',
+        headers: {
+          'Content-Type': 'application/json',
+          'X-CSRFToken': csrfToken
+        },
+        body: JSON.stringify({ network })
+      })
+    } catch (error) {
+      console.error('Error setting active network:', error)
+    }
   }
 
-  render() {
-    const activeNetwork = this.manager.activeNetwork
+  private render(activeNetwork: string | null) {
+    if (!this.element) return
 
-    this.element.innerHTML = `
-      <div class="space-y-3">
-        <h4 class="font-semibold text-lg">
-          Current Network:
-          <span class="badge badge-outline">${activeNetwork}</span>
-        </h4>
+    const networkSpan = this.element.querySelector('span')
+    if (networkSpan) {
+      networkSpan.textContent = activeNetwork || 'none'
+    }
 
-        <div class="flex gap-2">
-          <button
-            type="button"
-            id="set-testnet"
-            class="btn btn-outline btn-sm"
-            ${activeNetwork === NetworkId.TESTNET ? "disabled" : ""}
-          >
-            Set to Testnet
-          </button>
-
-          <button
-            type="button"
-            id="set-mainnet"
-            class="btn btn-outline btn-sm"
-            ${activeNetwork === NetworkId.MAINNET ? "disabled" : ""}
-          >
-            Set to Mainnet
-          </button>
-        </div>
-      </div>
-    `
-  }
-
-  addEventListeners() {
-    this.element.addEventListener('click', (e: Event) => {
-      const target = e.target as HTMLButtonElement
-      if (target.id === 'set-testnet') {
-        this.setActiveNetwork(NetworkId.TESTNET)
-      } else if (target.id === 'set-mainnet') {
-        this.setActiveNetwork(NetworkId.MAINNET)
+    const buttons = this.element.querySelectorAll('button')
+    buttons.forEach((btn) => {
+      if (btn.dataset.network === activeNetwork) {
+        btn.classList.add('disabled')
+      } else {
+        btn.classList.remove('disabled')
       }
     })
   }
 
+  private getCsrfToken(): string {
+    const csrfCookie = document.cookie.split(';').find(c => c.trim().startsWith('csrftoken='))
+    return csrfCookie ? csrfCookie.split('=')[1] : ''
+  }
+
   destroy() {
-    this.element.removeEventListener('click', this.addEventListeners)
+    if (this.unsubscribe) {
+      this.unsubscribe()
+      this.unsubscribe = null // Prevent multiple calls
+    }
+    if (this.element) {
+      this.element.removeEventListener('click', this.handleClick)
+      // Don't nullify element as it might be needed for other cleanup
+    }
   }
 }

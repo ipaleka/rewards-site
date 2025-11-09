@@ -1,6 +1,6 @@
 """Testing module for website's URL dispatcher module."""
 
-from django.urls import URLResolver
+from django.urls import URLPattern, URLResolver
 
 from rewardsweb import urls
 
@@ -26,10 +26,27 @@ class TestRewardsWebUrls:
         assert isinstance(url, URLResolver)
         assert "api.urls" in str(url.urlconf_name)
 
+    def test_rewardsweb_urls_custom_login(self):
+        url = self._url_from_pattern("accounts/login/")
+        assert isinstance(url, URLPattern)
+        assert url.lookup_str == "core.views.LoginView"
+        assert url.name == "account_login"
+
+    def test_rewardsweb_urls_custom_signup(self):
+        url = self._url_from_pattern("accounts/signup/")
+        assert isinstance(url, URLPattern)
+        assert url.lookup_str == "core.views.SignupView"
+        assert url.name == "account_signup"
+
     def test_rewardsweb_urls_allauth_app(self):
         url = self._url_from_pattern("accounts/")
         assert isinstance(url, URLResolver)
         assert "allauth.urls" in str(url.urlconf_name)
+
+    def test_rewardsweb_urlsrewards_app(self):
+        url = self._url_from_pattern("rewards/")
+        assert isinstance(url, URLResolver)
+        assert "rewards.urls" in str(url.urlconf_name)
 
     def test_rewardsweb_urls_core_app(self):
         url = self._url_from_pattern("")
@@ -37,4 +54,4 @@ class TestRewardsWebUrls:
         assert "core.urls" in str(url.urlconf_name)
 
     def test_rewardsweb_urls_pattern_count(self):
-        assert len(urls.urlpatterns) == 7
+        assert len(urls.urlpatterns) == 10

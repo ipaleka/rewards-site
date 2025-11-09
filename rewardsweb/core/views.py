@@ -3,6 +3,8 @@
 import logging
 from datetime import datetime
 
+from allauth.account.views import LoginView as AllauthLoginView
+from allauth.account.views import SignupView as AllauthSignupView
 from django.conf import settings
 from django.contrib import messages
 from django.contrib.auth.decorators import login_required, user_passes_test
@@ -41,6 +43,7 @@ from utils.bot import (
     message_from_url,
 )
 from utils.constants.core import (
+    ALGORAND_WALLETS,
     DISCORD_EMOJIS,
     ISSUE_CREATION_LABEL_CHOICES,
     ISSUE_PRIORITY_CHOICES,
@@ -975,3 +978,45 @@ class ProfileEditView(View):
         """
         view = ProfileUpdate.as_view()
         return view(request, *args, **kwargs)
+
+
+class LoginView(AllauthLoginView):
+    """Custom login view that includes wallet connection context."""
+
+    def get_context_data(self, **kwargs):
+        """Add wallet and network data to the context.
+
+        This method extends the base context data with a list of supported
+        wallets and the currently active network from the user's session.
+
+        :param kwargs: Additional keyword arguments
+        :return: Context dictionary with wallet and network data
+        :rtype: dict
+        """
+        context = super().get_context_data(**kwargs)
+        context["wallets"] = ALGORAND_WALLETS
+        context["active_network"] = self.request.session.get(
+            "active_network", "testnet"
+        )
+        return context
+
+
+class SignupView(AllauthSignupView):
+    """Custom signup view that includes wallet connection context."""
+
+    def get_context_data(self, **kwargs):
+        """Add wallet and network data to the context.
+
+        This method extends the base context data with a list of supported
+        wallets and the currently active network from the user's session.
+
+        :param kwargs: Additional keyword arguments
+        :return: Context dictionary with wallet and network data
+        :rtype: dict
+        """
+        context = super().get_context_data(**kwargs)
+        context["wallets"] = ALGORAND_WALLETS 
+        context["active_network"] = self.request.session.get(
+            "active_network", "testnet"
+        )
+        return context

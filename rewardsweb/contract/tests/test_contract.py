@@ -26,7 +26,9 @@ class TestContractRewards:
     """Testing class for :py:mod:`contract.contract` module."""
 
     # # create_application
-    def test_contract_rewards_create_application(self, context: AlgopyTestContext) -> None:
+    def test_contract_rewards_create_application(
+        self, context: AlgopyTestContext
+    ) -> None:
         creator = context.any.account()
 
         with context.txn.create_group(active_txn_overrides={"sender": creator}):
@@ -41,7 +43,9 @@ class TestContractRewards:
         assert app.id > 0
 
     # # delete_application
-    def test_contract_rewards_delete_application(self, context: AlgopyTestContext) -> None:
+    def test_contract_rewards_delete_application(
+        self, context: AlgopyTestContext
+    ) -> None:
         admin = context.any.account()
 
         with context.txn.create_group(active_txn_overrides={"sender": admin}):
@@ -104,7 +108,9 @@ class TestContractRewards:
         assert inner_txn.asset_receiver == app.address
         assert inner_txn.asset_amount == 0
 
-    def test_contract_rewards_setup_fails_for_non_admin(self, context: AlgopyTestContext) -> None:
+    def test_contract_rewards_setup_fails_for_non_admin(
+        self, context: AlgopyTestContext
+    ) -> None:
         admin = context.any.account()
         non_admin = context.any.account()
 
@@ -116,7 +122,9 @@ class TestContractRewards:
             with context.txn.create_group(active_txn_overrides={"sender": non_admin}):
                 contract.setup(context.any.asset(), context.any.uint64())
 
-    def test_contract_rewards_setup_fails_if_already_set_up(self, context: AlgopyTestContext) -> None:
+    def test_contract_rewards_setup_fails_if_already_set_up(
+        self, context: AlgopyTestContext
+    ) -> None:
         admin = context.default_sender
 
         with context.txn.create_group(active_txn_overrides={"sender": admin}):
@@ -274,7 +282,9 @@ class TestContractRewards:
                 )
 
     # # claim
-    def test_contract_rewards_claim(self, context: AlgopyTestContext, monkeypatch) -> None:
+    def test_contract_rewards_claim(
+        self, context: AlgopyTestContext, monkeypatch
+    ) -> None:
         admin = context.default_sender
 
         with context.txn.create_group(active_txn_overrides={"sender": admin}):
@@ -322,7 +332,9 @@ class TestContractRewards:
             bytearray(),
         ), "Allocation box should be cleared or empty"
 
-    def test_contract_rewards_claim_fails_no_allocation(self, context: AlgopyTestContext) -> None:
+    def test_contract_rewards_claim_fails_no_allocation(
+        self, context: AlgopyTestContext
+    ) -> None:
         admin = context.default_sender
 
         with context.txn.create_group(active_txn_overrides={"sender": admin}):
@@ -336,7 +348,9 @@ class TestContractRewards:
             with context.txn.create_group(active_txn_overrides={"sender": user}):
                 contract.claim()
 
-    def test_contract_rewards_claim_fails_period_ended(self, context: AlgopyTestContext) -> None:
+    def test_contract_rewards_claim_fails_period_ended(
+        self, context: AlgopyTestContext
+    ) -> None:
         admin = context.default_sender
 
         with context.txn.create_group(active_txn_overrides={"sender": admin}):
@@ -365,7 +379,9 @@ class TestContractRewards:
             with context.txn.create_group(active_txn_overrides={"sender": user}):
                 contract.claim()
 
-    def test_contract_rewards_claim_fails_not_opted_in(self, context: AlgopyTestContext) -> None:
+    def test_contract_rewards_claim_fails_not_opted_in(
+        self, context: AlgopyTestContext
+    ) -> None:
         admin = context.default_sender
 
         with context.txn.create_group(active_txn_overrides={"sender": admin}):
@@ -394,7 +410,9 @@ class TestContractRewards:
                 contract.claim()
 
     # # reclaim_allocation
-    def test_contract_rewards_reclaim_allocation(self, context: AlgopyTestContext) -> None:
+    def test_contract_rewards_reclaim_allocation(
+        self, context: AlgopyTestContext
+    ) -> None:
         admin = context.default_sender
 
         with context.txn.create_group(active_txn_overrides={"sender": admin}):

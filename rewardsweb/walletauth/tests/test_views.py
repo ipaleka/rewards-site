@@ -5,6 +5,7 @@ from unittest import mock
 
 import pytest
 from algosdk.transaction import SignedTransaction
+from django.conf import settings
 from django.contrib.auth import get_user_model
 from django.test import RequestFactory
 from django.views import View
@@ -901,7 +902,10 @@ class TestWalletVerifyAPIView:
 
         assert response.status_code == 200
         response_data = response.data
-        assert response_data == {"success": True, "redirect_url": "/"}
+        assert response_data == {
+            "success": True,
+            "redirect_url": settings.LOGIN_REDIRECT_URL,
+        }
 
         # Verify nonce was marked as used
         wallet_nonce.refresh_from_db()

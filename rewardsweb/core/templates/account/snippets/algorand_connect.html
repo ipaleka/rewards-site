@@ -51,7 +51,8 @@
           </button>
           <button id="auth-button-{{ wallet.id }}"
                   type="button"
-                  class="btn btn-secondary btn-sm">
+                  class="btn btn-secondary btn-sm"
+                  data-next-url="{{ request.GET.next }}">
             Authenticate
           </button>
           <button id="set-active-button-{{ wallet.id }}"

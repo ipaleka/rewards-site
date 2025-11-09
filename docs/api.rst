@@ -8,3 +8,4 @@ Contents:
 
    api/rewardsweb
    api/rewardsbot
+   frontend

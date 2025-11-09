@@ -6,7 +6,22 @@ import { ClaimComponent } from './ClaimComponent'
 import { AddAllocationsComponent } from './AddAllocationsComponent'
 import { ReclaimAllocationsComponent } from './ReclaimAllocationsComponent'
 
+/**
+ * Main application class that orchestrates the entire frontend application.
+ * 
+ * This class initializes all components, manages wallet connections, and
+ * coordinates between different parts of the application. It handles the
+ * complete lifecycle of the application including initialization, component
+ * binding, and cleanup.
+ * 
+ * @example
+ * ```typescript
+ * // The application auto-initializes on DOMContentLoaded
+ * const app = new App()
+ * ```
+ */
 class App {
+  /** The wallet manager instance for handling multiple wallets */
   walletManager: WalletManager | null = null
 
   // Store component references so Jest tests can verify cleanup
@@ -16,10 +31,25 @@ class App {
   private addAllocationsComponent: AddAllocationsComponent | null = null
   private reclaimAllocationsComponent: ReclaimAllocationsComponent | null = null
 
+  /**
+   * Creates an instance of App.
+   * Sets up the DOMContentLoaded event listener for initialization.
+   */
   constructor() {
     document.addEventListener('DOMContentLoaded', this.init.bind(this))
   }
 
+  /**
+   * Initializes the application by setting up wallets, components, and event handlers.
+   *
+   * This method:
+   * - Fetches initial wallet and network data from the backend
+   * - Initializes the WalletManager with available wallets
+   * - Binds all UI components to their respective DOM elements
+   * - Sets up cleanup handlers for page unload
+   *
+   * @throws {Error} When initial data fetching fails
+   */
   async init() {
     try {
       const [walletsResponse, networkResponse] = await Promise.all([
@@ -103,4 +133,5 @@ class App {
   }
 }
 
+// Initialize the application
 new App()

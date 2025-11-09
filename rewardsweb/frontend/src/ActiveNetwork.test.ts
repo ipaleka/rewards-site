@@ -366,6 +366,8 @@ describe('ActiveNetwork Error Handling and Cleanup', () => {
       Object.defineProperty(document, 'cookie', {
         writable: true,
         value: 'sessionid=abc123; csrftoken=test-token-123; othercookie=value'
+        // Note: In real browsers, Secure/HttpOnly flags aren't visible to JavaScript
+        // but we're simulating the cookie value that would be set by the backend
       })
 
       const csrfToken = (activeNetwork as any).getCsrfToken()

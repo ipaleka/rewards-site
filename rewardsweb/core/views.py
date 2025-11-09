@@ -1015,7 +1015,7 @@ class SignupView(AllauthSignupView):
         :rtype: dict
         """
         context = super().get_context_data(**kwargs)
-        context["wallets"] = ALGORAND_WALLETS 
+        context["wallets"] = ALGORAND_WALLETS
         context["active_network"] = self.request.session.get(
             "active_network", "testnet"
         )

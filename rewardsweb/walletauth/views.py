@@ -7,6 +7,7 @@ from secrets import token_hex
 import msgpack
 from algosdk.encoding import is_valid_address
 from algosdk.transaction import SignedTransaction
+from django.conf import settings
 from django.contrib.auth import get_user_model, login
 from rest_framework.response import Response
 from rest_framework.views import APIView
@@ -353,4 +354,6 @@ class WalletVerifyAPIView(APIView):
         user.backend = "django.contrib.auth.backends.ModelBackend"
         login(request, user)
 
-        return Response({"success": True, "redirect_url": "/"})
+        redirect_url = request.data.get("next", settings.LOGIN_REDIRECT_URL)
+
+        return Response({"success": True, "redirect_url": redirect_url})

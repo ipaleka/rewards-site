@@ -15,6 +15,7 @@
 # sys.path.insert(0, os.path.abspath('.'))
 
 import os
+import subprocess
 import sys
 
 import django
@@ -49,7 +50,22 @@ master_doc = "index"
 # Add any Sphinx extension module names here, as strings. They can be
 # extensions coming with Sphinx (named 'sphinx.ext.*') or your custom
 # ones.
-extensions = ["sphinx.ext.autodoc"]
+extensions = [
+    "sphinx.ext.autodoc",
+    "sphinx.ext.viewcode",
+    "sphinx.ext.napoleon",
+]
+
+# Generate TypeDoc once at the start
+frontend_path = os.path.abspath("../rewardsweb/frontend")
+if os.path.exists(frontend_path):
+    print("Generating TypeDoc documentation...")
+    try:
+        subprocess.run(["npm", "run", "build:docs"], cwd=frontend_path, check=True)
+    except subprocess.CalledProcessError:
+        print("TypeDoc generation failed - continuing without frontend docs")
+
+
 
 # Add any paths that contain templates here, relative to this directory.
 templates_path = ["_templates"]

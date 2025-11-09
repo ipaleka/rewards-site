@@ -8,7 +8,6 @@ from django.views.generic import TemplateView
 from core.models import Contribution
 
 
-
 class ClaimView(LoginRequiredMixin, TemplateView):
     """View for users to claim their rewards.
 
@@ -62,8 +61,7 @@ class AddAllocationsView(LoginRequiredMixin, TemplateView):
         """
         context = super().get_context_data(**kwargs)
         addresses, amounts = Contribution.objects.addressed_contributions()
-        context["addresses"] = addresses
-        context["amounts"] = amounts
+        context["allocations"] = zip(addresses, amounts)
         return context
 
 

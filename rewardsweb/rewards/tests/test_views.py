@@ -72,7 +72,7 @@ class TestRewardsViews:
 
     # # AddAllocationsView
     @pytest.mark.django_db
-    def test_addallocationsview_requires_login(self,rf):
+    def test_addallocationsview_requires_login(self, rf):
         """Ensure the view redirects anonymous users to login page."""
         request = rf.get("/rewards/add-allocations/")
         request.user = AnonymousUser()
@@ -83,7 +83,7 @@ class TestRewardsViews:
         assert "/login" in response.url.lower()
 
     @pytest.mark.django_db
-    def test_addallocationsview_superuser_can_access(self,rf, superuser):
+    def test_addallocationsview_superuser_can_access(self, rf, superuser):
         """Superusers should be able to access the page."""
         request = rf.get("/rewards/add-allocations/")
         request.user = superuser
@@ -95,9 +95,9 @@ class TestRewardsViews:
 
     @pytest.mark.django_db
     def test_addallocationsview_context_contains_addresses_and_amounts(
-        self,rf, superuser, mocker
+        self, rf, superuser, mocker
     ):
-        """Ensure addresses + amounts from queryset are added to context."""
+        """Ensure allocations from queryset are added to context."""
 
         # Mock database call
         mocked_contribs = mocker.patch(
@@ -112,13 +112,12 @@ class TestRewardsViews:
 
         context = response.context_data
 
-        assert context["addresses"] == ["ADDR1", "ADDR2"]
-        assert context["amounts"] == [10, 20]
+        assert list(context["allocations"]) == [("ADDR1", 10), ("ADDR2", 20)]
         # Ensures function was called exactly once
         mocked_contribs.assert_called_once_with()
 
     @pytest.mark.django_db
-    def test_addallocationsview_normal_user_blocked(self,rf, user):
+    def test_addallocationsview_normal_user_blocked(self, rf, user):
         """Non-superusers should NOT be allowed to access the page."""
         request = rf.get("/rewards/add-allocations/")
         request.user = user
@@ -127,7 +126,6 @@ class TestRewardsViews:
 
         # LoginRequiredMixin lets login first, so user gets 302 to login
         assert response.status_code in (302, 403)
-
 
     # # ReclaimAllocationsView
     @pytest.mark.django_db

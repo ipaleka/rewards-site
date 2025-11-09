@@ -175,7 +175,15 @@ class TestAddAllocationsAPIView:
         self, view, rf, valid_address, mocker
     ):
         """Test successful data retrieval for valid address."""
-        mocker.patch("walletauth.views.is_valid_address", return_value=True)
+        mocked_address = mocker.patch(
+            "walletauth.views.is_valid_address", return_value=True
+        )
+        addresses, amounts = mocker.MagicMock(), mocker.MagicMock()
+        mocked_contribs = mocker.patch(
+            "walletauth.views.Contribution.objects.addressed_contributions",
+            return_value=(addresses, amounts),
+        )
+
         data = {"address": valid_address}
         request = rf.post("/add-allocations/", data=data, format="json")
 
@@ -185,11 +193,18 @@ class TestAddAllocationsAPIView:
         response_data = response.data
         assert "addresses" in response_data
         assert "amounts" in response_data
+        mocked_address.assert_called_once_with(valid_address)
+        mocked_contribs.assert_called_once_with()
 
     @pytest.mark.django_db
     def test_walletauth_addallocationsapiview_fallback_to_json_body(self, mocker):
         """Test fallback data parsing when `request.data` is missing (WSGIRequest)."""
         mocker.patch("walletauth.views.is_valid_address", return_value=True)
+        addresses, amounts = mocker.MagicMock(), mocker.MagicMock()
+        mocked_contribs = mocker.patch(
+            "walletauth.views.Contribution.objects.addressed_contributions",
+            return_value=(addresses, amounts),
+        )
 
         rf = RequestFactory()  # <-- forces WSGIRequest (no request.data)
         json_body = (
@@ -203,7 +218,8 @@ class TestAddAllocationsAPIView:
         response = AddAllocationsAPIView().post(request)  # call .post(), not view()
 
         assert response.status_code == 200
-        assert response.data == {"addresses": [], "amounts": []}
+        assert response.data == {"addresses": addresses, "amounts": amounts}
+        mocked_contribs.assert_called_once_with()
 
     def test_walletauth_addllocationsapiview_invalid_json(self, view, rf):
         """Test handling of invalid JSON."""

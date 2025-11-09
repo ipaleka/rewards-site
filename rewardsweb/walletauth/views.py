@@ -12,7 +12,7 @@ from django.contrib.auth import get_user_model, login
 from rest_framework.response import Response
 from rest_framework.views import APIView
 
-from core.models import Contributor, Profile
+from core.models import Contribution, Contributor, Profile
 from utils.constants.core import (
     ALGORAND_WALLETS,
     WALLET_CONNECT_NETWORK_OPTIONS,
@@ -124,7 +124,8 @@ class AddAllocationsAPIView(APIView):
                 {"error": f"Invalid or missing address: {address}"}, status=400
             )
 
-        allocations = {"addresses": [], "amounts": []}
+        addresses, amounts = Contribution.objects.addressed_contributions()
+        allocations = {"addresses": addresses, "amounts": amounts}
         return Response(allocations)
 
 

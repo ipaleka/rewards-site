@@ -10,7 +10,6 @@ from algokit_utils import (
     Arc56Contract,
     AssetTransferParams,
     LogicError,
-    PaymentParams,
     SendParams,
     SigningAccount,
 )
@@ -27,7 +26,6 @@ from dotenv import load_dotenv
 load_dotenv(Path(__file__).parent.parent / ".env")
 
 dapp_name = os.getenv("REWARDS_DAPP_NAME")
-token_id = os.getenv("REWARDS_TOKEN_ID_TESTNET")
 
 # Assume tests are run from the project root
 CONTRACT_PATH = Path(__file__).parent.parent / "artifacts"
@@ -46,9 +44,24 @@ def app_spec() -> Arc56Contract:
     return Arc56Contract.from_dict(spec)
 
 
-@pytest.fixture(scope="function")
+@pytest.fixture(scope="session")
+def token_id(algod_client: AlgodClient, asset_creator_account: SigningAccount) -> int:
+    """Create rewards token and return its ID."""
+    return create_asset(algod_client, asset_creator_account)
+
+
+@pytest.fixture(scope="session")
 def admin_account(algod_client: AlgodClient) -> SigningAccount:
-    return algod_client.account.from_environment("ADMIN_TESTNET")
+    return algod_client.account.from_environment(
+        "ADMIN_ACCOUNT", fund_with=1_000_000_000_000
+    )
+
+
+@pytest.fixture(scope="session")
+def asset_creator_account(algod_client: AlgodClient) -> SigningAccount:
+    return algod_client.account.from_environment(
+        "ASSET_CREATOR_ACCOUNT", fund_with=100_000_000_000
+    )
 
 
 @pytest.fixture(scope="function")
@@ -59,7 +72,7 @@ def rewards_client(algod_client: AlgodClient, app_spec: Arc56Contract) -> AppCli
     )
 
 
-@pytest.fixture(scope="function")
+@pytest.fixture(scope="session")
 def algod_client() -> AlgodClient:
     return AlgorandClient.from_environment()
 
@@ -85,20 +98,7 @@ def create_asset(algod_client: AlgodClient, account: SigningAccount) -> int:
     return tx_info["asset-index"]
 
 
-def make_payment(admin_account, receiver, amount=200_000):
-    algorand = AlgorandClient.from_environment()
-    algorand.send.payment(
-        PaymentParams(
-            sender=admin_account.address,
-            receiver=receiver,
-            amount=AlgoAmount(micro_algo=amount),
-            signer=admin_account.signer,
-        ),
-        SendParams(max_rounds_to_wait_for_confirmation=5, suppress_log=False),
-    )
-
-
-def make_transfer(admin_account, receiver, amount):
+def make_transfer(admin_account, receiver, token_id, amount):
     algorand = AlgorandClient.from_environment()
     algorand.send.asset_transfer(
         AssetTransferParams(
@@ -115,18 +115,32 @@ def make_transfer(admin_account, receiver, amount):
 class TestContractRewardsIntegration:
     """Testing class for :class:`contract.contract.Rewards` methods."""
 
-    @pytest.mark.order(1)
+    @pytest.mark.order(-70)
     def test_contract_rewards_add_alocations_for_no_admin(
-        self, rewards_client: AppClient, admin_account: SigningAccount
+        self,
+        algod_client: AlgodClient,
+        rewards_client: AppClient,
+        admin_account: SigningAccount,
+        token_id: int
     ) -> None:
         amount = 1_000_000_000
-        min_balance, fees = 200_000, 4000
 
-        other_account = rewards_client.algorand.account.random()
-        make_payment(admin_account, other_account.address, amount=min_balance + fees)
+        user_account = algod_client.account.from_environment(
+            "MYUSER_ACCOUNT", fund_with=10_000_000_000
+        )
 
-        user_account = rewards_client.algorand.account.random()
-        make_payment(admin_account, user_account.address, amount=min_balance + fees)
+        other_account = algod_client.account.from_environment(
+            "OTHER_ACCOUNT", fund_with=10_000_000_000
+        )
+
+        rewards_client.send.call(
+            AppClientMethodCallParams(
+                method="setup",
+                args=[token_id, 3600],
+                sender=admin_account.address,
+                signer=admin_account.signer,
+            )
+        )
 
         with pytest.raises(LogicError, match="Sender is not the admin"):
             rewards_client.send.call(
@@ -140,18 +154,18 @@ class TestContractRewardsIntegration:
                 )
             )
 
-        make_payment(other_account, admin_account.address, amount=101_000)
-        make_payment(user_account, admin_account.address, amount=101_000)
-
-    @pytest.mark.order(2)
+    @pytest.mark.order(-60)
     def test_contract_rewards_add_alocations_different_sizes(
-        self, rewards_client: AppClient, admin_account: SigningAccount
+        self,
+        algod_client: AlgodClient,
+        rewards_client: AppClient,
+        admin_account: SigningAccount,
     ) -> None:
         amount = 1_000_000_000
-        min_balance, fees = 200_000, 4000
 
-        user_account = rewards_client.algorand.account.random()
-        make_payment(admin_account, user_account.address, amount=min_balance + fees)
+        user_account = algod_client.account.from_environment(
+            "USER_ACCOUNT", fund_with=10_000_000_000
+        )
 
         with pytest.raises(LogicError, match="Input arrays must have the same length"):
             rewards_client.send.call(
@@ -165,26 +179,27 @@ class TestContractRewardsIntegration:
                 )
             )
 
-        make_payment(user_account, admin_account.address, amount=101_000)
-
-    @pytest.mark.order(3)
+    @pytest.mark.order(-50)
     def test_contract_rewards_add_alocations_single_address_static_fee(
-        self, rewards_client: AppClient, admin_account: SigningAccount
+        self,
+        algod_client: AlgodClient,
+        rewards_client: AppClient,
+        admin_account: SigningAccount,
+        asset_creator_account: SigningAccount,
+        token_id: int,
     ) -> None:
         amount = 1_000_000_000
-        min_balance, fees = 200_000, 4000
 
         user_asset_info = rewards_client.algorand.client.algod.account_asset_info(
             admin_account.address, token_id
         )
         if user_asset_info["asset-holding"]["amount"] < amount:
-            make_transfer(admin_account, rewards_client.app_address, amount)
+            make_transfer(asset_creator_account, rewards_client.app_address, amount)
 
-        make_payment(admin_account, rewards_client.app_address)
+        user_account = algod_client.account.from_environment(
+            "USER_ACCOUNT", fund_with=10_000_000_000
+        )
 
-        # Add an allocation for a new user
-        user_account = rewards_client.algorand.account.random()
-        make_payment(admin_account, user_account.address, amount=min_balance + fees)
         rewards_client.send.call(
             AppClientMethodCallParams(
                 method="add_allocations",
@@ -215,27 +230,30 @@ class TestContractRewardsIntegration:
             )
         )
 
-    @pytest.mark.order(4)
+    @pytest.mark.order(-40)
     def test_contract_rewards_add_alocations_multiple_addresses_static_fee(
-        self, rewards_client: AppClient, admin_account: SigningAccount
+        self,
+        algod_client: AlgodClient,
+        rewards_client: AppClient,
+        admin_account: SigningAccount,
+        asset_creator_account: SigningAccount,
+        token_id: int,
     ) -> None:
         amount = 1_000_000_000
-        min_balance, fees = 200_000, 4000
 
         user_asset_info = rewards_client.algorand.client.algod.account_asset_info(
             admin_account.address, token_id
         )
         if user_asset_info["asset-holding"]["amount"] < amount:
-            make_transfer(admin_account, rewards_client.app_address, amount)
-
-        make_payment(admin_account, rewards_client.app_address)
+            make_transfer(asset_creator_account, rewards_client.app_address, amount)
 
         users_count = 4
         user_accounts = []
         for i in range(users_count):
-            user_accounts.append(rewards_client.algorand.account.random())
-            make_payment(
-                admin_account, user_accounts[i].address, amount=min_balance + fees
+            user_accounts.append(
+                algod_client.account.from_environment(
+                    f"USER{i}_ACCOUNT", fund_with=10_000_000_000
+                )
             )
 
         rewards_client.send.call(
@@ -254,19 +272,22 @@ class TestContractRewardsIntegration:
             )
         )
 
-    @pytest.mark.order(5)
+    @pytest.mark.order(-30)
     def test_contract_rewards_claim_non_opted_in_user(
-        self, rewards_client: AppClient, admin_account: SigningAccount
+        self,
+        algod_client: AlgodClient,
+        rewards_client: AppClient,
+        admin_account: SigningAccount,
+        asset_creator_account: SigningAccount,
+        token_id: int,
     ) -> None:
         amount = 1_000_000_000
-        min_balance, fees = 200_000, 4000
 
-        make_payment(admin_account, rewards_client.app_address)
-        make_transfer(admin_account, rewards_client.app_address, amount)
+        make_transfer(asset_creator_account, rewards_client.app_address, amount)
 
-        # Add an allocation for a new user
-        user_account = rewards_client.algorand.account.random()
-        make_payment(admin_account, user_account.address, amount=min_balance + fees)
+        user_account = algod_client.account.from_environment(
+            "USER_ACCOUNT", fund_with=10_000_000_000
+        )
 
         rewards_client.send.call(
             AppClientMethodCallParams(
@@ -291,21 +312,22 @@ class TestContractRewardsIntegration:
                 )
             )
 
-        make_payment(user_account, admin_account.address, amount=101_000)
-
-    @pytest.mark.order(6)
+    @pytest.mark.order(-20)
     def test_contract_rewards_claim_opted_in_user(
-        self, rewards_client: AppClient, admin_account: SigningAccount
+        self,
+        algod_client: AlgodClient,
+        rewards_client: AppClient,
+        admin_account: SigningAccount,
+        asset_creator_account: SigningAccount,
+        token_id: int,
     ) -> None:
         amount = 1_000_000_000
-        min_balance, fees = 200_000, 4000
 
-        make_payment(admin_account, rewards_client.app_address)
-        make_transfer(admin_account, rewards_client.app_address, amount)
+        make_transfer(asset_creator_account, rewards_client.app_address, amount)
 
-        # Add an allocation for a new user
-        user_account = rewards_client.algorand.account.random()
-        make_payment(admin_account, user_account.address, amount=min_balance + fees)
+        user_account = algod_client.account.from_environment(
+            "USER_ACCOUNT", fund_with=10_000_000_000
+        )
 
         # User opts into the asset
         rewards_client.algorand.send.asset_opt_in(
@@ -351,16 +373,22 @@ class TestContractRewardsIntegration:
                 rewards_client.app_id, user_account.address.encode()
             )
 
-    @pytest.mark.order(7)
+    @pytest.mark.order(-10)
     def test_contract_rewards_reclaim_before_expiry_fails(
-        self, rewards_client: AppClient, admin_account: SigningAccount
+        self,
+        algod_client: AlgodClient,
+        rewards_client: AppClient,
+        admin_account: SigningAccount,
+        asset_creator_account: SigningAccount,
     ) -> None:
         amount = 1_000_000_000
 
-        make_payment(admin_account, rewards_client.app_address)
-        make_transfer(admin_account, rewards_client.app_address, amount)
+        make_transfer(asset_creator_account, rewards_client.app_address, amount)
 
-        user_account = rewards_client.algorand.account.random()
+        user_account = algod_client.account.from_environment(
+            "USER_ACCOUNT", fund_with=10_000_000_000
+        )
+
         rewards_client.send.call(
             AppClientMethodCallParams(
                 method="add_allocations",

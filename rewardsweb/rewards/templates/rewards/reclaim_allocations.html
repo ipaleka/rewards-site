@@ -7,12 +7,40 @@
 
 {% block content %}
   <div class="container mx-auto px-4 py-8">
-    <h1 class="text-3xl font-bold mb-6">Reclaim Allocations (Superuser Only)</h1>
+    <h1 class="text-3xl font-bold mb-6">Reclaim allocations (superuser only)</h1>
 
     <div id="reclaim-allocations-container">
       <div class="space-y-4 p-4 rounded-lg bg-base-200 mt-4">
-        <h4 class="font-semibold text-lg">Reclaim Allocations (Superuser Only)</h4>
-        <div id="reclaim-list"></div>
+        <h4 class="font-semibold text-lg">Reclaimable Addresses</h4>
+        {% if addresses %}
+          <table class="table w-full">
+            <thead>
+              <tr>
+                <th>Address</th>
+                <th></th>
+              </tr>
+            </thead>
+            <tbody>
+              {% for address in addresses %}
+                <tr>
+                  <td>{{ address }}</td>
+                  <td class="text-right">
+                    <button
+                      id="reclaim-button-{{ address }}"
+                      data-address="{{ address }}"
+                      type="button"
+                      class="btn btn-warning btn-xs"
+                    >
+                      Reclaim
+                    </button>
+                  </td>
+                </tr>
+              {% endfor %}
+            </tbody>
+          </table>
+        {% else %}
+          <p>No reclaimable allocations found.</p>
+        {% endif %}
       </div>
     </div>
 

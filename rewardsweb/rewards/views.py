@@ -5,6 +5,7 @@ from django.contrib.auth.mixins import LoginRequiredMixin
 from django.utils.decorators import method_decorator
 from django.views.generic import TemplateView
 
+from contract.network import reclaimable_addresses
 from core.models import Contribution
 
 
@@ -84,5 +85,5 @@ class ReclaimAllocationsView(LoginRequiredMixin, TemplateView):
         :rtype: dict
         """
         context = super().get_context_data(**kwargs)
-        # TODO: Add any context needed for the template, if any.
+        context["addresses"] = reclaimable_addresses()
         return context

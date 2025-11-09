@@ -12,6 +12,7 @@ from django.contrib.auth import get_user_model, login
 from rest_framework.response import Response
 from rest_framework.views import APIView
 
+from contract.network import reclaimable_addresses
 from core.models import Contribution, Contributor, Profile
 from utils.constants.core import (
     ALGORAND_WALLETS,
@@ -189,7 +190,7 @@ class ReclaimAllocationsAPIView(APIView):
                 {"error": f"Invalid or missing address: {address}"}, status=400
             )
 
-        reclaimable_allocations = {"addresses": []}
+        reclaimable_allocations = {"addresses": reclaimable_addresses()}
         return Response(reclaimable_allocations)
 
 

@@ -74,7 +74,7 @@ class TestRewardsViews:
     @pytest.mark.django_db
     def test_addallocationsview_requires_login(self, rf):
         """Ensure the view redirects anonymous users to login page."""
-        request = rf.get("/rewards/add-allocations/")
+        request = rf.get(reverse("add_allocations"))
         request.user = AnonymousUser()
 
         response = AddAllocationsView.as_view()(request)
@@ -85,7 +85,7 @@ class TestRewardsViews:
     @pytest.mark.django_db
     def test_addallocationsview_superuser_can_access(self, rf, superuser):
         """Superusers should be able to access the page."""
-        request = rf.get("/rewards/add-allocations/")
+        request = rf.get(reverse("add_allocations"))
         request.user = superuser
 
         response = AddAllocationsView.as_view()(request)
@@ -105,7 +105,7 @@ class TestRewardsViews:
             return_value=(["ADDR1", "ADDR2"], [10, 20]),
         )
 
-        request = rf.get("/rewards/add-allocations/")
+        request = rf.get(reverse("add_allocations"))
         request.user = superuser
 
         response = AddAllocationsView.as_view()(request)
@@ -119,7 +119,7 @@ class TestRewardsViews:
     @pytest.mark.django_db
     def test_addallocationsview_normal_user_blocked(self, rf, user):
         """Non-superusers should NOT be allowed to access the page."""
-        request = rf.get("/rewards/add-allocations/")
+        request = rf.get(reverse("add_allocations"))
         request.user = user
 
         response = AddAllocationsView.as_view()(request)
@@ -139,7 +139,9 @@ class TestRewardsViews:
         assert "/login" in response.url.lower()
 
     @pytest.mark.django_db
-    def test_reclaimallocationsview_superuser_can_access(self, rf, superuser):
+    def test_reclaimallocationsview_superuser_can_access(self, rf, superuser, mocker):
+
+        mocker.patch("rewards.views.reclaimable_addresses")
         request = rf.get(reverse("reclaim_allocations"))
         request.user = superuser
 
@@ -147,3 +149,23 @@ class TestRewardsViews:
 
         assert response.status_code == 200
         assert response.template_name == ["rewards/reclaim_allocations.html"]
+
+    @pytest.mark.django_db
+    def test_reclaimallocationsview_context_contains_addresses(
+        self, rf, superuser, mocker
+    ):
+        """Ensure addresses are added to context."""
+        # Mock database call
+        mocked_addresses = mocker.patch(
+            "rewards.views.reclaimable_addresses", return_value=["ADDR1", "ADDR2"]
+        )
+
+        request = rf.get(reverse("reclaim_allocations"))
+        request.user = superuser
+
+        response = ReclaimAllocationsView.as_view()(request)
+
+        context = response.context_data
+
+        assert context["addresses"] == ["ADDR1", "ADDR2"]
+        mocked_addresses.assert_called_once_with()

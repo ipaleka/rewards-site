@@ -47,7 +47,7 @@ export class ReclaimAllocationsComponent {
    * Fetches reclaimable allocation data from the backend API.
    *
    * Retrieves the list of addresses that have allocations that can be reclaimed.
-   * Updates the internal state and re-renders the UI with the results.
+   * Updates the internal state with the results.
    *
    * @private
    */
@@ -55,14 +55,12 @@ export class ReclaimAllocationsComponent {
     const activeAddress = this.walletManager.activeAccount?.address
     if (!activeAddress) {
       this.reclaimableAddresses = []
-      this.render()
       return
     }
 
     try {
       const data = await this.rewardsClient.fetchReclaimAllocationsData(activeAddress)
       this.reclaimableAddresses = data.addresses
-      this.render()
     } catch (error) {
       console.error('[ReclaimAllocationsComponent] Error fetching reclaim allocations data:', error)
       alert(`Failed to fetch reclaim allocations data: ${error instanceof Error ? error.message : String(error)}`)
@@ -108,47 +106,6 @@ export class ReclaimAllocationsComponent {
   }
 
   /**
-   * Renders the list of reclaimable addresses to the UI.
-   *
-   * Creates a list of addresses with individual reclaim buttons for each.
-   * Shows a message when no reclaimable allocations are found.
-   *
-   * @private
-   */
-  render() {
-    if (!this.element) return
-
-    const reclaimList = this.element.querySelector<HTMLDivElement>('#reclaim-list')
-    if (!reclaimList) return
-
-    if (this.reclaimableAddresses.length === 0) {
-      reclaimList.innerHTML = '<p>No reclaimable allocations found.</p>'
-    } else {
-      reclaimList.innerHTML = `
-        <ul class="list-disc pl-5">
-          ${this.reclaimableAddresses
-          .map(
-            (address) => `
-            <li class="flex items-center justify-between py-1">
-              <span>${address}</span>
-              <button
-                id="reclaim-button-${address}"
-                data-address="${address}"
-                type="button"
-                class="btn btn-warning btn-xs"
-              >
-                Reclaim
-              </button>
-            </li>
-          `,
-          )
-          .join('')}
-        </ul>
-      `
-    }
-  }
-
-  /**
    * Adds event listeners for reclaim button clicks.
    *
    * Listens for click events on dynamically generated reclaim buttons
@@ -168,6 +125,15 @@ export class ReclaimAllocationsComponent {
         }
       }
     })
+  }
+
+  /**
+   * Gets the current list of reclaimable addresses.
+   *
+   * @returns Array of reclaimable addresses
+   */
+  getReclaimableAddresses(): string[] {
+    return [...this.reclaimableAddresses]
   }
 
   /**

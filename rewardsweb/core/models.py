@@ -168,6 +168,7 @@ class Contributor(models.Model):
         # Categorize contributions in memory
         open_contribs = []
         addressed_contribs = []
+        claimable_contribs = []
         archived_contribs = []
         uncategorized_contribs = []
         invalidated_contribs = []
@@ -177,6 +178,8 @@ class Contributor(models.Model):
                 uncategorized_contribs.append(contrib)
             elif contrib.issue.status == IssueStatus.ADDRESSED:
                 addressed_contribs.append(contrib)
+            elif contrib.issue.status == IssueStatus.CLAIMABLE:
+                claimable_contribs.append(contrib)
             elif contrib.issue.status == IssueStatus.ARCHIVED:
                 archived_contribs.append(contrib)
             elif contrib.issue.status == IssueStatus.WONTFIX:
@@ -187,6 +190,7 @@ class Contributor(models.Model):
         # Calculate totals for each category
         open_total = sum(c.reward.amount for c in open_contribs)
         addressed_total = sum(c.reward.amount for c in addressed_contribs)
+        claimable_total = sum(c.reward.amount for c in claimable_contribs)
         archived_total = sum(c.reward.amount for c in archived_contribs)
         uncategorized_total = sum(c.reward.amount for c in uncategorized_contribs)
         total_rewards = (
@@ -196,6 +200,7 @@ class Contributor(models.Model):
         return {
             "open_contributions": open_contribs,
             "addressed_contributions": addressed_contribs,
+            "claimable_contributions": claimable_contribs,
             "archived_contributions": archived_contribs,
             "uncategorized_contributions": uncategorized_contribs,
             "invalidated_contributions": invalidated_contribs,
@@ -205,6 +210,11 @@ class Contributor(models.Model):
                     "name": "Addressed",
                     "query": addressed_contribs,
                     "total": addressed_total,
+                },
+                {
+                    "name": "Claimable",
+                    "query": claimable_contribs,
+                    "total": claimable_total,
                 },
                 {
                     "name": "Archived",
@@ -247,6 +257,15 @@ class Contributor(models.Model):
         :rtype: list
         """
         return self.optimized_contribution_data["archived_contributions"]
+
+    @cached_property
+    def claimable_contributions(self):
+        """Return all contributions with issue status CLAIMABLE.
+
+        :return: list of Contribution objects
+        :rtype: list
+        """
+        return self.optimized_contribution_data["claimable_contributions"]
 
     @cached_property
     def uncategorized_contributions(self):
@@ -639,6 +658,7 @@ class IssueStatus(models.TextChoices):
     CREATED = "created", "Created"
     WONTFIX = "wontfix", "Wontfix"
     ADDRESSED = "addressed", "Addressed"
+    CLAIMABLE = "claimable", "Claimable"
     ARCHIVED = "archived", "Archived"
 
 
@@ -711,16 +731,17 @@ class Issue(models.Model):
 class ContributionManager(models.Manager):
     """Custom manager for the `Contribution` model."""
 
-    def addressed_contributions_addresses_and_amounts(self):
-        """Create collection of addressed contributions to be added to smart contract.
+    def addresses_and_amounts_from_contributions(self, contributions):
+        """Create collection of addresses and related amounts from `contributions`.
 
-        :var contributions: all contributions for the user defined by provided `address`
+        :param contributions: all contributions for the user defined by provided `address`
         :type contributions: :class:`django.db.models.query.QuerySet`
         :var amounts: colection of addresses and related contribution ammounts
         :type amounts: dict
+        :var contrib: colection of addresses and related contribution ammounts
+        :type contrib: :class:`Contribution`
         :return: two-tuple
         """
-        contributions = self.filter(issue__status=IssueStatus.ADDRESSED)
         amounts = {}
         for contrib in contributions:
             if is_valid_address(contrib.contributor.address) and contrib.reward.amount:
@@ -729,6 +750,16 @@ class ContributionManager(models.Manager):
                 )
 
         return list(amounts.keys()), list(amounts.values())
+
+    def addressed_contributions_addresses_and_amounts(self):
+        """Create collection of addressed contributions to be added to smart contract.
+
+        :var contributions: all contributions for the user defined by provided `address`
+        :type contributions: :class:`django.db.models.query.QuerySet`
+        :return: two-tuple
+        """
+        contributions = self.filter(issue__status=IssueStatus.ADDRESSED)
+        return self.addresses_and_amounts_from_contributions(contributions)
 
     def user_has_claimed(self, address):
         """Update status of related issues to ARCHIVED for all contributions.

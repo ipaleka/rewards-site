@@ -4,8 +4,8 @@ import base64
 import json
 import os
 import time
-from pathlib import Path
 from http.client import RemoteDisconnected
+from pathlib import Path
 from urllib.error import HTTPError, URLError
 
 from algosdk.abi.contract import Contract

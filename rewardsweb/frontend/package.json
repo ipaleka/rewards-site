@@ -10,8 +10,8 @@
     "test:coverage": "node --no-warnings node_modules/.bin/jest --config jest.config.cjs --coverage",
     "test:all": "node --no-warnings node_modules/.bin/jest --config jest.config.cjs --coverage --verbose",
     "test:ci": "jest --config jest.config.cjs --coverage --coverageReporters=lcov --coverageReporters=text --coverageReporters=html",
-    "docs": "typedoc --out docs src",
-    "build:docs": "typedoc --out ../../docs/_build/html/frontend src",
+    "docs": "typedoc --plugin typedoc-plugin-markdown --out ../../docs/api/frontend_api src",
+    "build:docs": "typedoc --out docs/frontend src",
     "docs:sphinx": "cd ../../docs && make html"
   },
   "devDependencies": {
@@ -20,6 +20,7 @@
     "jest-environment-jsdom": "^29.7.0",
     "ts-jest": "^29.1.1",
     "typedoc": "^0.28.14",
+    "typedoc-plugin-markdown": "^4.9.0",
     "typescript": "5.8.3",
     "vite": "6.4.1",
     "vite-plugin-node-polyfills": "0.24.0"

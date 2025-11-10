@@ -12,9 +12,10 @@ Welcome to ASA Stats Rewards website documentation!
 
    development
    provisioning
-   api
    howto
    troubleshooting
+   api
+   frontend
 
 
 Indices and tables

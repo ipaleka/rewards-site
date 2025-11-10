@@ -1,23 +1,8 @@
 Frontend package
 ================
 
-TypeScript/JavaScript frontend application built with Vite.
-
-.. note::
-   The frontend documentation is generated using TypeDoc. For detailed API documentation,
-   see the generated TypeDoc output.
-
-TypeDoc documentation
----------------------
-
-The complete TypeScript API documentation is available at:
-
-`View Frontend API documentation <frontend/index.html>`_
-
-.. raw:: html
-
-   <p>You can also <a href="frontend/index.html" target="_blank">open the frontend documentation in a new window</a>.</p>
-
+The frontend is a TypeScript application built with Vite that provides the user interface for interacting
+with the Algorand blockchain and managing rewards.
 
 Overview
 --------
@@ -35,6 +20,21 @@ manages their lifecycle.
 
 Main components
 ---------------
+
+.. toctree::
+   :maxdepth: 2
+
+   api/frontend_api/WalletComponent/classes/WalletComponent.md
+   api/frontend_api/RewardsClient/classes/RewardsClient.md
+   api/frontend_api/ActiveNetwork/classes/ActiveNetwork.md
+   api/frontend_api/AddAllocationsComponent/classes/AddAllocationsComponent.md
+   api/frontend_api/ClaimComponent/classes/ClaimComponent.md
+   api/frontend_api/ReclaimAllocationsComponent/classes/ReclaimAllocationsComponent.md
+
+.. raw:: html
+
+   <p>You can also <a href="index.html" target="_blank">open the frontend documentation in a new window</a>.</p>
+
 
 App (main.ts)
 ~~~~~~~~~~~~~
@@ -186,6 +186,7 @@ Main client for interacting with Rewards smart contract and backend API.
 * Uses Atomic Transaction Composer for complex transactions
 * Handles asset opt-in for reward tokens
 * Manages different app IDs per network (Testnet/Mainnet)
+
 
 Development
 -----------

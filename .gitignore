@@ -5,6 +5,8 @@ __pycache__
 *.code-workspace
 .scannerwork
 docs/_build
+docs/_typedoc
+docs/api/frontend_api/*
 db.sqlite3
 *.log
 .coverage

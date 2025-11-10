@@ -1,3 +1,7 @@
+**rewards-frontend-package**
+
+***
+
 # Frontend package
 
 The frontend is a TypeScript application built with Vite that provides the user interface for interacting

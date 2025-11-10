@@ -13,9 +13,9 @@ build:
   jobs:
     pre_build:
       # Use npm ci for reproducible installs (uses package-lock.json)
-      - cd rewardsweb/frontend && npm ci --include=dev
+      - npm --prefix rewardsweb/frontend ci --include=dev
       # Generate TypeDoc docs
-      - cd rewardsweb/frontend && npx typedoc --out ../../docs/_build/html/frontend src
+      - npm --prefix rewardsweb/frontend run docs
 
 # Build documentation in the "docs/" directory with Sphinx
 sphinx:

@@ -8,7 +8,6 @@ from contract.deploy import (
     delete_dapp,
     deploy_and_setup,
     deploy_app,
-    fund_app,
     setup_app,
 )
 

@@ -121,7 +121,7 @@ class Rewards(arc4.ARC4Contract):
         expires_at = Global.latest_timestamp + self.claim_period_duration.value
         for i in urange(addresses.length):
             address = addresses[i].native
-            amount = amounts[i].native
+            amount = amounts[i].as_uint64()
             allocation_box = self.allocations.box(address)
             if allocation_box:
                 # Update existing allocation

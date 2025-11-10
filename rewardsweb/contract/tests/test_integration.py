@@ -2,6 +2,7 @@
 
 import json
 import os
+import time
 from pathlib import Path
 
 import pytest
@@ -24,6 +25,7 @@ from algosdk.atomic_transaction_composer import (
     AtomicTransactionComposer,
     TransactionWithSigner,
 )
+from algosdk.error import AlgodHTTPError
 from algosdk.transaction import AssetCreateTxn
 from dotenv import load_dotenv
 
@@ -86,10 +88,11 @@ def _make_transfer(asset_creator_account, receiver, token_id, amount):
     )
 
 
-class TestContractReclaimAllocations:
-    """Testing class for :class:`contract.contract.Rewards` reclaim_allocations."""
+class BaseTestContract:
+    """Base testing class for :class:`contract.contract.Rewards`."""
 
-    name = "claim"
+    name = "rewards"
+    claim_period_duration = 3600
 
     @pytest.fixture(autouse=True)
     def _setup_contract(
@@ -97,7 +100,6 @@ class TestContractReclaimAllocations:
         algorand_client: AlgorandClient,
         app_spec: Arc56Contract,
         token_id: int,
-        claim_period_duration: int,
         admin_account: SigningAccount,
     ):
         """
@@ -174,7 +176,7 @@ class TestContractReclaimAllocations:
         rewards_client.send.call(
             AppClientMethodCallParams(
                 method="setup",
-                args=[token_id, claim_period_duration],
+                args=[token_id, self.claim_period_duration],
                 sender=admin_account.address,
                 signer=admin_account.signer,
                 static_fee=AlgoAmount(micro_algo=2000),
@@ -202,10 +204,6 @@ class TestContractReclaimAllocations:
         )
 
     @pytest.fixture
-    def claim_period_duration(self) -> int:
-        return 3600
-
-    @pytest.fixture
     def token_id(
         self, algorand_client: AlgorandClient, asset_creator_account: SigningAccount
     ) -> int:
@@ -218,13 +216,221 @@ class TestContractReclaimAllocations:
             fund_with=AlgoAmount(algo=10),
         )
 
-    @pytest.mark.order(-10)
-    def test_contract_rewards_reclaim_before_expiry_fails(
+
+class TestContractAddAllocations(BaseTestContract):
+    """Testing class for :class:`contract.contract.Rewards` add_allocations method."""
+
+    name = "add"
+
+    @pytest.fixture
+    def other_account(self, algorand_client: AlgorandClient) -> SigningAccount:
+        return algorand_client.account.from_environment(
+            "OTHER_ACCOUNT" + "_" + self.name.upper(),
+            fund_with=AlgoAmount(algo=10),
+        )
+
+    @pytest.fixture
+    def user_accounts_4(self, algorand_client: AlgorandClient) -> SigningAccount:
+        users_count = 4
+        user_accounts = []
+        for i in range(users_count):
+            user_accounts.append(
+                algorand_client.account.from_environment(
+                    f"USER{i}_ACCOUNT", fund_with=AlgoAmount(algo=10)
+                )
+            )
+        return user_accounts
+
+    def test_contract_rewards_add_alocations_for_no_admin(
+        self,
+        other_account: SigningAccount,
+        user_account: SigningAccount,
+    ) -> None:
+        amount = 1_000_000_000
+
+        with pytest.raises(LogicError, match="Sender is not the admin"):
+            self.rewards_client.send.call(
+                AppClientMethodCallParams(
+                    method="add_allocations",
+                    args=[[user_account.address], [amount]],
+                    sender=other_account.address,
+                    signer=other_account.signer,
+                    box_references=[user_account.address.encode()],
+                    static_fee=AlgoAmount(micro_algo=2000),
+                )
+            )
+
+    def test_contract_rewards_add_alocations_different_sizes(
+        self,
+        admin_account: SigningAccount,
+        user_account: SigningAccount,
+    ) -> None:
+        amount = 1_000_000_000
+
+        with pytest.raises(LogicError, match="Input arrays must have the same length"):
+            self.rewards_client.send.call(
+                AppClientMethodCallParams(
+                    method="add_allocations",
+                    args=[[user_account.address], [amount, amount]],
+                    sender=admin_account.address,
+                    signer=admin_account.signer,
+                    box_references=[user_account.address.encode()],
+                    static_fee=AlgoAmount(micro_algo=2000),
+                )
+            )
+
+    def test_contract_rewards_add_alocations_single_address_static_fee(
+        self,
+        admin_account: SigningAccount,
+        user_account: SigningAccount,
+    ) -> None:
+        amount = 1_000_000_000
+
+        self.rewards_client.send.call(
+            AppClientMethodCallParams(
+                method="add_allocations",
+                args=[[user_account.address], [amount]],
+                sender=admin_account.address,
+                signer=admin_account.signer,
+                box_references=[user_account.address.encode()],
+                static_fee=AlgoAmount(micro_algo=2000),
+            )
+        )
+
+    def test_contract_rewards_add_alocations_multiple_addresses_static_fee(
+        self,
+        admin_account: SigningAccount,
+        user_accounts_4: list,
+    ) -> None:
+        amount = 1_000_000_000
+
+        self.rewards_client.send.call(
+            AppClientMethodCallParams(
+                method="add_allocations",
+                args=[
+                    [user_account.address for user_account in user_accounts_4],
+                    [amount] * len(user_accounts_4),
+                ],
+                sender=admin_account.address,
+                signer=admin_account.signer,
+                box_references=[
+                    user_account.address.encode() for user_account in user_accounts_4
+                ],
+                static_fee=AlgoAmount(micro_algo=2000),
+            )
+        )
+
+
+class TestContractClaim(BaseTestContract):
+    """Testing class for :class:`contract.contract.Rewards` claim method."""
+
+    name = "claim"
+
+    def test_contract_rewards_claim_non_opted_in_user(
         self,
         admin_account: SigningAccount,
         asset_creator_account: SigningAccount,
-        user_account: SigningAccount,
         token_id: int,
+        user_account: SigningAccount,
+    ) -> None:
+        amount = 1_000_000_000
+
+        _make_transfer(
+            asset_creator_account, self.rewards_client.app_address, token_id, amount
+        )
+
+        self.rewards_client.send.call(
+            AppClientMethodCallParams(
+                method="add_allocations",
+                args=[[user_account.address], [amount]],
+                sender=admin_account.address,
+                signer=admin_account.signer,
+                box_references=[user_account.address.encode()],
+                static_fee=AlgoAmount(micro_algo=3000),
+            )
+        )
+
+        with pytest.raises(LogicError, match="Sender has not opted-in to the asset"):
+            self.rewards_client.send.call(
+                AppClientMethodCallParams(
+                    method="claim",
+                    sender=user_account.address,
+                    signer=user_account.signer,
+                    box_references=[user_account.address.encode()],
+                    static_fee=AlgoAmount(micro_algo=2000),
+                    asset_references=[token_id],
+                )
+            )
+
+    def test_contract_rewards_claim_opted_in_user(
+        self,
+        admin_account: SigningAccount,
+        asset_creator_account: SigningAccount,
+        token_id: int,
+        user_account: SigningAccount,
+    ) -> None:
+        amount = 1_000_000_000
+
+        _make_transfer(
+            asset_creator_account, self.rewards_client.app_address, token_id, amount
+        )
+
+        # User opts into the asset
+        self.rewards_client.algorand.send.asset_opt_in(
+            AssetTransferParams(
+                sender=user_account.address,
+                asset_id=token_id,
+                amount=0,
+                receiver=user_account.address,
+                signer=user_account.signer,
+            )
+        )
+
+        self.rewards_client.send.call(
+            AppClientMethodCallParams(
+                method="add_allocations",
+                args=[[user_account.address], [amount]],
+                sender=admin_account.address,
+                signer=admin_account.signer,
+                box_references=[user_account.address.encode()],
+                static_fee=AlgoAmount(micro_algo=3000),
+            )
+        )
+
+        self.rewards_client.send.call(
+            AppClientMethodCallParams(
+                method="claim",
+                sender=user_account.address,
+                signer=user_account.signer,
+                box_references=[user_account.address.encode()],
+                static_fee=AlgoAmount(micro_algo=2000),
+                asset_references=[token_id],
+            )
+        )
+
+        # Verify the user received the asset
+        user_asset_info = self.rewards_client.algorand.client.algod.account_asset_info(
+            user_account.address, token_id
+        )
+        assert user_asset_info["asset-holding"]["amount"] == amount
+
+        with pytest.raises(AlgodHTTPError, match="box not found"):
+            self.rewards_client.algorand.client.algod.application_box_by_name(
+                self.rewards_client.app_id, user_account.address.encode()
+            )
+
+
+class TestContractReclaimAllocations(BaseTestContract):
+    """Testing class for :class:`contract.contract.Rewards` reclaim_allocations."""
+
+    name = "reclaim"
+
+    def test_contract_rewards_reclaim_allocations_before_expiry_fails(
+        self,
+        admin_account: SigningAccount,
+        asset_creator_account: SigningAccount,
+        token_id: int,
+        user_account: SigningAccount,
     ) -> None:
         amount = 1_000_000_000
 
@@ -253,3 +459,61 @@ class TestContractReclaimAllocations:
                     box_references=[user_account.address.encode()],
                 )
             )
+
+
+class TestContractReclaimAllocationsShortPeriod(BaseTestContract):
+    """Testing class for :class:`contract.contract.Rewards` reclaim_allocations
+
+    with a short claim period so we can test actual reclaiming.
+    ."""
+
+    name = "reclaim_short"
+    claim_period_duration = 2
+
+    @pytest.mark.order(1)
+    def test_contract_rewards_reclaim_allocations_after_short_period(
+        self,
+        admin_account: SigningAccount,
+        asset_creator_account: SigningAccount,
+        token_id: int,
+        user_account: SigningAccount,
+    ) -> None:
+        amount = 1_000_000_000
+
+        _make_transfer(
+            asset_creator_account, self.rewards_client.app_address, token_id, amount
+        )
+
+        self.rewards_client.send.call(
+            AppClientMethodCallParams(
+                method="add_allocations",
+                args=[[user_account.address], [amount]],
+                sender=admin_account.address,
+                signer=admin_account.signer,
+                box_references=[user_account.address.encode()],
+                static_fee=AlgoAmount(micro_algo=2000),
+            )
+        )
+
+        time.sleep(self.claim_period_duration + 2)
+
+        self.rewards_client.algorand.send.asset_opt_in(
+            AssetTransferParams(
+                sender=admin_account.address,
+                asset_id=token_id,
+                amount=0,
+                receiver=admin_account.address,
+                signer=admin_account.signer,
+            )
+        )
+
+        self.rewards_client.send.call(
+            AppClientMethodCallParams(
+                method="reclaim_allocation",
+                args=[user_account.address],
+                sender=admin_account.address,
+                signer=admin_account.signer,
+                box_references=[user_account.address.encode()],
+                static_fee=AlgoAmount(micro_algo=2000),
+            )
+        )

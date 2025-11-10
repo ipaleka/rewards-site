@@ -245,7 +245,7 @@ add_allocations_for_header@2:
     intc_3 // 32
     extract3 // on error: index access is out of bounds
     // contract/contract.py:124
-    // amount = amounts[i].native
+    // amount = amounts[i].as_uint64()
     dig 4
     extract 2 0
     uncover 2

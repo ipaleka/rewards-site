@@ -7,11 +7,14 @@ from unittest import mock
 import pytest
 
 from contract.helpers import (
+    ALGOD_EXCEPTIONS,
+    HTTPError,
     app_schemas,
     atc_method_stub,
     box_name_from_address,
     compile_program,
     environment_variables,
+    is_admin_account_configured,
     pause,
     private_key_from_mnemonic,
     read_json,
@@ -93,6 +96,184 @@ class TestContractHelpersFunctions:
             mocked_getenv.assert_has_calls(calls, any_order=True)
             assert mocked_getenv.call_count == len(mocks)
         mocked_load_dotenv.assert_called_once_with()
+
+    # # is_admin_account_configured
+    def test_contract_helpers_is_admin_account_configured_for_no_env(self, mocker):
+        network = "testnet"
+        env = {
+            "algod_token_testnet": "token",
+            "algod_address_testnet": "address",
+            "rewards_dapp_name": "rewards",
+        }
+        mocked_private_key = mocker.patch("contract.helpers.private_key_from_mnemonic")
+        mocked_env = mocker.patch(
+            "contract.helpers.environment_variables", return_value=env
+        )
+        returned = is_admin_account_configured(network)
+        assert returned is False
+        mocked_env.assert_called_once_with()
+        mocked_private_key.assert_not_called()
+
+    @pytest.mark.parametrize(
+        "exception",
+        [
+            exception("", "", "", "", "") if exception == HTTPError else exception("")
+            for exception in ALGOD_EXCEPTIONS
+        ],
+    )
+    def test_contract_helpers_is_admin_account_configured_for_exception(
+        self, exception, mocker
+    ):
+        network = "mainnet"
+        genesis_hash = "genesis_hash"
+        env = {
+            "admin_mainnet_mnemonic": "mnemonic-words-go-here",
+            "algod_token_mainnet": "token",
+            "algod_address_mainnet": "address",
+            "rewards_dapp_name": "rewards",
+        }
+        mocked_env = mocker.patch(
+            "contract.helpers.environment_variables", return_value=env
+        )
+        client = mocker.MagicMock()
+        mocked_client = mocker.patch(
+            "contract.helpers.AlgodClient",
+            return_value=client,
+        )
+        creator_private_key = mocker.MagicMock()
+        mocked_private_key = mocker.patch(
+            "contract.helpers.private_key_from_mnemonic",
+            return_value=creator_private_key,
+        )
+        admin_address = "ADMIN_ADDRESS"
+        mocked_address = mocker.patch(
+            "contract.helpers.address_from_private_key", return_value=admin_address
+        )
+        sp = mocker.MagicMock()
+        client.suggested_params.return_value = sp
+        genesis_hash = "genesis_hash"
+        sp.gh = genesis_hash
+
+        app_id = 5050
+        contract_json = {
+            "name": "TestContract",
+            "networks": {genesis_hash: {"appID": app_id}},
+        }
+        mocked_read_json = mocker.patch(
+            "contract.helpers.read_json", return_value=contract_json
+        )
+        client.application_info.side_effect = exception
+        returned = is_admin_account_configured(network)
+        assert returned is False
+        mocked_env.assert_called_once_with()
+        mocked_private_key.assert_called_once_with(env["admin_mainnet_mnemonic"])
+        mocked_address.assert_called_once_with(creator_private_key)
+        mocked_client.assert_called_once_with("token", "address")
+        client.suggested_params.assert_called_once_with()
+        mocked_read_json.assert_called_once()
+        client.application_info.assert_called_once_with(app_id)
+
+    def test_contract_helpers_is_admin_account_configured_for_no_admin(self, mocker):
+        network = "mainnet"
+        genesis_hash = "genesis_hash"
+        env = {
+            "admin_mainnet_mnemonic": "mnemonic-words-go-here",
+            "algod_token_mainnet": "token",
+            "algod_address_mainnet": "address",
+            "rewards_dapp_name": "rewards",
+        }
+        mocked_env = mocker.patch(
+            "contract.helpers.environment_variables", return_value=env
+        )
+        client = mocker.MagicMock()
+        mocked_client = mocker.patch(
+            "contract.helpers.AlgodClient",
+            return_value=client,
+        )
+        creator_private_key = mocker.MagicMock()
+        mocked_private_key = mocker.patch(
+            "contract.helpers.private_key_from_mnemonic",
+            return_value=creator_private_key,
+        )
+        admin_address = "ADMIN_ADDRESS"
+        mocked_address = mocker.patch(
+            "contract.helpers.address_from_private_key", return_value=admin_address
+        )
+        sp = mocker.MagicMock()
+        client.suggested_params.return_value = sp
+        genesis_hash = "genesis_hash"
+        sp.gh = genesis_hash
+
+        app_id = 5050
+        contract_json = {
+            "name": "TestContract",
+            "networks": {genesis_hash: {"appID": app_id}},
+        }
+        mocked_read_json = mocker.patch(
+            "contract.helpers.read_json", return_value=contract_json
+        )
+        app_info = {"params": {"creator": "SOME OTHER CREATOR"}}
+        client.application_info.return_value = app_info
+        returned = is_admin_account_configured(network)
+        assert returned is False
+        mocked_env.assert_called_once_with()
+        mocked_private_key.assert_called_once_with(env["admin_mainnet_mnemonic"])
+        mocked_address.assert_called_once_with(creator_private_key)
+        mocked_client.assert_called_once_with("token", "address")
+        client.suggested_params.assert_called_once_with()
+        mocked_read_json.assert_called_once()
+        client.application_info.assert_called_once_with(app_id)
+
+    def test_contract_helpers_is_admin_account_configured_functionality(self, mocker):
+        network = "testnet"
+        genesis_hash = "genesis_hash"
+        env = {
+            "admin_testnet_mnemonic": "mnemonic-words-go-here",
+            "algod_token_testnet": "token",
+            "algod_address_testnet": "address",
+            "rewards_dapp_name": "rewards",
+        }
+        mocked_env = mocker.patch(
+            "contract.helpers.environment_variables", return_value=env
+        )
+        client = mocker.MagicMock()
+        mocked_client = mocker.patch(
+            "contract.helpers.AlgodClient",
+            return_value=client,
+        )
+        creator_private_key = mocker.MagicMock()
+        mocked_private_key = mocker.patch(
+            "contract.helpers.private_key_from_mnemonic",
+            return_value=creator_private_key,
+        )
+        admin_address = "ADMIN_ADDRESS"
+        mocked_address = mocker.patch(
+            "contract.helpers.address_from_private_key", return_value=admin_address
+        )
+        sp = mocker.MagicMock()
+        client.suggested_params.return_value = sp
+        genesis_hash = "genesis_hash"
+        sp.gh = genesis_hash
+
+        app_id = 5050
+        contract_json = {
+            "name": "TestContract",
+            "networks": {genesis_hash: {"appID": app_id}},
+        }
+        mocked_read_json = mocker.patch(
+            "contract.helpers.read_json", return_value=contract_json
+        )
+        app_info = {"params": {"creator": admin_address}}
+        client.application_info.return_value = app_info
+        returned = is_admin_account_configured(network)
+        assert returned is True
+        mocked_env.assert_called_once_with()
+        mocked_private_key.assert_called_once_with(env["admin_testnet_mnemonic"])
+        mocked_address.assert_called_once_with(creator_private_key)
+        mocked_client.assert_called_once_with("token", "address")
+        client.suggested_params.assert_called_once_with()
+        mocked_read_json.assert_called_once()
+        client.application_info.assert_called_once_with(app_id)
 
     # # pause
     def test_contract_helpers_pause_functionality_for_provided_argument(self):

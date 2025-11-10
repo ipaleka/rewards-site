@@ -1,5 +1,6 @@
 """Module containing website's ORM models."""
 
+from algosdk.encoding import is_valid_address
 from django.contrib.auth.models import User
 from django.db import models
 from django.db.models import BooleanField, Case, F, Min, Sum, Value, When
@@ -708,17 +709,44 @@ class Issue(models.Model):
 
 
 class ContributionManager(models.Manager):
-    """ASA Stats contribution data manager.
+    """Custom manager for the `Contribution` model."""
 
-    TODO: implement, docstring and tests, also .objects
-    """
+    def addressed_contributions_addresses_and_amounts(self):
+        """Create collection of addressed contributions to be added to smart contract.
 
-    def addressed_contributions(self):
-        """Create collection of addressed contributions to be aded to smart contract.
-
-        :return: list
+        :var contributions: all contributions for the user defined by provided `address`
+        :type contributions: :class:`django.db.models.query.QuerySet`
+        :var amounts: colection of addresses and related contribution ammounts
+        :type amounts: dict
+        :return: two-tuple
         """
-        return [(), ()]
+        contributions = self.filter(issue__status=IssueStatus.ADDRESSED)
+        amounts = {}
+        for contrib in contributions:
+            if is_valid_address(contrib.contributor.address) and contrib.reward.amount:
+                amounts[contrib.contributor.address] = (
+                    amounts.get(contrib.contributor.address, 0) + contrib.reward.amount
+                )
+
+        return list(amounts.keys()), list(amounts.values())
+
+    def user_has_claimed(self, address):
+        """Update status of related issues to ARCHIVED for all contributions.
+
+        :param address: public Algorand address
+        :type address: str
+        :var contributions: all contributions for the user defined by provided `address`
+        :type contributions: :class:`django.db.models.query.QuerySet`
+        :var issue_ids: collection of contributor's contribution IDs
+        :type issue_ids: :class:`django.db.models.query.QuerySet`
+        """
+        contributions = self.filter(contributor__address=address)
+        issue_ids = (
+            contributions.exclude(issue__isnull=True)
+            .values_list("issue_id", flat=True)
+            .distinct()
+        )
+        Issue.objects.filter(id__in=issue_ids).update(status=IssueStatus.ARCHIVED)
 
 
 class Contribution(models.Model):

@@ -365,8 +365,7 @@ describe('ActiveNetwork Error Handling and Cleanup', () => {
     it('should handle getCsrfToken with multiple cookies', () => {
       Object.defineProperty(document, 'cookie', {
         writable: true,
-        // nosemgrep: js/clear-text-cookie
-        value: 'sessionid=abc123; csrftoken=test-token-123; othercookie=value'
+        value: 'sessionid=abc123; csrftoken=test-token-123; othercookie=value' // lgtm[js/clear-text-cookie]
       })
 
       const csrfToken = (activeNetwork as any).getCsrfToken()
@@ -376,7 +375,7 @@ describe('ActiveNetwork Error Handling and Cleanup', () => {
     it('should handle getCsrfToken with malformed cookie string', () => {
       Object.defineProperty(document, 'cookie', {
         writable: true,
-        value: 'invalid=cookie=string; csrftoken=valid-token'
+        value: 'invalid=cookie=string; csrftoken=valid-token' // lgtm[js/clear-text-cookie]
       })
 
       const csrfToken = (activeNetwork as any).getCsrfToken()

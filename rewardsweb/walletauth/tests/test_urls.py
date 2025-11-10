@@ -47,6 +47,12 @@ class TestWalletauthUrls:
         assert url.lookup_str == "walletauth.views.AddAllocationsAPIView"
         assert url.name == "add_allocations"
 
+    def test_walletauth_urls_user_claimed(self):
+        url = self._url_from_pattern("user-claimed/")
+        assert isinstance(url, URLPattern)
+        assert url.lookup_str == "walletauth.views.UserClaimedAPIView"
+        assert url.name == "user_claimed"
+
     def test_walletauth_urls_reclaim_allocations(self):
         url = self._url_from_pattern("reclaim-allocations/")
         assert isinstance(url, URLPattern)
@@ -54,4 +60,4 @@ class TestWalletauthUrls:
         assert url.name == "reclaim_allocations"
 
     def test_walletauth_urls_patterns_count(self):
-        assert len(urls.urlpatterns) == 7
+        assert len(urls.urlpatterns) == 8

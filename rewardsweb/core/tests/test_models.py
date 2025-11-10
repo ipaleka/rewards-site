@@ -12,6 +12,7 @@ from django.utils import timezone
 
 from core.models import (
     Contribution,
+    ContributionManager,
     Contributor,
     ContributorManager,
     Cycle,
@@ -2847,6 +2848,206 @@ class TestCoreIssueModel:
         assert "contributor-🎉-test" in result
 
 
+@pytest.mark.django_db
+class TestContributionManager:
+    """Testing class for :class:`core.models.ContributionManager`."""
+
+    # # addressed_contributions_addresses_and_amounts
+    def test_contributionmanager_addressed_contributions_addresses_and_amounts_empty(
+        self,
+    ):
+        contributor1 = Contributor.objects.create(
+            name="user-addressed-1",
+            address="2EVGZ4BGOSL3J64UYDE2BUGTNTBZZZLI54VUQQNZZLYCDODLY33UGXNSIU",
+        )
+        issue_1 = Issue.objects.create(number=1524, status=IssueStatus.ARCHIVED)
+        issue_2 = Issue.objects.create(number=1525, status=IssueStatus.CREATED)
+        cycle = Cycle.objects.create(start="2025-05-02")
+        platform = SocialPlatform.objects.create(name="GitHub")
+        reward_type = RewardType.objects.create(label="B1", name="Bug Fix")
+        reward1 = Reward.objects.create(type=reward_type, level=1, amount=1000)
+        reward2 = Reward.objects.create(type=reward_type, level=3, amount=5000)
+        Contribution.objects.create(
+            cycle=cycle,
+            issue=issue_1,
+            contributor=contributor1,
+            platform=platform,
+            reward=reward1,
+        )
+        Contribution.objects.create(
+            cycle=cycle,
+            issue=issue_2,
+            contributor=contributor1,
+            platform=platform,
+            reward=reward2,
+        )
+
+        addresses, amounts = (
+            Contribution.objects.addressed_contributions_addresses_and_amounts()
+        )
+        assert addresses == []
+        assert amounts == []
+
+    def test_contributionmanager_addressed_contributions_addresses_and_amounts_funct(
+        self,
+    ):
+        contributor1 = Contributor.objects.create(
+            name="user-addressed-1",
+            address="2EVGZ4BGOSL3J64UYDE2BUGTNTBZZZLI54VUQQNZZLYCDODLY33UGXNSIU",
+        )
+        contributor2 = Contributor.objects.create(
+            name="user-addressed-2", address="address-2"
+        )
+        contributor3 = Contributor.objects.create(
+            name="user-addressed-3",
+            address="VW55KZ3NF4GDOWI7IPWLGZDFWNXWKSRD5PETRLDABZVU5XPKRJJRK3CBSU",
+        )
+        issue_1 = Issue.objects.create(number=1524, status=IssueStatus.ADDRESSED)
+        issue_2 = Issue.objects.create(number=1525, status=IssueStatus.CREATED)
+        issue_3 = Issue.objects.create(number=1526, status=IssueStatus.ADDRESSED)
+        issue_4 = Issue.objects.create(number=1527, status=IssueStatus.ADDRESSED)
+        issue_5 = Issue.objects.create(number=1528, status=IssueStatus.ARCHIVED)
+        issue_6 = Issue.objects.create(number=1529, status=IssueStatus.ADDRESSED)
+        issue_7 = Issue.objects.create(number=1530, status=IssueStatus.ADDRESSED)
+        cycle = Cycle.objects.create(start="2025-05-02")
+        platform = SocialPlatform.objects.create(name="GitHub")
+        reward_type = RewardType.objects.create(label="B1", name="Bug Fix")
+        reward1 = Reward.objects.create(type=reward_type, level=1, amount=1000)
+        reward2 = Reward.objects.create(type=reward_type, level=3, amount=5000)
+        reward3 = Reward.objects.create(type=reward_type, level=2, amount=2000)
+        reward4 = Reward.objects.create(type=reward_type, level=1, amount=0)
+
+        Contribution.objects.create(
+            cycle=cycle,
+            issue=issue_1,
+            contributor=contributor1,
+            platform=platform,
+            reward=reward1,
+        )
+        Contribution.objects.create(
+            cycle=cycle,
+            issue=issue_2,
+            contributor=contributor2,
+            platform=platform,
+            reward=reward2,
+        )
+        Contribution.objects.create(
+            cycle=cycle,
+            issue=issue_3,
+            contributor=contributor3,
+            platform=platform,
+            reward=reward2,
+        )
+        Contribution.objects.create(
+            cycle=cycle,
+            issue=issue_4,
+            contributor=contributor2,
+            platform=platform,
+            reward=reward3,
+        )
+        Contribution.objects.create(
+            cycle=cycle,
+            issue=issue_5,
+            contributor=contributor1,
+            platform=platform,
+            reward=reward1,
+        )
+        Contribution.objects.create(
+            cycle=cycle,
+            issue=issue_6,
+            contributor=contributor1,
+            platform=platform,
+            reward=reward2,
+        )
+        Contribution.objects.create(
+            cycle=cycle,
+            issue=issue_7,
+            contributor=contributor1,
+            platform=platform,
+            reward=reward4,
+        )
+        addresses, amounts = (
+            Contribution.objects.addressed_contributions_addresses_and_amounts()
+        )
+        assert addresses == [
+            "2EVGZ4BGOSL3J64UYDE2BUGTNTBZZZLI54VUQQNZZLYCDODLY33UGXNSIU",
+            "VW55KZ3NF4GDOWI7IPWLGZDFWNXWKSRD5PETRLDABZVU5XPKRJJRK3CBSU",
+        ]
+        assert amounts == [6000, 5000]
+
+    # # user_has_claimed
+    def test_contributionmanager_user_has_claimed_updates_related_issues(self):
+        """All issues tied to contributions should be archived."""
+        contributor = Contributor.objects.create(name="user2", address="addrclaimed")
+        issue_1 = Issue.objects.create(number=524, status=IssueStatus.CREATED)
+        issue_2 = Issue.objects.create(number=525, status=IssueStatus.CREATED)
+        cycle = Cycle.objects.create(start="2025-05-02")
+        platform = SocialPlatform.objects.create(name="GitHub")
+        reward_type = RewardType.objects.create(label="B1", name="Bug Fix")
+        reward = Reward.objects.create(type=reward_type, level=1, amount=1000)
+
+        Contribution.objects.create(
+            cycle=cycle,
+            issue=issue_1,
+            contributor=contributor,
+            platform=platform,
+            reward=reward,
+        )
+
+        Contribution.objects.create(
+            cycle=cycle,
+            issue=issue_2,
+            contributor=contributor,
+            platform=platform,
+            reward=reward,
+        )
+        Contribution.objects.user_has_claimed("addrclaimed")
+        issue_1.refresh_from_db()
+        issue_2.refresh_from_db()
+
+        assert issue_1.status == IssueStatus.ARCHIVED
+        assert issue_2.status == IssueStatus.ARCHIVED
+
+    def test_contributionmanager_user_has_claimed_with_no_contributions(self):
+        """Calling the method with an address that has no contributions should not fail."""
+        Issue.objects.create(number=526, status=IssueStatus.CREATED)
+
+        Contribution.objects.user_has_claimed("not-existing-address")
+
+        assert Issue.objects.filter(status=IssueStatus.ARCHIVED).count() == 0
+
+    def test_contributionmanager_user_has_claimed_ignores_contributions_without_issue(
+        self,
+    ):
+        """Ensure contributions without an issue assigned are not included."""
+        contributor = Contributor.objects.create(name="user2", address="addrtoclaim")
+        issue = Issue.objects.create(number=527)
+        cycle = Cycle.objects.create(start="2025-05-02")
+        platform = SocialPlatform.objects.create(name="GitHub")
+        reward_type = RewardType.objects.create(label="B1", name="Bug Fix")
+        reward = Reward.objects.create(type=reward_type, level=1, amount=1000)
+
+        Contribution.objects.create(
+            cycle=cycle,
+            contributor=contributor,
+            platform=platform,
+            reward=reward,
+        )
+        Contribution.objects.create(
+            cycle=cycle,
+            issue=issue,
+            contributor=contributor,
+            platform=platform,
+            reward=reward,
+        )
+        Contribution.objects.user_has_claimed("addrtoclaim")
+
+        issue.refresh_from_db()
+        assert (
+            issue.status == IssueStatus.ARCHIVED
+        )  # Only the valid contribution affected
+
+
 class TestCoreContributionModel:
     """Testing class for :class:`core.models.Contribution` model."""
 
@@ -2953,6 +3154,9 @@ class TestCoreContributionModel:
         contribution.issue = issue
         contribution.save()
         assert contribution in issue.contribution_set.all()
+
+    def test_core_contribution_objects_is_contributionmanager_instance(self):
+        assert isinstance(Contribution.objects, ContributionManager)
 
     @pytest.mark.django_db
     def test_core_contribution_model_can_save_without_issue(self):

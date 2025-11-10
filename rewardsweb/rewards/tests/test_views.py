@@ -72,8 +72,16 @@ class TestRewardsViews:
 
     # # AddAllocationsView
     @pytest.mark.django_db
-    def test_addallocationsview_requires_login(self, rf):
+    def test_addallocationsview_requires_login(self, rf, mocker):
         """Ensure the view redirects anonymous users to login page."""
+        mocker.patch("rewards.views.is_admin_account_configured")
+        mocker.patch(
+            (
+                "rewards.views.Contribution.objects."
+                "addressed_contributions_addresses_and_amounts"
+            ),
+            return_value=(["ADDR1", "ADDR2"], [10, 20]),
+        )
         request = rf.get(reverse("add_allocations"))
         request.user = AnonymousUser()
 
@@ -83,8 +91,16 @@ class TestRewardsViews:
         assert "/login" in response.url.lower()
 
     @pytest.mark.django_db
-    def test_addallocationsview_superuser_can_access(self, rf, superuser):
+    def test_addallocationsview_superuser_can_access(self, rf, superuser, mocker):
         """Superusers should be able to access the page."""
+        mocker.patch("rewards.views.is_admin_account_configured")
+        mocker.patch(
+            (
+                "rewards.views.Contribution.objects."
+                "addressed_contributions_addresses_and_amounts"
+            ),
+            return_value=(["ADDR1", "ADDR2"], [10, 20]),
+        )
         request = rf.get(reverse("add_allocations"))
         request.user = superuser
 
@@ -94,17 +110,20 @@ class TestRewardsViews:
         assert response.template_name == ["rewards/add_allocations.html"]
 
     @pytest.mark.django_db
-    def test_addallocationsview_context_contains_addresses_and_amounts(
+    def test_addallocationsview_context_contains_allocations(
         self, rf, superuser, mocker
     ):
         """Ensure allocations from queryset are added to context."""
 
         # Mock database call
         mocked_contribs = mocker.patch(
-            "rewards.views.Contribution.objects.addressed_contributions",
+            (
+                "rewards.views.Contribution.objects."
+                "addressed_contributions_addresses_and_amounts"
+            ),
             return_value=(["ADDR1", "ADDR2"], [10, 20]),
         )
-
+        mocker.patch("rewards.views.is_admin_account_configured")
         request = rf.get(reverse("add_allocations"))
         request.user = superuser
 
@@ -115,6 +134,54 @@ class TestRewardsViews:
         assert list(context["allocations"]) == [("ADDR1", 10), ("ADDR2", 20)]
         # Ensures function was called exactly once
         mocked_contribs.assert_called_once_with()
+
+    @pytest.mark.django_db
+    def test_addallocationsview_context_contains_use_admin_account(
+        self, rf, superuser, mocker
+    ):
+        """Ensure allocations from queryset are added to context."""
+        mocker.patch(
+            (
+                "rewards.views.Contribution.objects."
+                "addressed_contributions_addresses_and_amounts"
+            ),
+            return_value=(["ADDR1", "ADDR2"], [10, 20]),
+        )
+        mocked_admin = mocker.patch("rewards.views.is_admin_account_configured")
+
+        request = rf.get(reverse("add_allocations"))
+        request.user = superuser
+
+        response = AddAllocationsView.as_view()(request)
+
+        context = response.context_data
+
+        assert context["use_admin_account"] == mocked_admin.return_value
+        # Ensures function was called exactly once
+        mocked_admin.assert_called_once_with()
+
+    @pytest.mark.django_db
+    def test_addallocationsview_context_for_no_allocations(self, rf, superuser, mocker):
+        """Ensure allocations from queryset are added to context."""
+
+        # Mock database call
+        mocker.patch(
+            (
+                "rewards.views.Contribution.objects."
+                "addressed_contributions_addresses_and_amounts"
+            ),
+            return_value=([], []),
+        )
+        mocker.patch("rewards.views.is_admin_account_configured")
+        request = rf.get(reverse("add_allocations"))
+        request.user = superuser
+
+        response = AddAllocationsView.as_view()(request)
+
+        context = response.context_data
+
+        assert "allocations" not in context
+        assert "use_admin_account" not in context
 
     @pytest.mark.django_db
     def test_addallocationsview_normal_user_blocked(self, rf, user):
@@ -140,7 +207,7 @@ class TestRewardsViews:
 
     @pytest.mark.django_db
     def test_reclaimallocationsview_superuser_can_access(self, rf, superuser, mocker):
-
+        mocker.patch("rewards.views.is_admin_account_configured")
         mocker.patch("rewards.views.reclaimable_addresses")
         request = rf.get(reverse("reclaim_allocations"))
         request.user = superuser
@@ -156,6 +223,7 @@ class TestRewardsViews:
     ):
         """Ensure addresses are added to context."""
         # Mock database call
+        mocker.patch("rewards.views.is_admin_account_configured")
         mocked_addresses = mocker.patch(
             "rewards.views.reclaimable_addresses", return_value=["ADDR1", "ADDR2"]
         )
@@ -169,3 +237,24 @@ class TestRewardsViews:
 
         assert context["addresses"] == ["ADDR1", "ADDR2"]
         mocked_addresses.assert_called_once_with()
+
+    @pytest.mark.django_db
+    def test_reclaimallocationsview_context_contains_use_admin_account(
+        self, rf, superuser, mocker
+    ):
+        """Ensure addresses are added to context."""
+        # Mock database call
+        mocked_admin = mocker.patch("rewards.views.is_admin_account_configured")
+        mocker.patch(
+            "rewards.views.reclaimable_addresses", return_value=["ADDR1", "ADDR2"]
+        )
+
+        request = rf.get(reverse("reclaim_allocations"))
+        request.user = superuser
+
+        response = ReclaimAllocationsView.as_view()(request)
+
+        context = response.context_data
+
+        assert context["use_admin_account"] == mocked_admin.return_value
+        mocked_admin.assert_called_once_with()

@@ -83,6 +83,11 @@ export class ClaimComponent {
       console.info('[ClaimComponent] Initiating claim...')
       await this.rewardsClient.claim()
       alert('Claim transaction sent successfully!')
+
+      const activeAddress = this.walletManager.activeAccount?.address
+      if (activeAddress) {
+        await this.rewardsClient.userClaimed(activeAddress)
+      }
       // Re-check status after successful claim
       await this.checkClaimableStatus()
     } catch (error) {

@@ -268,6 +268,24 @@ export class RewardsClient {
     }
   }
 
+  public async userClaimed(address: string): Promise<{ success: boolean }> {
+    try {
+      const response = await fetch('/api/wallet/user-claimed/', {
+        method: 'POST',
+        headers: this.getHeaders(),
+        body: JSON.stringify({ address })
+      })
+      if (!response.ok) {
+        throw new Error(`HTTP error! status: ${response.status}`)
+      }
+      const data = await response.json()
+      return data
+    } catch (error) {
+      console.error('[RewardsClient] Error sending user claimed:', error)
+      throw error
+    }
+  }
+
   /**
    * Fetches add allocations data for an address from the backend API.
    *

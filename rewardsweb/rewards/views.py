@@ -5,6 +5,7 @@ from django.contrib.auth.mixins import LoginRequiredMixin
 from django.utils.decorators import method_decorator
 from django.views.generic import TemplateView
 
+from contract.helpers import is_admin_account_configured
 from contract.network import reclaimable_addresses
 from core.models import Contribution
 
@@ -61,8 +62,13 @@ class AddAllocationsView(LoginRequiredMixin, TemplateView):
         :rtype: dict
         """
         context = super().get_context_data(**kwargs)
-        addresses, amounts = Contribution.objects.addressed_contributions()
-        context["allocations"] = zip(addresses, amounts)
+        addresses, amounts = (
+            Contribution.objects.addressed_contributions_addresses_and_amounts()
+        )
+        if addresses:
+            context["allocations"] = zip(addresses, amounts)
+            context["use_admin_account"] = is_admin_account_configured()
+
         return context
 
 
@@ -86,4 +92,5 @@ class ReclaimAllocationsView(LoginRequiredMixin, TemplateView):
         """
         context = super().get_context_data(**kwargs)
         context["addresses"] = reclaimable_addresses()
+        context["use_admin_account"] = is_admin_account_configured()
         return context

@@ -26,6 +26,18 @@ def box_name_from_address(address):
     return decode_address(address)
 
 
+def is_admin_account_configured():
+    """Return True if admin account can make calls to Rewards dApp.
+
+    TODO: implement, docstring, and tests
+
+    :var address: governance seat address
+    :type address: bytes
+    :return: Boolean
+    """
+    return True
+
+
 def environment_variables():
     """Return collection of required environment variables.
 

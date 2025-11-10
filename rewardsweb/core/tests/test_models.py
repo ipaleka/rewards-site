@@ -1672,7 +1672,8 @@ class TestContributorModelMethods:
         issue_created = Issue.objects.create(number=1, status=IssueStatus.CREATED)
         issue_wontfix = Issue.objects.create(number=2, status=IssueStatus.WONTFIX)
         issue_addressed = Issue.objects.create(number=3, status=IssueStatus.ADDRESSED)
-        issue_archived = Issue.objects.create(number=4, status=IssueStatus.ARCHIVED)
+        issue_claimable = Issue.objects.create(number=4, status=IssueStatus.CLAIMABLE)
+        issue_archived = Issue.objects.create(number=5, status=IssueStatus.ARCHIVED)
 
         # Create contributions with different issue statuses
         contribution_created = Contribution.objects.create(
@@ -1705,14 +1706,24 @@ class TestContributorModelMethods:
             comment="Test contribution 3",
         )
 
+        contribution_claimable = Contribution.objects.create(
+            contributor=contributor,
+            cycle=cycle,
+            platform=platform,
+            reward=reward3,
+            issue=issue_claimable,
+            url="https://example.com/4",
+            comment="Test contribution 4",
+        )
+
         contribution_archived = Contribution.objects.create(
             contributor=contributor,
             cycle=cycle,
             platform=platform,
             reward=reward4,
             issue=issue_archived,
-            url="https://example.com/4",
-            comment="Test contribution 4",
+            url="https://example.com/5",
+            comment="Test contribution 5",
         )
 
         contribution_uncategorized = Contribution.objects.create(
@@ -1721,8 +1732,8 @@ class TestContributorModelMethods:
             platform=platform,
             reward=reward5,
             issue=None,
-            url="https://example.com/5",
-            comment="Test contribution 5",
+            url="https://example.com/6",
+            comment="Test contribution 6",
         )
 
         return {
@@ -1734,12 +1745,14 @@ class TestContributorModelMethods:
                 "created": issue_created,
                 "wontfix": issue_wontfix,
                 "addressed": issue_addressed,
+                "claimable": issue_claimable,
                 "archived": issue_archived,
             },
             "contributions": {
                 "created": contribution_created,
                 "wontfix": contribution_wontfix,
                 "addressed": contribution_addressed,
+                "claimable": contribution_claimable,
                 "archived": contribution_archived,
                 "uncategorized": contribution_uncategorized,
             },
@@ -1757,6 +1770,7 @@ class TestContributorModelMethods:
         assert contributions["created"] in open_contribs
         assert contributions["wontfix"] not in open_contribs
         assert contributions["addressed"] not in open_contribs
+        assert contributions["claimable"] not in open_contribs
         assert contributions["archived"] not in open_contribs
         assert contributions["uncategorized"] not in open_contribs
 
@@ -1772,6 +1786,7 @@ class TestContributorModelMethods:
         assert contributions["wontfix"] in invalidated_contribs
         assert contributions["created"] not in invalidated_contribs
         assert contributions["addressed"] not in invalidated_contribs
+        assert contributions["claimable"] not in invalidated_contribs
         assert contributions["archived"] not in invalidated_contribs
         assert contributions["uncategorized"] not in invalidated_contribs
 
@@ -1786,9 +1801,26 @@ class TestContributorModelMethods:
         assert len(addressed_contribs) == 1
         assert contributions["addressed"] in addressed_contribs
         assert contributions["created"] not in addressed_contribs
+        assert contributions["claimable"] not in addressed_contribs
         assert contributions["wontfix"] not in addressed_contribs
         assert contributions["archived"] not in addressed_contribs
         assert contributions["uncategorized"] not in addressed_contribs
+
+    def test_contributor_claimable_contributions(self, setup_data):
+        """Test addressed_contributions returns contributions with ADDRESSED status."""
+        contributor = setup_data["contributor"]
+        contributions = setup_data["contributions"]
+
+        claimable_contribs = contributor.claimable_contributions
+
+        # Use len() instead of count() for lists
+        assert len(claimable_contribs) == 1
+        assert contributions["claimable"] in claimable_contribs
+        assert contributions["created"] not in claimable_contribs
+        assert contributions["addressed"] not in claimable_contribs
+        assert contributions["wontfix"] not in claimable_contribs
+        assert contributions["archived"] not in claimable_contribs
+        assert contributions["uncategorized"] not in claimable_contribs
 
     def test_contributor_archived_contributions(self, setup_data):
         """Test archived_contributions returns contributions with ARCHIVED status."""
@@ -1803,6 +1835,7 @@ class TestContributorModelMethods:
         assert contributions["created"] not in archived_contribs
         assert contributions["wontfix"] not in archived_contribs
         assert contributions["addressed"] not in archived_contribs
+        assert contributions["claimable"] not in archived_contribs
         assert contributions["uncategorized"] not in archived_contribs
 
     def test_contributor_uncategorized_contributions(self, setup_data):
@@ -1818,6 +1851,7 @@ class TestContributorModelMethods:
         assert contributions["created"] not in uncategorized_contribs
         assert contributions["wontfix"] not in uncategorized_contribs
         assert contributions["addressed"] not in uncategorized_contribs
+        assert contributions["claimable"] not in uncategorized_contribs
         assert contributions["archived"] not in uncategorized_contribs
 
     def test_contributor_contribution_groups(self, setup_data):
@@ -1838,7 +1872,7 @@ class TestContributorModelMethods:
             issue=Issue.objects.create(number=2002, status=IssueStatus.ADDRESSED),
         )
         groups = contributor.contribution_groups
-        assert len(groups) == 5
+        assert len(groups) == 6
         assert all(isinstance(group, dict) for group in groups)
         # Changed from QuerySet to list check
         assert all(isinstance(group["query"], list) for group in groups)
@@ -1849,15 +1883,18 @@ class TestContributorModelMethods:
         assert groups[1]["name"] == "Addressed"
         assert len(groups[1]["query"]) == 2
         assert groups[1]["total"] == 1100
-        assert groups[2]["name"] == "Archived"
+        assert groups[2]["name"] == "Claimable"
         assert len(groups[2]["query"]) == 1
-        assert groups[2]["total"] == 400
-        assert groups[3]["name"] == "Uncategorized"
+        assert groups[2]["total"] == 300
+        assert groups[3]["name"] == "Archived"
         assert len(groups[3]["query"]) == 1
-        assert groups[3]["total"] == 500
-        assert groups[4]["name"] == "Invalidated"
-        assert len(groups[4]["query"]) == 2
-        assert groups[4]["total"] == 0
+        assert groups[3]["total"] == 400
+        assert groups[4]["name"] == "Uncategorized"
+        assert len(groups[4]["query"]) == 1
+        assert groups[4]["total"] == 500
+        assert groups[5]["name"] == "Invalidated"
+        assert len(groups[5]["query"]) == 2
+        assert groups[5]["total"] == 0
 
     def test_contributor_total_rewards_excludes_wontfix(self, setup_data):
         """Test total_rewards excludes contributions with WONTFIX status."""
@@ -1936,12 +1973,19 @@ class TestContributorModelMethods:
             contributor=contributor3,
             cycle=cycle,
             platform=platform,
-            reward=rewards[3],  # 400 - uncategorized
+            reward=rewards[3],  # 400 - claimable
+            issue=issues["claimable"],
+        )
+        Contribution.objects.create(
+            contributor=contributor3,
+            cycle=cycle,
+            platform=platform,
+            reward=rewards[4],  # 500 - uncategorized
             issue=None,
         )
 
         total_rewards = contributor3.total_rewards
-        expected_total = 100 + 300 + 400  # 800
+        expected_total = 100 + 300 + 400 + 100  # 900
         assert total_rewards == expected_total
 
     def test_contributor_total_rewards_empty(self):
@@ -1977,12 +2021,13 @@ class TestContributorModelMethods:
             len(contributor.open_contributions)  # Use len() for lists
             + len(contributor.invalidated_contributions)
             + len(contributor.addressed_contributions)
+            + len(contributor.claimable_contributions)
             + len(contributor.archived_contributions)
             + len(contributor.uncategorized_contributions)
         )
 
         assert total_contributions == categorized_contributions
-        assert total_contributions == 5
+        assert total_contributions == 6
 
 
 @pytest.mark.django_db
@@ -2851,6 +2896,51 @@ class TestCoreIssueModel:
 @pytest.mark.django_db
 class TestContributionManager:
     """Testing class for :class:`core.models.ContributionManager`."""
+
+    # # addresses_and_amounts_from_contributions
+    def test_contributionmanager_addresses_and_amounts_from_contributions_functionality(
+        self,
+    ):
+        contributor = Contributor.objects.create(
+            name="user-addressed-1",
+            address="2EVGZ4BGOSL3J64UYDE2BUGTNTBZZZLI54VUQQNZZLYCDODLY33UGXNSIU",
+        )
+        issue = Issue.objects.create(number=1524, status=IssueStatus.ADDRESSED)
+        cycle = Cycle.objects.create(start="2025-05-02")
+        platform = SocialPlatform.objects.create(name="GitHub")
+        reward_type = RewardType.objects.create(label="B1", name="Bug Fix")
+        reward1 = Reward.objects.create(type=reward_type, level=1, amount=1000)
+        reward2 = Reward.objects.create(type=reward_type, level=3, amount=5000)
+        contribs = [
+            Contribution.objects.create(
+                cycle=cycle,
+                issue=issue,
+                contributor=contributor,
+                platform=platform,
+                reward=reward1,
+            ),
+            Contribution.objects.create(
+                cycle=cycle,
+                issue=issue,
+                contributor=contributor,
+                platform=platform,
+                reward=reward2,
+            ),
+            Contribution.objects.create(
+                cycle=cycle,
+                issue=issue,
+                contributor=contributor,
+                platform=platform,
+                reward=reward2,
+            ),
+        ]
+        addresses, amounts = (
+            Contribution.objects.addresses_and_amounts_from_contributions(contribs)
+        )
+        assert addresses == [
+            "2EVGZ4BGOSL3J64UYDE2BUGTNTBZZZLI54VUQQNZZLYCDODLY33UGXNSIU",
+        ]
+        assert amounts == [11000]
 
     # # addressed_contributions_addresses_and_amounts
     def test_contributionmanager_addressed_contributions_addresses_and_amounts_empty(

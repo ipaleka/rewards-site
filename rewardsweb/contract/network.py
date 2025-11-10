@@ -20,6 +20,8 @@ from contract.helpers import (
     wait_for_confirmation,
 )
 
+ACTIVE_NETWORK = "testnet"
+
 
 def _add_allocations(network, addresses, amounts):
     """Add or update allocations for a batch of users.
@@ -42,6 +44,7 @@ def _add_allocations(network, addresses, amounts):
     :type atc: :class:`AtomicTransactionComposer`
     :var response: atomic transaction creation response
     :type response: :class:`AtomicTransactionResponse`
+    :return: str
     """
     env = environment_variables()
 
@@ -63,6 +66,7 @@ def _add_allocations(network, addresses, amounts):
     )
     response = atc.execute(client, 2)
     print(f"Allocations added in transaction {response.tx_ids[0]}")
+    return response.tx_ids[0]
 
 
 def _check_balances(client, address, token_id):
@@ -411,7 +415,31 @@ def process_allocations(network, addresses, amounts):
     if admin_token_balance < sum(amount for amount in amounts):
         raise ValueError("Not enough token in admin account to process allocations")
 
-    _add_allocations(network, addresses, amounts)
+    return _add_allocations(network, addresses, amounts)
+
+
+def process_allocations_for_contributions(contributions, allocations_callback):
+    """Process allocations for applicable contributors from `contributions`.
+
+    :param contributions: collection of contributions connected to closed issue
+    :type contributions: :class:`core.models.Contribution`
+    :param allocations_callback: callback function to retrieve addresses and amounts
+    :type allocations_callback: object
+    :var addresses: list of contributor addresses
+    :type addresses: list
+    :var amounts: list of corresponding allocation amounts
+    :type amounts: list
+    :return: str or False
+    """
+    addresses, amounts = allocations_callback(contributions)
+    if addresses:
+        try:
+            return process_allocations(ACTIVE_NETWORK, addresses, amounts)
+
+        except ValueError:
+            pass
+
+    return False
 
 
 def process_reclaim_allocation(network, user_address):

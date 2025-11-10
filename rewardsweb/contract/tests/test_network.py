@@ -7,6 +7,7 @@ import time
 import pytest
 
 from contract.network import (
+    ACTIVE_NETWORK,
     _add_allocations,
     _check_balances,
     _reclaim_allocation,
@@ -15,6 +16,7 @@ from contract.network import (
     delete_app,
     fund_app,
     process_allocations,
+    process_allocations_for_contributions,
     process_reclaim_allocation,
     reclaimable_addresses,
 )
@@ -71,13 +73,13 @@ class TestContractNetworkPrivateFunctions:
 
         mocker.patch("builtins.print")  # Silence logs
 
-        _add_allocations(network, addresses, amounts)
+        returned = _add_allocations(network, addresses, amounts)
+        assert returned == "TX123"
 
         mocked_env.assert_called_once_with()
         mocked_client.assert_called_once_with("token", "address")
         mocked_atc_stub.assert_called_once_with(client, network)
         mocked_atc.assert_called_once_with()
-
         atc.add_method_call.assert_called_once_with(
             app_id=555,
             method="METHOD_OBJ",
@@ -87,7 +89,6 @@ class TestContractNetworkPrivateFunctions:
             method_args=[addresses, amounts],
             foreign_assets=[token_id],
         )
-
         atc.execute.assert_called_once_with(client, 2)
 
     # # _check_balances
@@ -627,7 +628,8 @@ class TestContractNetworkPublicFunctions:
         mocked_fund = mocker.patch("contract.network.fund_app")
         mocked_add = mocker.patch("contract.network._add_allocations")
 
-        process_allocations(network, addresses, amounts)
+        returned = process_allocations(network, addresses, amounts)
+        assert returned == mocked_add.return_value
 
         mocked_fund.assert_not_called()
         mocked_add.assert_called_once_with(network, addresses, amounts)
@@ -669,7 +671,8 @@ class TestContractNetworkPublicFunctions:
         mocked_fund = mocker.patch("contract.network.fund_app")
         mocked_add = mocker.patch("contract.network._add_allocations")
 
-        process_allocations(network, addresses, amounts)
+        returned = process_allocations(network, addresses, amounts)
+        assert returned == mocked_add.return_value
 
         mocked_fund.assert_called_once_with(123, network)  # ✅ app funded
         mocked_add.assert_called_once_with(network, addresses, amounts)
@@ -752,6 +755,53 @@ class TestContractNetworkPublicFunctions:
 
         with pytest.raises(ValueError, match="Not enough token"):
             process_allocations(network, addresses, amounts)
+
+    # # process_allocations_for_contributions
+    def test_contract_network_process_allocations_for_contributions_no_addreses(
+        self, mocker
+    ):
+        contributions = mocker.MagicMock()
+        allocations_callback = mocker.MagicMock()
+        allocations_callback.return_value = ([], [])
+        mocked_process = mocker.patch("contract.network.process_allocations")
+        returned = process_allocations_for_contributions(
+            contributions, allocations_callback
+        )
+        assert returned is False
+        allocations_callback.assert_called_once_with(contributions)
+        mocked_process.assert_not_called()
+
+    def test_contract_network_process_allocations_for_contributions_for_exception(
+        self, mocker
+    ):
+        contributions = mocker.MagicMock()
+        addresses, amounts = mocker.MagicMock(), mocker.MagicMock()
+        allocations_callback = mocker.MagicMock()
+        allocations_callback.return_value = (addresses, amounts)
+        mocked_process = mocker.patch(
+            "contract.network.process_allocations", side_effect=ValueError("")
+        )
+        returned = process_allocations_for_contributions(
+            contributions, allocations_callback
+        )
+        assert returned is False
+        allocations_callback.assert_called_once_with(contributions)
+        mocked_process.assert_called_once_with(ACTIVE_NETWORK, addresses, amounts)
+
+    def test_contract_network_process_allocations_for_contributions_functionality(
+        self, mocker
+    ):
+        contributions = mocker.MagicMock()
+        addresses, amounts = mocker.MagicMock(), mocker.MagicMock()
+        allocations_callback = mocker.MagicMock()
+        allocations_callback.return_value = (addresses, amounts)
+        mocked_process = mocker.patch("contract.network.process_allocations")
+        returned = process_allocations_for_contributions(
+            contributions, allocations_callback
+        )
+        assert returned == mocked_process.return_value
+        allocations_callback.assert_called_once_with(contributions)
+        mocked_process.assert_called_once_with(ACTIVE_NETWORK, addresses, amounts)
 
     # # process_reclaim_allocation
     def test_contract_network_process_reclaim_allocation_calls_reclaim(self, mocker):

@@ -5,7 +5,7 @@ from datetime import datetime
 import pytest
 from django.contrib.auth import get_user_model
 from django.contrib.messages import get_messages
-from django.http import Http404
+from django.db.models import QuerySet
 from django.urls import reverse
 from django.views.generic import DetailView, ListView
 
@@ -104,7 +104,7 @@ class TestDbIssueListView:
     @pytest.mark.django_db
     def test_issuelistview_get_queryset_contribution_queryset(self, mocker):
         """Test that Contribution queryset uses select_related with correct fields."""
-        mocked_filter = mocker.patch("core.views.Issue.objects.filter")
+        mocker.patch("core.views.Issue.objects.filter")
         mocked_prefetch = mocker.patch("core.views.Prefetch")
         mocked_contrib = mocker.patch("core.views.Contribution.objects")
 
@@ -786,7 +786,7 @@ class TestIssueDetailViewWithForm:
 class TestIssueDetailViewSubmissionHandlers:
     """Test the submission handler methods in IssueDetailView."""
 
-    # Tests for _handle_labels_submission
+    # # _handle_labels_submission
     def test_issuedetailview_handle_labels_submission_success(
         self, client, superuser, issue, mocker
     ):
@@ -913,7 +913,7 @@ class TestIssueDetailViewSubmissionHandlers:
             for message in messages
         )
 
-    # Tests for _handle_close_submission - addressed action
+    # # _handle_close_submission - addressed action
     def test_issuedetailview_handle_close_submission_addressed_success(
         self, client, superuser, issue, mocker
     ):
@@ -922,6 +922,9 @@ class TestIssueDetailViewSubmissionHandlers:
         mock_get_issue = mocker.patch("core.views.issue_by_number")
         mock_close_issue = mocker.patch("core.views.close_issue_with_labels")
         mocked_log_action = mocker.patch("core.models.Profile.log_action")
+        mocked_process = mocker.patch(
+            "core.views.process_allocations_for_contributions", return_value=False
+        )
 
         mock_github_data = {
             "success": True,
@@ -985,6 +988,12 @@ class TestIssueDetailViewSubmissionHandlers:
             mocker.call("issue_status_set", str(issue)),
         ]
         mocked_log_action.assert_has_calls(calls)
+        call_args = mocked_process.call_args[0]
+        assert isinstance(call_args[0], QuerySet)
+        assert (
+            call_args[1]
+            == Contribution.objects.addresses_and_amounts_from_contributions
+        )
 
     def test_issuedetailview_handle_close_submission_addressed_success_no_comment(
         self, client, superuser, issue, contribution, mocker
@@ -994,6 +1003,10 @@ class TestIssueDetailViewSubmissionHandlers:
         mock_get_issue = mocker.patch("core.views.issue_by_number")
         mock_close_issue = mocker.patch("core.views.close_issue_with_labels")
         mock_add_reaction = mocker.patch("core.views.add_reaction_to_message")
+        mocked_log_action = mocker.patch("core.models.Profile.log_action")
+        mocked_process = mocker.patch(
+            "core.views.process_allocations_for_contributions", return_value=True
+        )
         mock_github_data = {
             "success": True,
             "issue": {
@@ -1031,6 +1044,23 @@ class TestIssueDetailViewSubmissionHandlers:
         mock_close_issue.assert_called_once()
         mock_add_reaction.assert_called_once_with(
             contribution.url, DISCORD_EMOJIS.get("addressed")
+        )
+
+        calls = [
+            mocker.call(
+                "issue_closed",
+                f"Issue #{issue.number} closed as addressed successfully.",
+            ),
+            mocker.call("issue_status_set", "123 [addressed]"),
+            mocker.call("issue_status_set", "123 [claimable]"),
+        ]
+        mocked_log_action.assert_has_calls(calls)
+        mocked_log_action.call_count == 4
+        call_args = mocked_process.call_args[0]
+        assert isinstance(call_args[0], QuerySet)
+        assert (
+            call_args[1]
+            == Contribution.objects.addresses_and_amounts_from_contributions
         )
 
         call_args = mock_close_issue.call_args[1]

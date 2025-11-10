@@ -5,14 +5,28 @@ import json
 import os
 import time
 from pathlib import Path
+from http.client import RemoteDisconnected
+from urllib.error import HTTPError, URLError
 
 from algosdk.abi.contract import Contract
 from algosdk.account import address_from_private_key
 from algosdk.atomic_transaction_composer import AccountTransactionSigner
 from algosdk.encoding import decode_address
+from algosdk.error import AlgodHTTPError, AlgodResponseError
 from algosdk.mnemonic import to_private_key
 from algosdk.transaction import StateSchema
+from algosdk.v2client.algod import AlgodClient
 from dotenv import load_dotenv
+
+ALGOD_EXCEPTIONS = (
+    AlgodHTTPError,
+    AlgodResponseError,
+    HTTPError,
+    URLError,
+    ConnectionResetError,
+    RemoteDisconnected,
+    TimeoutError,
+)
 
 
 # # HELPERS
@@ -24,18 +38,6 @@ def box_name_from_address(address):
     :return: str
     """
     return decode_address(address)
-
-
-def is_admin_account_configured():
-    """Return True if admin account can make calls to Rewards dApp.
-
-    TODO: implement, docstring, and tests
-
-    :var address: governance seat address
-    :type address: bytes
-    :return: Boolean
-    """
-    return True
 
 
 def environment_variables():
@@ -59,6 +61,60 @@ def environment_variables():
         "claim_period_duration": os.getenv("CLAIM_PERIOD_DURATION"),
         "dapp_minimum_algo": os.getenv("DAPP_MINIMUM_ALGO"),
     }
+
+
+def is_admin_account_configured(network="testnet"):
+    """Return True if admin account can make calls to Rewards dApp.
+
+    :param network: The network where the dApp exists (e.g., ``"testnet"``).
+    :type network: str
+    :var env: environment variables collection
+    :type env: dict
+    :var creator_private_key: private key of the creator used to sign deletion
+    :type creator_private_key: str
+    :var admin_address: admin account public address
+    :type admin_address: bytes
+    :var client: Algorand Node client instance
+    :type client: :class:`AlgodClient`
+    :var sp: suggested transaction params
+    :type sp: :class:`transaction.SuggestedParams`
+    :var dapp_name: name of the smart contract application
+    :type dapp_name: str
+    :var contract_json: The ARC-56 smart contract specification.
+    :type contract_json: dict
+    :var app_id: Rewards dApp unique identifier
+    :type app_id: int
+    :var app_info: dApp application information
+    :type app_info: dict
+    :return: Boolean
+    """
+    env = environment_variables()
+
+    if not env.get(f"admin_{network}_mnemonic"):
+        return False
+
+    creator_private_key = private_key_from_mnemonic(
+        env.get(f"admin_{network}_mnemonic")
+    )
+    admin_address = address_from_private_key(creator_private_key)
+
+    client = AlgodClient(
+        env.get(f"algod_token_{network}"), env.get(f"algod_address_{network}")
+    )
+    sp = client.suggested_params()
+
+    dapp_name = env.get("rewards_dapp_name")
+    contract_json = read_json(
+        Path(__file__).resolve().parent / "artifacts" / f"{dapp_name}.arc56.json"
+    )
+    app_id = contract_json["networks"][sp.gh]["appID"]
+
+    try:
+        app_info = client.application_info(app_id)
+    except ALGOD_EXCEPTIONS:
+        return False
+
+    return app_info.get("params", {}).get("creator") == admin_address
 
 
 def pause(seconds=1):
@@ -153,8 +209,8 @@ def atc_method_stub(client, network):
     :type network: str
     :var env: Environment variables.
     :type env: dict
-    :var creator_private_key: The private key of the application creator.
-    :type creator_private_key: str
+    :var admin_private_key: private key of the application admin
+    :type admin_private_key: str
     :var sender: The address of the transaction sender.
     :type sender: str
     :var signer: The transaction signer.
@@ -174,12 +230,10 @@ def atc_method_stub(client, network):
     """
     env = environment_variables()
 
-    creator_private_key = private_key_from_mnemonic(
-        env.get(f"admin_{network}_mnemonic")
-    )
-    sender = address_from_private_key(creator_private_key)
+    admin_private_key = private_key_from_mnemonic(env.get(f"admin_{network}_mnemonic"))
+    sender = address_from_private_key(admin_private_key)
 
-    signer = AccountTransactionSigner(creator_private_key)
+    signer = AccountTransactionSigner(admin_private_key)
 
     dapp_name = env.get("rewards_dapp_name")
     contract_json = read_json(

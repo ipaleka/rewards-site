@@ -642,7 +642,11 @@ class TestUtilsIssuesCrudFunctions:
         }
         mocked_client.assert_called_once_with(user)
         mocked_repo.assert_called_once_with(client)
-        repo.get_issue.assert_called_once_with(issue_number)
+        calls = [
+            mocker.call(issue_number),
+        ]
+        repo.get_issue.assert_has_calls(calls, any_order=True)
+        assert repo.get_issue.call_count == 2
         issue.set_labels.assert_called_once_with("label1", "label2")
         client.close.assert_called_once_with()
 

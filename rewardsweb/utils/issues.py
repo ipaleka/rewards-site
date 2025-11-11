@@ -363,6 +363,8 @@ def set_labels_to_issue(user, issue_number, labels_to_set):
 
         # Add labels to the issue
         issue.set_labels(*labels_to_set)
+        # refetch issue
+        issue = repo.get_issue(issue_number)
 
         client.close()
 

@@ -1,6 +1,6 @@
+"""Testing module for :py:mod:`core.views` views related to issues Hhtmx requests."""
+
 import pytest
-from django.http import Http404
-from django.template.loader import render_to_string
 from django.urls import reverse
 
 
@@ -19,7 +19,7 @@ class TestIssueModalHTMX:
         content = response.content.decode()
 
         assert "<dialog" in content
-        assert f"close-addressed-modal" in content
+        assert "close-addressed-modal" in content
 
     def test_modal_raises_404_for_non_superuser(self, client, issue):
         """Anonymous or normal user should trigger Http404"""
@@ -41,19 +41,19 @@ class TestIssueModalHTMX:
         """IssueDetailView._handle_labels_submission should return HTMX partial on success."""
         client.force_login(superuser)
 
-        mocked_set_labels = mocker.patch(
+        mocker.patch(
             "core.views.set_labels_to_issue",
             return_value={
                 "success": True,
-                "message": f"some message",
-                "current_labels": ["bug", "high priority"],
+                "message": "some message",
+                "current_labels": ["bug", "blocker"],
             },
         )
         url = reverse("issue-detail", kwargs={"pk": issue.pk})
         data = {
             "submit_labels": "",
             "labels": ["bug"],
-            "priority": "high priority",
+            "priority": "blocker",
         }
         response = client.post(url, data, HTTP_HX_REQUEST="true")
 
@@ -62,5 +62,5 @@ class TestIssueModalHTMX:
 
         assert "<form" in content
         assert "bug" in content
-        assert "high priority" in content
+        assert "blocker" in content
         assert "Labels updated successfully" in content

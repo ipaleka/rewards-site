@@ -50,6 +50,20 @@
 
 {% endpartialdef labels_form_partial %}
 
+{% partialdef issue_labels_partial %}
+<div id="labels-display-container" hx-swap-oob="outerHTML">
+  <div class="mb-4">
+    <div class="flex flex-wrap gap-1">
+      {% for label in issue_labels %}
+        <span class="badge badge-outline badge-sm">{{ label }}</span>
+      {% empty %}
+        <span class="opacity-60 text-sm">No labels</span>
+      {% endfor %}
+    </div>
+  </div>
+</div>
+{% endpartialdef %}
+
 {% partialdef close_modal_partial %}
 <dialog id="{{ modal_id }}" class="modal">
   <div class="modal-box">
@@ -206,13 +220,7 @@
 
         <!-- Labels -->
         {% if issue_labels %}
-        <div class="mb-4">
-          <div class="flex flex-wrap gap-1">
-            {% for label in issue_labels %}
-            <span class="badge badge-outline badge-sm">{{ label }}</span>
-            {% endfor %}
-          </div>
-        </div>
+          {% partial issue_labels_partial %}
         {% endif %}
 
         <!-- Assignees -->

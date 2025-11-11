@@ -20,7 +20,7 @@ import { ReclaimAllocationsComponent } from './ReclaimAllocationsComponent'
  * const app = new App()
  * ```
  */
-class App {
+export class App {
   /** The wallet manager instance for handling multiple wallets */
   walletManager: WalletManager | null = null
 

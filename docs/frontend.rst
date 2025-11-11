@@ -24,16 +24,13 @@ Main components
 .. toctree::
    :maxdepth: 2
 
+   api/frontend_api/main/classes/App.md
    api/frontend_api/WalletComponent/classes/WalletComponent.md
    api/frontend_api/RewardsClient/classes/RewardsClient.md
    api/frontend_api/ActiveNetwork/classes/ActiveNetwork.md
    api/frontend_api/AddAllocationsComponent/classes/AddAllocationsComponent.md
    api/frontend_api/ClaimComponent/classes/ClaimComponent.md
    api/frontend_api/ReclaimAllocationsComponent/classes/ReclaimAllocationsComponent.md
-
-.. raw:: html
-
-   <p>You can also <a href="index.html" target="_blank">open the frontend documentation in a new window</a>.</p>
 
 
 App (main.ts)

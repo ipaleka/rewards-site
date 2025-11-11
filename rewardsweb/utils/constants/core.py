@@ -47,11 +47,13 @@ ISSUE_PRIORITY_CHOICES = [
     ("low priority", "Low Priority"),
     ("medium priority", "Medium Priority"),
     ("high priority", "High Priority"),
+    ("blocker", "Blocker"),
 ]
 
 GITHUB_ISSUES_START_DATE = datetime(2022, 4, 15, 0, 0, 0, tzinfo=timezone.utc)
 
 GITHUB_LABELS = (
+    "blocker",
     "high priority",
     "medium priority",
     "low priority",

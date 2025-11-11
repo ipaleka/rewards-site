@@ -589,19 +589,9 @@ class IssueDetailView(DetailView):
             messages.error(request, "Please correct the errors in the form.")
 
         if request.headers.get("HX-Request") == "true":
-            msg_obj = next(iter(messages.get_messages(request)), None)
-
-            html = render_to_string(
-                "core/issue_detail.html#labels_form_partial",
-                {
-                    "labels_form": form,
-                    "issue": issue,
-                    "toast_message": msg_obj.message if msg_obj else None,
-                    "toast_type": msg_obj.tags if msg_obj else None,
-                },
-                request=request,
+            return self._labels_response_from_hx_request(
+                request, form, issue, result["current_labels"]
             )
-            return HttpResponse(html)
 
         return redirect("issue-detail", pk=issue.pk)
 
@@ -684,6 +674,29 @@ class IssueDetailView(DetailView):
 
         return redirect("issue-detail", pk=issue.pk)
 
+    def _labels_response_from_hx_request(self, request, form, issue, labels):
+        """Prepare HTML response for labels sections fro mprovided data."""
+        msg_obj = next(iter(messages.get_messages(request)), None)
+
+        form_html = render_to_string(
+            "core/issue_detail.html#labels_form_partial",
+            {
+                "labels_form": form,
+                "issue": issue,
+                "toast_message": msg_obj.message if msg_obj else None,
+                "toast_type": msg_obj.tags if msg_obj else None,
+            },
+            request=request,
+        )
+
+        labels_html = render_to_string(
+            "core/issue_detail.html#issue_labels_partial",
+            {"issue_labels": labels},
+            request=request,
+        )
+
+        return HttpResponse(form_html + labels_html)
+
 
 class IssueModalView(DetailView):
     """View for returning a DaisyUI modal fragment (used by HTMX) to close an issue.
@@ -713,11 +726,11 @@ class IssueModalView(DetailView):
         - if ?action is invalid
         """
         if not request.user.is_superuser:
-            raise Http404()  # ✅ now pytest can catch it
+            raise Http404()
 
         action = request.GET.get("action")
         if action not in ("addressed", "wontfix"):
-            raise Http404()  # ✅ now pytest catches as well
+            raise Http404()
 
         issue = self.get_object()
 

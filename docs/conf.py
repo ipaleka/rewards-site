@@ -73,6 +73,73 @@ if not os.environ.get("READTHEDOCS"):
                 cwd=frontend_path,
                 check=True,
             )
+            # Delete generated README.md and modules.md files
+            import glob
+
+            for file_path in glob.glob(
+                os.path.join(
+                    project_root, "docs", "api", "frontend_api", "**", "README.md"
+                ),
+                recursive=True,
+            ):
+                os.remove(file_path)
+            for file_path in glob.glob(
+                os.path.join(
+                    project_root, "docs", "api", "frontend_api", "**", "modules.md"
+                ),
+                recursive=True,
+            ):
+                os.remove(file_path)
+            # Remove cross-references to README.md from other generated .md files
+            for root, dirs, files in os.walk(
+                os.path.join(project_root, "docs", "api", "frontend_api")
+            ):
+                for file in files:
+                    if (
+                        file.endswith(".md")
+                        and file != "README.md"
+                        and file != "modules.md"
+                    ):
+                        filepath = os.path.join(root, file)
+                        with open(filepath, "r") as f:
+                            lines = f.readlines()
+                        with open(filepath, "w") as f:
+                            for line in lines:
+                                if (
+                                    "../../README.md" not in line
+                                    and "../README.md" not in line
+                                ):
+                                    f.write(line)
+                        # Remove leading horizontal rules or other transitions
+                        with open(filepath, "r") as f:
+                            lines = f.readlines()
+
+                        # Define a list of common reStructuredText transition markers
+                        transition_markers = [
+                            "---",
+                            "===",
+                            "***",
+                            "___",
+                            "+++",
+                            "~~~",
+                            "^^^",
+                            "```",
+                        ]
+
+                        # Filter out leading transition lines
+                        filtered_lines = []
+                        transition_found = False
+                        for line in lines:
+                            if (
+                                not transition_found
+                                and line.strip() in transition_markers
+                            ):
+                                transition_found = True
+                                continue
+                            filtered_lines.append(line)
+
+                        with open(filepath, "w") as f:
+                            f.writelines(filtered_lines)
         except subprocess.CalledProcessError:
             print("TypeDoc generation failed - continuing without frontend docs")
 

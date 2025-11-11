@@ -136,9 +136,7 @@ class TestDbIssueListView:
         """Integration test to verify the actual queryset behavior."""
         # Create test data
         issue1 = Issue.objects.create(number=1, status=IssueStatus.CREATED)
-        issue2 = Issue.objects.create(
-            number=2, status=IssueStatus.WONTFIX
-        )  # Should be excluded
+        Issue.objects.create(number=2, status=IssueStatus.WONTFIX)  # Should be excluded
         issue3 = Issue.objects.create(number=3, status=IssueStatus.CREATED)
 
         cycle = Cycle.objects.create(start="2025-09-08")
@@ -148,14 +146,14 @@ class TestDbIssueListView:
         reward = Reward.objects.create(type=reward_type, level=1, amount=1000)
 
         # Create contributions
-        contribution1 = Contribution.objects.create(
+        Contribution.objects.create(
             cycle=cycle,
             issue=issue1,
             contributor=contributor,
             platform=platform,
             reward=reward,
         )
-        contribution2 = Contribution.objects.create(
+        Contribution.objects.create(
             cycle=cycle,
             issue=issue3,
             contributor=contributor,
@@ -923,7 +921,7 @@ class TestIssueDetailViewSubmissionHandlers:
         mock_close_issue = mocker.patch("core.views.close_issue_with_labels")
         mocked_log_action = mocker.patch("core.models.Profile.log_action")
         mocked_process = mocker.patch(
-            "core.views.process_allocations_for_contributions", return_value=False
+            "core.views.process_allocations_for_contributions", return_value=(False, [])
         )
 
         mock_github_data = {
@@ -1005,7 +1003,8 @@ class TestIssueDetailViewSubmissionHandlers:
         mock_add_reaction = mocker.patch("core.views.add_reaction_to_message")
         mocked_log_action = mocker.patch("core.models.Profile.log_action")
         mocked_process = mocker.patch(
-            "core.views.process_allocations_for_contributions", return_value=True
+            "core.views.process_allocations_for_contributions",
+            return_value=("txid", ["addr1"]),
         )
         mock_github_data = {
             "success": True,
@@ -1478,6 +1477,9 @@ class TestIssueDetailViewCloseFunctionality:
         """Test that close buttons are shown for open issues and superusers."""
         # Mock GitHub issue as open
         mock_get_issue = mocker.patch("core.views.issue_by_number")
+        mocker.patch(
+            "core.views.process_allocations_for_contributions", return_value=(False, [])
+        )
         mock_github_data = {
             "success": True,
             "issue": {
@@ -1510,7 +1512,9 @@ class TestIssueDetailViewCloseFunctionality:
         # Mock GitHub functions
         mock_get_issue = mocker.patch("core.views.issue_by_number")
         mock_close_issue = mocker.patch("core.views.close_issue_with_labels")
-
+        mock_process = mocker.patch(
+            "core.views.process_allocations_for_contributions", return_value=(False, [])
+        )
         mock_github_data = {
             "success": True,
             "issue": {
@@ -1555,6 +1559,70 @@ class TestIssueDetailViewCloseFunctionality:
         assert call_args["comment"] == "Fixed the issue"
         assert "addressed" in call_args["labels_to_set"]
         assert "work in progress" not in call_args["labels_to_set"]
+        mock_process.assert_called_once_with(
+            mocker.ANY,
+            Contribution.objects.addresses_and_amounts_from_contributions,
+        )
+
+    def test_issuedetailview_close_as_addressed_success_and_claimable(
+        self, client, superuser, issue, mocker
+    ):
+        """Test successful close as addressed action."""
+        # Mock GitHub functions
+        mock_get_issue = mocker.patch("core.views.issue_by_number")
+        mock_close_issue = mocker.patch("core.views.close_issue_with_labels")
+        mock_process = mocker.patch(
+            "core.views.process_allocations_for_contributions",
+            return_value=("txid", ["addr"]),
+        )
+        mock_github_data = {
+            "success": True,
+            "issue": {
+                "number": 123,
+                "title": "Test Issue",
+                "body": "Test body",
+                "state": "open",
+                "labels": ["bug", "work in progress"],
+                "assignees": [],
+                "html_url": "https://github.com/owner/repo/issues/123",
+                "created_at": "2023-01-01T10:00:00",
+                "updated_at": "2023-01-15T15:30:00",
+            },
+        }
+        mock_get_issue.return_value = mock_github_data
+        mock_close_issue.return_value = {"success": True}
+
+        client.force_login(superuser)
+        url = reverse("issue-detail", kwargs={"pk": issue.pk})
+
+        response = client.post(
+            url,
+            {
+                "close_action": "addressed",
+                "close_comment": "Fixed the issue",
+                "submit_close": "Confirm Close",
+            },
+        )
+
+        assert response.status_code == 302
+        assert response.url == reverse("issue-detail", kwargs={"pk": issue.pk})
+
+        # Check that issue status was updated
+        issue.refresh_from_db()
+        assert issue.status == IssueStatus.CLAIMABLE
+
+        # Check that close_issue_with_labels was called with correct arguments
+        mock_close_issue.assert_called_once()
+        call_args = mock_close_issue.call_args[1]
+        assert call_args["user"] == superuser
+        assert call_args["issue_number"] == issue.number
+        assert call_args["comment"] == "Fixed the issue"
+        assert "addressed" in call_args["labels_to_set"]
+        assert "work in progress" not in call_args["labels_to_set"]
+        mock_process.assert_called_once_with(
+            mocker.ANY,
+            Contribution.objects.addresses_and_amounts_from_contributions,
+        )
 
     def test_issuedetailview_close_as_wontfix_success(
         self, client, superuser, issue, mocker
@@ -1825,7 +1893,7 @@ class TestIssueDetailViewCloseFunctionality:
         assert isinstance(response.context["labels_form"], IssueLabelsForm)
 
 
-class TestIssueDetailView:
+class TestIssueModalView:
     """Test case for IssueDetailView."""
 
     def test_issuemodalview_is_subclass_of_detailview(self):

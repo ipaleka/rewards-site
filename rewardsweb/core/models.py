@@ -745,9 +745,9 @@ class ContributionManager(models.Manager):
         amounts = {}
         for contrib in contributions:
             if is_valid_address(contrib.contributor.address) and contrib.reward.amount:
-                amounts[contrib.contributor.address] = (
-                    amounts.get(contrib.contributor.address, 0) + contrib.reward.amount
-                )
+                amounts[contrib.contributor.address] = amounts.get(
+                    contrib.contributor.address, 0
+                ) + int(contrib.reward.amount * contrib.percentage)
 
         return list(amounts.keys()), list(amounts.values())
 
@@ -760,6 +760,25 @@ class ContributionManager(models.Manager):
         """
         contributions = self.filter(issue__status=IssueStatus.ADDRESSED)
         return self.addresses_and_amounts_from_contributions(contributions)
+
+    def update_issue_statuses_for_addresses(self, addresses, contributions):
+        """Create collection of addresses and related amounts from `contributions`.
+
+        :param addresses: colection of addresses to update issue statuses for
+        :type addresses: list
+        :param contributions: contributions to locate issues from by addresses
+        :type contributions: :class:`django.db.models.query.QuerySet`
+        :var contrib: colection of addresses and related contribution ammounts
+        :type contrib: :class:`Contribution`
+        """
+        for contrib in contributions:
+            if (
+                contrib.contributor.address in addresses
+                and contrib.reward.amount
+                and contrib.issue.status == IssueStatus.ADDRESSED
+            ):
+                contrib.issue.status = IssueStatus.CLAIMABLE
+                contrib.issue.save()
 
     def user_has_claimed(self, address):
         """Update status of related issues to ARCHIVED for all contributions.

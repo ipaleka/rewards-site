@@ -31,13 +31,13 @@ ALGOD_EXCEPTIONS = (
 
 # # HELPERS
 def box_name_from_address(address):
-    """Return string representation of base64 encoded public Algorand `address`.
+    """Return Rewards dApp box name for provided `address`.
 
-    :param address: governance seat address
-    :type address: bytes
-    :return: str
+    :param address: account's public address
+    :type address: str
+    :return: bytes
     """
-    return decode_address(address)
+    return b"allocations" + decode_address(address)
 
 
 def environment_variables():

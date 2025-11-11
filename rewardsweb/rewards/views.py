@@ -1,13 +1,20 @@
 """Module containing the views for the rewards app."""
 
+from django.contrib import messages
 from django.contrib.auth.decorators import user_passes_test
 from django.contrib.auth.mixins import LoginRequiredMixin
+from django.http import HttpResponse
+from django.shortcuts import redirect
+from django.urls import reverse
 from django.utils.decorators import method_decorator
 from django.views.generic import TemplateView
 
 from contract.helpers import is_admin_account_configured
-from contract.network import reclaimable_addresses
-from core.models import Contribution
+from contract.network import (
+    process_allocations_for_contributions,
+    reclaimable_addresses,
+)
+from core.models import Contribution, IssueStatus
 
 
 class ClaimView(LoginRequiredMixin, TemplateView):
@@ -70,6 +77,45 @@ class AddAllocationsView(LoginRequiredMixin, TemplateView):
             context["use_admin_account"] = is_admin_account_configured()
 
         return context
+
+    def post(self, request, *args, **kwargs):
+        """Run contract allocation batching when admin account is available.
+
+        :param request: HTTP request object
+        :type request: :class:`rest_framework.request.Request`
+        :return: :class:`django.http.HttpResponse`
+        """
+        use_admin_account = is_admin_account_configured()
+
+        if not use_admin_account:
+            messages.error(request, "Admin contract account not configured.")
+            return redirect("add_allocations")
+
+        contributions = Contribution.objects.filter(issue__status=IssueStatus.ADDRESSED)
+
+        # Run allocations in batches — generator yields results per batch
+        for result, addresses in process_allocations_for_contributions(
+            contributions,
+            Contribution.objects.addresses_and_amounts_from_contributions,
+        ):
+            if result:
+                messages.success(request, f"✅ Allocation successful TXID: {result}")
+                Contribution.objects.update_issue_statuses_for_addresses(
+                    addresses, contributions
+                )
+                self.request.user.profile.log_action(
+                    "boxes_created",
+                    "; ".join([addr[:5] + ".." + addr[-5:] for addr in addresses]),
+                )
+
+            else:
+                messages.error(request, "❌ Allocation batch failed.")
+
+        messages.info(request, "✅ All batches completed.")
+
+        response = HttpResponse(status=204)  # No content
+        response["HX-Redirect"] = reverse("add_allocations")
+        return response
 
 
 @method_decorator(user_passes_test(lambda user: user.is_superuser), name="dispatch")

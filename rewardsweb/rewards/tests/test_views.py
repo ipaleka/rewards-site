@@ -3,6 +3,7 @@
 import pytest
 from django.contrib.auth import get_user_model
 from django.contrib.auth.models import AnonymousUser
+from django.contrib.messages import get_messages
 from django.test import RequestFactory
 from django.urls import reverse
 
@@ -193,6 +194,239 @@ class TestRewardsViews:
 
         # LoginRequiredMixin lets login first, so user gets 302 to login
         assert response.status_code in (302, 403)
+
+    @pytest.mark.django_db
+    def test_addallocationsview_post_admin_account_not_configured(
+        self, client, superuser, mocker
+    ):
+        """Test post when admin account is not configured."""
+        mocker.patch("rewards.views.is_admin_account_configured", return_value=False)
+
+        client.force_login(superuser)
+        response = client.post(reverse("add_allocations"))
+
+        assert response.status_code == 302
+        assert response.url == reverse("add_allocations")
+
+        # Check error message
+        messages = list(get_messages(response.wsgi_request))
+        assert any(
+            "Admin contract account not configured" in str(message)
+            for message in messages
+        )
+
+    @pytest.mark.django_db
+    def test_addallocationsview_post_single_batch_success(
+        self, client, superuser, mocker
+    ):
+        """Test successful post with single batch processing."""
+        mocker.patch("rewards.views.is_admin_account_configured", return_value=True)
+
+        # Mock contributions and allocation processing
+        mock_contributions = mocker.MagicMock()
+        mocker.patch(
+            "rewards.views.Contribution.objects.filter", return_value=mock_contributions
+        )
+
+        # Mock the generator to return one successful batch
+        mock_generator = mocker.patch(
+            "rewards.views.process_allocations_for_contributions"
+        )
+        mock_generator.return_value = [("tx_hash_123", ["address1", "address2"])]
+
+        # Mock the update method
+        mock_update = mocker.patch(
+            "rewards.views.Contribution.objects.update_issue_statuses_for_addresses"
+        )
+
+        # Mock user profile logging
+        mock_profile = mocker.MagicMock()
+        mocker.patch.object(User, "profile", mock_profile)
+
+        client.force_login(superuser)
+        response = client.post(reverse("add_allocations"))
+
+        assert response.status_code == 204
+        assert response["HX-Redirect"] == reverse("add_allocations")
+
+        # Check success message
+        messages = list(get_messages(response.wsgi_request))
+        message_texts = [str(msg) for msg in messages]
+        assert any(
+            "✅ Allocation successful TXID: tx_hash_123" in msg for msg in message_texts
+        )
+        assert any("✅ All batches completed" in msg for msg in message_texts)
+
+        # Verify update was called
+        mock_update.assert_called_once_with(
+            ["address1", "address2"], mock_contributions
+        )
+
+        # Verify log action was called with formatted addresses
+        mock_profile.log_action.assert_called_once_with(
+            "boxes_created", "addre..ress1; addre..ress2"
+        )
+
+    @pytest.mark.django_db
+    def test_addallocationsview_post_multiple_batches_mixed_results(
+        self, client, superuser, mocker
+    ):
+        """Test post with multiple batches including both success and failure."""
+        mocker.patch("rewards.views.is_admin_account_configured", return_value=True)
+
+        mock_contributions = mocker.MagicMock()
+        mocker.patch(
+            "rewards.views.Contribution.objects.filter", return_value=mock_contributions
+        )
+
+        # Mock generator with mixed results
+        mock_generator = mocker.patch(
+            "rewards.views.process_allocations_for_contributions"
+        )
+        mock_generator.return_value = [
+            ("tx_hash_1", ["addr1", "addr2"]),  # Batch 1 success
+            (False, []),  # Batch 2 failure
+            ("tx_hash_3", ["addr5"]),  # Batch 3 success
+        ]
+
+        mock_update = mocker.patch(
+            "rewards.views.Contribution.objects.update_issue_statuses_for_addresses"
+        )
+
+        mock_profile = mocker.MagicMock()
+        mocker.patch.object(User, "profile", mock_profile)
+
+        client.force_login(superuser)
+        response = client.post(reverse("add_allocations"))
+
+        assert response.status_code == 204
+
+        # Check messages for mixed results
+        messages = list(get_messages(response.wsgi_request))
+        message_texts = [str(msg) for msg in messages]
+
+        assert any(
+            "✅ Allocation successful TXID: tx_hash_1" in msg for msg in message_texts
+        )
+        assert any("❌ Allocation batch failed" in msg for msg in message_texts)
+        assert any(
+            "✅ Allocation successful TXID: tx_hash_3" in msg for msg in message_texts
+        )
+        assert any("✅ All batches completed" in msg for msg in message_texts)
+
+        # Verify update was called only for successful batches
+        assert mock_update.call_count == 2
+        mock_update.assert_has_calls(
+            [
+                mocker.call(["addr1", "addr2"], mock_contributions),
+                mocker.call(["addr5"], mock_contributions),
+            ]
+        )
+
+        # Verify log action was called for each successful batch
+        assert mock_profile.log_action.call_count == 2
+
+    @pytest.mark.django_db
+    def test_addallocationsview_post_all_batches_fail(self, client, superuser, mocker):
+        """Test post when all batches fail."""
+        mocker.patch("rewards.views.is_admin_account_configured", return_value=True)
+
+        mock_contributions = mocker.MagicMock()
+        mocker.patch(
+            "rewards.views.Contribution.objects.filter", return_value=mock_contributions
+        )
+
+        # Mock generator with all failures
+        mock_generator = mocker.patch(
+            "rewards.views.process_allocations_for_contributions"
+        )
+        mock_generator.return_value = [(False, []), (False, []), (False, [])]
+
+        mock_update = mocker.patch(
+            "rewards.views.Contribution.objects.update_issue_statuses_for_addresses"
+        )
+
+        mock_profile = mocker.MagicMock()
+        mocker.patch.object(User, "profile", mock_profile)
+
+        client.force_login(superuser)
+        response = client.post(reverse("add_allocations"))
+
+        assert response.status_code == 204
+
+        # Check error messages
+        messages = list(get_messages(response.wsgi_request))
+        message_texts = [str(msg) for msg in messages]
+
+        # Should have 3 error messages and 1 completion message
+        error_count = sum(
+            1 for msg in message_texts if "❌ Allocation batch failed" in msg
+        )
+        assert error_count == 3
+        assert any("✅ All batches completed" in msg for msg in message_texts)
+
+        # Verify no updates were made
+        mock_update.assert_not_called()
+        mock_profile.log_action.assert_not_called()
+
+    @pytest.mark.django_db
+    def test_addallocationsview_post_no_contributions(self, client, superuser, mocker):
+        """Test post when there are no contributions to process."""
+        mocker.patch("rewards.views.is_admin_account_configured", return_value=True)
+
+        # Mock empty contributions
+        mock_contributions = mocker.MagicMock()
+        mocker.patch(
+            "rewards.views.Contribution.objects.filter", return_value=mock_contributions
+        )
+
+        # Mock generator with no batches (empty case)
+        mock_generator = mocker.patch(
+            "rewards.views.process_allocations_for_contributions"
+        )
+        mock_generator.return_value = []  # No batches yielded
+
+        mock_update = mocker.patch(
+            "rewards.views.Contribution.objects.update_issue_statuses_for_addresses"
+        )
+
+        client.force_login(superuser)
+        response = client.post(reverse("add_allocations"))
+
+        assert response.status_code == 204
+
+        # Check only completion message
+        messages = list(get_messages(response.wsgi_request))
+        message_texts = [str(msg) for msg in messages]
+
+        assert any("✅ All batches completed" in msg for msg in message_texts)
+        assert not any("❌ Allocation batch failed" in msg for msg in message_texts)
+        assert not any("✅ Allocation successful TXID:" in msg for msg in message_texts)
+
+        # Verify no updates were made
+        mock_update.assert_not_called()
+
+    @pytest.mark.django_db
+    def test_addallocationsview_post_normal_user_blocked(self, client, user, mocker):
+        """Test that normal users cannot access post method."""
+        mocker.patch("rewards.views.is_admin_account_configured", return_value=True)
+
+        client.force_login(user)
+        response = client.post(reverse("add_allocations"))
+
+        # Should be redirected or forbidden
+        assert response.status_code in (302, 403)
+
+    @pytest.mark.django_db
+    def test_addallocationsview_post_anonymous_user_blocked(self, client, mocker):
+        """Test that anonymous users cannot access post method."""
+        mocker.patch("rewards.views.is_admin_account_configured", return_value=True)
+
+        response = client.post(reverse("add_allocations"))
+
+        # Should be redirected to login
+        assert response.status_code == 302
+        assert "/login" in response.url
 
     # # ReclaimAllocationsView
     @pytest.mark.django_db

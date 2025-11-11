@@ -15,12 +15,14 @@ from algosdk.v2client.algod import AlgodClient
 from contract.helpers import (
     app_schemas,
     atc_method_stub,
+    box_name_from_address,
     environment_variables,
     private_key_from_mnemonic,
     wait_for_confirmation,
 )
 
 ACTIVE_NETWORK = "testnet"
+ADD_ALLOCATIONS_BATCH_SIZE = 4
 
 
 def _add_allocations(network, addresses, amounts):
@@ -42,6 +44,8 @@ def _add_allocations(network, addresses, amounts):
     :type atc_stub: dict
     :var atc: clear program source code
     :type atc: :class:`AtomicTransactionComposer`
+    :var boxes: collection of boxes to create
+    :type boxes: list
     :var response: atomic transaction creation response
     :type response: :class:`AtomicTransactionResponse`
     :return: str
@@ -54,6 +58,9 @@ def _add_allocations(network, addresses, amounts):
     token_id = int(env.get(f"rewards_token_id_{network}"))
     atc_stub = atc_method_stub(client, network)
     atc = AtomicTransactionComposer()
+    boxes = [
+        (atc_stub.get("app_id"), box_name_from_address(addr)) for addr in addresses
+    ]
 
     atc.add_method_call(
         app_id=atc_stub.get("app_id"),
@@ -62,6 +69,7 @@ def _add_allocations(network, addresses, amounts):
         sp=atc_stub.get("sp"),
         signer=atc_stub.get("signer"),
         method_args=[addresses, amounts],
+        boxes=boxes,
         foreign_assets=[token_id],
     )
     response = atc.execute(client, 2)
@@ -161,7 +169,7 @@ def can_user_claim(network, user_address):
     :type client: :class:`AlgodClient`
     :var atc_stub: collection of data required to create atomic transaction
     :type atc_stub: dict
-    :var app_id: ASA Stats Rewards dApp unique identifier
+    :var app_id: Rewards dApp unique identifier
     :type app_id: int
     :var box_name: user's box name
     :type box_name: bytes
@@ -381,7 +389,7 @@ def process_allocations(network, addresses, amounts):
     :type admin_address: str
     :var app_address: ASA Stats Rewards dApp address
     :type app_address: str
-    :var app_id: ASA Stats Rewards dApp unique identifier
+    :var app_id: Rewards dApp unique identifier
     :type app_id: int
     :var dapp_minimum_algo: minimum required ALGO for dApp
     :type dapp_minimum_algo: int
@@ -401,7 +409,7 @@ def process_allocations(network, addresses, amounts):
     admin_address = atc_stub.get("sender")
     app_id = atc_stub.get("app_id")
     app_address = get_application_address(app_id)
-    dapp_minimum_algo = int(env.get("dapp_minimum_algo", 100_000))
+    dapp_minimum_algo = int(env.get("dapp_minimum_algo") or 100_000)
 
     app_algo_balance, _ = _check_balances(client, app_address, token_id)
     if app_algo_balance < dapp_minimum_algo:
@@ -429,17 +437,27 @@ def process_allocations_for_contributions(contributions, allocations_callback):
     :type addresses: list
     :var amounts: list of corresponding allocation amounts
     :type amounts: list
-    :return: str or False
+    :var batch_addresses: curent batch of contributor addresses
+    :type batch_addresses: list
+    :var batch_amounts: curent batch of corresponding allocation amounts
+    :type batch_amounts: list
+    :yield: two-tuple
     """
     addresses, amounts = allocations_callback(contributions)
-    if addresses:
+    if not addresses:
+        yield False, []
+        return
+
+    for i in range(0, len(addresses), ADD_ALLOCATIONS_BATCH_SIZE):
+        batch_addresses = addresses[i : i + ADD_ALLOCATIONS_BATCH_SIZE]
+        batch_amounts = amounts[i : i + ADD_ALLOCATIONS_BATCH_SIZE]
+
         try:
-            return process_allocations(ACTIVE_NETWORK, addresses, amounts)
+            result = process_allocations(ACTIVE_NETWORK, batch_addresses, batch_amounts)
+            yield result, batch_addresses
 
         except ValueError:
-            pass
-
-    return False
+            yield False, []
 
 
 def process_reclaim_allocation(network, user_address):
@@ -455,7 +473,7 @@ def process_reclaim_allocation(network, user_address):
     :type client: :class:`AlgodClient`
     :var atc_stub: collection of data required to create atomic transaction
     :type atc_stub: dict
-    :var app_id: ASA Stats Rewards dApp unique identifier
+    :var app_id: Rewards dApp unique identifier
     :type app_id: int
     :var box_name: user's box name
     :type box_name: bytes
@@ -496,7 +514,7 @@ def reclaimable_addresses(network="testnet"):
     :type client: :class:`AlgodClient`
     :var atc_stub: collection of data required to create atomic transaction
     :type atc_stub: dict
-    :var app_id: ASA Stats Rewards dApp unique identifier
+    :var app_id: Rewards dApp unique identifier
     :type app_id: int
     :var reclaimable_addresses: collection of addresses that can be reclaimed
     :type reclaimable_addresses: list

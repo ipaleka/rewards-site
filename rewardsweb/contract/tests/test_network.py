@@ -28,7 +28,10 @@ class TestContractNetworkPrivateFunctions:
     # # _add_allocations
     def test_contract_network_add_allocations_functionality(self, mocker):
         network = "testnet"
-        addresses = ["ADDR1", "ADDR2"]
+        addresses = [
+            "2EVGZ4BGOSL3J64UYDE2BUGTNTBZZZLI54VUQQNZZLYCDODLY33UGXNSIU",
+            "VW55KZ3NF4GDOWI7IPWLGZDFWNXWKSRD5PETRLDABZVU5XPKRJJRK3CBSU",
+        ]
         amounts = [100, 200]
         token_id = 505
 
@@ -76,6 +79,23 @@ class TestContractNetworkPrivateFunctions:
         returned = _add_allocations(network, addresses, amounts)
         assert returned == "TX123"
 
+        boxes = [
+            (
+                555,
+                (
+                    b"allocations\xd1*l\xf0&t\x97\xb4\xfb\x94\xc0\xc9\xa0"
+                    b"\xd0\xd3l\xc3\x9c\xe5h\xef+HA\xb9\xca\xf0!\xb8k\xc6\xf7"
+                ),
+            ),
+            (
+                555,
+                (
+                    b"allocations\xad\xbb\xd5gm/\x0c7Y\x1fC\xec\xb3de\xb3oeJ#"
+                    b"\xeb\xc98\xac`\x0ekN\xdd\xea\x8aS"
+                ),
+            ),
+        ]
+
         mocked_env.assert_called_once_with()
         mocked_client.assert_called_once_with("token", "address")
         mocked_atc_stub.assert_called_once_with(client, network)
@@ -87,6 +107,7 @@ class TestContractNetworkPrivateFunctions:
             sp=atc_stub["sp"],
             signer=atc_stub["signer"],
             method_args=[addresses, amounts],
+            boxes=boxes,
             foreign_assets=[token_id],
         )
         atc.execute.assert_called_once_with(client, 2)
@@ -756,52 +777,206 @@ class TestContractNetworkPublicFunctions:
         with pytest.raises(ValueError, match="Not enough token"):
             process_allocations(network, addresses, amounts)
 
-    # # process_allocations_for_contributions
-    def test_contract_network_process_allocations_for_contributions_no_addreses(
+    # process_allocations_for_contributions
+    def test_contract_network_process_allocations_for_contributions_no_addresses(
         self, mocker
     ):
         contributions = mocker.MagicMock()
         allocations_callback = mocker.MagicMock()
         allocations_callback.return_value = ([], [])
         mocked_process = mocker.patch("contract.network.process_allocations")
-        returned = process_allocations_for_contributions(
-            contributions, allocations_callback
+
+        results = list(
+            process_allocations_for_contributions(contributions, allocations_callback)
         )
-        assert returned is False
+
+        assert results == [(False, [])]
         allocations_callback.assert_called_once_with(contributions)
         mocked_process.assert_not_called()
 
-    def test_contract_network_process_allocations_for_contributions_for_exception(
-        self, mocker
-    ):
+    def test_contract_allocations_for_contributions_single_batch_success(self, mocker):
         contributions = mocker.MagicMock()
-        addresses, amounts = mocker.MagicMock(), mocker.MagicMock()
+        addresses = ["addr1", "addr2"]
+        amounts = [100, 200]
         allocations_callback = mocker.MagicMock()
         allocations_callback.return_value = (addresses, amounts)
+
+        # Mock batch size larger than addresses count
+        mocker.patch("contract.network.ADD_ALLOCATIONS_BATCH_SIZE", 10)
+
         mocked_process = mocker.patch(
-            "contract.network.process_allocations", side_effect=ValueError("")
+            "contract.network.process_allocations", return_value="tx_hash_123"
         )
-        returned = process_allocations_for_contributions(
-            contributions, allocations_callback
+
+        results = list(
+            process_allocations_for_contributions(contributions, allocations_callback)
         )
-        assert returned is False
+
+        # Should yield: (result, batch_addresses)
+        assert results == [("tx_hash_123", ["addr1", "addr2"])]
         allocations_callback.assert_called_once_with(contributions)
         mocked_process.assert_called_once_with(ACTIVE_NETWORK, addresses, amounts)
 
-    def test_contract_network_process_allocations_for_contributions_functionality(
+    def test_contract_network_process_allocations_for_contributions_multiple_batches_success(
         self, mocker
     ):
         contributions = mocker.MagicMock()
-        addresses, amounts = mocker.MagicMock(), mocker.MagicMock()
+        addresses = ["addr1", "addr2", "addr3", "addr4", "addr5"]
+        amounts = [100, 200, 300, 400, 500]
         allocations_callback = mocker.MagicMock()
         allocations_callback.return_value = (addresses, amounts)
-        mocked_process = mocker.patch("contract.network.process_allocations")
-        returned = process_allocations_for_contributions(
-            contributions, allocations_callback
+
+        # Mock batch size of 2
+        mocker.patch("contract.network.ADD_ALLOCATIONS_BATCH_SIZE", 2)
+
+        # Mock process_allocations to return different results for each batch
+        batch_results = ["tx_hash_1", "tx_hash_2", "tx_hash_3"]
+        mocked_process = mocker.patch(
+            "contract.network.process_allocations", side_effect=batch_results
         )
-        assert returned == mocked_process.return_value
+
+        results = list(
+            process_allocations_for_contributions(contributions, allocations_callback)
+        )
+
+        # Expected results with batch addresses for each batch
+        expected_results = [
+            ("tx_hash_1", ["addr1", "addr2"]),  # Batch 1
+            ("tx_hash_2", ["addr3", "addr4"]),  # Batch 2
+            ("tx_hash_3", ["addr5"]),  # Batch 3
+        ]
+
+        assert results == expected_results
+        allocations_callback.assert_called_once_with(contributions)
+        assert mocked_process.call_count == 3
+
+        # Verify the batch calls
+        expected_calls = [
+            mocker.call(ACTIVE_NETWORK, ["addr1", "addr2"], [100, 200]),
+            mocker.call(ACTIVE_NETWORK, ["addr3", "addr4"], [300, 400]),
+            mocker.call(ACTIVE_NETWORK, ["addr5"], [500]),
+        ]
+        mocked_process.assert_has_calls(expected_calls)
+
+    def test_contract_network_process_allocations_for_contributions_batch_with_exception(
+        self, mocker
+    ):
+        contributions = mocker.MagicMock()
+        addresses = ["addr1", "addr2", "addr3", "addr4"]
+        amounts = [100, 200, 300, 400]
+        allocations_callback = mocker.MagicMock()
+        allocations_callback.return_value = (addresses, amounts)
+
+        mocker.patch("contract.network.ADD_ALLOCATIONS_BATCH_SIZE", 2)
+
+        # First call succeeds, second call raises exception
+        mocked_process = mocker.patch(
+            "contract.network.process_allocations",
+            side_effect=["tx_hash_1", ValueError("Transaction failed")],
+        )
+
+        results = list(
+            process_allocations_for_contributions(contributions, allocations_callback)
+        )
+
+        # First batch succeeds, second batch returns (False, []) due to exception
+        expected_results = [
+            ("tx_hash_1", ["addr1", "addr2"]),  # Batch 1 (success)
+            (False, []),  # Batch 2 (failed)
+        ]
+
+        assert results == expected_results
+        allocations_callback.assert_called_once_with(contributions)
+        assert mocked_process.call_count == 2
+
+    def test_contract_network_process_allocations_for_contributions_all_batches_fail(
+        self, mocker
+    ):
+        contributions = mocker.MagicMock()
+        addresses = ["addr1", "addr2", "addr3"]
+        amounts = [100, 200, 300]
+        allocations_callback = mocker.MagicMock()
+        allocations_callback.return_value = (addresses, amounts)
+
+        mocker.patch("contract.network.ADD_ALLOCATIONS_BATCH_SIZE", 1)
+
+        # All calls raise exceptions
+        mocked_process = mocker.patch(
+            "contract.network.process_allocations",
+            side_effect=ValueError("Transaction failed"),
+        )
+
+        results = list(
+            process_allocations_for_contributions(contributions, allocations_callback)
+        )
+
+        # All batches return (False, []) due to exceptions
+        expected_results = [
+            (False, []),  # Batch 1 (failed)
+            (False, []),  # Batch 2 (failed)
+            (False, []),  # Batch 3 (failed)
+        ]
+
+        assert results == expected_results
+        allocations_callback.assert_called_once_with(contributions)
+        assert mocked_process.call_count == 3
+
+    def test_contract_network_process_allocations_for_contributions_exact_batch_size(
+        self, mocker
+    ):
+        """Test when number of addresses exactly matches batch size"""
+        contributions = mocker.MagicMock()
+        addresses = ["addr1", "addr2", "addr3", "addr4"]
+        amounts = [100, 200, 300, 400]
+        allocations_callback = mocker.MagicMock()
+        allocations_callback.return_value = (addresses, amounts)
+
+        mocker.patch("contract.network.ADD_ALLOCATIONS_BATCH_SIZE", 4)
+
+        mocked_process = mocker.patch(
+            "contract.network.process_allocations", return_value="tx_hash_123"
+        )
+
+        results = list(
+            process_allocations_for_contributions(contributions, allocations_callback)
+        )
+
+        # Single batch with all addresses
+        assert results == [("tx_hash_123", ["addr1", "addr2", "addr3", "addr4"])]
         allocations_callback.assert_called_once_with(contributions)
         mocked_process.assert_called_once_with(ACTIVE_NETWORK, addresses, amounts)
+
+    def test_contract_network_process_allocations_for_contributions_mixed_success_failure(
+        self, mocker
+    ):
+        """Test mixed scenario with success, failure, and success"""
+        contributions = mocker.MagicMock()
+        addresses = ["addr1", "addr2", "addr3", "addr4", "addr5"]
+        amounts = [100, 200, 300, 400, 500]
+        allocations_callback = mocker.MagicMock()
+        allocations_callback.return_value = (addresses, amounts)
+
+        mocker.patch("contract.network.ADD_ALLOCATIONS_BATCH_SIZE", 2)
+
+        # Mixed results: success, failure, success
+        mocked_process = mocker.patch(
+            "contract.network.process_allocations",
+            side_effect=["tx_hash_1", ValueError("Failed"), "tx_hash_3"],
+        )
+
+        results = list(
+            process_allocations_for_contributions(contributions, allocations_callback)
+        )
+
+        expected_results = [
+            ("tx_hash_1", ["addr1", "addr2"]),  # Batch 1 (success)
+            (False, []),  # Batch 2 (failed)
+            ("tx_hash_3", ["addr5"]),  # Batch 3 (success)
+        ]
+
+        assert results == expected_results
+        allocations_callback.assert_called_once_with(contributions)
+        assert mocked_process.call_count == 3
 
     # # process_reclaim_allocation
     def test_contract_network_process_reclaim_allocation_calls_reclaim(self, mocker):

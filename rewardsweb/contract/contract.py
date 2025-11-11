@@ -7,6 +7,7 @@ from algopy import (
     Global,
     GlobalState,
     Struct,
+    TransactionType,
     Txn,
     UInt64,
     arc4,
@@ -118,16 +119,24 @@ class Rewards(arc4.ARC4Contract):
             addresses.length == amounts.length
         ), "Input arrays must have the same length"
 
-        total_funding = UInt64(0)
-        for i in urange(amounts.length):
-            total_funding += amounts[i].as_uint64()
+        required_funding = UInt64(0)
+        for j in urange(addresses.length):
+            required_funding += amounts[j].as_uint64()
 
-        itxn.AssetTransfer(
-            xfer_asset=self.token_id.value,
-            asset_receiver=Global.current_application_address,
-            asset_amount=total_funding,
-            asset_sender=self.admin_address.value,
-        ).submit()
+        funded = False
+
+        assert op.Global.group_size >= UInt64(2), "Missing funding transaction in group"
+
+        for i in urange(op.Global.group_size):
+            if op.GTxn.type_enum(i) == TransactionType.AssetTransfer:
+                if op.GTxn.xfer_asset(i).id == self.token_id.value:
+                    if op.GTxn.asset_receiver(i) == Global.current_application_address:
+                        assert (
+                            op.GTxn.amount(i) == required_funding
+                        ), "Incorrect ASA funding"
+                        funded = True
+
+        assert funded, "ASA funding transaction missing"
 
         expires_at = Global.latest_timestamp + self.claim_period_duration.value
         for i in urange(addresses.length):

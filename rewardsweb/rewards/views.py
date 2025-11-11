@@ -170,6 +170,4 @@ class ReclaimAllocationsView(LoginRequiredMixin, TemplateView):
         #     messages.error(request, f"❌ Failed to reclaim from {address}: {e}")
 
         # ✅ Remove row (HTMX out-of-band delete)
-        return HttpResponse(
-            f'<tr id="row-{address}" hx-swap-oob="delete"></tr>'
-        )
+        return HttpResponse(f'<tr id="row-{address}" hx-swap-oob="delete"></tr>')

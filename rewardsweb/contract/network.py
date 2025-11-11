@@ -6,8 +6,11 @@ import time
 
 from algosdk import transaction
 from algosdk.account import address_from_private_key
-from algosdk.atomic_transaction_composer import AtomicTransactionComposer
-from algosdk.encoding import decode_address, encode_address
+from algosdk.atomic_transaction_composer import (
+    AtomicTransactionComposer,
+    TransactionWithSigner,
+)
+from algosdk.encoding import decode_address
 from algosdk.logic import get_application_address
 from algosdk.transaction import PaymentTxn
 from algosdk.v2client.algod import AlgodClient
@@ -59,10 +62,24 @@ def _add_allocations(network, addresses, amounts):
     token_id = int(env.get(f"rewards_token_id_{network}"))
     atc_stub = atc_method_stub(client, network)
     atc = AtomicTransactionComposer()
+
+    funding_txn = transaction.AssetTransferTxn(
+        sender=atc_stub.get("sender"),
+        receiver=get_application_address(atc_stub.get("app_id")),
+        amt=sum(amounts),
+        index=token_id,
+        sp=atc_stub.get("sp"),
+    )
+    atc.add_transaction(
+        TransactionWithSigner(
+            txn=funding_txn,
+            signer=atc_stub.get("signer"),
+        )
+    )
+
     boxes = [
         (atc_stub.get("app_id"), box_name_from_address(addr)) for addr in addresses
     ]
-
     atc.add_method_call(
         app_id=atc_stub.get("app_id"),
         method=atc_stub.get("contract").get_method_by_name("add_allocations"),
@@ -73,6 +90,7 @@ def _add_allocations(network, addresses, amounts):
         boxes=boxes,
         foreign_assets=[token_id],
     )
+
     response = atc.execute(client, 2)
     print(f"Allocations added in transaction {response.tx_ids[0]}")
     return response.tx_ids[0]

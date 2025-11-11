@@ -16,5 +16,6 @@
   "excludePrivate": false,
   "excludeProtected": false,
   "categorizeByGroup": false,
-  "hideGenerator": true
+  "hideGenerator": true,
+  "readme": "none"
 }

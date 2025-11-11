@@ -132,6 +132,7 @@ def _reclaim_allocation(network, user_address):
     :type atc: :class:`AtomicTransactionComposer`
     :var response: atomic transaction creation response
     :type response: :class:`AtomicTransactionResponse`
+    :return: str
     """
     env = environment_variables()
 
@@ -153,6 +154,7 @@ def _reclaim_allocation(network, user_address):
     )
     response = atc.execute(client, 2)
     print(f"Allocations reclaimed in transaction {response.tx_ids[0]}")
+    return response.tx_ids[0]
 
 
 # # PUBLIC
@@ -460,13 +462,13 @@ def process_allocations_for_contributions(contributions, allocations_callback):
             yield False, []
 
 
-def process_reclaim_allocation(network, user_address):
+def process_reclaim_allocation(user_address, network=ACTIVE_NETWORK):
     """Process reclaim allocation after performing a couple of checks.
 
-    :param network: network to deploy to (e.g., "testnet")
-    :type network: str
     :param user_address: The address of the user whose allocation is to be reclaimed
     :type user_address: str
+    :param network: network to deploy to (e.g., "testnet")
+    :type network: str
     :var env: environment variables collection
     :type env: dict
     :var client: Algorand Node client instance
@@ -500,7 +502,7 @@ def process_reclaim_allocation(network, user_address):
         raise ValueError("User claim period hasn't ended")
 
     if amount > 0:
-        _reclaim_allocation(network, user_address)
+        return _reclaim_allocation(network, user_address)
 
 
 def reclaimable_addresses(network="testnet"):

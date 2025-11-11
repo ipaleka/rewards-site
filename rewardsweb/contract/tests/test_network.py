@@ -207,7 +207,8 @@ class TestContractNetworkPrivateFunctions:
 
         mocker.patch("builtins.print")  # Silence logs
 
-        _reclaim_allocation(network, user_address)
+        returned = _reclaim_allocation(network, user_address)
+        assert returned == "TX777"
 
         mocked_env.assert_called_once_with()
         mocked_client.assert_called_once_with("main_token", "main_address")
@@ -980,7 +981,6 @@ class TestContractNetworkPublicFunctions:
 
     # # process_reclaim_allocation
     def test_contract_network_process_reclaim_allocation_calls_reclaim(self, mocker):
-        network = "testnet"
         user_address = "USER123"
 
         env = {
@@ -1007,11 +1007,11 @@ class TestContractNetworkPublicFunctions:
 
         mocked_reclaim = mocker.patch("contract.network._reclaim_allocation")
 
-        process_reclaim_allocation(network, user_address)
+        process_reclaim_allocation(user_address)
 
         mock_decode.assert_called_once_with(user_address)
         client.application_box_by_name.assert_called_once_with(123, b"decoded")
-        mocked_reclaim.assert_called_once_with(network, user_address)
+        mocked_reclaim.assert_called_once_with(ACTIVE_NETWORK, user_address)
 
     def test_contract_network_process_reclaim_allocation_raises_for_missing_box(
         self, mocker
@@ -1036,7 +1036,7 @@ class TestContractNetworkPublicFunctions:
         client.application_box_by_name.return_value = {"value": None}
 
         with pytest.raises(ValueError, match="No user's box"):
-            process_reclaim_allocation(network, user_address)
+            process_reclaim_allocation(user_address, network)
 
     def test_contract_network_process_reclaim_allocation_raises_when_claim_period_not_over(
         self, mocker
@@ -1065,7 +1065,7 @@ class TestContractNetworkPublicFunctions:
         client.application_box_by_name.return_value = {"value": encoded}
 
         with pytest.raises(ValueError, match="User claim period hasn't ended"):
-            process_reclaim_allocation(network, user_address)
+            process_reclaim_allocation(user_address, network)
 
     def test_contract_network_process_reclaim_allocation_does_not_call_reclaim_if_amount_zero(
         self, mocker
@@ -1095,7 +1095,7 @@ class TestContractNetworkPublicFunctions:
 
         mocked_reclaim = mocker.patch("contract.network._reclaim_allocation")
 
-        process_reclaim_allocation(network, user_address)
+        process_reclaim_allocation(user_address, network)
 
         mocked_reclaim.assert_not_called()
 

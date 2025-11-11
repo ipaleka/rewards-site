@@ -14,37 +14,37 @@
       </tr>
     </thead>
     <tbody>
-      {% for address in addresses %}
-        <tr>
-          <td>{{ address }}</td>
-          <td class="text-right">
+    {% for address in addresses %}
+      <tr id="row-{{ address }}">
+        <td>{{ address }}</td>
+        <td class="text-right">
 
-            {% if use_admin_account %}
-            {# ✅ Admin mode: HTMX POST + blocking button #}
-            <form method="post"
+          {% if use_admin_account %}
+          <form method="post"
                 hx-post="{% url 'reclaim_allocations' %}"
                 hx-vals='{"blocking": "true"}'
-                hx-target="body"
-                hx-swap="innerHTML transition:true">
-              {% csrf_token %}
-              <input type="hidden" name="address" value="{{ address }}">
+                hx-swap="none">
+            {% csrf_token %}
+            <input type="hidden" name="address" value="{{ address }}">
 
-              <button type="submit"
-                      class="btn btn-warning btn-xs"
-                      hx-disable>
-                  Reclaim
-              </button>
-            </form>
-
-            {% else %}
-            <button type="button" class="btn btn-warning btn-xs">
+            <button type="submit"
+                    class="btn btn-warning btn-xs"
+                    hx-disable>
               Reclaim
             </button>
-            {% endif %}
+          </form>
 
-          </td>
-        </tr>
-      {% endfor %}
+          {% else %}
+            <button type="button"
+                    class="btn btn-warning btn-xs"
+                    disabled>
+              Reclaim
+            </button>
+          {% endif %}
+
+        </td>
+      </tr>
+    {% endfor %}
     </tbody>
   </table>
   {% else %}

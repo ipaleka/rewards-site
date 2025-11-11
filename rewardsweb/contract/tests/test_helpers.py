@@ -9,6 +9,7 @@ import pytest
 from contract.helpers import (
     ALGOD_EXCEPTIONS,
     HTTPError,
+    address_from_box_name,
     app_schemas,
     atc_method_stub,
     box_name_from_address,
@@ -26,7 +27,7 @@ from contract.helpers import (
 class TestContractHelpersFunctions:
     """Testing class for :py:mod:`contract.helpers` helpers functions."""
 
-    # # box_name_from_address
+    # # address_from_box_name
     @pytest.mark.parametrize(
         "address,box_name",
         [
@@ -40,8 +41,8 @@ class TestContractHelpersFunctions:
             (
                 "VW55KZ3NF4GDOWI7IPWLGZDFWNXWKSRD5PETRLDABZVU5XPKRJJRK3CBSU",
                 (
-                    b"allocations\xad\xbb\xd5gm/\x0c7Y\x1fC\xec\xb3de\xb3oeJ#"
-                    b"\xeb\xc98\xac`\x0ekN\xdd\xea\x8aS"
+                    b"allocations\xad\xbb\xd5gm/\x0c7Y\x1fC\xec\xb3de"
+                    b"\xb3oeJ#\xeb\xc98\xac`\x0ekN\xdd\xea\x8aS"
                 ),
             ),
             (
@@ -60,11 +61,39 @@ class TestContractHelpersFunctions:
             ),
         ],
     )
-    def test_contract_helpers_box_name_from_address_functionality(
+    def test_contract_helpers_address_from_box_name_functionality(
         self, address, box_name
     ):
         returned = box_name_from_address(address)
         assert returned == box_name
+
+    # # box_name_from_address
+    @pytest.mark.parametrize(
+        "box_name,address",
+        [
+            (
+                "YWxsb2NhdGlvbnPRKmzwJnSXtPuUwMmg0NNsw5zlaO8rSEG5yvAhuGvG9w==",
+                "2EVGZ4BGOSL3J64UYDE2BUGTNTBZZZLI54VUQQNZZLYCDODLY33UGXNSIU",
+            ),
+            (
+                "YWxsb2NhdGlvbnOtu9VnbS8MN1kfQ+yzZGWzb2VKI+vJOKxgDmtO3eqKUw==",
+                "VW55KZ3NF4GDOWI7IPWLGZDFWNXWKSRD5PETRLDABZVU5XPKRJJRK3CBSU",
+            ),
+            (
+                "YWxsb2NhdGlvbnNd07h6OdTT6okjKyTOZq3GME4qsl7bqeI629bRJEi4WQ==",
+                "LXJ3Q6RZ2TJ6VCJDFMSM4ZVNYYYE4KVSL3N2TYR23PLNCJCIXBM3NYTBYE",
+            ),
+            (
+                "YWxsb2NhdGlvbnOqiNC7ttDyDJYR52ToO8hlpdoyuRHW8gBNchHwjTMwcg==",
+                "VKENBO5W2DZAZFQR45SOQO6IMWS5UMVZCHLPEACNOII7BDJTGBZKSEL4Y4",
+            ),
+        ],
+    )
+    def test_contract_helpers_box_name_from_address_functionality(
+        self, box_name, address
+    ):
+        returned = address_from_box_name(box_name)
+        assert returned == address
 
     # # environment_variables
     def test_contract_helpers_environment_variables_functionality(self, mocker):

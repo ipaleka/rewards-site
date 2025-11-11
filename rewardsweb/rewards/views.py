@@ -4,7 +4,6 @@ from django.contrib import messages
 from django.contrib.auth.decorators import user_passes_test
 from django.contrib.auth.mixins import LoginRequiredMixin
 from django.http import HttpResponse
-from django.shortcuts import redirect
 from django.urls import reverse
 from django.utils.decorators import method_decorator
 from django.views.generic import TemplateView
@@ -151,35 +150,26 @@ class ReclaimAllocationsView(LoginRequiredMixin, TemplateView):
         :type request: :class:`rest_framework.request.Request`
         :return: :class:`django.http.HttpResponse`
         """
-        use_admin_account = is_admin_account_configured()
-        if not use_admin_account:
+
+        if not is_admin_account_configured():
             messages.error(request, "Admin account not configured.")
-            response = HttpResponse(status=204)
-            response["HX-Redirect"] = reverse("reclaim_allocations")
-            return response
+            return HttpResponse(status=204)
 
         address = request.POST.get("address")
 
         if not address:
-            messages.error(request, "Missing address in reclaim request.")
-            response = HttpResponse(status=204)
-            response["HX-Redirect"] = reverse("reclaim_allocations")
-            return response
+            messages.error(request, "Missing reclaim address.")
+            return HttpResponse(status=204)
 
-        # Actual contract reclaim call
-        try:
-            txid = process_reclaim_allocation(address)
-            messages.success(
-                request, f"✅ Reclaimed allocation for {address} (TXID: {txid})"
-            )
+        # try:
+        txid = process_reclaim_allocation(address)
+        messages.success(request, f"✅ Reclaimed allocation {address} (TXID: {txid})")
+        request.user.profile.log_action("allocation_reclaimed", address)
 
-            # Log admin action
-            request.user.profile.log_action("allocation_reclaimed", address)
+        # except Exception as e:
+        #     messages.error(request, f"❌ Failed to reclaim from {address}: {e}")
 
-        except Exception as e:
-            messages.error(request, f"❌ Failed reclaiming allocation: {e}")
-
-        # Reload page to update list + show messages
-        response = HttpResponse(status=204)
-        response["HX-Redirect"] = reverse("reclaim_allocations")
-        return response
+        # ✅ Remove row (HTMX out-of-band delete)
+        return HttpResponse(
+            f'<tr id="row-{address}" hx-swap-oob="delete"></tr>'
+        )

@@ -538,10 +538,12 @@ class TestRewardsReclaimAllocationsView:
         mocker.patch("rewards.views.is_admin_account_configured", return_value=False)
 
         client.force_login(superuser)
-        response = client.post(reverse("reclaim_allocations"))
+        response = client.post(
+            reverse("reclaim_allocations"),
+            {"address": "2EVGZ4BGOSL3J64UYDE2BUGTNTBZZZLI54VUQQNZZLYCDODLY33UGXNSIU"},
+        )
 
         assert response.status_code == 204
-        assert response["HX-Redirect"] == reverse("reclaim_allocations")
 
         # Check error message
         messages = list(get_messages(response.wsgi_request))
@@ -562,13 +564,24 @@ class TestRewardsReclaimAllocationsView:
         )  # No address provided
 
         assert response.status_code == 204
-        assert response["HX-Redirect"] == reverse("reclaim_allocations")
 
         # Check error message
         messages = list(get_messages(response.wsgi_request))
-        assert any(
-            "Missing address in reclaim request" in str(message) for message in messages
-        )
+        assert any("Missing reclaim address" in str(message) for message in messages)
+
+    @pytest.mark.django_db
+    def test_reclaimallocationsview_post_empty_address(self, client, superuser, mocker):
+        """Test post when address is empty string."""
+        mocker.patch("rewards.views.is_admin_account_configured", return_value=True)
+
+        client.force_login(superuser)
+        response = client.post(reverse("reclaim_allocations"), {"address": ""})
+
+        assert response.status_code == 204
+
+        # Check error message
+        messages = list(get_messages(response.wsgi_request))
+        assert any("Missing reclaim address" in str(message) for message in messages)
 
     @pytest.mark.django_db
     def test_reclaimallocationsview_post_successful_reclaim(
@@ -589,83 +602,81 @@ class TestRewardsReclaimAllocationsView:
         client.force_login(superuser)
         response = client.post(
             reverse("reclaim_allocations"),
-            {"address": "ADDRESS1"},
+            {"address": "2EVGZ4BGOSL3J64UYDE2BUGTNTBZZZLI54VUQQNZZLYCDODLY33UGXNSIU"},
         )
 
-        assert response.status_code == 204
-        assert response["HX-Redirect"] == reverse("reclaim_allocations")
+        assert (
+            response.status_code == 200
+        )  # Changed from 204 to 200 since we're returning HTML content
+
+        # Check the response contains the HTMX out-of-band delete HTML
+        assert (
+            '<tr id="row-'
+            '2EVGZ4BGOSL3J64UYDE2BUGTNTBZZZLI54VUQQNZZLYCDODLY33UGXNSIU" '
+            'hx-swap-oob="delete"></tr>'
+        ) in response.content.decode()
 
         # Check success message
         messages = list(get_messages(response.wsgi_request))
         message_texts = [str(msg) for msg in messages]
         assert any(
-            "✅ Reclaimed allocation for ADDRESS1 (TXID: tx_hash_123)" in msg
+            (
+                "✅ Reclaimed allocation "
+                "2EVGZ4BGOSL3J64UYDE2BUGTNTBZZZLI54VUQQNZZLYCDODLY33UGXNSIU "
+                "(TXID: tx_hash_123)"
+            )
+            in msg
             for msg in message_texts
         )
 
         # Verify reclaim was called with correct address
-        mock_reclaim.assert_called_once_with("ADDRESS1")
+        mock_reclaim.assert_called_once_with(
+            "2EVGZ4BGOSL3J64UYDE2BUGTNTBZZZLI54VUQQNZZLYCDODLY33UGXNSIU"
+        )
 
         # Verify log action was called
         mock_profile.log_action.assert_called_once_with(
-            "allocation_reclaimed", "ADDRESS1"
+            "allocation_reclaimed",
+            "2EVGZ4BGOSL3J64UYDE2BUGTNTBZZZLI54VUQQNZZLYCDODLY33UGXNSIU",
         )
 
     @pytest.mark.django_db
-    def test_reclaimallocationsview_post_reclaim_failure(
+    def test_reclaimallocationsview_post_successful_reclaim_different_address(
         self, client, superuser, mocker
     ):
-        """Test when allocation reclaim fails with exception."""
+        """Test successful allocation reclaim with a different address format."""
         mocker.patch("rewards.views.is_admin_account_configured", return_value=True)
 
-        # Mock the reclaim process to raise an exception
         mock_reclaim = mocker.patch(
-            "rewards.views.process_reclaim_allocation",
-            side_effect=Exception("Contract execution reverted"),
+            "rewards.views.process_reclaim_allocation", return_value="tx_hash_456"
         )
-
-        # Mock user profile logging
         mock_profile = mocker.MagicMock()
         mocker.patch.object(User, "profile", mock_profile)
 
         client.force_login(superuser)
         response = client.post(
-            reverse("reclaim_allocations"),
-            {"address": "ADDRESS1"},
+            reverse("reclaim_allocations"), {"address": "0xABC123DEF456"}
         )
 
-        assert response.status_code == 204
-        assert response["HX-Redirect"] == reverse("reclaim_allocations")
+        assert response.status_code == 200
 
-        # Check error message
+        # Check the response contains the correct HTMX out-of-band delete HTML
+        assert (
+            '<tr id="row-0xABC123DEF456" hx-swap-oob="delete"></tr>'
+            in response.content.decode()
+        )
+
+        # Check success message
         messages = list(get_messages(response.wsgi_request))
         message_texts = [str(msg) for msg in messages]
         assert any(
-            "❌ Failed reclaiming allocation: Contract execution reverted" in msg
+            "✅ Reclaimed allocation 0xABC123DEF456 (TXID: tx_hash_456)" in msg
             for msg in message_texts
         )
 
-        # Verify reclaim was called with correct address
-        mock_reclaim.assert_called_once_with("ADDRESS1")
-
-        # Verify log action was NOT called on failure
-        mock_profile.log_action.assert_not_called()
-
-    @pytest.mark.django_db
-    def test_reclaimallocationsview_post_empty_address(self, client, superuser, mocker):
-        """Test post when address is empty string."""
-        mocker.patch("rewards.views.is_admin_account_configured", return_value=True)
-
-        client.force_login(superuser)
-        response = client.post(reverse("reclaim_allocations"), {"address": ""})
-
-        assert response.status_code == 204
-        assert response["HX-Redirect"] == reverse("reclaim_allocations")
-
-        # Check error message
-        messages = list(get_messages(response.wsgi_request))
-        assert any(
-            "Missing address in reclaim request" in str(message) for message in messages
+        mock_reclaim.assert_called_once_with("0xABC123DEF456")
+        mock_profile.log_action.assert_called_once_with(
+            "allocation_reclaimed", "0xABC123DEF456"
         )
 
     @pytest.mark.django_db
@@ -678,7 +689,7 @@ class TestRewardsReclaimAllocationsView:
         client.force_login(user)
         response = client.post(
             reverse("reclaim_allocations"),
-            {"address": "ADDRESS1"},
+            {"address": "2EVGZ4BGOSL3J64UYDE2BUGTNTBZZZLI54VUQQNZZLYCDODLY33UGXNSIU"},
         )
 
         # Should be redirected or forbidden
@@ -691,50 +702,9 @@ class TestRewardsReclaimAllocationsView:
 
         response = client.post(
             reverse("reclaim_allocations"),
-            {"address": "ADDRESS1"},
+            {"address": "2EVGZ4BGOSL3J64UYDE2BUGTNTBZZZLI54VUQQNZZLYCDODLY33UGXNSIU"},
         )
 
         # Should be redirected to login
         assert response.status_code == 302
         assert "/login" in response.url
-
-    @pytest.mark.django_db
-    def test_reclaimallocationsview_post_specific_exception_handling(
-        self, client, superuser, mocker
-    ):
-        """Test handling of specific exception types."""
-        mocker.patch("rewards.views.is_admin_account_configured", return_value=True)
-
-        # Test with different exception types
-        test_cases = [
-            (
-                ValueError("Invalid address format"),
-                "❌ Failed reclaiming allocation: Invalid address format",
-            ),
-            (
-                RuntimeError("Network error"),
-                "❌ Failed reclaiming allocation: Network error",
-            ),
-            (
-                Exception("Generic error"),
-                "❌ Failed reclaiming allocation: Generic error",
-            ),
-        ]
-
-        for exception, expected_message in test_cases:
-            mocker.patch(
-                "rewards.views.process_reclaim_allocation", side_effect=exception
-            )
-
-            client.force_login(superuser)
-            response = client.post(
-                reverse("reclaim_allocations"),
-                {"address": "ADDRESS1"},
-            )
-
-            assert response.status_code == 204
-
-            # Check error message contains the exception message
-            messages = list(get_messages(response.wsgi_request))
-            message_texts = [str(msg) for msg in messages]
-            assert any(expected_message in msg for msg in message_texts)

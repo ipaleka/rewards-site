@@ -13,6 +13,7 @@ from algosdk.transaction import PaymentTxn
 from algosdk.v2client.algod import AlgodClient
 
 from contract.helpers import (
+    address_from_box_name,
     app_schemas,
     atc_method_stub,
     box_name_from_address,
@@ -150,6 +151,7 @@ def _reclaim_allocation(network, user_address):
         sp=atc_stub.get("sp"),
         signer=atc_stub.get("signer"),
         method_args=[user_address],
+        boxes=[(atc_stub.get("app_id"), box_name_from_address(user_address))],
         foreign_assets=[token_id],
     )
     response = atc.execute(client, 2)
@@ -492,7 +494,7 @@ def process_reclaim_allocation(user_address, network=ACTIVE_NETWORK):
     )
     atc_stub = atc_method_stub(client, network)
     app_id = atc_stub.get("app_id")
-    box_name = decode_address(user_address)
+    box_name = box_name_from_address(user_address)
     value = client.application_box_by_name(app_id, box_name).get("value")
     if value is None:
         raise ValueError("No user's box")
@@ -546,8 +548,8 @@ def reclaimable_addresses(network="testnet"):
     reclaimable_addresses = []
     boxes = client.application_boxes(app_id).get("boxes", [])
     for box in boxes:
-        box_name = box.get("name")
-        user_address = encode_address(box_name)
+        user_address = address_from_box_name(box.get("name"))
+        box_name = base64.b64decode(box.get("name"))
         value = client.application_box_by_name(app_id, box_name).get("value")
         if value:
             amount, expires_at = struct.unpack(">QQ", base64.b64decode(value))

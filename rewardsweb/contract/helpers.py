@@ -11,7 +11,7 @@ from urllib.error import HTTPError, URLError
 from algosdk.abi.contract import Contract
 from algosdk.account import address_from_private_key
 from algosdk.atomic_transaction_composer import AccountTransactionSigner
-from algosdk.encoding import decode_address
+from algosdk.encoding import decode_address, encode_address
 from algosdk.error import AlgodHTTPError, AlgodResponseError
 from algosdk.mnemonic import to_private_key
 from algosdk.transaction import StateSchema
@@ -30,6 +30,25 @@ ALGOD_EXCEPTIONS = (
 
 
 # # HELPERS
+def address_from_box_name(box_name):
+    """Reverse box name back to Algorand address.
+
+    :param box_name: base64 string box name
+    :type box_name: str
+    :var prefix: box name's pstarting part that precedes address
+    :type prefix: bytes
+    :var decoded: box name decoded from base64
+    :type decoded: bytes
+    :return: str
+    """
+    prefix = b"allocations"
+    decoded = base64.b64decode(box_name)
+    if not decoded.startswith(prefix):
+        raise ValueError("Invalid box name, prefix 'allocations' missing")
+
+    return encode_address(decoded[len(prefix) :])
+
+
 def box_name_from_address(address):
     """Return Rewards dApp box name for provided `address`.
 

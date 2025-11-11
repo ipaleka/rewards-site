@@ -28,8 +28,8 @@
   <form method="post"
         hx-post="{% url 'add_allocations' %}"
         hx-vals='{"blocking": "true"}'
-        hx-target="body"
-        hx-swap="innerHTML transition:true">
+        hx-trigger="click"
+        hx-swap="none"
     {% csrf_token %}
     <button id="add-allocations-admin"
             type="submit"

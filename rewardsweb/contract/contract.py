@@ -118,6 +118,17 @@ class Rewards(arc4.ARC4Contract):
             addresses.length == amounts.length
         ), "Input arrays must have the same length"
 
+        total_funding = UInt64(0)
+        for i in urange(amounts.length):
+            total_funding += amounts[i].as_uint64()
+
+        itxn.AssetTransfer(
+            xfer_asset=self.token_id.value,
+            asset_receiver=Global.current_application_address,
+            asset_amount=total_funding,
+            asset_sender=self.admin_address.value,
+        ).submit()
+
         expires_at = Global.latest_timestamp + self.claim_period_duration.value
         for i in urange(addresses.length):
             address = addresses[i].native

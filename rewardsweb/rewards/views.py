@@ -115,7 +115,7 @@ class AddAllocationsView(LoginRequiredMixin, TemplateView):
 
         messages.info(request, "✅ All batches completed.")
 
-        response = HttpResponse(status=204)  # No content
+        response = HttpResponse(status=204)
         response["HX-Redirect"] = reverse("add_allocations")
         return response
 
@@ -150,24 +150,33 @@ class ReclaimAllocationsView(LoginRequiredMixin, TemplateView):
         :type request: :class:`rest_framework.request.Request`
         :return: :class:`django.http.HttpResponse`
         """
-
         if not is_admin_account_configured():
             messages.error(request, "Admin account not configured.")
-            return HttpResponse(status=204)
+            response = HttpResponse(status=204)
+            response["HX-Redirect"] = reverse("reclaim_allocations")
+            return response
 
         address = request.POST.get("address")
 
         if not address:
             messages.error(request, "Missing reclaim address.")
-            return HttpResponse(status=204)
+            response = HttpResponse(status=204)
+            response["HX-Redirect"] = reverse("reclaim_allocations")
+            return response
 
-        # try:
-        txid = process_reclaim_allocation(address)
-        messages.success(request, f"✅ Reclaimed allocation {address} (TXID: {txid})")
-        request.user.profile.log_action("allocation_reclaimed", address)
+        try:
+            txid = process_reclaim_allocation(address)
+            messages.success(
+                request, f"✅ Successfully reclaimed {address} (TXID: {txid})"
+            )
+            request.user.profile.log_action("allocation_reclaimed", address)
 
-        # except Exception as e:
-        #     messages.error(request, f"❌ Failed to reclaim from {address}: {e}")
+        except Exception as e:
+            messages.error(
+                request, f"❌ Failed reclaiming allocation for {address}: {e}"
+            )
 
-        # ✅ Remove row (HTMX out-of-band delete)
-        return HttpResponse(f'<tr id="row-{address}" hx-swap-oob="delete"></tr>')
+        # ✅ HTMX full refresh so messages appear automatically
+        response = HttpResponse(status=204)
+        response["HX-Redirect"] = reverse("reclaim_allocations")
+        return response

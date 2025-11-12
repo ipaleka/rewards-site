@@ -39,6 +39,7 @@ class TestContractNetworkPrivateFunctions:
             "algod_token_testnet": "token",
             "algod_address_testnet": "address",
             "rewards_token_id_testnet": token_id,
+            "rewards_token_decimals": 6,
         }
 
         mocked_env = mocker.patch(
@@ -170,6 +171,7 @@ class TestContractNetworkPrivateFunctions:
             "algod_token_mainnet": "main_token",
             "algod_address_mainnet": "main_address",
             "rewards_token_id_mainnet": token_id,
+            "rewards_token_decimals": 6,
         }
 
         mocked_env = mocker.patch(
@@ -761,6 +763,7 @@ class TestContractNetworkPublicFunctions:
             "algod_address_testnet": "address",
             "rewards_token_id_testnet": token_id,
             "dapp_minimum_algo": 100000,
+            "rewards_token_decimals": 6,
         }
         mocker.patch("contract.network.environment_variables", return_value=env)
 

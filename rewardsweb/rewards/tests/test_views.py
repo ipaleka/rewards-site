@@ -544,6 +544,7 @@ class TestRewardsReclaimAllocationsView:
         )
 
         assert response.status_code == 204
+        assert response["HX-Redirect"] == reverse("reclaim_allocations")
 
         # Check error message
         messages = list(get_messages(response.wsgi_request))
@@ -564,6 +565,7 @@ class TestRewardsReclaimAllocationsView:
         )  # No address provided
 
         assert response.status_code == 204
+        assert response["HX-Redirect"] == reverse("reclaim_allocations")
 
         # Check error message
         messages = list(get_messages(response.wsgi_request))
@@ -578,6 +580,7 @@ class TestRewardsReclaimAllocationsView:
         response = client.post(reverse("reclaim_allocations"), {"address": ""})
 
         assert response.status_code == 204
+        assert response["HX-Redirect"] == reverse("reclaim_allocations")
 
         # Check error message
         messages = list(get_messages(response.wsgi_request))
@@ -605,23 +608,15 @@ class TestRewardsReclaimAllocationsView:
             {"address": "2EVGZ4BGOSL3J64UYDE2BUGTNTBZZZLI54VUQQNZZLYCDODLY33UGXNSIU"},
         )
 
-        assert (
-            response.status_code == 200
-        )  # Changed from 204 to 200 since we're returning HTML content
-
-        # Check the response contains the HTMX out-of-band delete HTML
-        assert (
-            '<tr id="row-'
-            '2EVGZ4BGOSL3J64UYDE2BUGTNTBZZZLI54VUQQNZZLYCDODLY33UGXNSIU" '
-            'hx-swap-oob="delete"></tr>'
-        ) in response.content.decode()
+        assert response.status_code == 204
+        assert response["HX-Redirect"] == reverse("reclaim_allocations")
 
         # Check success message
         messages = list(get_messages(response.wsgi_request))
         message_texts = [str(msg) for msg in messages]
         assert any(
             (
-                "✅ Reclaimed allocation "
+                "✅ Successfully reclaimed "
                 "2EVGZ4BGOSL3J64UYDE2BUGTNTBZZZLI54VUQQNZZLYCDODLY33UGXNSIU "
                 "(TXID: tx_hash_123)"
             )
@@ -641,43 +636,105 @@ class TestRewardsReclaimAllocationsView:
         )
 
     @pytest.mark.django_db
-    def test_reclaimallocationsview_post_successful_reclaim_different_address(
+    def test_reclaimallocationsview_post_reclaim_failure(
         self, client, superuser, mocker
     ):
-        """Test successful allocation reclaim with a different address format."""
+        """Test when allocation reclaim fails with exception."""
         mocker.patch("rewards.views.is_admin_account_configured", return_value=True)
 
+        # Mock the reclaim process to raise an exception
         mock_reclaim = mocker.patch(
-            "rewards.views.process_reclaim_allocation", return_value="tx_hash_456"
+            "rewards.views.process_reclaim_allocation",
+            side_effect=Exception("Contract execution reverted"),
         )
+
+        # Mock user profile logging
         mock_profile = mocker.MagicMock()
         mocker.patch.object(User, "profile", mock_profile)
 
         client.force_login(superuser)
         response = client.post(
-            reverse("reclaim_allocations"), {"address": "0xABC123DEF456"}
+            reverse("reclaim_allocations"),
+            {"address": "2EVGZ4BGOSL3J64UYDE2BUGTNTBZZZLI54VUQQNZZLYCDODLY33UGXNSIU"},
         )
 
-        assert response.status_code == 200
+        assert response.status_code == 204
+        assert response["HX-Redirect"] == reverse("reclaim_allocations")
 
-        # Check the response contains the correct HTMX out-of-band delete HTML
-        assert (
-            '<tr id="row-0xABC123DEF456" hx-swap-oob="delete"></tr>'
-            in response.content.decode()
-        )
-
-        # Check success message
+        # Check error message
         messages = list(get_messages(response.wsgi_request))
         message_texts = [str(msg) for msg in messages]
         assert any(
-            "✅ Reclaimed allocation 0xABC123DEF456 (TXID: tx_hash_456)" in msg
+            (
+                "❌ Failed reclaiming allocation for "
+                "2EVGZ4BGOSL3J64UYDE2BUGTNTBZZZLI54VUQQNZZLYCDODLY33UGXNSIU"
+                ": Contract execution reverted"
+            )
+            in msg
             for msg in message_texts
         )
 
-        mock_reclaim.assert_called_once_with("0xABC123DEF456")
-        mock_profile.log_action.assert_called_once_with(
-            "allocation_reclaimed", "0xABC123DEF456"
+        # Verify reclaim was called with correct address
+        mock_reclaim.assert_called_once_with(
+            "2EVGZ4BGOSL3J64UYDE2BUGTNTBZZZLI54VUQQNZZLYCDODLY33UGXNSIU"
         )
+
+        # Verify log action was NOT called on failure
+        mock_profile.log_action.assert_not_called()
+
+    @pytest.mark.django_db
+    def test_reclaimallocationsview_post_specific_exception_handling(
+        self, client, superuser, mocker
+    ):
+        """Test handling of specific exception types."""
+        mocker.patch("rewards.views.is_admin_account_configured", return_value=True)
+
+        # Test with different exception types
+        test_cases = [
+            (
+                ValueError("Invalid address format"),
+                (
+                    "❌ Failed reclaiming allocation for "
+                    "2EVGZ4BGOSL3J64UYDE2BUGTNTBZZZLI54VUQQNZZLYCDODLY33UGXNSIU"
+                    ": Invalid address format"
+                ),
+            ),
+            (
+                RuntimeError("Network error"),
+                (
+                    "❌ Failed reclaiming allocation for "
+                    "2EVGZ4BGOSL3J64UYDE2BUGTNTBZZZLI54VUQQNZZLYCDODLY33UGXNSIU"
+                    ": Network error"
+                ),
+            ),
+            (
+                Exception("Generic error"),
+                (
+                    "❌ Failed reclaiming allocation for "
+                    "2EVGZ4BGOSL3J64UYDE2BUGTNTBZZZLI54VUQQNZZLYCDODLY33UGXNSIU"
+                    ": Generic error"
+                ),
+            ),
+        ]
+
+        for exception, expected_message in test_cases:
+            mocker.patch(
+                "rewards.views.process_reclaim_allocation", side_effect=exception
+            )
+
+            client.force_login(superuser)
+            data = {
+                "address": "2EVGZ4BGOSL3J64UYDE2BUGTNTBZZZLI54VUQQNZZLYCDODLY33UGXNSIU"
+            }
+            response = client.post(reverse("reclaim_allocations"), data)
+
+            assert response.status_code == 204
+            assert response["HX-Redirect"] == reverse("reclaim_allocations")
+
+            # Check error message contains the exception message
+            messages = list(get_messages(response.wsgi_request))
+            message_texts = [str(msg) for msg in messages]
+            assert any(expected_message in msg for msg in message_texts)
 
     @pytest.mark.django_db
     def test_reclaimallocationsview_post_normal_user_blocked(

@@ -459,11 +459,63 @@ class TestContractHelpersNetworkFunctions:
     """Testing class for :py:mod:`contract.helpers`network helper functions."""
 
     # # atc_method_stub
+    def test_contract_helpers_atc_method_stub_for_no_admin(self, mocker):
+        network = "testnet"
+        genesis_hash = "genesis_hash"
+
+        env = {"rewards_dapp_name": "rewards"}
+        mocked_env = mocker.patch(
+            "contract.helpers.environment_variables", return_value=env
+        )
+        client = mocker.MagicMock()
+        mocked_private_key = mocker.patch("contract.helpers.private_key_from_mnemonic")
+        mocked_address = mocker.patch("contract.helpers.address_from_private_key")
+        mocked_signer = mocker.patch("contract.helpers.AccountTransactionSigner")
+
+        sp = mocker.MagicMock()
+        client.suggested_params.return_value = sp
+        genesis_hash = "genesis_hash"
+        sp.gh = genesis_hash
+
+        app_id = 5050
+        contract_json = {
+            "name": "TestContract",
+            "networks": {genesis_hash: {"appID": app_id}},
+        }
+        mocked_read_json = mocker.patch(
+            "contract.helpers.read_json", return_value=contract_json
+        )
+
+        contract_obj = mocker.MagicMock()
+        mocked_contract = mocker.patch(
+            "contract.helpers.Contract.from_json", return_value=contract_obj
+        )
+
+        returned = atc_method_stub(client, network)
+
+        assert returned == {
+            "sender": None,
+            "signer": None,
+            "contract": contract_obj,
+            "sp": sp,
+            "app_id": app_id,
+        }
+
+        mocked_env.assert_called_once_with()
+        mocked_read_json.assert_called_once()
+        mocked_contract.assert_called_once_with(json.dumps(contract_json))
+        mocked_private_key.assert_not_called()
+        mocked_address.assert_not_called()
+        mocked_signer.assert_not_called()
+
     def test_contract_helpers_atc_method_stub_functionality(self, mocker):
         network = "testnet"
         genesis_hash = "genesis_hash"
 
-        env = {"admin_testnet_mnemonic": "mnemonic-words-go-here"}
+        env = {
+            "admin_testnet_mnemonic": "mnemonic-words-go-here",
+            "rewards_dapp_name": "rewards",
+        }
         mocked_env = mocker.patch(
             "contract.helpers.environment_variables", return_value=env
         )

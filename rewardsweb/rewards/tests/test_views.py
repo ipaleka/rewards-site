@@ -282,7 +282,7 @@ class TestRewardsAddAllocationsView:
 
         # Verify log action was called with formatted addresses
         mock_profile.log_action.assert_called_once_with(
-            "boxes_created", "addre..ress1; addre..ress2"
+            "boxes_created", "tx_hash_123; addre..ress1; addre..ress2"
         )
 
     @pytest.mark.django_db

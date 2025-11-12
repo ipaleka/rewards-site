@@ -7,8 +7,10 @@ import pytest
 from algosdk.transaction import SignedTransaction
 from django.conf import settings
 from django.contrib.auth import get_user_model
+from django.contrib.auth.models import AnonymousUser
 from django.test import RequestFactory
 from django.views import View
+from rest_framework.permissions import IsAdminUser
 from rest_framework.request import Request
 from rest_framework.test import APIRequestFactory
 from rest_framework.views import APIView
@@ -19,8 +21,10 @@ from walletauth.models import WalletNonce
 from walletauth.views import (
     ActiveNetworkAPIView,
     AddAllocationsAPIView,
+    AllocationsSuccessfulAPIView,
     ClaimAllocationAPIView,
     ReclaimAllocationsAPIView,
+    ReclaimSuccessfulAPIView,
     UserClaimedAPIView,
     WalletNonceAPIView,
     WalletsAPIView,
@@ -241,6 +245,210 @@ class TestAddAllocationsAPIView:
         response = view(request)
         assert response.status_code == 400
         assert "Invalid or missing address" in response.data["error"]
+
+
+class TestAllocationsSuccessfulAPIView:
+    """Test suite for AllocationsSuccessfulAPIView."""
+
+    @pytest.fixture
+    def view(self):
+        return AllocationsSuccessfulAPIView().as_view()
+
+    @pytest.fixture
+    def rf(self):
+        return APIRequestFactory()
+
+    @pytest.mark.django_db
+    @pytest.fixture
+    def admin_user(self):
+        """Create an admin user for testing."""
+        return User.objects.create_user(
+            username="admin", email="admin@test.com", password="testpass", is_staff=True
+        )
+
+    @pytest.fixture
+    def regular_user(self):
+        """Create a regular user for testing."""
+        return User.objects.create_user(
+            username="regular", email="regular@test.com", password="testpass"
+        )
+
+    def test_walletauth_allocationssuccessfulapiview_is_subclass_of_view(self):
+        """Ensure AllocationsSuccessfulAPIView is a valid Django view."""
+        assert issubclass(AllocationsSuccessfulAPIView, object)
+
+    def test_walletauth_allocationssuccessfulapiview_has_admin_permission(self):
+        """Test that the view requires admin permissions."""
+        assert IsAdminUser in AllocationsSuccessfulAPIView.permission_classes
+
+    @pytest.mark.django_db
+    def test_walletauth_allocationssuccessfulapiview_valid_request_admin_user(
+        self, view, rf, admin_user, mocker
+    ):
+        """Test successful allocation marking by admin user."""
+        # Mock the helper function
+        mock_added_allocations = mocker.patch(
+            "walletauth.views.added_allocations_for_addresses"
+        )
+
+        data = {"addresses": ["ADDR1", "ADDR2"], "txIDs": ["TX123", "TX456"]}
+        request = rf.post("/allocations-successful/", data=data, format="json")
+
+        # Force authentication for admin user
+        request.user = admin_user
+
+        response = view(request)
+
+        assert response.status_code == 200
+        assert response.data == {"success": True}
+        # Use call_args to check the actual call without worrying about request type
+        mock_added_allocations.assert_called_once()
+        call_args = mock_added_allocations.call_args[0]
+        assert call_args[1] == ["ADDR1", "ADDR2"]  # addresses
+        assert call_args[2] == ["TX123", "TX456"]  # txIDs
+
+    @pytest.mark.django_db
+    def test_walletauth_allocationssuccessfulapiview_fallback_to_json_body_admin(
+        self, admin_user, mocker
+    ):
+        """Test fallback JSON parsing when DRF Request is NOT used (admin user)."""
+        mock_added_allocations = mocker.patch(
+            "walletauth.views.added_allocations_for_addresses"
+        )
+
+        rf = RequestFactory()
+        json_body = '{"addresses": ["ADDR1", "ADDR2"], "txIDs": ["TX123", "TX456"]}'
+
+        request = rf.post(
+            "/allocations-successful/", data=json_body, content_type="application/json"
+        )
+        request.user = admin_user
+
+        response = AllocationsSuccessfulAPIView().post(request)
+
+        assert response.status_code == 200
+        assert response.data == {"success": True}
+        mock_added_allocations.assert_called_once()
+        call_args = mock_added_allocations.call_args[0]
+        assert call_args[1] == ["ADDR1", "ADDR2"]  # addresses
+        assert call_args[2] == ["TX123", "TX456"]  # txIDs
+
+    @pytest.mark.django_db
+    def test_walletauth_allocationssuccessfulapiview_regular_user_permission_denied(
+        self, view, rf, regular_user
+    ):
+        """Test that regular users cannot access this endpoint."""
+        data = {"addresses": ["ADDR1", "ADDR2"], "txIDs": ["TX123", "TX456"]}
+        request = rf.post("/allocations-successful/", data=data, format="json")
+        request.user = regular_user
+
+        response = view(request)
+
+        assert response.status_code == 403  # Permission Denied
+
+    @pytest.mark.django_db
+    def test_walletauth_allocationssuccessfulapiview_unauthenticated_user(
+        self, view, rf
+    ):
+        """Test that unauthenticated users cannot access this endpoint."""
+        data = {"addresses": ["ADDR1", "ADDR2"], "txIDs": ["TX123", "TX456"]}
+        request = rf.post("/allocations-successful/", data=data, format="json")
+        request.user = AnonymousUser()
+
+        response = view(request)
+
+        assert response.status_code == 403  # Permission Denied
+
+    @pytest.mark.django_db
+    def test_walletauth_allocationssuccessfulapiview_invalid_json(
+        self, view, rf, admin_user
+    ):
+        """Test handling of invalid JSON data."""
+        request = rf.post(
+            "/allocations-successful/", data="invalid json", format="json"
+        )
+        request.user = admin_user
+
+        response = view(request)
+
+        assert response.status_code == 400
+        assert response.data == {"error": "Invalid JSON"}
+
+    @pytest.mark.django_db
+    def test_walletauth_allocationssuccessfulapiview_missing_addresses(
+        self, view, rf, admin_user
+    ):
+        """Test handling of missing addresses."""
+        data = {"txIDs": ["TX123", "TX456"]}  # Missing addresses
+        request = rf.post("/allocations-successful/", data=data, format="json")
+        request.user = admin_user
+
+        response = view(request)
+
+        assert response.status_code == 400
+        assert response.data == {"error": "Missing addresses"}
+
+    @pytest.mark.django_db
+    def test_walletauth_allocationssuccessfulapiview_empty_addresses(
+        self, view, rf, admin_user
+    ):
+        """Test handling of empty addresses array."""
+        data = {"addresses": [], "txIDs": ["TX123", "TX456"]}
+        request = rf.post("/allocations-successful/", data=data, format="json")
+        request.user = admin_user
+
+        response = view(request)
+
+        assert response.status_code == 400
+        assert response.data == {"error": "Missing addresses"}
+
+    @pytest.mark.django_db
+    def test_walletauth_allocationssuccessfulapiview_single_address(
+        self, view, rf, admin_user, mocker
+    ):
+        """Test successful processing with single address."""
+        mock_added_allocations = mocker.patch(
+            "walletauth.views.added_allocations_for_addresses"
+        )
+
+        data = {"addresses": ["SINGLE_ADDR"], "txIDs": ["SINGLE_TX"]}
+        request = rf.post("/allocations-successful/", data=data, format="json")
+        request.user = admin_user
+
+        response = view(request)
+
+        assert response.status_code == 200
+        assert response.data == {"success": True}
+        mock_added_allocations.assert_called_once()
+        call_args = mock_added_allocations.call_args[0]
+        assert call_args[1] == ["SINGLE_ADDR"]  # addresses
+        assert call_args[2] == ["SINGLE_TX"]  # txIDs
+
+    @pytest.mark.django_db
+    def test_walletauth_allocationssuccessfulapiview_missing_txids(
+        self, view, rf, admin_user, mocker
+    ):
+        """Test processing when txIDs are missing (should still work)."""
+        mock_added_allocations = mocker.patch(
+            "walletauth.views.added_allocations_for_addresses"
+        )
+
+        data = {
+            "addresses": ["ADDR1", "ADDR2"]
+            # Missing txIDs
+        }
+        request = rf.post("/allocations-successful/", data=data, format="json")
+        request.user = admin_user
+
+        response = view(request)
+
+        assert response.status_code == 200
+        assert response.data == {"success": True}
+        # Should pass None for txIDs when not provided
+        mock_added_allocations.assert_called_once()
+        call_args = mock_added_allocations.call_args[0]
+        assert call_args[1] == ["ADDR1", "ADDR2"]  # addresses
+        assert call_args[2] is None  # txIDs should be None
 
 
 class TestClaimAllocationAPIView:
@@ -480,6 +688,209 @@ class TestReclaimAllocationsAPIView:
         response = view(request)
         assert response.status_code == 400
         assert "Invalid or missing address" in response.data["error"]
+
+
+class TestReclaimSuccessfulAPIView:
+    """Test suite for ReclaimSuccessfulAPIView."""
+
+    @pytest.fixture
+    def view(self):
+        return ReclaimSuccessfulAPIView().as_view()
+
+    @pytest.fixture
+    def rf(self):
+        return APIRequestFactory()
+
+    @pytest.mark.django_db
+    @pytest.fixture
+    def admin_user(self):
+        """Create an admin user for testing."""
+        return User.objects.create_user(
+            username="admin", email="admin@test.com", password="testpass", is_staff=True
+        )
+
+    @pytest.fixture
+    def regular_user(self):
+        """Create a regular user for testing."""
+        return User.objects.create_user(
+            username="regular", email="regular@test.com", password="testpass"
+        )
+
+    def test_walletauth_reclaimsuccessfulapiview_is_subclass_of_view(self):
+        """Ensure ReclaimSuccessfulAPIView is a valid Django view."""
+        assert issubclass(ReclaimSuccessfulAPIView, object)
+
+    def test_walletauth_reclaimsuccessfulapiview_has_admin_permission(self):
+        """Test that the view requires admin permissions."""
+        assert IsAdminUser in ReclaimSuccessfulAPIView.permission_classes
+
+    @pytest.mark.django_db
+    def test_walletauth_reclaimsuccessfulapiview_valid_request_admin_user(
+        self, view, rf, admin_user, mocker
+    ):
+        """Test successful reclaim marking by admin user."""
+        # Mock the helper function
+        mock_reclaimed_allocation = mocker.patch(
+            "walletauth.views.reclaimed_allocation_for_address"
+        )
+
+        data = {"address": "TEST_ADDRESS", "txIDs": "TX123456"}
+        request = rf.post("/reclaim-successful/", data=data, format="json")
+
+        # Force authentication for admin user
+        request.user = admin_user
+
+        response = view(request)
+
+        assert response.status_code == 200
+        assert response.data == {"success": True}
+        mock_reclaimed_allocation.assert_called_once()
+        call_args = mock_reclaimed_allocation.call_args[0]
+        assert call_args[1] == "TEST_ADDRESS"  # address
+        assert call_args[2] == "TX123456"  # txIDs
+
+    @pytest.mark.django_db
+    def test_walletauth_reclaimsuccessfulapiview_fallback_to_json_body_admin(
+        self, admin_user, mocker
+    ):
+        """Test fallback JSON parsing when DRF Request is NOT used (admin user)."""
+        mock_reclaimed_allocation = mocker.patch(
+            "walletauth.views.reclaimed_allocation_for_address"
+        )
+
+        rf = RequestFactory()
+        json_body = '{"address": "TEST_ADDRESS", "txIDs": "TX123456"}'
+
+        request = rf.post(
+            "/reclaim-successful/", data=json_body, content_type="application/json"
+        )
+        request.user = admin_user
+
+        response = ReclaimSuccessfulAPIView().post(request)
+
+        assert response.status_code == 200
+        assert response.data == {"success": True}
+        mock_reclaimed_allocation.assert_called_once()
+        call_args = mock_reclaimed_allocation.call_args[0]
+        assert call_args[1] == "TEST_ADDRESS"  # address
+        assert call_args[2] == "TX123456"  # txIDs
+
+    @pytest.mark.django_db
+    def test_walletauth_reclaimsuccessfulapiview_regular_user_permission_denied(
+        self, view, rf, regular_user
+    ):
+        """Test that regular users cannot access this endpoint."""
+        data = {"address": "TEST_ADDRESS", "txIDs": "TX123456"}
+        request = rf.post("/reclaim-successful/", data=data, format="json")
+        request.user = regular_user
+
+        response = view(request)
+
+        assert response.status_code == 403  # Permission Denied
+
+    @pytest.mark.django_db
+    def test_walletauth_reclaimsuccessfulapiview_unauthenticated_user(self, view, rf):
+        """Test that unauthenticated users cannot access this endpoint."""
+        data = {"address": "TEST_ADDRESS", "txIDs": "TX123456"}
+        request = rf.post("/reclaim-successful/", data=data, format="json")
+        request.user = AnonymousUser()
+
+        response = view(request)
+
+        assert response.status_code == 403  # Permission Denied
+
+    @pytest.mark.django_db
+    def test_walletauth_reclaimsuccessfulapiview_invalid_json(
+        self, view, rf, admin_user
+    ):
+        """Test handling of invalid JSON data."""
+        request = rf.post("/reclaim-successful/", data="invalid json", format="json")
+        request.user = admin_user
+
+        response = view(request)
+
+        assert response.status_code == 400
+        assert response.data == {"error": "Invalid JSON"}
+
+    @pytest.mark.django_db
+    def test_walletauth_reclaimsuccessfulapiview_missing_address(
+        self, view, rf, admin_user
+    ):
+        """Test handling of missing address."""
+        data = {"txIDs": "TX123456"}  # Missing address
+        request = rf.post("/reclaim-successful/", data=data, format="json")
+        request.user = admin_user
+
+        response = view(request)
+
+        assert response.status_code == 400
+        assert response.data == {"error": "Missing address"}
+
+    @pytest.mark.django_db
+    def test_walletauth_reclaimsuccessfulapiview_empty_address(
+        self, view, rf, admin_user
+    ):
+        """Test handling of empty address string."""
+        data = {"address": "", "txIDs": "TX123456"}
+        request = rf.post("/reclaim-successful/", data=data, format="json")
+        request.user = admin_user
+
+        response = view(request)
+
+        assert response.status_code == 400
+        assert response.data == {"error": "Missing address"}
+
+    @pytest.mark.django_db
+    def test_walletauth_reclaimsuccessfulapiview_missing_txids(
+        self, view, rf, admin_user, mocker
+    ):
+        """Test processing when txIDs are missing (should still work)."""
+        mock_reclaimed_allocation = mocker.patch(
+            "walletauth.views.reclaimed_allocation_for_address"
+        )
+
+        data = {
+            "address": "TEST_ADDRESS"
+            # Missing txIDs
+        }
+        request = rf.post("/reclaim-successful/", data=data, format="json")
+        request.user = admin_user
+
+        response = view(request)
+
+        assert response.status_code == 200
+        assert response.data == {"success": True}
+        # Should pass None for txIDs when not provided
+        mock_reclaimed_allocation.assert_called_once()
+        call_args = mock_reclaimed_allocation.call_args[0]
+        assert call_args[1] == "TEST_ADDRESS"  # address
+        assert call_args[2] is None  # txIDs should be None
+
+    @pytest.mark.django_db
+    def test_walletauth_reclaimsuccessfulapiview_multiple_txids_as_list(
+        self, view, rf, admin_user, mocker
+    ):
+        """Test that txIDs can be passed as a list (should work with single string)."""
+        mock_reclaimed_allocation = mocker.patch(
+            "walletauth.views.reclaimed_allocation_for_address"
+        )
+
+        data = {
+            "address": "TEST_ADDRESS",
+            "txIDs": ["TX1", "TX2"],  # List instead of single string
+        }
+        request = rf.post("/reclaim-successful/", data=data, format="json")
+        request.user = admin_user
+
+        response = view(request)
+
+        assert response.status_code == 200
+        assert response.data == {"success": True}
+        # The function should receive the list as-is
+        mock_reclaimed_allocation.assert_called_once()
+        call_args = mock_reclaimed_allocation.call_args[0]
+        assert call_args[1] == "TEST_ADDRESS"  # address
+        assert call_args[2] == ["TX1", "TX2"]  # txIDs as list
 
 
 class TestWalletNonceAPIView:

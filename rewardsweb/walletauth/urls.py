@@ -43,5 +43,5 @@ urlpatterns = [
         "reclaim-successful/",
         ReclaimSuccessfulAPIView.as_view(),
         name="reclaim_successful",
-    ),    
+    ),
 ]

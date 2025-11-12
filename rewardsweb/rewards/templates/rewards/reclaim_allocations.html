@@ -31,7 +31,10 @@
               </button>
             </form>
             {% else %}
-              <button type="button" class="btn btn-soft btn-warning btn-sm">
+              <button type="button"
+                      class="btn btn-soft btn-warning btn-sm reclaim-button"
+                      data-address="{{ address }}"
+                      id="reclaim-button-{{ forloop.counter }}">
                 Reclaim
               </button>
             {% endif %}

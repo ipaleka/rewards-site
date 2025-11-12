@@ -250,10 +250,13 @@ def atc_method_stub(client, network):
     """
     env = environment_variables()
 
-    admin_private_key = private_key_from_mnemonic(env.get(f"admin_{network}_mnemonic"))
-    sender = address_from_private_key(admin_private_key)
-
-    signer = AccountTransactionSigner(admin_private_key)
+    admin_private_key, sender, signer = None, None, None
+    if env.get(f"admin_{network}_mnemonic"):
+        admin_private_key = private_key_from_mnemonic(
+            env.get(f"admin_{network}_mnemonic")
+        )
+        sender = address_from_private_key(admin_private_key)
+        signer = AccountTransactionSigner(admin_private_key)
 
     dapp_name = env.get("rewards_dapp_name")
     contract_json = read_json(

@@ -174,6 +174,11 @@ export class RewardsClient {
 
     try {
       const suggestedParams = await this.algodClient.getTransactionParams().do()
+
+      // Set higher fee like in Python version - use BigInt for fee
+      suggestedParams.flatFee = true
+      suggestedParams.fee = BigInt(2000) // Set fee to 2000 microAlgos like in Python
+
       const atc = new AtomicTransactionComposer()
       const currentNetwork = this.manager.activeNetwork as NetworkId
       const appId = this.rewardsAppIds[currentNetwork]
@@ -182,13 +187,32 @@ export class RewardsClient {
         throw new Error(`App ID not configured for network: ${currentNetwork}`)
       }
 
+      // Fetch the token_id from the contract's global state (needed for foreign_assets)
+      const appInfo = await this.algodClient.getApplicationByID(appId).do();
+      const globalState = appInfo.params.globalState;
+      if (!globalState || globalState.length === 0) {
+        throw new Error("Contract global state is empty or not found");
+      }
+      const tokenIdValue = globalState.find((state: any) => Buffer.from(state['key'], 'base64').toString('utf8') === 'token_id');
+      if (!tokenIdValue) {
+        throw new Error("token_id not found in contract's global state");
+      }
+      const tokenId = tokenIdValue['value']['uint'];
+
       atc.addMethodCall({
         appID: appId,
         method: this.contract.getMethodByName('reclaim_allocation'),
         methodArgs: [userAddress],
         sender: this.manager.activeAccount.address,
         signer: this.manager.transactionSigner,
-        suggestedParams
+        suggestedParams,
+        boxes: [
+          {
+            appIndex: appId,
+            name: this.boxNameFromAddress(userAddress)
+          }
+        ],
+        appForeignAssets: [tokenId]
       })
 
       const result = await atc.execute(this.algodClient, 4)
@@ -196,7 +220,9 @@ export class RewardsClient {
         confirmedRound: result.confirmedRound,
         txIDs: result.txIDs
       })
-      return result
+
+      // Return the first transaction ID to match Python counterpart
+      return result.txIDs[0]
     } catch (error) {
       console.error('[RewardsClient] Error reclaiming allocation:', error)
       throw error
@@ -323,6 +349,11 @@ export class RewardsClient {
     }
   }
 
+  /**
+   * Notifies the backend about successful add allocations transactions
+   * @param addresses - Array of public addresses
+   * @param txIDs - The transaction IDs from the add alolocations operation
+   */
   public async notifyAllocationsSuccessful(addresses: string[], txIDs: string[]): Promise<{ success: boolean }> {
     try {
       const response = await fetch('/api/wallet/allocations-successful/', {
@@ -338,6 +369,35 @@ export class RewardsClient {
     } catch (error) {
       console.error('[RewardsClient] Error notifying allocations successful:', error)
       throw error
+    }
+  }
+
+  /**
+   * Notifies the backend about successful reclaim allocation transactions
+   * @param address - The address that was reclaimed from
+   * @param txIDs - The transaction IDs from the reclaim operation
+   */
+  async notifyReclaimSuccessful(address: string, txIDs: string[]): Promise<void> {
+    const csrfToken = this.getCsrfToken()
+    if (!csrfToken) {
+      throw new Error('CSRF token not found')
+    }
+
+    const response = await fetch('/api/wallet/reclaim-successful/', {
+      method: 'POST',
+      headers: {
+        'Content-Type': 'application/json',
+        'X-CSRFToken': csrfToken,
+      },
+      body: JSON.stringify({
+        address: address,
+        txIDs: txIDs
+      }),
+    })
+
+    if (!response.ok) {
+      const errorText = await response.text()
+      throw new Error(`Failed to notify reclaim success: ${response.status} ${errorText}`)
     }
   }
 

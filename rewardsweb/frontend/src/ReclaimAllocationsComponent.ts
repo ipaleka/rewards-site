@@ -40,7 +40,12 @@ export class ReclaimAllocationsComponent {
   bind(element: HTMLElement) {
     this.element = element
     this.addEventListeners()
-    this.fetchReclaimAllocationsData()
+    // Ensure the DOM is fully loaded before fetching data to ensure CSRF token is available
+    if (document.readyState === 'loading') {
+      document.addEventListener('DOMContentLoaded', () => this.fetchReclaimAllocationsData());
+    } else {
+      this.fetchReclaimAllocationsData();
+    }
   }
 
   /**
@@ -63,7 +68,9 @@ export class ReclaimAllocationsComponent {
       this.reclaimableAddresses = data.addresses
     } catch (error) {
       console.error('[ReclaimAllocationsComponent] Error fetching reclaim allocations data:', error)
-      alert(`Failed to fetch reclaim allocations data: ${error instanceof Error ? error.message : String(error)}`)
+      // Don't show alert for initial data load - it's not user-initiated
+      // Just log it and leave the reclaimableAddresses empty
+      this.reclaimableAddresses = []
     }
   }
 
@@ -94,13 +101,24 @@ export class ReclaimAllocationsComponent {
   private async handleReclaimAllocation(address: string) {
     try {
       console.info(`[ReclaimAllocationsComponent] Initiating reclaim for ${address}...`)
-      await this.rewardsClient.reclaimAllocation(address)
-      alert(`Reclaim transaction for ${address} sent successfully!`)
 
-      // Re-fetch data after successful transaction
-      await this.fetchReclaimAllocationsData()
+      // Step 1: Call smart contract
+      const txID = await this.rewardsClient.reclaimAllocation(address)
+
+      // Step 2: Notify backend (fail silently)
+      try {
+        await this.rewardsClient.notifyReclaimSuccessful(address, [txID])
+      } catch (notificationError) {
+        console.error('Backend notification failed:', notificationError)
+        // Silently continue - the blockchain transaction succeeded
+      }
+
+      // Step 3: Reload to show updated state
+      location.reload()
 
     } catch (error) {
+      // Only handle smart contract errors with alerts
+      console.error('Reclaim process failed:', error)
       this.handleReclaimError(address, error)
     }
   }
@@ -118,8 +136,11 @@ export class ReclaimAllocationsComponent {
 
     this.element.addEventListener('click', (e: Event) => {
       const target = e.target as HTMLElement
-      if (target.id.startsWith('reclaim-button-')) {
-        const addressToReclaim = target.dataset.address
+
+      // Check if the clicked element is a reclaim button or child of one
+      const reclaimButton = target.closest('.reclaim-button') as HTMLElement
+      if (reclaimButton) {
+        const addressToReclaim = reclaimButton.dataset.address
         if (addressToReclaim) {
           this.handleReclaimAllocation(addressToReclaim)
         }

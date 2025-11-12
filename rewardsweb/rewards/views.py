@@ -105,7 +105,7 @@ class AddAllocationsView(LoginRequiredMixin, TemplateView):
             Contribution.objects.addresses_and_amounts_from_contributions,
         ):
             if result:
-                added_allocations_for_addresses(addresses, result)
+                added_allocations_for_addresses(request, addresses, result)
 
             else:
                 messages.error(request, "❌ Allocation batch failed.")

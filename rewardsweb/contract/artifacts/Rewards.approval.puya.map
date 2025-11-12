@@ -3,7 +3,7 @@
   "sources": [
     "../contract.py"
   ],
-  "mappings": "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",
+  "mappings": "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",
   "op_pc_offset": 0,
   "pc_events": {
     "1": {
@@ -2616,30 +2616,6 @@
       ]
     },
     "368": {
-      "op": "dig 1",
-      "defined_out": [
-        "funded_amount#0",
-        "i#0",
-        "tmp%10#0",
-        "tmp%18#0",
-        "tmp%18#0 (copy)"
-      ],
-      "stack_out": [
-        "expires_at#0",
-        "funded_amount#0",
-        "i#0",
-        "tmp%10#0",
-        "addresses#0",
-        "aggregate%array_length%0#0",
-        "amounts#0",
-        "required_funding#0",
-        "j#0",
-        "tmp%18#0",
-        "funded_amount#0",
-        "tmp%18#0 (copy)"
-      ]
-    },
-    "370": {
       "op": "+",
       "stack_out": [
         "expires_at#0",
@@ -2651,54 +2627,16 @@
         "amounts#0",
         "required_funding#0",
         "j#0",
-        "tmp%18#0",
         "funded_amount#0"
       ]
     },
-    "371": {
-      "op": "bury 9",
+    "369": {
+      "op": "bury 8",
       "defined_out": [
         "funded_amount#0",
         "i#0",
-        "tmp%10#0",
-        "tmp%18#0"
+        "tmp%10#0"
       ],
-      "stack_out": [
-        "expires_at#0",
-        "funded_amount#0",
-        "i#0",
-        "tmp%10#0",
-        "addresses#0",
-        "aggregate%array_length%0#0",
-        "amounts#0",
-        "required_funding#0",
-        "j#0",
-        "tmp%18#0"
-      ]
-    },
-    "373": {
-      "op": "itob",
-      "defined_out": [
-        "funded_amount#0",
-        "i#0",
-        "tmp%10#0",
-        "tmp%21#0"
-      ],
-      "stack_out": [
-        "expires_at#0",
-        "funded_amount#0",
-        "i#0",
-        "tmp%10#0",
-        "addresses#0",
-        "aggregate%array_length%0#0",
-        "amounts#0",
-        "required_funding#0",
-        "j#0",
-        "tmp%21#0"
-      ]
-    },
-    "374": {
-      "op": "log",
       "stack_out": [
         "expires_at#0",
         "funded_amount#0",
@@ -2711,7 +2649,7 @@
         "j#0"
       ]
     },
-    "375": {
+    "371": {
       "block": "add_allocations_after_if_else@13",
       "stack_in": [
         "expires_at#0",
@@ -2741,7 +2679,7 @@
         "i#0"
       ]
     },
-    "377": {
+    "373": {
       "op": "intc_1 // 1",
       "defined_out": [
         "1",
@@ -2761,7 +2699,7 @@
         "1"
       ]
     },
-    "378": {
+    "374": {
       "op": "+",
       "stack_out": [
         "expires_at#0",
@@ -2776,7 +2714,7 @@
         "i#0"
       ]
     },
-    "379": {
+    "375": {
       "op": "bury 7",
       "defined_out": [
         "i#0"
@@ -2793,10 +2731,10 @@
         "j#0"
       ]
     },
-    "381": {
+    "377": {
       "op": "b add_allocations_for_header@6"
     },
-    "384": {
+    "380": {
       "block": "add_allocations_after_for@15",
       "stack_in": [
         "expires_at#0",
@@ -2826,31 +2764,10 @@
         "funded_amount#0"
       ]
     },
-    "386": {
-      "op": "dup",
+    "382": {
+      "op": "dig 2",
       "defined_out": [
         "funded_amount#0",
-        "funded_amount#0 (copy)"
-      ],
-      "stack_out": [
-        "expires_at#0",
-        "funded_amount#0",
-        "i#0",
-        "tmp%10#0",
-        "addresses#0",
-        "aggregate%array_length%0#0",
-        "amounts#0",
-        "required_funding#0",
-        "j#0",
-        "funded_amount#0",
-        "funded_amount#0 (copy)"
-      ]
-    },
-    "387": {
-      "op": "dig 3",
-      "defined_out": [
-        "funded_amount#0",
-        "funded_amount#0 (copy)",
         "required_funding#0"
       ],
       "stack_out": [
@@ -2864,16 +2781,15 @@
         "required_funding#0",
         "j#0",
         "funded_amount#0",
-        "funded_amount#0 (copy)",
         "required_funding#0"
       ]
     },
-    "389": {
+    "384": {
       "op": "==",
       "defined_out": [
         "funded_amount#0",
         "required_funding#0",
-        "tmp%22#0"
+        "tmp%20#0"
       ],
       "stack_out": [
         "expires_at#0",
@@ -2885,48 +2801,12 @@
         "amounts#0",
         "required_funding#0",
         "j#0",
-        "funded_amount#0",
-        "tmp%22#0"
+        "tmp%20#0"
       ]
     },
-    "390": {
+    "385": {
       "error": "Incorrect ASA funding",
       "op": "assert // Incorrect ASA funding",
-      "stack_out": [
-        "expires_at#0",
-        "funded_amount#0",
-        "i#0",
-        "tmp%10#0",
-        "addresses#0",
-        "aggregate%array_length%0#0",
-        "amounts#0",
-        "required_funding#0",
-        "j#0",
-        "funded_amount#0"
-      ]
-    },
-    "391": {
-      "op": "itob",
-      "defined_out": [
-        "funded_amount#0",
-        "required_funding#0",
-        "tmp%23#0"
-      ],
-      "stack_out": [
-        "expires_at#0",
-        "funded_amount#0",
-        "i#0",
-        "tmp%10#0",
-        "addresses#0",
-        "aggregate%array_length%0#0",
-        "amounts#0",
-        "required_funding#0",
-        "j#0",
-        "tmp%23#0"
-      ]
-    },
-    "392": {
-      "op": "log",
       "stack_out": [
         "expires_at#0",
         "funded_amount#0",
@@ -2939,12 +2819,12 @@
         "j#0"
       ]
     },
-    "393": {
+    "386": {
       "op": "global LatestTimestamp",
       "defined_out": [
         "funded_amount#0",
         "required_funding#0",
-        "tmp%24#0"
+        "tmp%21#0"
       ],
       "stack_out": [
         "expires_at#0",
@@ -2956,16 +2836,16 @@
         "amounts#0",
         "required_funding#0",
         "j#0",
-        "tmp%24#0"
+        "tmp%21#0"
       ]
     },
-    "395": {
+    "388": {
       "op": "intc_0 // 0",
       "defined_out": [
         "0",
         "funded_amount#0",
         "required_funding#0",
-        "tmp%24#0"
+        "tmp%21#0"
       ],
       "stack_out": [
         "expires_at#0",
@@ -2977,18 +2857,18 @@
         "amounts#0",
         "required_funding#0",
         "j#0",
-        "tmp%24#0",
+        "tmp%21#0",
         "0"
       ]
     },
-    "396": {
+    "389": {
       "op": "bytec_2 // \"claim_period_duration\"",
       "defined_out": [
         "\"claim_period_duration\"",
         "0",
         "funded_amount#0",
         "required_funding#0",
-        "tmp%24#0"
+        "tmp%21#0"
       ],
       "stack_out": [
         "expires_at#0",
@@ -3000,19 +2880,19 @@
         "amounts#0",
         "required_funding#0",
         "j#0",
-        "tmp%24#0",
+        "tmp%21#0",
         "0",
         "\"claim_period_duration\""
       ]
     },
-    "397": {
+    "390": {
       "op": "app_global_get_ex",
       "defined_out": [
         "funded_amount#0",
         "maybe_exists%2#0",
         "maybe_value%2#0",
         "required_funding#0",
-        "tmp%24#0"
+        "tmp%21#0"
       ],
       "stack_out": [
         "expires_at#0",
@@ -3024,12 +2904,12 @@
         "amounts#0",
         "required_funding#0",
         "j#0",
-        "tmp%24#0",
+        "tmp%21#0",
         "maybe_value%2#0",
         "maybe_exists%2#0"
       ]
     },
-    "398": {
+    "391": {
       "error": "check self.claim_period_duration exists",
       "op": "assert // check self.claim_period_duration exists",
       "stack_out": [
@@ -3042,11 +2922,11 @@
         "amounts#0",
         "required_funding#0",
         "j#0",
-        "tmp%24#0",
+        "tmp%21#0",
         "maybe_value%2#0"
       ]
     },
-    "399": {
+    "392": {
       "op": "+",
       "defined_out": [
         "expires_at#0",
@@ -3066,7 +2946,7 @@
         "expires_at#0"
       ]
     },
-    "400": {
+    "393": {
       "op": "bury 9",
       "defined_out": [
         "expires_at#0",
@@ -3085,7 +2965,7 @@
         "j#0"
       ]
     },
-    "402": {
+    "395": {
       "op": "intc_0 // 0",
       "defined_out": [
         "expires_at#0",
@@ -3106,7 +2986,7 @@
         "i#0"
       ]
     },
-    "403": {
+    "396": {
       "op": "bury 7",
       "stack_out": [
         "expires_at#0",
@@ -3120,7 +3000,7 @@
         "j#0"
       ]
     },
-    "405": {
+    "398": {
       "block": "add_allocations_for_header@16",
       "stack_in": [
         "expires_at#0",
@@ -3150,7 +3030,7 @@
         "i#0"
       ]
     },
-    "407": {
+    "400": {
       "op": "dig 4",
       "defined_out": [
         "aggregate%array_length%0#0",
@@ -3170,7 +3050,7 @@
         "aggregate%array_length%0#0"
       ]
     },
-    "409": {
+    "402": {
       "op": "<",
       "defined_out": [
         "aggregate%array_length%0#0",
@@ -3190,7 +3070,7 @@
         "continue_looping%2#0"
       ]
     },
-    "410": {
+    "403": {
       "op": "bz add_allocations_after_for@22",
       "stack_out": [
         "expires_at#0",
@@ -3204,7 +3084,7 @@
         "j#0"
       ]
     },
-    "413": {
+    "406": {
       "op": "dig 4",
       "defined_out": [
         "addresses#0",
@@ -3224,7 +3104,7 @@
         "addresses#0"
       ]
     },
-    "415": {
+    "408": {
       "op": "extract 2 0",
       "defined_out": [
         "addresses#0",
@@ -3245,7 +3125,7 @@
         "aggregate%array_trimmed%1#0"
       ]
     },
-    "418": {
+    "411": {
       "op": "dig 7",
       "stack_out": [
         "expires_at#0",
@@ -3261,7 +3141,7 @@
         "i#0"
       ]
     },
-    "420": {
+    "413": {
       "op": "dup",
       "defined_out": [
         "addresses#0",
@@ -3285,7 +3165,7 @@
         "i#0 (copy)"
       ]
     },
-    "421": {
+    "414": {
       "op": "cover 2",
       "stack_out": [
         "expires_at#0",
@@ -3302,7 +3182,7 @@
         "i#0 (copy)"
       ]
     },
-    "423": {
+    "416": {
       "op": "pushint 32 // 32",
       "defined_out": [
         "32",
@@ -3328,7 +3208,7 @@
         "32"
       ]
     },
-    "425": {
+    "418": {
       "op": "*",
       "defined_out": [
         "addresses#0",
@@ -3352,7 +3232,7 @@
         "aggregate%bytes_offset%1#0"
       ]
     },
-    "426": {
+    "419": {
       "op": "pushint 32 // 32",
       "stack_out": [
         "expires_at#0",
@@ -3370,7 +3250,7 @@
         "32"
       ]
     },
-    "428": {
+    "421": {
       "error": "index access is out of bounds",
       "op": "extract3 // on error: index access is out of bounds",
       "defined_out": [
@@ -3393,7 +3273,7 @@
         "address#0"
       ]
     },
-    "429": {
+    "422": {
       "op": "dig 4",
       "defined_out": [
         "address#0",
@@ -3417,7 +3297,7 @@
         "amounts#0"
       ]
     },
-    "431": {
+    "424": {
       "op": "extract 2 0",
       "defined_out": [
         "address#0",
@@ -3442,7 +3322,7 @@
         "aggregate%array_trimmed%2#0"
       ]
     },
-    "434": {
+    "427": {
       "op": "uncover 2",
       "stack_out": [
         "expires_at#0",
@@ -3459,7 +3339,7 @@
         "i#0"
       ]
     },
-    "436": {
+    "429": {
       "op": "intc_2 // 8",
       "defined_out": [
         "8",
@@ -3486,7 +3366,7 @@
         "8"
       ]
     },
-    "437": {
+    "430": {
       "op": "*",
       "defined_out": [
         "address#0",
@@ -3512,7 +3392,7 @@
         "aggregate%bytes_offset%2#0"
       ]
     },
-    "438": {
+    "431": {
       "op": "extract_uint64",
       "defined_out": [
         "address#0",
@@ -3536,7 +3416,7 @@
         "amount#0"
       ]
     },
-    "439": {
+    "432": {
       "op": "swap",
       "defined_out": [
         "address#0",
@@ -3560,7 +3440,7 @@
         "address#0"
       ]
     },
-    "440": {
+    "433": {
       "op": "bytec_3 // \"allocations\"",
       "defined_out": [
         "\"allocations\"",
@@ -3586,7 +3466,7 @@
         "\"allocations\""
       ]
     },
-    "441": {
+    "434": {
       "op": "swap",
       "stack_out": [
         "expires_at#0",
@@ -3603,7 +3483,7 @@
         "address#0"
       ]
     },
-    "442": {
+    "435": {
       "op": "concat",
       "defined_out": [
         "addresses#0",
@@ -3627,7 +3507,7 @@
         "allocation_box#0"
       ]
     },
-    "443": {
+    "436": {
       "op": "dup",
       "stack_out": [
         "expires_at#0",
@@ -3644,7 +3524,7 @@
         "allocation_box#0"
       ]
     },
-    "444": {
+    "437": {
       "op": "cover 2",
       "defined_out": [
         "addresses#0",
@@ -3669,7 +3549,7 @@
         "allocation_box#0"
       ]
     },
-    "446": {
+    "439": {
       "op": "box_len",
       "defined_out": [
         "_%0#0",
@@ -3697,7 +3577,7 @@
         "maybe_exists%3#0"
       ]
     },
-    "447": {
+    "440": {
       "op": "bury 1",
       "stack_out": [
         "expires_at#0",
@@ -3714,7 +3594,7 @@
         "maybe_exists%3#0"
       ]
     },
-    "449": {
+    "442": {
       "op": "bz add_allocations_else_body@19",
       "stack_out": [
         "expires_at#0",
@@ -3730,7 +3610,7 @@
         "amount#0"
       ]
     },
-    "452": {
+    "445": {
       "op": "swap",
       "stack_out": [
         "expires_at#0",
@@ -3746,7 +3626,7 @@
         "allocation_box#0"
       ]
     },
-    "453": {
+    "446": {
       "op": "dup",
       "defined_out": [
         "addresses#0",
@@ -3772,7 +3652,7 @@
         "allocation_box#0 (copy)"
       ]
     },
-    "454": {
+    "447": {
       "op": "box_get",
       "defined_out": [
         "addresses#0",
@@ -3800,7 +3680,7 @@
         "aggregate%box_get%1#0"
       ]
     },
-    "455": {
+    "448": {
       "error": "check Box exists",
       "op": "assert // check Box exists",
       "stack_out": [
@@ -3818,7 +3698,7 @@
         "existing_allocation#0"
       ]
     },
-    "456": {
+    "449": {
       "op": "dup",
       "defined_out": [
         "addresses#0",
@@ -3846,7 +3726,7 @@
         "existing_allocation#0 (copy)"
       ]
     },
-    "457": {
+    "450": {
       "op": "intc_0 // 0",
       "stack_out": [
         "expires_at#0",
@@ -3865,7 +3745,7 @@
         "0"
       ]
     },
-    "458": {
+    "451": {
       "op": "extract_uint64",
       "defined_out": [
         "addresses#0",
@@ -3893,7 +3773,7 @@
         "values%0#0"
       ]
     },
-    "459": {
+    "452": {
       "op": "uncover 3",
       "stack_out": [
         "expires_at#0",
@@ -3911,7 +3791,7 @@
         "amount#0"
       ]
     },
-    "461": {
+    "454": {
       "op": "+",
       "defined_out": [
         "addresses#0",
@@ -3920,7 +3800,7 @@
         "amounts#0",
         "existing_allocation#0",
         "i#0",
-        "tmp%28#0"
+        "tmp%25#0"
       ],
       "stack_out": [
         "expires_at#0",
@@ -3934,10 +3814,10 @@
         "j#0",
         "allocation_box#0",
         "existing_allocation#0",
-        "tmp%28#0"
+        "tmp%25#0"
       ]
     },
-    "462": {
+    "455": {
       "op": "itob",
       "defined_out": [
         "addresses#0",
@@ -3963,7 +3843,7 @@
         "aggregate%val_as_bytes%0#0"
       ]
     },
-    "463": {
+    "456": {
       "op": "replace2 0",
       "stack_out": [
         "expires_at#0",
@@ -3979,7 +3859,7 @@
         "existing_allocation#0"
       ]
     },
-    "465": {
+    "458": {
       "op": "dig 10",
       "defined_out": [
         "addresses#0",
@@ -4005,7 +3885,7 @@
         "expires_at#0"
       ]
     },
-    "467": {
+    "460": {
       "op": "itob",
       "defined_out": [
         "addresses#0",
@@ -4032,7 +3912,7 @@
         "aggregate%val_as_bytes%1#0"
       ]
     },
-    "468": {
+    "461": {
       "op": "replace2 8",
       "stack_out": [
         "expires_at#0",
@@ -4048,7 +3928,7 @@
         "existing_allocation#0"
       ]
     },
-    "470": {
+    "463": {
       "op": "box_put",
       "stack_out": [
         "expires_at#0",
@@ -4062,7 +3942,7 @@
         "j#0"
       ]
     },
-    "471": {
+    "464": {
       "block": "add_allocations_after_if_else@20",
       "stack_in": [
         "expires_at#0",
@@ -4092,7 +3972,7 @@
         "i#0"
       ]
     },
-    "473": {
+    "466": {
       "op": "intc_1 // 1",
       "defined_out": [
         "1",
@@ -4112,7 +3992,7 @@
         "1"
       ]
     },
-    "474": {
+    "467": {
       "op": "+",
       "stack_out": [
         "expires_at#0",
@@ -4127,7 +4007,7 @@
         "i#0"
       ]
     },
-    "475": {
+    "468": {
       "op": "bury 7",
       "defined_out": [
         "i#0"
@@ -4144,10 +4024,10 @@
         "j#0"
       ]
     },
-    "477": {
+    "470": {
       "op": "b add_allocations_for_header@16"
     },
-    "480": {
+    "473": {
       "block": "add_allocations_else_body@19",
       "stack_in": [
         "expires_at#0",
@@ -4180,7 +4060,7 @@
         "allocation_box#0"
       ]
     },
-    "481": {
+    "474": {
       "op": "dup",
       "defined_out": [
         "allocation_box#0",
@@ -4201,7 +4081,7 @@
         "allocation_box#0 (copy)"
       ]
     },
-    "482": {
+    "475": {
       "op": "pushint 16 // 16",
       "defined_out": [
         "16",
@@ -4224,11 +4104,11 @@
         "16"
       ]
     },
-    "484": {
+    "477": {
       "op": "box_create",
       "defined_out": [
         "allocation_box#0",
-        "tmp%29#0"
+        "tmp%26#0"
       ],
       "stack_out": [
         "expires_at#0",
@@ -4242,10 +4122,10 @@
         "j#0",
         "amount#0",
         "allocation_box#0",
-        "tmp%29#0"
+        "tmp%26#0"
       ]
     },
-    "485": {
+    "478": {
       "op": "assert",
       "stack_out": [
         "expires_at#0",
@@ -4261,7 +4141,7 @@
         "allocation_box#0"
       ]
     },
-    "486": {
+    "479": {
       "op": "swap",
       "defined_out": [
         "allocation_box#0",
@@ -4281,7 +4161,7 @@
         "amount#0"
       ]
     },
-    "487": {
+    "480": {
       "op": "itob",
       "defined_out": [
         "aggregate%val_as_bytes%2#0",
@@ -4301,7 +4181,7 @@
         "aggregate%val_as_bytes%2#0"
       ]
     },
-    "488": {
+    "481": {
       "op": "dig 10",
       "defined_out": [
         "aggregate%val_as_bytes%2#0",
@@ -4323,7 +4203,7 @@
         "expires_at#0"
       ]
     },
-    "490": {
+    "483": {
       "op": "itob",
       "defined_out": [
         "aggregate%val_as_bytes%2#0",
@@ -4346,7 +4226,7 @@
         "aggregate%val_as_bytes%3#0"
       ]
     },
-    "491": {
+    "484": {
       "op": "concat",
       "defined_out": [
         "aggregate%head%1#0",
@@ -4367,7 +4247,7 @@
         "aggregate%head%1#0"
       ]
     },
-    "492": {
+    "485": {
       "op": "box_put",
       "stack_out": [
         "expires_at#0",
@@ -4381,10 +4261,10 @@
         "j#0"
       ]
     },
-    "493": {
+    "486": {
       "op": "b add_allocations_after_if_else@20"
     },
-    "496": {
+    "489": {
       "block": "add_allocations_after_for@22",
       "stack_in": [
         "expires_at#0",
@@ -4414,7 +4294,7 @@
         "1"
       ]
     },
-    "497": {
+    "490": {
       "op": "return",
       "stack_out": [
         "expires_at#0",
@@ -4428,7 +4308,7 @@
         "j#0"
       ]
     },
-    "498": {
+    "491": {
       "subroutine": "contract.contract.Rewards.claim[routing]",
       "params": {},
       "block": "claim",
@@ -4441,7 +4321,7 @@
         "sender#0"
       ]
     },
-    "500": {
+    "493": {
       "op": "bytec_3 // \"allocations\"",
       "defined_out": [
         "\"allocations\"",
@@ -4452,7 +4332,7 @@
         "\"allocations\""
       ]
     },
-    "501": {
+    "494": {
       "op": "dig 1",
       "defined_out": [
         "\"allocations\"",
@@ -4465,7 +4345,7 @@
         "sender#0 (copy)"
       ]
     },
-    "503": {
+    "496": {
       "op": "concat",
       "defined_out": [
         "allocation_box#0",
@@ -4476,7 +4356,7 @@
         "allocation_box#0"
       ]
     },
-    "504": {
+    "497": {
       "op": "dup",
       "defined_out": [
         "allocation_box#0",
@@ -4489,7 +4369,7 @@
         "allocation_box#0 (copy)"
       ]
     },
-    "505": {
+    "498": {
       "op": "box_len",
       "defined_out": [
         "_%0#0",
@@ -4504,7 +4384,7 @@
         "maybe_exists%0#0"
       ]
     },
-    "506": {
+    "499": {
       "op": "bury 1",
       "stack_out": [
         "sender#0",
@@ -4512,7 +4392,7 @@
         "maybe_exists%0#0"
       ]
     },
-    "508": {
+    "501": {
       "error": "Sender has no allocation",
       "op": "assert // Sender has no allocation",
       "stack_out": [
@@ -4520,7 +4400,7 @@
         "allocation_box#0"
       ]
     },
-    "509": {
+    "502": {
       "op": "dup",
       "stack_out": [
         "sender#0",
@@ -4528,7 +4408,7 @@
         "allocation_box#0 (copy)"
       ]
     },
-    "510": {
+    "503": {
       "op": "box_get",
       "defined_out": [
         "aggregate%box_get%1#0",
@@ -4543,7 +4423,7 @@
         "aggregate%box_get%1#0"
       ]
     },
-    "511": {
+    "504": {
       "op": "pop",
       "stack_out": [
         "sender#0",
@@ -4551,7 +4431,7 @@
         "allocation#0"
       ]
     },
-    "512": {
+    "505": {
       "op": "global LatestTimestamp",
       "defined_out": [
         "allocation#0",
@@ -4566,7 +4446,7 @@
         "tmp%1#0"
       ]
     },
-    "514": {
+    "507": {
       "op": "dig 1",
       "defined_out": [
         "allocation#0",
@@ -4583,7 +4463,7 @@
         "allocation#0 (copy)"
       ]
     },
-    "516": {
+    "509": {
       "op": "intc_2 // 8",
       "defined_out": [
         "8",
@@ -4602,7 +4482,7 @@
         "8"
       ]
     },
-    "517": {
+    "510": {
       "op": "extract_uint64",
       "defined_out": [
         "allocation#0",
@@ -4619,7 +4499,7 @@
         "values%0#0"
       ]
     },
-    "518": {
+    "511": {
       "op": "<=",
       "defined_out": [
         "allocation#0",
@@ -4634,7 +4514,7 @@
         "tmp%2#0"
       ]
     },
-    "519": {
+    "512": {
       "error": "Claim period has ended",
       "op": "assert // Claim period has ended",
       "stack_out": [
@@ -4643,7 +4523,7 @@
         "allocation#0"
       ]
     },
-    "520": {
+    "513": {
       "op": "intc_0 // 0",
       "defined_out": [
         "0",
@@ -4658,7 +4538,7 @@
         "0"
       ]
     },
-    "521": {
+    "514": {
       "op": "extract_uint64",
       "defined_out": [
         "allocation_box#0",
@@ -4671,7 +4551,7 @@
         "amount_to_claim#0"
       ]
     },
-    "522": {
+    "515": {
       "op": "intc_0 // 0",
       "stack_out": [
         "sender#0",
@@ -4680,7 +4560,7 @@
         "0"
       ]
     },
-    "523": {
+    "516": {
       "op": "bytec_0 // \"token_id\"",
       "defined_out": [
         "\"token_id\"",
@@ -4697,7 +4577,7 @@
         "\"token_id\""
       ]
     },
-    "524": {
+    "517": {
       "op": "app_global_get_ex",
       "defined_out": [
         "allocation_box#0",
@@ -4714,7 +4594,7 @@
         "maybe_exists%1#0"
       ]
     },
-    "525": {
+    "518": {
       "error": "check self.token_id exists",
       "op": "assert // check self.token_id exists",
       "stack_out": [
@@ -4724,7 +4604,7 @@
         "maybe_value%0#0"
       ]
     },
-    "526": {
+    "519": {
       "op": "dig 3",
       "stack_out": [
         "sender#0",
@@ -4734,7 +4614,7 @@
         "sender#0 (copy)"
       ]
     },
-    "528": {
+    "521": {
       "op": "dig 1",
       "defined_out": [
         "allocation_box#0",
@@ -4753,7 +4633,7 @@
         "maybe_value%0#0 (copy)"
       ]
     },
-    "530": {
+    "523": {
       "op": "asset_holding_get AssetBalance",
       "defined_out": [
         "allocation_box#0",
@@ -4772,7 +4652,7 @@
         "opted_in#0"
       ]
     },
-    "532": {
+    "525": {
       "op": "bury 1",
       "stack_out": [
         "sender#0",
@@ -4782,7 +4662,7 @@
         "opted_in#0"
       ]
     },
-    "534": {
+    "527": {
       "error": "Sender has not opted-in to the asset",
       "op": "assert // Sender has not opted-in to the asset",
       "stack_out": [
@@ -4792,10 +4672,10 @@
         "maybe_value%0#0"
       ]
     },
-    "535": {
+    "528": {
       "op": "itxn_begin"
     },
-    "536": {
+    "529": {
       "op": "swap",
       "stack_out": [
         "sender#0",
@@ -4804,7 +4684,7 @@
         "amount_to_claim#0"
       ]
     },
-    "537": {
+    "530": {
       "op": "itxn_field AssetAmount",
       "stack_out": [
         "sender#0",
@@ -4812,7 +4692,7 @@
         "maybe_value%0#0"
       ]
     },
-    "539": {
+    "532": {
       "op": "uncover 2",
       "stack_out": [
         "allocation_box#0",
@@ -4820,20 +4700,20 @@
         "sender#0"
       ]
     },
-    "541": {
+    "534": {
       "op": "itxn_field AssetReceiver",
       "stack_out": [
         "allocation_box#0",
         "maybe_value%0#0"
       ]
     },
-    "543": {
+    "536": {
       "op": "itxn_field XferAsset",
       "stack_out": [
         "allocation_box#0"
       ]
     },
-    "545": {
+    "538": {
       "op": "intc_3 // axfer",
       "defined_out": [
         "allocation_box#0",
@@ -4844,29 +4724,29 @@
         "axfer"
       ]
     },
-    "546": {
+    "539": {
       "op": "itxn_field TypeEnum",
       "stack_out": [
         "allocation_box#0"
       ]
     },
-    "548": {
+    "541": {
       "op": "intc_0 // 0",
       "stack_out": [
         "allocation_box#0",
         "0"
       ]
     },
-    "549": {
+    "542": {
       "op": "itxn_field Fee",
       "stack_out": [
         "allocation_box#0"
       ]
     },
-    "551": {
+    "544": {
       "op": "itxn_submit"
     },
-    "552": {
+    "545": {
       "op": "box_del",
       "defined_out": [
         "{box_del}"
@@ -4875,11 +4755,11 @@
         "{box_del}"
       ]
     },
-    "553": {
+    "546": {
       "op": "pop",
       "stack_out": []
     },
-    "554": {
+    "547": {
       "op": "intc_1 // 1",
       "defined_out": [
         "1"
@@ -4888,11 +4768,11 @@
         "1"
       ]
     },
-    "555": {
+    "548": {
       "op": "return",
       "stack_out": []
     },
-    "556": {
+    "549": {
       "subroutine": "contract.contract.Rewards.reclaim_allocation[routing]",
       "params": {},
       "block": "reclaim_allocation",
@@ -4905,7 +4785,7 @@
         "user_address#0"
       ]
     },
-    "559": {
+    "552": {
       "op": "dup",
       "defined_out": [
         "user_address#0",
@@ -4916,7 +4796,7 @@
         "user_address#0 (copy)"
       ]
     },
-    "560": {
+    "553": {
       "op": "len",
       "defined_out": [
         "len%0#0",
@@ -4927,7 +4807,7 @@
         "len%0#0"
       ]
     },
-    "561": {
+    "554": {
       "op": "pushint 32 // 32",
       "defined_out": [
         "32",
@@ -4940,7 +4820,7 @@
         "32"
       ]
     },
-    "563": {
+    "556": {
       "op": "==",
       "defined_out": [
         "eq%0#0",
@@ -4951,14 +4831,14 @@
         "eq%0#0"
       ]
     },
-    "564": {
+    "557": {
       "error": "invalid number of bytes for arc4.static_array<arc4.uint8, 32>",
       "op": "assert // invalid number of bytes for arc4.static_array<arc4.uint8, 32>",
       "stack_out": [
         "user_address#0"
       ]
     },
-    "565": {
+    "558": {
       "op": "txn Sender",
       "defined_out": [
         "tmp%0#1",
@@ -4969,7 +4849,7 @@
         "tmp%0#1"
       ]
     },
-    "567": {
+    "560": {
       "op": "intc_0 // 0",
       "defined_out": [
         "0",
@@ -4982,7 +4862,7 @@
         "0"
       ]
     },
-    "568": {
+    "561": {
       "op": "bytec_1 // \"admin_address\"",
       "defined_out": [
         "\"admin_address\"",
@@ -4997,7 +4877,7 @@
         "\"admin_address\""
       ]
     },
-    "569": {
+    "562": {
       "op": "app_global_get_ex",
       "defined_out": [
         "maybe_exists%0#0",
@@ -5012,7 +4892,7 @@
         "maybe_exists%0#0"
       ]
     },
-    "570": {
+    "563": {
       "error": "check self.admin_address exists",
       "op": "assert // check self.admin_address exists",
       "stack_out": [
@@ -5021,7 +4901,7 @@
         "maybe_value%0#0"
       ]
     },
-    "571": {
+    "564": {
       "op": "swap",
       "stack_out": [
         "user_address#0",
@@ -5029,7 +4909,7 @@
         "tmp%0#1"
       ]
     },
-    "572": {
+    "565": {
       "op": "dig 1",
       "defined_out": [
         "maybe_value%0#0",
@@ -5044,7 +4924,7 @@
         "maybe_value%0#0 (copy)"
       ]
     },
-    "574": {
+    "567": {
       "op": "==",
       "defined_out": [
         "maybe_value%0#0",
@@ -5057,7 +4937,7 @@
         "tmp%1#1"
       ]
     },
-    "575": {
+    "568": {
       "error": "Sender is not the admin",
       "op": "assert // Sender is not the admin",
       "stack_out": [
@@ -5065,7 +4945,7 @@
         "maybe_value%0#0"
       ]
     },
-    "576": {
+    "569": {
       "op": "bytec_3 // \"allocations\"",
       "defined_out": [
         "\"allocations\"",
@@ -5078,7 +4958,7 @@
         "\"allocations\""
       ]
     },
-    "577": {
+    "570": {
       "op": "uncover 2",
       "stack_out": [
         "maybe_value%0#0",
@@ -5086,7 +4966,7 @@
         "user_address#0"
       ]
     },
-    "579": {
+    "572": {
       "op": "concat",
       "defined_out": [
         "allocation_box#0",
@@ -5097,7 +4977,7 @@
         "allocation_box#0"
       ]
     },
-    "580": {
+    "573": {
       "op": "dup",
       "defined_out": [
         "allocation_box#0",
@@ -5110,7 +4990,7 @@
         "allocation_box#0 (copy)"
       ]
     },
-    "581": {
+    "574": {
       "op": "box_len",
       "defined_out": [
         "_%0#0",
@@ -5125,7 +5005,7 @@
         "maybe_exists%1#0"
       ]
     },
-    "582": {
+    "575": {
       "op": "bury 1",
       "stack_out": [
         "maybe_value%0#0",
@@ -5133,7 +5013,7 @@
         "maybe_exists%1#0"
       ]
     },
-    "584": {
+    "577": {
       "error": "User has no allocation",
       "op": "assert // User has no allocation",
       "stack_out": [
@@ -5141,7 +5021,7 @@
         "allocation_box#0"
       ]
     },
-    "585": {
+    "578": {
       "op": "dup",
       "stack_out": [
         "maybe_value%0#0",
@@ -5149,7 +5029,7 @@
         "allocation_box#0 (copy)"
       ]
     },
-    "586": {
+    "579": {
       "op": "box_get",
       "defined_out": [
         "aggregate%box_get%1#0",
@@ -5164,7 +5044,7 @@
         "aggregate%box_get%1#0"
       ]
     },
-    "587": {
+    "580": {
       "op": "pop",
       "stack_out": [
         "maybe_value%0#0",
@@ -5172,7 +5052,7 @@
         "allocation#0"
       ]
     },
-    "588": {
+    "581": {
       "op": "global LatestTimestamp",
       "defined_out": [
         "allocation#0",
@@ -5187,7 +5067,7 @@
         "tmp%2#0"
       ]
     },
-    "590": {
+    "583": {
       "op": "dig 1",
       "defined_out": [
         "allocation#0",
@@ -5204,7 +5084,7 @@
         "allocation#0 (copy)"
       ]
     },
-    "592": {
+    "585": {
       "op": "intc_2 // 8",
       "defined_out": [
         "8",
@@ -5223,7 +5103,7 @@
         "8"
       ]
     },
-    "593": {
+    "586": {
       "op": "extract_uint64",
       "defined_out": [
         "allocation#0",
@@ -5240,7 +5120,7 @@
         "values%0#0"
       ]
     },
-    "594": {
+    "587": {
       "op": ">",
       "defined_out": [
         "allocation#0",
@@ -5255,7 +5135,7 @@
         "tmp%3#0"
       ]
     },
-    "595": {
+    "588": {
       "error": "Claim period has not ended for this user",
       "op": "assert // Claim period has not ended for this user",
       "stack_out": [
@@ -5264,10 +5144,10 @@
         "allocation#0"
       ]
     },
-    "596": {
+    "589": {
       "op": "itxn_begin"
     },
-    "597": {
+    "590": {
       "op": "intc_0 // 0",
       "stack_out": [
         "maybe_value%0#0",
@@ -5276,7 +5156,7 @@
         "0"
       ]
     },
-    "598": {
+    "591": {
       "op": "bytec_0 // \"token_id\"",
       "defined_out": [
         "\"token_id\"",
@@ -5293,7 +5173,7 @@
         "\"token_id\""
       ]
     },
-    "599": {
+    "592": {
       "op": "app_global_get_ex",
       "defined_out": [
         "allocation#0",
@@ -5310,7 +5190,7 @@
         "maybe_exists%2#0"
       ]
     },
-    "600": {
+    "593": {
       "error": "check self.token_id exists",
       "op": "assert // check self.token_id exists",
       "stack_out": [
@@ -5320,7 +5200,7 @@
         "maybe_value%1#0"
       ]
     },
-    "601": {
+    "594": {
       "op": "swap",
       "stack_out": [
         "maybe_value%0#0",
@@ -5329,7 +5209,7 @@
         "allocation#0"
       ]
     },
-    "602": {
+    "595": {
       "op": "intc_0 // 0",
       "stack_out": [
         "maybe_value%0#0",
@@ -5339,7 +5219,7 @@
         "0"
       ]
     },
-    "603": {
+    "596": {
       "op": "extract_uint64",
       "defined_out": [
         "allocation_box#0",
@@ -5354,7 +5234,7 @@
         "values%1#0"
       ]
     },
-    "604": {
+    "597": {
       "op": "itxn_field AssetAmount",
       "stack_out": [
         "maybe_value%0#0",
@@ -5362,7 +5242,7 @@
         "maybe_value%1#0"
       ]
     },
-    "606": {
+    "599": {
       "op": "uncover 2",
       "stack_out": [
         "allocation_box#0",
@@ -5370,20 +5250,20 @@
         "maybe_value%0#0"
       ]
     },
-    "608": {
+    "601": {
       "op": "itxn_field AssetReceiver",
       "stack_out": [
         "allocation_box#0",
         "maybe_value%1#0"
       ]
     },
-    "610": {
+    "603": {
       "op": "itxn_field XferAsset",
       "stack_out": [
         "allocation_box#0"
       ]
     },
-    "612": {
+    "605": {
       "op": "intc_3 // axfer",
       "defined_out": [
         "allocation_box#0",
@@ -5394,29 +5274,29 @@
         "axfer"
       ]
     },
-    "613": {
+    "606": {
       "op": "itxn_field TypeEnum",
       "stack_out": [
         "allocation_box#0"
       ]
     },
-    "615": {
+    "608": {
       "op": "intc_0 // 0",
       "stack_out": [
         "allocation_box#0",
         "0"
       ]
     },
-    "616": {
+    "609": {
       "op": "itxn_field Fee",
       "stack_out": [
         "allocation_box#0"
       ]
     },
-    "618": {
+    "611": {
       "op": "itxn_submit"
     },
-    "619": {
+    "612": {
       "op": "box_del",
       "defined_out": [
         "{box_del}"
@@ -5425,11 +5305,11 @@
         "{box_del}"
       ]
     },
-    "620": {
+    "613": {
       "op": "pop",
       "stack_out": []
     },
-    "621": {
+    "614": {
       "op": "intc_1 // 1",
       "defined_out": [
         "1"
@@ -5438,7 +5318,7 @@
         "1"
       ]
     },
-    "622": {
+    "615": {
       "op": "return",
       "stack_out": []
     }

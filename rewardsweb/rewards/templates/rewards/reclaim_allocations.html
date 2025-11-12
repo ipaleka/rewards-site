@@ -31,7 +31,10 @@
               </button>
             </form>
             {% else %}
-              <button type="button" class="btn btn-soft btn-warning btn-sm">
+              <button type="button"
+                      class="btn btn-soft btn-warning btn-sm reclaim-button"
+                      data-address="{{ address }}"
+                      id="reclaim-button-{{ forloop.counter }}">
                 Reclaim
               </button>
             {% endif %}
@@ -58,6 +61,7 @@
   <h1 class="text-3xl font-bold mb-6">Reclaim allocations (superuser only)</h1>
 
   <div id="reclaim-allocations-container">
+    {% csrf_token %}
     {% partial reclaim_allocations_table_partial %}
   </div>
 

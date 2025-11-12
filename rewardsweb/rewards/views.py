@@ -15,6 +15,10 @@ from contract.network import (
     reclaimable_addresses,
 )
 from core.models import Contribution, IssueStatus
+from rewards.helpers import (
+    added_allocations_for_addresses,
+    reclaimed_allocation_for_address,
+)
 
 
 class ClaimView(LoginRequiredMixin, TemplateView):
@@ -101,14 +105,7 @@ class AddAllocationsView(LoginRequiredMixin, TemplateView):
             Contribution.objects.addresses_and_amounts_from_contributions,
         ):
             if result:
-                messages.success(request, f"✅ Allocation successful TXID: {result}")
-                Contribution.objects.update_issue_statuses_for_addresses(
-                    addresses, contributions
-                )
-                self.request.user.profile.log_action(
-                    "boxes_created",
-                    "; ".join([addr[:5] + ".." + addr[-5:] for addr in addresses]),
-                )
+                added_allocations_for_addresses(request, addresses, result)
 
             else:
                 messages.error(request, "❌ Allocation batch failed.")
@@ -166,10 +163,7 @@ class ReclaimAllocationsView(LoginRequiredMixin, TemplateView):
 
         try:
             txid = process_reclaim_allocation(address)
-            messages.success(
-                request, f"✅ Successfully reclaimed {address} (TXID: {txid})"
-            )
-            request.user.profile.log_action("allocation_reclaimed", address)
+            reclaimed_allocation_for_address(request, address, txid)
 
         except Exception as e:
             messages.error(

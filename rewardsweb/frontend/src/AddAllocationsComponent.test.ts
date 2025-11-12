@@ -2,6 +2,14 @@ import { AddAllocationsComponent } from './AddAllocationsComponent'
 import { RewardsClient } from './RewardsClient'
 import { WalletManager } from '@txnlab/use-wallet'
 
+// Mock window.location.reload
+Object.defineProperty(window, 'location', {
+  value: {
+    reload: jest.fn(),
+  },
+  writable: true,
+});
+
 // Mock RewardsClient
 jest.mock('./RewardsClient', () => {
   return {
@@ -9,6 +17,7 @@ jest.mock('./RewardsClient', () => {
       return {
         fetchAddAllocationsData: jest.fn(),
         addAllocations: jest.fn(),
+        notifyAllocationsSuccessful: jest.fn().mockResolvedValue(undefined),
       }
     }),
   }
@@ -23,7 +32,8 @@ describe('AddAllocationsComponent', () => {
 
   beforeEach(() => {
     alertSpy = jest.spyOn(window, 'alert').mockImplementation(() => { })
-    mockRewardsClient = new RewardsClient(null as any, null as any) as jest.Mocked<RewardsClient>
+    // Fix: Updated constructor to match new signature (only WalletManager)
+    mockRewardsClient = new RewardsClient(null as any) as jest.Mocked<RewardsClient>
     mockWalletManager = {
       activeAccount: { address: 'test-address' },
       subscribe: jest.fn(),
@@ -55,11 +65,14 @@ describe('AddAllocationsComponent', () => {
   afterEach(() => {
     document.body.innerHTML = ''
     alertSpy.mockRestore()
+    jest.clearAllMocks()
   })
 
   it('should call addAllocations with fetched data when button is clicked', async () => {
     const data = { addresses: ['addr1', 'addr2'], amounts: [100, 200] }
       ; (mockRewardsClient.fetchAddAllocationsData as jest.Mock).mockResolvedValue(data)
+      ; (mockRewardsClient.addAllocations as jest.Mock).mockResolvedValue({ txIDs: ['test-tx'] })
+
     addAllocationsComponent = new AddAllocationsComponent(mockRewardsClient, mockWalletManager)
     addAllocationsComponent.bind(container)
     await new Promise(process.nextTick)
@@ -67,26 +80,8 @@ describe('AddAllocationsComponent', () => {
     const button = container.querySelector('#add-allocations-button') as HTMLButtonElement
     await button.click()
 
-    expect(mockRewardsClient.addAllocations).toHaveBeenCalledWith(['addr1', 'addr2'], [100, 200])
-  })
-
-  it('should re-fetch data after a successful addAllocations call', async () => {
-    ; (mockRewardsClient.fetchAddAllocationsData as jest.Mock).mockResolvedValue({
-      addresses: [],
-      amounts: [],
-    })
-    addAllocationsComponent = new AddAllocationsComponent(mockRewardsClient, mockWalletManager)
-    addAllocationsComponent.bind(container)
-    await new Promise(process.nextTick)
-
-      ; (mockRewardsClient.addAllocations as jest.Mock).mockResolvedValue(undefined)
-
-    const button = container.querySelector('#add-allocations-button') as HTMLButtonElement
-    await button.click()
-
-    expect(mockRewardsClient.addAllocations).toHaveBeenCalledTimes(1)
-    // fetch is called once on init and once after adding allocations
-    expect(mockRewardsClient.fetchAddAllocationsData).toHaveBeenCalledTimes(2)
+    // Updated to include the decimals parameter
+    expect(mockRewardsClient.addAllocations).toHaveBeenCalledWith(['addr1', 'addr2'], [100, 200], 6)
   })
 
   it('should not fetch data if no active account', async () => {
@@ -110,7 +105,8 @@ describe('AddAllocationsComponent Error Handling', () => {
   beforeEach(() => {
     alertSpy = jest.spyOn(window, 'alert').mockImplementation(() => { })
     consoleErrorSpy = jest.spyOn(console, 'error').mockImplementation(() => { })
-    mockRewardsClient = new RewardsClient(null as any, null as any) as jest.Mocked<RewardsClient>
+    // Fix: Updated constructor to match new signature (only WalletManager)
+    mockRewardsClient = new RewardsClient(null as any) as jest.Mocked<RewardsClient>
     mockWalletManager = {
       activeAccount: { address: 'test-address' },
       subscribe: jest.fn(),
@@ -142,6 +138,7 @@ describe('AddAllocationsComponent Error Handling', () => {
     document.body.innerHTML = ''
     alertSpy.mockRestore()
     consoleErrorSpy.mockRestore()
+    jest.clearAllMocks()
   })
 
   describe('fetchAllocationsData error handling', () => {
@@ -157,7 +154,8 @@ describe('AddAllocationsComponent Error Handling', () => {
         '[AddAllocationsComponent] Error fetching add allocations data:',
         testError
       )
-      expect(alertSpy).toHaveBeenCalledWith('Failed to fetch allocations data: Network error')
+      // Component no longer shows alert for fetch errors, only logs to console
+      expect(alertSpy).not.toHaveBeenCalled()
     })
 
     it('should handle non-Error object when fetching allocations data fails', async () => {
@@ -172,7 +170,8 @@ describe('AddAllocationsComponent Error Handling', () => {
         '[AddAllocationsComponent] Error fetching add allocations data:',
         testError
       )
-      expect(alertSpy).toHaveBeenCalledWith('Failed to fetch allocations data: Simple string error')
+      // Component no longer shows alert for fetch errors, only logs to console
+      expect(alertSpy).not.toHaveBeenCalled()
     })
 
     it('should clear data and render when no active account', async () => {
@@ -192,8 +191,8 @@ describe('AddAllocationsComponent Error Handling', () => {
   describe('handleAddAllocations error handling', () => {
     beforeEach(async () => {
       ; (mockRewardsClient.fetchAddAllocationsData as jest.Mock).mockResolvedValue({
-        addresses: [],
-        amounts: [],
+        addresses: ['addr1', 'addr2'],
+        amounts: [100, 200],
       })
       addAllocationsComponent = new AddAllocationsComponent(mockRewardsClient, mockWalletManager)
       addAllocationsComponent.bind(container)
@@ -212,7 +211,8 @@ describe('AddAllocationsComponent Error Handling', () => {
         testError
       )
       expect(alertSpy).toHaveBeenCalledWith('Add allocations failed: Transaction failed')
-      expect(mockRewardsClient.fetchAddAllocationsData).toHaveBeenCalledTimes(1) // Only initial fetch, no re-fetch after error
+      // Component reloads page on success, not re-fetches data
+      expect(mockRewardsClient.fetchAddAllocationsData).toHaveBeenCalledTimes(1)
     })
 
     it('should handle non-Error object when addAllocations fails', async () => {
@@ -227,7 +227,7 @@ describe('AddAllocationsComponent Error Handling', () => {
         testError
       )
       expect(alertSpy).toHaveBeenCalledWith('Add allocations failed: Transaction rejected')
-      expect(mockRewardsClient.fetchAddAllocationsData).toHaveBeenCalledTimes(1) // Only initial fetch, no re-fetch after error
+      expect(mockRewardsClient.fetchAddAllocationsData).toHaveBeenCalledTimes(1)
     })
 
     it('should handle complex error objects when addAllocations fails', async () => {
@@ -352,4 +352,88 @@ describe('AddAllocationsComponent Edge Cases', () => {
       }).not.toThrow()
     })
   })
+  describe('DOM ready state handling', () => {
+    let addEventListenerSpy: jest.SpyInstance;
+    let originalReadyState: DocumentReadyState;
+
+    beforeEach(() => {
+      addEventListenerSpy = jest.spyOn(document, 'addEventListener');
+      originalReadyState = document.readyState;
+    });
+
+    afterEach(() => {
+      addEventListenerSpy.mockRestore();
+      Object.defineProperty(document, 'readyState', {
+        value: originalReadyState,
+        writable: true
+      });
+    });
+
+    it('should add DOMContentLoaded listener when document is loading', () => {
+      // Patch document.readyState to 'loading'
+      Object.defineProperty(document, 'readyState', {
+        value: 'loading',
+        writable: true
+      });
+
+      const data = { addresses: ['addr1', 'addr2'], amounts: [100, 200] };
+      (mockRewardsClient.fetchAddAllocationsData as jest.Mock).mockResolvedValue(data);
+
+      addAllocationsComponent = new AddAllocationsComponent(mockRewardsClient, mockWalletManager);
+      addAllocationsComponent.bind(container);
+
+      // Should add event listener for DOMContentLoaded
+      expect(addEventListenerSpy).toHaveBeenCalledWith(
+        'DOMContentLoaded',
+        expect.any(Function)
+      );
+    });
+
+    it('should fetch data immediately when document is loaded', async () => {
+      // Patch document.readyState to 'complete'
+      Object.defineProperty(document, 'readyState', {
+        value: 'complete',
+        writable: true
+      });
+
+      const data = { addresses: ['addr1', 'addr2'], amounts: [100, 200] };
+      (mockRewardsClient.fetchAddAllocationsData as jest.Mock).mockResolvedValue(data);
+
+      addAllocationsComponent = new AddAllocationsComponent(mockRewardsClient, mockWalletManager);
+      addAllocationsComponent.bind(container);
+
+      // Should fetch data immediately (not add event listener)
+      expect(addEventListenerSpy).not.toHaveBeenCalledWith(
+        'DOMContentLoaded',
+        expect.any(Function)
+      );
+
+      await new Promise(process.nextTick);
+      expect(mockRewardsClient.fetchAddAllocationsData).toHaveBeenCalledWith('test-address');
+    });
+
+    it('should fetch data immediately when document is interactive', async () => {
+      // Patch document.readyState to 'interactive'
+      Object.defineProperty(document, 'readyState', {
+        value: 'interactive',
+        writable: true
+      });
+
+      const data = { addresses: ['addr1', 'addr2'], amounts: [100, 200] };
+      (mockRewardsClient.fetchAddAllocationsData as jest.Mock).mockResolvedValue(data);
+
+      addAllocationsComponent = new AddAllocationsComponent(mockRewardsClient, mockWalletManager);
+      addAllocationsComponent.bind(container);
+
+      // Should fetch data immediately (not add event listener)
+      expect(addEventListenerSpy).not.toHaveBeenCalledWith(
+        'DOMContentLoaded',
+        expect.any(Function)
+      );
+
+      await new Promise(process.nextTick);
+      expect(mockRewardsClient.fetchAddAllocationsData).toHaveBeenCalledWith('test-address');
+    });
+  });
+
 })

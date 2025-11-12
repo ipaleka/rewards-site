@@ -20,6 +20,7 @@ export class AddAllocationsComponent {
   private walletManager: WalletManager
   private addresses: string[] = []
   private amounts: number[] = []
+  private decimals: number = 6
 
   /**
    * Creates an instance of AddAllocationsComponent.
@@ -41,7 +42,12 @@ export class AddAllocationsComponent {
   bind(element: HTMLElement) {
     this.element = element
     this.addEventListeners()
-    this.fetchAllocationsData()
+    // Ensure the DOM is fully loaded before fetching data to ensure CSRF token is available
+    if (document.readyState === 'loading') {
+      document.addEventListener('DOMContentLoaded', () => this.fetchAllocationsData());
+    } else {
+      this.fetchAllocationsData();
+    }
   }
 
   /**
@@ -57,7 +63,6 @@ export class AddAllocationsComponent {
     if (!activeAddress) {
       this.addresses = []
       this.amounts = []
-      this.render()
       return
     }
 
@@ -70,10 +75,8 @@ export class AddAllocationsComponent {
         this.addresses = []
         this.amounts = []
       }
-      this.render()
     } catch (error) {
       console.error('[AddAllocationsComponent] Error fetching add allocations data:', error)
-      alert(`Failed to fetch allocations data: ${error instanceof Error ? error.message : String(error)}`)
     }
   }
 
@@ -88,27 +91,17 @@ export class AddAllocationsComponent {
   private async handleAddAllocations() {
     try {
       console.info('[AddAllocationsComponent] Initiating add allocations...')
-      await this.rewardsClient.addAllocations(this.addresses, this.amounts)
-      alert('Add allocations transaction sent successfully!')
-      // Re-fetch data after successful transaction
-      await this.fetchAllocationsData()
+      const addressesChunk = this.addresses.slice(0, 4)
+      const amountsChunk = this.amounts.slice(0, 4)
+      const result = await this.rewardsClient.addAllocations(addressesChunk, amountsChunk, this.decimals)
+      await this.rewardsClient.notifyAllocationsSuccessful(addressesChunk, result.txIDs)
+      location.reload()
     } catch (error) {
       console.error('[AddAllocationsComponent] Error during add allocations:', error)
       alert(`Add allocations failed: ${error instanceof Error ? error.message : String(error)}`)
     }
   }
 
-  /**
-   * Renders the current allocation data to the UI.
-   *
-   * Updates textareas and display elements with current addresses and amounts.
-   *
-   * @private
-   */
-  render() {
-    // No longer responsible for rendering the table, as it's now done by Django template.
-    // The data is still fetched and held in this.addresses and this.amounts for submission.
-  }
 
   /**
    * Adds event listeners for user interactions.
@@ -124,6 +117,8 @@ export class AddAllocationsComponent {
     this.element.addEventListener('click', (e: Event) => {
       const target = e.target as HTMLElement
       if (target.id === 'add-allocations-button') {
+        // No longer reading from textareas, using pre-populated data
+        // or data fetched after a successful transaction.
         this.handleAddAllocations()
       }
     })

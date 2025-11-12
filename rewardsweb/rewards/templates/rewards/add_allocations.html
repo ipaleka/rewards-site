@@ -58,6 +58,7 @@
 
   {% if allocations %}
   <div id="add-allocations-container">
+      {% csrf_token %}
       {% partial allocations_table_partial %}
   </div>
   {% else %}

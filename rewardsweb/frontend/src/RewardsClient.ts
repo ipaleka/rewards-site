@@ -2,10 +2,13 @@ import {
   AtomicTransactionComposer,
   ABIContract,
   makeAssetTransferTxnWithSuggestedParamsFromObject,
-  Algodv2
+  Algodv2,
+  getApplicationAddress,
+  decodeAddress
 } from 'algosdk'
-import { BaseWallet, WalletManager, NetworkId } from '@txnlab/use-wallet'
+import { WalletManager, NetworkId } from '@txnlab/use-wallet'
 import rewardsABI from '../../contract/artifacts/Rewards.arc56.json'
+import { Buffer } from 'buffer'
 
 /**
  * Client for interacting with the Rewards smart contract and backend API.
@@ -22,7 +25,6 @@ import rewardsABI from '../../contract/artifacts/Rewards.arc56.json'
  * ```
  */
 export class RewardsClient {
-  private wallet: BaseWallet
   private manager: WalletManager
   private algodClient: Algodv2
   private contract: ABIContract
@@ -34,8 +36,7 @@ export class RewardsClient {
    * @param wallet - The wallet instance for transaction signing
    * @param manager - The wallet manager for network and account management
    */
-  constructor(wallet: BaseWallet, manager: WalletManager) {
-    this.wallet = wallet
+  constructor(manager: WalletManager) {
     this.manager = manager
     this.algodClient = this.manager.algodClient
     this.contract = new ABIContract(rewardsABI as any)
@@ -43,7 +44,7 @@ export class RewardsClient {
     // Hardcoded App IDs for different networks
     this.rewardsAppIds = {
       [NetworkId.MAINNET]: 0, // TODO: Replace with your Mainnet App ID
-      [NetworkId.TESTNET]: 749240272, // TODO: Replace with your Testnet App ID
+      [NetworkId.TESTNET]: 749540906, // TODO: Replace with your Testnet App ID
     }
   }
 
@@ -69,6 +70,12 @@ export class RewardsClient {
     'X-CSRFToken': this.getCsrfToken()
   })
 
+  private boxNameFromAddress(address: string): Uint8Array {
+    const addressBytes = decodeAddress(address).publicKey;
+    const boxName = new Uint8Array(Buffer.concat([Buffer.from('allocations'), addressBytes]));
+    return boxName;
+  }
+
   /**
    * Adds allocations to multiple addresses with specified amounts.
    *
@@ -80,8 +87,8 @@ export class RewardsClient {
    * @returns The transaction result
    * @throws {Error} When no active account, arrays are empty, or arrays length mismatch
    */
-  public async addAllocations(addresses: string[], amounts: number[]) {
-    if (!this.wallet.activeAccount?.address) {
+  public async addAllocations(addresses: string[], amounts: number[], decimals: number) {
+    if (!this.manager.activeAccount?.address) {
       throw new Error('No active account selected.')
     }
     if (!addresses.length || addresses.length !== amounts.length) {
@@ -98,13 +105,44 @@ export class RewardsClient {
         throw new Error(`App ID not configured for network: ${currentNetwork}`)
       }
 
+      const appInfo = await this.algodClient.getApplicationByID(appId).do();
+      const globalState = appInfo.params.globalState;
+      if (!globalState || globalState.length === 0) {
+        throw new Error("Contract global state is empty or not found");
+      }
+      const tokenIdValue = globalState.find((state: any) => Buffer.from(state['key'], 'base64').toString('utf8') === 'token_id');
+      if (!tokenIdValue) {
+        throw new Error("token_id not found in contract's global state");
+      }
+      const tokenId = tokenIdValue['value']['uint'];
+
+      const microasaAmounts = amounts.map(amount => Math.floor(amount * (10 ** decimals)))
+      const totalAmount = microasaAmounts.reduce((sum, current) => sum + current, 0)
+
+      const fundingTxn = makeAssetTransferTxnWithSuggestedParamsFromObject({
+        sender: this.manager.activeAccount.address,
+        receiver: getApplicationAddress(appId),
+        amount: totalAmount,
+        assetIndex: tokenId,
+        suggestedParams: suggestedParams,
+      });
+
+      atc.addTransaction({ txn: fundingTxn, signer: this.manager.transactionSigner });
+
+      const boxes = addresses.map(addr => ({
+        appIndex: 0,
+        name: this.boxNameFromAddress(addr)
+      }));
+
       atc.addMethodCall({
         appID: appId,
         method: this.contract.getMethodByName('add_allocations'),
-        methodArgs: [addresses, amounts],
-        sender: this.wallet.activeAccount.address,
-        signer: this.wallet.transactionSigner,
-        suggestedParams
+        methodArgs: [addresses, microasaAmounts],
+        sender: this.manager.activeAccount.address,
+        signer: this.manager.transactionSigner,
+        suggestedParams,
+        boxes: boxes,
+        appForeignAssets: [tokenId]
       })
 
       const result = await atc.execute(this.algodClient, 4)
@@ -130,12 +168,17 @@ export class RewardsClient {
    * @throws {Error} When no active account or app ID not configured
    */
   public async reclaimAllocation(userAddress: string) {
-    if (!this.wallet.activeAccount?.address) {
+    if (!this.manager.activeAccount?.address) {
       throw new Error('No active account selected.')
     }
 
     try {
       const suggestedParams = await this.algodClient.getTransactionParams().do()
+
+      // Set higher fee like in Python version - use BigInt for fee
+      suggestedParams.flatFee = true
+      suggestedParams.fee = BigInt(2000) // Set fee to 2000 microAlgos like in Python
+
       const atc = new AtomicTransactionComposer()
       const currentNetwork = this.manager.activeNetwork as NetworkId
       const appId = this.rewardsAppIds[currentNetwork]
@@ -144,13 +187,32 @@ export class RewardsClient {
         throw new Error(`App ID not configured for network: ${currentNetwork}`)
       }
 
+      // Fetch the token_id from the contract's global state (needed for foreign_assets)
+      const appInfo = await this.algodClient.getApplicationByID(appId).do();
+      const globalState = appInfo.params.globalState;
+      if (!globalState || globalState.length === 0) {
+        throw new Error("Contract global state is empty or not found");
+      }
+      const tokenIdValue = globalState.find((state: any) => Buffer.from(state['key'], 'base64').toString('utf8') === 'token_id');
+      if (!tokenIdValue) {
+        throw new Error("token_id not found in contract's global state");
+      }
+      const tokenId = tokenIdValue['value']['uint'];
+
       atc.addMethodCall({
         appID: appId,
         method: this.contract.getMethodByName('reclaim_allocation'),
         methodArgs: [userAddress],
-        sender: this.wallet.activeAccount.address,
-        signer: this.wallet.transactionSigner,
-        suggestedParams
+        sender: this.manager.activeAccount.address,
+        signer: this.manager.transactionSigner,
+        suggestedParams,
+        boxes: [
+          {
+            appIndex: appId,
+            name: this.boxNameFromAddress(userAddress)
+          }
+        ],
+        appForeignAssets: [tokenId]
       })
 
       const result = await atc.execute(this.algodClient, 4)
@@ -158,7 +220,9 @@ export class RewardsClient {
         confirmedRound: result.confirmedRound,
         txIDs: result.txIDs
       })
-      return result
+
+      // Return the first transaction ID to match Python counterpart
+      return result.txIDs[0]
     } catch (error) {
       console.error('[RewardsClient] Error reclaiming allocation:', error)
       throw error
@@ -176,15 +240,15 @@ export class RewardsClient {
    * @throws {Error} When no active account, app ID not configured, or token_id not found
    */
   public async claim() {
-    if (!this.wallet.activeAccount?.address) {
+    if (!this.manager.activeAccount?.address) {
       throw new Error('No active account selected.')
     }
 
     try {
       const suggestedParams = await this.algodClient.getTransactionParams().do()
       const atc = new AtomicTransactionComposer()
-      const sender = this.wallet.activeAccount.address
-      const signer = this.wallet.transactionSigner
+      const sender = this.manager.activeAccount.address
+      const signer = this.manager.transactionSigner
       const currentNetwork = this.manager.activeNetwork as NetworkId
       const appId = this.rewardsAppIds[currentNetwork]
 
@@ -198,8 +262,7 @@ export class RewardsClient {
       if (!globalState || globalState.length === 0) {
         throw new Error("Contract global state is empty or not found");
       }
-      const tokenIdEncoded = btoa('token_id');
-      const tokenIdValue = globalState.find((state: any) => state['key'] === tokenIdEncoded);
+      const tokenIdValue = globalState.find((state: any) => Buffer.from(state['key'], 'base64').toString('utf8') === 'token_id');
       if (!tokenIdValue) {
         throw new Error("token_id not found in contract's global state");
       }
@@ -283,6 +346,58 @@ export class RewardsClient {
     } catch (error) {
       console.error('[RewardsClient] Error sending user claimed:', error)
       throw error
+    }
+  }
+
+  /**
+   * Notifies the backend about successful add allocations transactions
+   * @param addresses - Array of public addresses
+   * @param txIDs - The transaction IDs from the add alolocations operation
+   */
+  public async notifyAllocationsSuccessful(addresses: string[], txIDs: string[]): Promise<{ success: boolean }> {
+    try {
+      const response = await fetch('/api/wallet/allocations-successful/', {
+        method: 'POST',
+        headers: this.getHeaders(),
+        body: JSON.stringify({ addresses, txIDs })
+      })
+      if (!response.ok) {
+        throw new Error(`HTTP error! status: ${response.status}`)
+      }
+      const data = await response.json()
+      return data
+    } catch (error) {
+      console.error('[RewardsClient] Error notifying allocations successful:', error)
+      throw error
+    }
+  }
+
+  /**
+   * Notifies the backend about successful reclaim allocation transactions
+   * @param address - The address that was reclaimed from
+   * @param txIDs - The transaction IDs from the reclaim operation
+   */
+  async notifyReclaimSuccessful(address: string, txIDs: string[]): Promise<void> {
+    const csrfToken = this.getCsrfToken()
+    if (!csrfToken) {
+      throw new Error('CSRF token not found')
+    }
+
+    const response = await fetch('/api/wallet/reclaim-successful/', {
+      method: 'POST',
+      headers: {
+        'Content-Type': 'application/json',
+        'X-CSRFToken': csrfToken,
+      },
+      body: JSON.stringify({
+        address: address,
+        txIDs: txIDs
+      }),
+    })
+
+    if (!response.ok) {
+      const errorText = await response.text()
+      throw new Error(`Failed to notify reclaim success: ${response.status} ${errorText}`)
     }
   }
 

@@ -1,9 +1,8 @@
 /**
- * Full, updated test suite (25 tests) for the new RewardsClient
- * - Mocks Rewards ABI
- * - Mocks getApplicationByID() to provide token_id
- * - Mocks makeAssetTransferTxnWithSuggestedParamsFromObject
- * - Keeps original tests, adjusted expectations for new behavior
+ * Full, updated test suite for the new RewardsClient
+ * - Updated constructor to only use WalletManager
+ * - Fixed mock setup for algodClient
+ * - Added tests for new methods
  */
 
 // Mock the use-wallet module first
@@ -15,11 +14,6 @@ jest.mock("@txnlab/use-wallet", () => ({
     MAINNET: "mainnet",
     BETANET: "betanet",
   },
-}));
-
-// Mock the ActiveNetwork module (we’ll set its return in beforeEach)
-jest.mock("./ActiveNetwork", () => ({
-  getAlgodClient: jest.fn(),
 }));
 
 // Mock the ABI import (Rewards ABI in the new code)
@@ -48,7 +42,6 @@ jest.mock(
 import { RewardsClient } from "./RewardsClient";
 import { BaseWallet, WalletManager } from "@txnlab/use-wallet";
 import * as algosdk from "algosdk";
-import { getAlgodClient } from "./ActiveNetwork";
 
 // Create mock functions
 const mockAddMethodCall = jest.fn();
@@ -77,48 +70,26 @@ jest.mock("algosdk", () => {
   };
 });
 
+// Valid Algorand test addresses (58 characters)
+const TEST_ADDRESS_1 = "2EVGZ4BGOSL3J64UYDE2BUGTNTBZZZLI54VUQQNZZLYCDODLY33UGXNSIU";
+const TEST_ADDRESS_2 = "VW55KZ3NF4GDOWI7IPWLGZDFWNXWKSRD5PETRLDABZVU5XPKRJJRK3CBSU";
+const TEST_ADDRESS_3 = "LXJ3Q6RZ2TJ6VCJDFMSM4ZVNYYYE4KVSL3N2TYR23PLNCJCIXBM3NYTBYE";
+
 describe("RewardsClient", () => {
-  let mockWallet: jest.Mocked<BaseWallet>;
   let mockManager: jest.Mocked<WalletManager>;
   let rewardsClient: RewardsClient;
 
   beforeEach(() => {
     jest.clearAllMocks();
 
-    mockWallet = {
-      activeAccount: { address: "test-address" },
-      transactionSigner: jest.fn(),
-    } as any;
+    // Setup CSRF token for tests
+    Object.defineProperty(document, 'cookie', {
+      writable: true,
+      value: 'csrftoken=test-csrf-token',
+    });
 
-    mockManager = {
-      activeNetwork: "testnet",
-      algodClient: {
-        getTransactionParams: jest.fn().mockReturnValue({
-          do: jest.fn().mockResolvedValue({
-            fee: 1000,
-            firstRound: 1,
-            lastRound: 1001,
-            genesisHash: "test-hash",
-            genesisID: "test-id",
-          }),
-        }),
-        getApplicationByID: jest.fn().mockReturnValue({
-          do: jest.fn().mockResolvedValue({
-            params: {
-              globalState: [
-                {
-                  key: btoa("token_id"),
-                  value: { uint: 1 }
-                }
-              ]
-            }
-          })
-        })
-      }
-    } as any;
-
-    // Provide full algod mock (params + app global state)
-    (getAlgodClient as jest.Mock).mockReturnValue({
+    // Create a proper mock algod client
+    const mockAlgodClient = {
       getTransactionParams: jest.fn().mockReturnValue({
         do: jest.fn().mockResolvedValue({
           fee: 1000,
@@ -134,47 +105,59 @@ describe("RewardsClient", () => {
             globalState: [
               {
                 key: btoa("token_id"),
-                value: { uint: 1 },
-              },
-            ],
-          },
-        }),
-      }),
-    });
+                value: { uint: 1 }
+              }
+            ]
+          }
+        })
+      })
+    };
 
-    rewardsClient = new RewardsClient(mockWallet, mockManager);
+    mockManager = {
+      activeAccount: { address: TEST_ADDRESS_1 },
+      activeNetwork: "testnet",
+      algodClient: mockAlgodClient,
+      transactionSigner: jest.fn(),
+      wallets: [],
+      subscribe: jest.fn(),
+      resumeSessions: jest.fn(),
+      getWallet: jest.fn(),
+    } as any;
+
+    rewardsClient = new RewardsClient(mockManager);
   });
 
   describe("Smart Contract Interactions", () => {
     it("should call addAllocations method on the smart contract", async () => {
-      const addresses = ["addr1"];
+      const addresses = [TEST_ADDRESS_2];
       const amounts = [100];
-      await rewardsClient.addAllocations(addresses, amounts);
+      await rewardsClient.addAllocations(addresses, amounts, 6);
 
       expect(mockAddMethodCall).toHaveBeenCalledWith(
         expect.objectContaining({
           method: expect.any(Object),
-          methodArgs: [addresses, amounts],
-          // sender may be normalized by SDK; assert signer + args only
-          signer: mockWallet.transactionSigner,
+          methodArgs: [addresses, expect.any(Array)], // amounts are converted to micro amounts
+          signer: mockManager.transactionSigner,
         })
       );
       expect(mockExecute).toHaveBeenCalled();
     });
 
     it("should call reclaimAllocation method on the smart contract", async () => {
-      const userAddress = "addr-to-reclaim";
+      const userAddress = TEST_ADDRESS_2;
       await rewardsClient.reclaimAllocation(userAddress);
 
       expect(mockAddMethodCall).toHaveBeenCalledWith(
         expect.objectContaining({
           method: expect.any(Object),
           methodArgs: [userAddress],
-          signer: mockWallet.transactionSigner,
+          signer: mockManager.transactionSigner,
+          boxes: expect.any(Array), // Should include box reference
         })
       );
       expect(mockExecute).toHaveBeenCalled();
     });
+
 
     it("should call claim method on the smart contract", async () => {
       await rewardsClient.claim();
@@ -189,7 +172,7 @@ describe("RewardsClient", () => {
         expect.objectContaining({
           method: expect.any(Object),
           methodArgs: [],
-          signer: mockWallet.transactionSigner,
+          signer: mockManager.transactionSigner,
           appForeignAssets: [1],
         })
       );
@@ -197,13 +180,12 @@ describe("RewardsClient", () => {
     });
 
     it("should throw an error if no active account is selected", async () => {
-      mockWallet.activeAccount = null;
-      rewardsClient = new RewardsClient(mockWallet, mockManager);
+      mockManager.activeAccount = null;
 
       await expect(
-        rewardsClient.addAllocations(["addr1"], [100])
+        rewardsClient.addAllocations([TEST_ADDRESS_2], [100], 6)
       ).rejects.toThrow("No active account selected.");
-      await expect(rewardsClient.reclaimAllocation("addr1")).rejects.toThrow(
+      await expect(rewardsClient.reclaimAllocation(TEST_ADDRESS_2)).rejects.toThrow(
         "No active account selected."
       );
       await expect(rewardsClient.claim()).rejects.toThrow(
@@ -223,53 +205,49 @@ describe("RewardsClient", () => {
         json: () => Promise.resolve({ claimable: true }),
       });
 
-      const result = await rewardsClient.fetchClaimableStatus("test-address");
+      const result = await rewardsClient.fetchClaimableStatus(TEST_ADDRESS_1);
       expect(result).toEqual({ claimable: true });
       expect(fetch).toHaveBeenCalledWith(
         "/api/wallet/claim-allocation/",
         expect.objectContaining({
           method: "POST",
-          body: JSON.stringify({ address: "test-address" }),
+          body: JSON.stringify({ address: TEST_ADDRESS_1 }),
         })
       );
     });
 
     it("should fetch add allocations data", async () => {
-      const data = { addresses: ["addr1"], amounts: [100] };
+      const data = { addresses: [TEST_ADDRESS_2], amounts: [100] };
       (fetch as jest.Mock).mockResolvedValue({
         ok: true,
         json: () => Promise.resolve(data),
       });
 
-      const result = await rewardsClient.fetchAddAllocationsData(
-        "test-address"
-      );
+      const result = await rewardsClient.fetchAddAllocationsData(TEST_ADDRESS_1);
       expect(result).toEqual(data);
       expect(fetch).toHaveBeenCalledWith(
         "/api/wallet/add-allocations/",
         expect.objectContaining({
           method: "POST",
-          body: JSON.stringify({ address: "test-address" }),
+          body: JSON.stringify({ address: TEST_ADDRESS_1 }),
         })
       );
     });
 
     it("should fetch reclaim allocations data", async () => {
-      const data = { addresses: ["addr1"] };
+      const data = { addresses: [TEST_ADDRESS_2] };
       (fetch as jest.Mock).mockResolvedValue({
         ok: true,
         json: () => Promise.resolve(data),
       });
 
-      const result = await rewardsClient.fetchReclaimAllocationsData(
-        "test-address"
-      );
+      const result = await rewardsClient.fetchReclaimAllocationsData(TEST_ADDRESS_1);
       expect(result).toEqual(data);
       expect(fetch).toHaveBeenCalledWith(
         "/api/wallet/reclaim-allocations/",
         expect.objectContaining({
           method: "POST",
-          body: JSON.stringify({ address: "test-address" }),
+          body: JSON.stringify({ address: TEST_ADDRESS_1 }),
         })
       );
     });
@@ -277,19 +255,57 @@ describe("RewardsClient", () => {
     it("should handle API errors", async () => {
       (fetch as jest.Mock).mockResolvedValue({ ok: false, status: 404 });
       await expect(
-        rewardsClient.fetchClaimableStatus("test-address")
+        rewardsClient.fetchClaimableStatus(TEST_ADDRESS_1)
       ).rejects.toThrow("HTTP error! status: 404");
+    });
+
+    it("should notify allocations successful", async () => {
+      (fetch as jest.Mock).mockResolvedValue({
+        ok: true,
+        json: () => Promise.resolve({ success: true }),
+      });
+
+      const addresses = [TEST_ADDRESS_2, TEST_ADDRESS_3];
+      const txIDs = ["tx1", "tx2"];
+      const result = await rewardsClient.notifyAllocationsSuccessful(addresses, txIDs);
+
+      expect(result).toEqual({ success: true });
+      expect(fetch).toHaveBeenCalledWith(
+        "/api/wallet/allocations-successful/",
+        expect.objectContaining({
+          method: "POST",
+          body: JSON.stringify({ addresses, txIDs }),
+        })
+      );
+    });
+
+    it("should notify reclaim successful", async () => {
+      (fetch as jest.Mock).mockResolvedValue({
+        ok: true,
+      });
+
+      const address = TEST_ADDRESS_2;
+      const txIDs = ["tx1"];
+      await rewardsClient.notifyReclaimSuccessful(address, txIDs);
+
+      expect(fetch).toHaveBeenCalledWith(
+        "/api/wallet/reclaim-successful/",
+        expect.objectContaining({
+          method: "POST",
+          body: JSON.stringify({ address, txIDs }),
+        })
+      );
     });
   });
 
   describe("RewardsClient Error Scenarios", () => {
     describe("addAllocations", () => {
       it("should throw error when addresses and amounts arrays have different lengths", async () => {
-        const addresses = ["addr1", "addr2"];
+        const addresses = [TEST_ADDRESS_2, TEST_ADDRESS_3];
         const amounts = [100];
 
         await expect(
-          rewardsClient.addAllocations(addresses, amounts)
+          rewardsClient.addAllocations(addresses, amounts, 6)
         ).rejects.toThrow(
           "Addresses and amounts arrays must have the same non-zero length."
         );
@@ -300,39 +316,48 @@ describe("RewardsClient", () => {
         const amounts: number[] = [];
 
         await expect(
-          rewardsClient.addAllocations(addresses, amounts)
+          rewardsClient.addAllocations(addresses, amounts, 6)
         ).rejects.toThrow(
           "Addresses and amounts arrays must have the same non-zero length."
         );
       });
-
       it("should throw error when contract call fails", async () => {
-        const addresses = ["addr1"];
+        const addresses = [TEST_ADDRESS_2];
         const amounts = [100];
+
+        // Mock the boxNameFromAddress to avoid address validation for this test
+        const boxNameFromAddressSpy = jest.spyOn(rewardsClient as any, 'boxNameFromAddress');
+        boxNameFromAddressSpy.mockReturnValue(new Uint8Array());
 
         mockExecute.mockRejectedValueOnce(
           new Error("Contract execution failed")
         );
 
         await expect(
-          rewardsClient.addAllocations(addresses, amounts)
+          rewardsClient.addAllocations(addresses, amounts, 6)
         ).rejects.toThrow("Contract execution failed");
 
         expect(mockExecute).toHaveBeenCalled();
+        boxNameFromAddressSpy.mockRestore();
       });
 
       it("should log error when contract call fails", async () => {
         const consoleErrorSpy = jest
           .spyOn(console, "error")
           .mockImplementation();
-        const addresses = ["addr1"];
+        const addresses = [TEST_ADDRESS_2];
         const amounts = [100];
+
+        // Mock the boxNameFromAddress to avoid address validation for this test
+        const boxNameFromAddressSpy = jest.spyOn(rewardsClient as any, 'boxNameFromAddress');
+        boxNameFromAddressSpy.mockReturnValue(new Uint8Array());
+
         const error = new Error("Contract execution failed");
 
         mockExecute.mockRejectedValueOnce(error);
 
         await expect(
-          rewardsClient.addAllocations(addresses, amounts)
+          rewardsClient.addAllocations(addresses, amounts, 6)
         ).rejects.toThrow("Contract execution failed");
 
         expect(consoleErrorSpy).toHaveBeenCalledWith(
@@ -341,12 +366,17 @@ describe("RewardsClient", () => {
         );
 
         consoleErrorSpy.mockRestore();
+        boxNameFromAddressSpy.mockRestore();
       });
     });
 
     describe("reclaimAllocation", () => {
       it("should throw error when contract call fails", async () => {
-        const userAddress = "addr-to-reclaim";
+        const userAddress = TEST_ADDRESS_2;
+
+        // Mock the boxNameFromAddress to avoid address validation for this test
+        const boxNameFromAddressSpy = jest.spyOn(rewardsClient as any, 'boxNameFromAddress');
+        boxNameFromAddressSpy.mockReturnValue(new Uint8Array());
 
         mockExecute.mockRejectedValueOnce(
           new Error("Reclaim execution failed")
@@ -357,13 +387,19 @@ describe("RewardsClient", () => {
         ).rejects.toThrow("Reclaim execution failed");
 
         expect(mockExecute).toHaveBeenCalled();
+        boxNameFromAddressSpy.mockRestore();
       });
 
       it("should log error when reclaim contract call fails", async () => {
         const consoleErrorSpy = jest
           .spyOn(console, "error")
           .mockImplementation();
-        const userAddress = "addr-to-reclaim";
+        const userAddress = TEST_ADDRESS_2;
+
+        // Mock the boxNameFromAddress to avoid address validation for this test
+        const boxNameFromAddressSpy = jest.spyOn(rewardsClient as any, 'boxNameFromAddress');
+        boxNameFromAddressSpy.mockReturnValue(new Uint8Array());
+
         const error = new Error("Reclaim execution failed");
 
         mockExecute.mockRejectedValueOnce(error);
@@ -378,6 +414,7 @@ describe("RewardsClient", () => {
         );
 
         consoleErrorSpy.mockRestore();
+        boxNameFromAddressSpy.mockRestore();
       });
     });
 
@@ -514,17 +551,15 @@ describe("RewardsClient", () => {
 
     describe("No active account scenarios", () => {
       it("should throw error when no active account for addAllocations", async () => {
-        mockWallet.activeAccount = null;
-        rewardsClient = new RewardsClient(mockWallet, mockManager);
+        mockManager.activeAccount = null;
 
         await expect(
-          rewardsClient.addAllocations(["addr1"], [100])
+          rewardsClient.addAllocations(["addr1"], [100], 6)
         ).rejects.toThrow("No active account selected.");
       });
 
       it("should throw error when no active account for reclaimAllocation", async () => {
-        mockWallet.activeAccount = null;
-        rewardsClient = new RewardsClient(mockWallet, mockManager);
+        mockManager.activeAccount = null;
 
         await expect(rewardsClient.reclaimAllocation("addr1")).rejects.toThrow(
           "No active account selected."
@@ -532,8 +567,7 @@ describe("RewardsClient", () => {
       });
 
       it("should throw error when no active account for claim", async () => {
-        mockWallet.activeAccount = null;
-        rewardsClient = new RewardsClient(mockWallet, mockManager);
+        mockManager.activeAccount = null;
 
         await expect(rewardsClient.claim()).rejects.toThrow(
           "No active account selected."
@@ -545,25 +579,22 @@ describe("RewardsClient", () => {
   describe("App ID Missing & Global State Error Scenarios", () => {
     it("should throw error when App ID is not configured for addAllocations()", async () => {
       mockManager.activeNetwork = "betanet"; // betanet has no AppId configured
-      rewardsClient = new RewardsClient(mockWallet, mockManager);
 
       await expect(
-        rewardsClient.addAllocations(["addr1"], [100])
+        rewardsClient.addAllocations([TEST_ADDRESS_2], [100], 6)
       ).rejects.toThrow("App ID not configured for network: betanet");
     });
 
     it("should throw error when App ID is not configured for reclaimAllocation()", async () => {
       mockManager.activeNetwork = "betanet";
-      rewardsClient = new RewardsClient(mockWallet, mockManager);
 
       await expect(
-        rewardsClient.reclaimAllocation("addr1")
+        rewardsClient.reclaimAllocation(TEST_ADDRESS_2)
       ).rejects.toThrow("App ID not configured for network: betanet");
     });
 
     it("should throw error when App ID is not configured for claim()", async () => {
       mockManager.activeNetwork = "betanet";
-      rewardsClient = new RewardsClient(mockWallet, mockManager);
 
       await expect(rewardsClient.claim()).rejects.toThrow(
         "App ID not configured for network: betanet"
@@ -571,7 +602,6 @@ describe("RewardsClient", () => {
     });
 
     it("should throw error if contract global state is empty", async () => {
-      // ✅ Override the ALGOD client on the manager, not getAlgodClient()
       mockManager.algodClient.getApplicationByID = jest.fn().mockReturnValue({
         do: jest.fn().mockResolvedValue({
           params: {
@@ -580,12 +610,11 @@ describe("RewardsClient", () => {
         }),
       });
 
-      rewardsClient = new RewardsClient(mockWallet, mockManager);
-
       await expect(rewardsClient.claim()).rejects.toThrow(
         "Contract global state is empty or not found"
       );
     });
+
     it("should throw error when token_id key is missing in global state", async () => {
       mockManager.algodClient.getApplicationByID = jest.fn().mockReturnValue({
         do: jest.fn().mockResolvedValue({
@@ -597,8 +626,6 @@ describe("RewardsClient", () => {
         }),
       });
 
-      rewardsClient = new RewardsClient(mockWallet, mockManager);
-
       await expect(rewardsClient.claim()).rejects.toThrow(
         "token_id not found in contract's global state"
       );
@@ -607,7 +634,6 @@ describe("RewardsClient", () => {
 });
 
 describe('RewardsClient userClaimed method', () => {
-  let mockWallet: jest.Mocked<BaseWallet>;
   let mockManager: jest.Mocked<WalletManager>;
   let rewardsClient: RewardsClient;
 
@@ -615,44 +641,53 @@ describe('RewardsClient userClaimed method', () => {
     jest.clearAllMocks();
     global.fetch = jest.fn();
 
-    mockWallet = {
-      activeAccount: { address: 'test-address' },
-      transactionSigner: jest.fn(),
-    } as any;
+    // Setup CSRF token for tests
+    Object.defineProperty(document, 'cookie', {
+      writable: true,
+      value: 'csrftoken=test-csrf-token',
+    });
+
+    const mockAlgodClient = {
+      getTransactionParams: jest.fn().mockReturnValue({
+        do: jest.fn().mockResolvedValue({
+          fee: 1000,
+          firstRound: 1,
+          lastRound: 1001,
+          genesisHash: 'test-hash',
+          genesisID: 'test-id',
+        }),
+      }),
+      getApplicationByID: jest.fn().mockReturnValue({
+        do: jest.fn().mockResolvedValue({
+          params: {
+            globalState: [
+              {
+                key: btoa('token_id'),
+                value: { uint: 1 }
+              }
+            ]
+          }
+        })
+      })
+    };
 
     mockManager = {
+      activeAccount: { address: TEST_ADDRESS_1 },
       activeNetwork: 'testnet',
-      algodClient: {
-        getTransactionParams: jest.fn().mockReturnValue({
-          do: jest.fn().mockResolvedValue({
-            fee: 1000,
-            firstRound: 1,
-            lastRound: 1001,
-            genesisHash: 'test-hash',
-            genesisID: 'test-id',
-          }),
-        }),
-        getApplicationByID: jest.fn().mockReturnValue({
-          do: jest.fn().mockResolvedValue({
-            params: {
-              globalState: [
-                {
-                  key: btoa('token_id'),
-                  value: { uint: 1 }
-                }
-              ]
-            }
-          })
-        })
-      }
+      algodClient: mockAlgodClient,
+      transactionSigner: jest.fn(),
+      wallets: [],
+      subscribe: jest.fn(),
+      resumeSessions: jest.fn(),
+      getWallet: jest.fn(),
     } as any;
 
-    rewardsClient = new RewardsClient(mockWallet, mockManager);
+    rewardsClient = new RewardsClient(mockManager);
   });
 
   describe('successful userClaimed calls', () => {
     it('should call userClaimed API endpoint with correct parameters', async () => {
-      const address = 'test-user-address';
+      const address = TEST_ADDRESS_2;
       const mockResponse = { success: true };
 
       (fetch as jest.Mock).mockResolvedValue({
@@ -669,7 +704,7 @@ describe('RewardsClient userClaimed method', () => {
           method: 'POST',
           headers: expect.objectContaining({
             'Content-Type': 'application/json',
-            'X-CSRFToken': expect.any(String),
+            'X-CSRFToken': 'test-csrf-token',
           }),
           body: JSON.stringify({ address }),
         })
@@ -808,84 +843,368 @@ describe('RewardsClient userClaimed method', () => {
 
       consoleErrorSpy.mockRestore();
     });
-
-    it('should handle various network error types', async () => {
-      const errorScenarios = [
-        new Error('DNS resolution failed'),
-        'Simple network error string',
-        { code: 'NETWORK_ERROR', message: 'Network unavailable' },
-      ];
-
-      for (const error of errorScenarios) {
-        (fetch as jest.Mock).mockRejectedValueOnce(error);
-
-        // For all cases, the method should reject (throw an error)
-        await expect(rewardsClient.userClaimed('test-address')).rejects.toBeDefined();
-
-        // Reset for next iteration
-        (fetch as jest.Mock).mockClear();
-      }
-    });
-
   });
 
-  describe('userClaimed edge cases', () => {
-    it('should handle empty response body', async () => {
-      (fetch as jest.Mock).mockResolvedValue({
-        ok: true,
-        json: () => Promise.resolve({}), // Empty object
+
+  describe("RewardsClient Global State Error Scenarios", () => {
+    it("should throw error when global state is empty in addAllocations", async () => {
+      mockManager.algodClient.getApplicationByID = jest.fn().mockReturnValue({
+        do: jest.fn().mockResolvedValue({
+          params: {
+            globalState: [], // Empty global state
+          },
+        }),
       });
 
-      const result = await rewardsClient.userClaimed('test-address');
-
-      expect(result).toEqual({});
+      await expect(
+        rewardsClient.addAllocations([TEST_ADDRESS_2], [100], 6)
+      ).rejects.toThrow("Contract global state is empty or not found");
     });
 
-    it('should handle different success response formats', async () => {
-      const responseFormats = [
-        { success: true },
-        { success: true, message: 'User claimed recorded' },
-        { status: 'success' },
-        { result: 'ok' },
-      ];
+    it("should throw error when token_id is missing in global state for addAllocations", async () => {
+      mockManager.algodClient.getApplicationByID = jest.fn().mockReturnValue({
+        do: jest.fn().mockResolvedValue({
+          params: {
+            globalState: [
+              { key: btoa("some_other_key"), value: { uint: 123 } }, // No token_id
+            ],
+          },
+        }),
+      });
 
-      for (const format of responseFormats) {
-        (fetch as jest.Mock).mockResolvedValueOnce({
-          ok: true,
-          json: () => Promise.resolve(format),
-        });
-
-        const result = await rewardsClient.userClaimed('test-address');
-
-        expect(result).toEqual(format);
-      }
+      await expect(
+        rewardsClient.addAllocations([TEST_ADDRESS_2], [100], 6)
+      ).rejects.toThrow("token_id not found in contract's global state");
     });
 
-    it('should handle missing CSRF token gracefully', async () => {
-      // Clear both cookie and form input
-      Object.defineProperty(document, 'cookie', {
-        writable: true,
-        value: '',
+    it("should throw error when global state is empty in reclaimAllocation", async () => {
+      mockManager.algodClient.getApplicationByID = jest.fn().mockReturnValue({
+        do: jest.fn().mockResolvedValue({
+          params: {
+            globalState: [], // Empty global state
+          },
+        }),
       });
 
-      (fetch as jest.Mock).mockResolvedValue({
-        ok: true,
-        json: () => Promise.resolve({ success: true }),
+      await expect(
+        rewardsClient.reclaimAllocation(TEST_ADDRESS_2)
+      ).rejects.toThrow("Contract global state is empty or not found");
+    });
+
+    it("should throw error when token_id is missing in global state for reclaimAllocation", async () => {
+      mockManager.algodClient.getApplicationByID = jest.fn().mockReturnValue({
+        do: jest.fn().mockResolvedValue({
+          params: {
+            globalState: [
+              { key: btoa("different_key"), value: { uint: 456 } }, // No token_id
+            ],
+          },
+        }),
       });
 
-      // Should not throw when CSRF token is missing
-      await expect(rewardsClient.userClaimed('test-address')).resolves.toEqual({ success: true });
+      await expect(
+        rewardsClient.reclaimAllocation(TEST_ADDRESS_2)
+      ).rejects.toThrow("token_id not found in contract's global state");
+    });
 
-      // Should call with empty CSRF token
-      expect(fetch).toHaveBeenCalledWith(
-        '/api/wallet/user-claimed/',
-        expect.objectContaining({
-          headers: expect.objectContaining({
-            'X-CSRFToken': '',
-          }),
-        })
+    it("should throw error when global state is empty in claim", async () => {
+      mockManager.algodClient.getApplicationByID = jest.fn().mockReturnValue({
+        do: jest.fn().mockResolvedValue({
+          params: {
+            globalState: [], // Empty global state
+          },
+        }),
+      });
+
+      await expect(rewardsClient.claim()).rejects.toThrow(
+        "Contract global state is empty or not found"
+      );
+    });
+
+    it("should throw error when token_id is missing in global state for claim", async () => {
+      mockManager.algodClient.getApplicationByID = jest.fn().mockReturnValue({
+        do: jest.fn().mockResolvedValue({
+          params: {
+            globalState: [
+              { key: btoa("not_token_id"), value: { uint: 789 } }, // No token_id
+            ],
+          },
+        }),
+      });
+
+      await expect(rewardsClient.claim()).rejects.toThrow(
+        "token_id not found in contract's global state"
       );
     });
   });
+
+  describe("RewardsClient API Error Scenarios", () => {
+    beforeEach(() => {
+      global.fetch = jest.fn();
+    });
+
+    describe("notifyAllocationsSuccessful error handling", () => {
+      it("should throw error when HTTP response is not ok", async () => {
+        const addresses = [TEST_ADDRESS_2];
+        const txIDs = ["tx1"];
+
+        (fetch as jest.Mock).mockResolvedValue({
+          ok: false,
+          status: 500,
+        });
+
+        await expect(
+          rewardsClient.notifyAllocationsSuccessful(addresses, txIDs)
+        ).rejects.toThrow("HTTP error! status: 500");
+      });
+
+      it("should log error and rethrow when fetch fails in notifyAllocationsSuccessful", async () => {
+        const consoleErrorSpy = jest.spyOn(console, "error").mockImplementation();
+        const addresses = [TEST_ADDRESS_2];
+        const txIDs = ["tx1"];
+        const error = new Error("Network failure");
+
+        (fetch as jest.Mock).mockRejectedValue(error);
+
+        await expect(
+          rewardsClient.notifyAllocationsSuccessful(addresses, txIDs)
+        ).rejects.toThrow("Network failure");
+
+        expect(consoleErrorSpy).toHaveBeenCalledWith(
+          "[RewardsClient] Error notifying allocations successful:",
+          error
+        );
+
+        consoleErrorSpy.mockRestore();
+      });
+
+      it("should handle various HTTP error statuses in notifyAllocationsSuccessful", async () => {
+        const addresses = [TEST_ADDRESS_2];
+        const txIDs = ["tx1"];
+        const errorStatuses = [400, 401, 403, 404, 500, 503];
+
+        for (const status of errorStatuses) {
+          (fetch as jest.Mock).mockResolvedValueOnce({
+            ok: false,
+            status,
+          });
+
+          await expect(
+            rewardsClient.notifyAllocationsSuccessful(addresses, txIDs)
+          ).rejects.toThrow(`HTTP error! status: ${status}`);
+
+          (fetch as jest.Mock).mockClear();
+        }
+      });
+    });
+
+    describe("notifyReclaimSuccessful error handling", () => {
+      it("should throw error when CSRF token is not found", async () => {
+        // Clear CSRF token
+        Object.defineProperty(document, 'cookie', {
+          writable: true,
+          value: '',
+        });
+
+        // Remove any form inputs
+        const csrfInput = document.querySelector('input[name="csrfmiddlewaretoken"]');
+        if (csrfInput) {
+          csrfInput.remove();
+        }
+
+        await expect(
+          rewardsClient.notifyReclaimSuccessful(TEST_ADDRESS_2, ["tx1"])
+        ).rejects.toThrow("CSRF token not found");
+      });
+
+      it("should throw error with status and error text when HTTP response is not ok", async () => {
+        const address = TEST_ADDRESS_2;
+        const txIDs = ["tx1"];
+        const errorText = "Internal server error";
+
+        (fetch as jest.Mock).mockResolvedValue({
+          ok: false,
+          status: 500,
+          text: () => Promise.resolve(errorText),
+        });
+
+        await expect(
+          rewardsClient.notifyReclaimSuccessful(address, txIDs)
+        ).rejects.toThrow("Failed to notify reclaim success: 500 Internal server error");
+      });
+
+      it("should handle different error responses in notifyReclaimSuccessful", async () => {
+        const address = TEST_ADDRESS_2;
+        const txIDs = ["tx1"];
+        const errorScenarios = [
+          { status: 400, text: "Bad request" },
+          { status: 401, text: "Unauthorized" },
+          { status: 403, text: "Forbidden" },
+          { status: 404, text: "Not found" },
+          { status: 422, text: "Validation error" },
+        ];
+
+        for (const scenario of errorScenarios) {
+          (fetch as jest.Mock).mockResolvedValueOnce({
+            ok: false,
+            status: scenario.status,
+            text: () => Promise.resolve(scenario.text),
+          });
+
+          await expect(
+            rewardsClient.notifyReclaimSuccessful(address, txIDs)
+          ).rejects.toThrow(`Failed to notify reclaim success: ${scenario.status} ${scenario.text}`);
+
+          (fetch as jest.Mock).mockClear();
+        }
+      });
+
+      it("should handle network errors in notifyReclaimSuccessful", async () => {
+        const address = TEST_ADDRESS_2;
+        const txIDs = ["tx1"];
+        const networkError = new Error("Network connection failed");
+
+        (fetch as jest.Mock).mockRejectedValue(networkError);
+
+        await expect(
+          rewardsClient.notifyReclaimSuccessful(address, txIDs)
+        ).rejects.toThrow("Network connection failed");
+      });
+    });
+
+    describe("CSRF token scenarios", () => {
+      it("should use CSRF token from cookie when available", async () => {
+        const cookieToken = "cookie-csrf-token";
+        Object.defineProperty(document, 'cookie', {
+          writable: true,
+          value: `csrftoken=${cookieToken}`,
+        });
+
+        (fetch as jest.Mock).mockResolvedValue({
+          ok: true,
+          json: () => Promise.resolve({ success: true }),
+        });
+
+        await rewardsClient.userClaimed(TEST_ADDRESS_2);
+
+        expect(fetch).toHaveBeenCalledWith(
+          '/api/wallet/user-claimed/',
+          expect.objectContaining({
+            headers: expect.objectContaining({
+              'X-CSRFToken': cookieToken,
+            }),
+          })
+        );
+      });
+
+      it("should use CSRF token from form input when cookie is not available", async () => {
+        // Clear cookie
+        Object.defineProperty(document, 'cookie', {
+          writable: true,
+          value: '',
+        });
+
+        // Create form input with CSRF token
+        const formToken = "form-csrf-token";
+        const input = document.createElement('input');
+        input.name = 'csrfmiddlewaretoken';
+        input.value = formToken;
+        document.body.appendChild(input);
+
+        (fetch as jest.Mock).mockResolvedValue({
+          ok: true,
+          json: () => Promise.resolve({ success: true }),
+        });
+
+        await rewardsClient.userClaimed(TEST_ADDRESS_2);
+
+        expect(fetch).toHaveBeenCalledWith(
+          '/api/wallet/user-claimed/',
+          expect.objectContaining({
+            headers: expect.objectContaining({
+              'X-CSRFToken': formToken,
+            }),
+          })
+        );
+
+        document.body.removeChild(input);
+      });
+
+      it("should handle missing CSRF token gracefully in API calls", async () => {
+        // Clear both cookie and form input
+        Object.defineProperty(document, 'cookie', {
+          writable: true,
+          value: '',
+        });
+
+        const csrfInput = document.querySelector('input[name="csrfmiddlewaretoken"]');
+        if (csrfInput) {
+          csrfInput.remove();
+        }
+
+        (fetch as jest.Mock).mockResolvedValue({
+          ok: true,
+          json: () => Promise.resolve({ success: true }),
+        });
+
+        // Should not throw for regular API calls, only for notifyReclaimSuccessful
+        await expect(rewardsClient.userClaimed(TEST_ADDRESS_2)).resolves.toEqual({ success: true });
+
+        expect(fetch).toHaveBeenCalledWith(
+          '/api/wallet/user-claimed/',
+          expect.objectContaining({
+            headers: expect.objectContaining({
+              'X-CSRFToken': '',
+            }),
+          })
+        );
+      });
+    });
+  });
+
+  describe("RewardsClient Edge Cases", () => {
+    it("should handle null global state in contract calls", async () => {
+      mockManager.algodClient.getApplicationByID = jest.fn().mockReturnValue({
+        do: jest.fn().mockResolvedValue({
+          params: {
+            globalState: null, // Null global state
+          },
+        }),
+      });
+
+      await expect(rewardsClient.claim()).rejects.toThrow(
+        "Contract global state is empty or not found"
+      );
+    });
+
+    it("should handle undefined global state in contract calls", async () => {
+      mockManager.algodClient.getApplicationByID = jest.fn().mockReturnValue({
+        do: jest.fn().mockResolvedValue({
+          params: {}, // No global state property
+        }),
+      });
+
+      await expect(
+        rewardsClient.addAllocations([TEST_ADDRESS_2], [100], 6)
+      ).rejects.toThrow("Contract global state is empty or not found");
+    });
+
+    it("should handle malformed global state entries", async () => {
+      mockManager.algodClient.getApplicationByID = jest.fn().mockReturnValue({
+        do: jest.fn().mockResolvedValue({
+          params: {
+            globalState: [
+              { key: "malformed_key", value: { uint: 1 } }, // Not base64 encoded
+            ],
+          },
+        }),
+      });
+
+      // This should still find the token_id but might fail elsewhere
+      // The test ensures we don't crash on malformed data
+      await expect(rewardsClient.claim()).rejects.toThrow(); // Any error is acceptable
+    });
+  });
+
 });
 

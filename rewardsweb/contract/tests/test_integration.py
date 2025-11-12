@@ -241,84 +241,216 @@ class TestContractAddAllocations(BaseTestContract):
             )
         return user_accounts
 
+    @pytest.fixture
+    def user_accounts_5(self, algorand_client: AlgorandClient) -> SigningAccount:
+        users_count = 5
+        user_accounts = []
+        for i in range(users_count):
+            user_accounts.append(
+                algorand_client.account.from_environment(
+                    f"USER{i}_ACCOUNT", fund_with=AlgoAmount(algo=10)
+                )
+            )
+        return user_accounts
+
     def test_contract_rewards_add_alocations_for_no_admin(
         self,
+        asset_creator_account: SigningAccount,
+        token_id: int,
         other_account: SigningAccount,
         user_account: SigningAccount,
     ) -> None:
         amount = 1_000_000_000
 
         with pytest.raises(LogicError, match="Sender is not the admin"):
-            self.rewards_client.send.call(
-                AppClientMethodCallParams(
-                    method="add_allocations",
-                    args=[[user_account.address], [amount]],
-                    sender=other_account.address,
-                    signer=other_account.signer,
-                    box_references=[user_account.address.encode()],
-                    static_fee=AlgoAmount(micro_algo=2000),
+            (
+                self.rewards_client.algorand.new_group()
+                .add_asset_transfer(
+                    AssetTransferParams(
+                        sender=asset_creator_account.address,
+                        asset_id=token_id,
+                        receiver=self.rewards_client.app_address,
+                        amount=amount,
+                        signer=asset_creator_account.signer,
+                    )
                 )
+                .add_app_call_method_call(
+                    self.rewards_client.params.call(
+                        AppClientMethodCallParams(
+                            method="add_allocations",
+                            args=[[user_account.address], [amount, amount]],
+                            sender=other_account.address,
+                            signer=other_account.signer,
+                            box_references=[user_account.address.encode()],
+                            static_fee=AlgoAmount(micro_algo=2000),
+                        )
+                    )
+                )
+                .send(SendParams(cover_app_call_inner_transaction_fees=True))
             )
 
     def test_contract_rewards_add_alocations_different_sizes(
         self,
         admin_account: SigningAccount,
+        asset_creator_account: SigningAccount,
+        token_id: int,
         user_account: SigningAccount,
     ) -> None:
         amount = 1_000_000_000
 
         with pytest.raises(LogicError, match="Input arrays must have the same length"):
-            self.rewards_client.send.call(
-                AppClientMethodCallParams(
-                    method="add_allocations",
-                    args=[[user_account.address], [amount, amount]],
-                    sender=admin_account.address,
-                    signer=admin_account.signer,
-                    box_references=[user_account.address.encode()],
-                    static_fee=AlgoAmount(micro_algo=2000),
+            (
+                self.rewards_client.algorand.new_group()
+                .add_asset_transfer(
+                    AssetTransferParams(
+                        sender=asset_creator_account.address,
+                        asset_id=token_id,
+                        receiver=self.rewards_client.app_address,
+                        amount=amount,
+                        signer=asset_creator_account.signer,
+                    )
                 )
+                .add_app_call_method_call(
+                    self.rewards_client.params.call(
+                        AppClientMethodCallParams(
+                            method="add_allocations",
+                            args=[[user_account.address], [amount, amount]],
+                            sender=admin_account.address,
+                            signer=admin_account.signer,
+                            box_references=[user_account.address.encode()],
+                            static_fee=AlgoAmount(micro_algo=2000),
+                        )
+                    )
+                )
+                .send(SendParams(cover_app_call_inner_transaction_fees=True))
             )
 
-    def test_contract_rewards_add_alocations_single_address_static_fee(
+    def test_contract_rewards_add_alocations_single_address(
         self,
         admin_account: SigningAccount,
+        asset_creator_account: SigningAccount,
+        token_id: int,
         user_account: SigningAccount,
     ) -> None:
         amount = 1_000_000_000
 
-        self.rewards_client.send.call(
-            AppClientMethodCallParams(
-                method="add_allocations",
-                args=[[user_account.address], [amount]],
-                sender=admin_account.address,
-                signer=admin_account.signer,
-                box_references=[user_account.address.encode()],
-                static_fee=AlgoAmount(micro_algo=2000),
+        (
+            self.rewards_client.algorand.new_group()
+            .add_asset_transfer(
+                AssetTransferParams(
+                    sender=asset_creator_account.address,
+                    asset_id=token_id,
+                    receiver=self.rewards_client.app_address,
+                    amount=amount,
+                    signer=asset_creator_account.signer,
+                )
             )
+            .add_app_call_method_call(
+                self.rewards_client.params.call(
+                    AppClientMethodCallParams(
+                        method="add_allocations",
+                        args=[[user_account.address], [amount]],
+                        sender=admin_account.address,
+                        signer=admin_account.signer,
+                        box_references=[user_account.address.encode()],
+                        static_fee=AlgoAmount(micro_algo=2000),
+                    )
+                )
+            )
+            .send(SendParams(cover_app_call_inner_transaction_fees=True))
         )
 
-    def test_contract_rewards_add_alocations_multiple_addresses_static_fee(
+    def test_contract_rewards_add_alocations_multiple_four_addresses(
         self,
         admin_account: SigningAccount,
+        asset_creator_account: SigningAccount,
+        token_id: int,
         user_accounts_4: list,
     ) -> None:
         amount = 1_000_000_000
 
-        self.rewards_client.send.call(
-            AppClientMethodCallParams(
-                method="add_allocations",
-                args=[
-                    [user_account.address for user_account in user_accounts_4],
-                    [amount] * len(user_accounts_4),
-                ],
-                sender=admin_account.address,
-                signer=admin_account.signer,
-                box_references=[
-                    user_account.address.encode() for user_account in user_accounts_4
-                ],
-                static_fee=AlgoAmount(micro_algo=2000),
+        (
+            self.rewards_client.algorand.new_group()
+            .add_asset_transfer(
+                AssetTransferParams(
+                    sender=asset_creator_account.address,
+                    asset_id=token_id,
+                    receiver=self.rewards_client.app_address,
+                    amount=amount * len(user_accounts_4),
+                    signer=asset_creator_account.signer,
+                )
             )
+            .add_app_call_method_call(
+                self.rewards_client.params.call(
+                    AppClientMethodCallParams(
+                        method="add_allocations",
+                        args=[
+                            [user_account.address for user_account in user_accounts_4],
+                            [amount] * len(user_accounts_4),
+                        ],
+                        sender=admin_account.address,
+                        signer=admin_account.signer,
+                        box_references=[
+                            user_account.address.encode()
+                            for user_account in user_accounts_4
+                        ],
+                        static_fee=AlgoAmount(micro_algo=2000),
+                    )
+                )
+            )
+            .send(SendParams(cover_app_call_inner_transaction_fees=True))
         )
+
+    def test_contract_rewards_add_alocations_extended_five_addresses(
+        self,
+        admin_account: SigningAccount,
+        asset_creator_account: SigningAccount,
+        token_id: int,
+        user_accounts_5: list,
+    ) -> None:
+        amount = 1_000_000_000
+
+        with pytest.raises(
+            ValueError,
+            match=(
+                "No more transactions below reference limit. "
+                "Add another app call to the group."
+            ),
+        ):
+            (
+                self.rewards_client.algorand.new_group()
+                .add_asset_transfer(
+                    AssetTransferParams(
+                        sender=asset_creator_account.address,
+                        asset_id=token_id,
+                        receiver=self.rewards_client.app_address,
+                        amount=amount * len(user_accounts_5),
+                        signer=asset_creator_account.signer,
+                    )
+                )
+                .add_app_call_method_call(
+                    self.rewards_client.params.call(
+                        AppClientMethodCallParams(
+                            method="add_allocations",
+                            args=[
+                                [
+                                    user_account.address
+                                    for user_account in user_accounts_5
+                                ],
+                                [amount] * len(user_accounts_5),
+                            ],
+                            sender=admin_account.address,
+                            signer=admin_account.signer,
+                            box_references=[
+                                user_account.address.encode()
+                                for user_account in user_accounts_5
+                            ],
+                            static_fee=AlgoAmount(micro_algo=2000),
+                        )
+                    )
+                )
+                .send(SendParams(cover_app_call_inner_transaction_fees=True))
+            )
 
 
 class TestContractClaim(BaseTestContract):
@@ -339,15 +471,30 @@ class TestContractClaim(BaseTestContract):
             asset_creator_account, self.rewards_client.app_address, token_id, amount
         )
 
-        self.rewards_client.send.call(
-            AppClientMethodCallParams(
-                method="add_allocations",
-                args=[[user_account.address], [amount]],
-                sender=admin_account.address,
-                signer=admin_account.signer,
-                box_references=[user_account.address.encode()],
-                static_fee=AlgoAmount(micro_algo=3000),
+        (
+            self.rewards_client.algorand.new_group()
+            .add_asset_transfer(
+                AssetTransferParams(
+                    sender=asset_creator_account.address,
+                    asset_id=token_id,
+                    receiver=self.rewards_client.app_address,
+                    amount=amount,
+                    signer=asset_creator_account.signer,
+                )
             )
+            .add_app_call_method_call(
+                self.rewards_client.params.call(
+                    AppClientMethodCallParams(
+                        method="add_allocations",
+                        args=[[user_account.address], [amount]],
+                        sender=admin_account.address,
+                        signer=admin_account.signer,
+                        box_references=[user_account.address.encode()],
+                        static_fee=AlgoAmount(micro_algo=2000),
+                    )
+                )
+            )
+            .send(SendParams(cover_app_call_inner_transaction_fees=True))
         )
 
         with pytest.raises(LogicError, match="Sender has not opted-in to the asset"):
@@ -386,17 +533,31 @@ class TestContractClaim(BaseTestContract):
             )
         )
 
-        self.rewards_client.send.call(
-            AppClientMethodCallParams(
-                method="add_allocations",
-                args=[[user_account.address], [amount]],
-                sender=admin_account.address,
-                signer=admin_account.signer,
-                box_references=[user_account.address.encode()],
-                static_fee=AlgoAmount(micro_algo=3000),
+        (
+            self.rewards_client.algorand.new_group()
+            .add_asset_transfer(
+                AssetTransferParams(
+                    sender=asset_creator_account.address,
+                    asset_id=token_id,
+                    receiver=self.rewards_client.app_address,
+                    amount=amount,
+                    signer=asset_creator_account.signer,
+                )
             )
+            .add_app_call_method_call(
+                self.rewards_client.params.call(
+                    AppClientMethodCallParams(
+                        method="add_allocations",
+                        args=[[user_account.address], [amount]],
+                        sender=admin_account.address,
+                        signer=admin_account.signer,
+                        box_references=[user_account.address.encode()],
+                        static_fee=AlgoAmount(micro_algo=2000),
+                    )
+                )
+            )
+            .send(SendParams(cover_app_call_inner_transaction_fees=True))
         )
-
         self.rewards_client.send.call(
             AppClientMethodCallParams(
                 method="claim",
@@ -434,19 +595,30 @@ class TestContractReclaimAllocations(BaseTestContract):
     ) -> None:
         amount = 1_000_000_000
 
-        _make_transfer(
-            asset_creator_account, self.rewards_client.app_address, token_id, amount
-        )
-
-        self.rewards_client.send.call(
-            AppClientMethodCallParams(
-                method="add_allocations",
-                args=[[user_account.address], [amount]],
-                sender=admin_account.address,
-                signer=admin_account.signer,
-                box_references=[user_account.address.encode()],
-                static_fee=AlgoAmount(micro_algo=2000),
+        (
+            self.rewards_client.algorand.new_group()
+            .add_asset_transfer(
+                AssetTransferParams(
+                    sender=asset_creator_account.address,
+                    asset_id=token_id,
+                    receiver=self.rewards_client.app_address,
+                    amount=amount,
+                    signer=asset_creator_account.signer,
+                )
             )
+            .add_app_call_method_call(
+                self.rewards_client.params.call(
+                    AppClientMethodCallParams(
+                        method="add_allocations",
+                        args=[[user_account.address], [amount]],
+                        sender=admin_account.address,
+                        signer=admin_account.signer,
+                        box_references=[user_account.address.encode()],
+                        static_fee=AlgoAmount(micro_algo=2000),
+                    )
+                )
+            )
+            .send(SendParams(cover_app_call_inner_transaction_fees=True))
         )
 
         with pytest.raises(LogicError, match="Claim period has not ended"):
@@ -480,19 +652,30 @@ class TestContractReclaimAllocationsShortPeriod(BaseTestContract):
     ) -> None:
         amount = 1_000_000_000
 
-        _make_transfer(
-            asset_creator_account, self.rewards_client.app_address, token_id, amount
-        )
-
-        self.rewards_client.send.call(
-            AppClientMethodCallParams(
-                method="add_allocations",
-                args=[[user_account.address], [amount]],
-                sender=admin_account.address,
-                signer=admin_account.signer,
-                box_references=[user_account.address.encode()],
-                static_fee=AlgoAmount(micro_algo=2000),
+        (
+            self.rewards_client.algorand.new_group()
+            .add_asset_transfer(
+                AssetTransferParams(
+                    sender=asset_creator_account.address,
+                    asset_id=token_id,
+                    receiver=self.rewards_client.app_address,
+                    amount=amount,
+                    signer=asset_creator_account.signer,
+                )
             )
+            .add_app_call_method_call(
+                self.rewards_client.params.call(
+                    AppClientMethodCallParams(
+                        method="add_allocations",
+                        args=[[user_account.address], [amount]],
+                        sender=admin_account.address,
+                        signer=admin_account.signer,
+                        box_references=[user_account.address.encode()],
+                        static_fee=AlgoAmount(micro_algo=2000),
+                    )
+                )
+            )
+            .send(SendParams(cover_app_call_inner_transaction_fees=True))
         )
 
         time.sleep(self.claim_period_duration + 2)

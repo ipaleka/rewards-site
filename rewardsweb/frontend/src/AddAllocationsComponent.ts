@@ -20,6 +20,7 @@ export class AddAllocationsComponent {
   private walletManager: WalletManager
   private addresses: string[] = []
   private amounts: number[] = []
+  private decimals: number = 6
 
   /**
    * Creates an instance of AddAllocationsComponent.
@@ -41,7 +42,18 @@ export class AddAllocationsComponent {
   bind(element: HTMLElement) {
     this.element = element
     this.addEventListeners()
-    this.fetchAllocationsData()
+
+    const scriptElement = document.getElementById('addresses_and_amounts')
+    if (scriptElement && scriptElement.textContent) {
+      try {
+        const data = JSON.parse(scriptElement.textContent)
+        this.addresses = data[0] || []
+        this.amounts = data[1] || []
+        this.decimals = data[2] || 6
+      } catch (error) {
+        console.error('[AddAllocationsComponent] Error parsing addresses_and_amounts from script tag:', error)
+      }
+    }
   }
 
   /**
@@ -88,7 +100,9 @@ export class AddAllocationsComponent {
   private async handleAddAllocations() {
     try {
       console.info('[AddAllocationsComponent] Initiating add allocations...')
-      await this.rewardsClient.addAllocations(this.addresses, this.amounts)
+      const addressesChunk = this.addresses.slice(0, 4)
+      const amountsChunk = this.amounts.slice(0, 4)
+      await this.rewardsClient.addAllocations(addressesChunk, amountsChunk, this.decimals)
       alert('Add allocations transaction sent successfully!')
       // Re-fetch data after successful transaction
       await this.fetchAllocationsData()
@@ -124,6 +138,8 @@ export class AddAllocationsComponent {
     this.element.addEventListener('click', (e: Event) => {
       const target = e.target as HTMLElement
       if (target.id === 'add-allocations-button') {
+        // No longer reading from textareas, using pre-populated data
+        // or data fetched after a successful transaction.
         this.handleAddAllocations()
       }
     })

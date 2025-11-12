@@ -2,10 +2,13 @@ import {
   AtomicTransactionComposer,
   ABIContract,
   makeAssetTransferTxnWithSuggestedParamsFromObject,
-  Algodv2
+  Algodv2,
+  getApplicationAddress,
+  decodeAddress
 } from 'algosdk'
 import { WalletManager, NetworkId } from '@txnlab/use-wallet'
 import rewardsABI from '../../contract/artifacts/Rewards.arc56.json'
+import { Buffer } from 'buffer'
 
 /**
  * Client for interacting with the Rewards smart contract and backend API.
@@ -41,7 +44,7 @@ export class RewardsClient {
     // Hardcoded App IDs for different networks
     this.rewardsAppIds = {
       [NetworkId.MAINNET]: 0, // TODO: Replace with your Mainnet App ID
-      [NetworkId.TESTNET]: 749240272, // TODO: Replace with your Testnet App ID
+      [NetworkId.TESTNET]: 749540906, // TODO: Replace with your Testnet App ID
     }
   }
 
@@ -67,6 +70,12 @@ export class RewardsClient {
     'X-CSRFToken': this.getCsrfToken()
   })
 
+  private boxNameFromAddress(address: string): Uint8Array {
+    const addressBytes = decodeAddress(address).publicKey;
+    const boxName = new Uint8Array(Buffer.concat([Buffer.from('allocations'), addressBytes]));
+    return boxName;
+  }
+
   /**
    * Adds allocations to multiple addresses with specified amounts.
    *
@@ -78,7 +87,7 @@ export class RewardsClient {
    * @returns The transaction result
    * @throws {Error} When no active account, arrays are empty, or arrays length mismatch
    */
-  public async addAllocations(addresses: string[], amounts: number[]) {
+  public async addAllocations(addresses: string[], amounts: number[], decimals: number) {
     if (!this.manager.activeAccount?.address) {
       throw new Error('No active account selected.')
     }
@@ -96,13 +105,44 @@ export class RewardsClient {
         throw new Error(`App ID not configured for network: ${currentNetwork}`)
       }
 
+      const appInfo = await this.algodClient.getApplicationByID(appId).do();
+      const globalState = appInfo.params.globalState;
+      if (!globalState || globalState.length === 0) {
+        throw new Error("Contract global state is empty or not found");
+      }
+      const tokenIdValue = globalState.find((state: any) => Buffer.from(state['key'], 'base64').toString('utf8') === 'token_id');
+      if (!tokenIdValue) {
+        throw new Error("token_id not found in contract's global state");
+      }
+      const tokenId = tokenIdValue['value']['uint'];
+
+      const microasaAmounts = amounts.map(amount => Math.floor(amount * (10 ** decimals)))
+      const totalAmount = microasaAmounts.reduce((sum, current) => sum + current, 0)
+
+      const fundingTxn = makeAssetTransferTxnWithSuggestedParamsFromObject({
+        sender: this.manager.activeAccount.address,
+        receiver: getApplicationAddress(appId),
+        amount: totalAmount,
+        assetIndex: tokenId,
+        suggestedParams: suggestedParams,
+      });
+
+      atc.addTransaction({ txn: fundingTxn, signer: this.manager.transactionSigner });
+
+      const boxes = addresses.map(addr => ({
+        appIndex: 0,
+        name: this.boxNameFromAddress(addr)
+      }));
+
       atc.addMethodCall({
         appID: appId,
         method: this.contract.getMethodByName('add_allocations'),
-        methodArgs: [addresses, amounts],
+        methodArgs: [addresses, microasaAmounts],
         sender: this.manager.activeAccount.address,
         signer: this.manager.transactionSigner,
-        suggestedParams
+        suggestedParams,
+        boxes: boxes,
+        appForeignAssets: [tokenId]
       })
 
       const result = await atc.execute(this.algodClient, 4)
@@ -196,8 +236,7 @@ export class RewardsClient {
       if (!globalState || globalState.length === 0) {
         throw new Error("Contract global state is empty or not found");
       }
-      const tokenIdEncoded = btoa('token_id');
-      const tokenIdValue = globalState.find((state: any) => state['key'] === tokenIdEncoded);
+      const tokenIdValue = globalState.find((state: any) => Buffer.from(state['key'], 'base64').toString('utf8') === 'token_id');
       if (!tokenIdValue) {
         throw new Error("token_id not found in contract's global state");
       }

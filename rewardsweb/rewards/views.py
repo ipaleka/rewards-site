@@ -15,6 +15,7 @@ from contract.network import (
     reclaimable_addresses,
 )
 from core.models import Contribution, IssueStatus
+from utils.helpers import get_env_variable
 
 
 class ClaimView(LoginRequiredMixin, TemplateView):
@@ -74,6 +75,11 @@ class AddAllocationsView(LoginRequiredMixin, TemplateView):
         )
         if addresses:
             context["allocations"] = zip(addresses, amounts)
+            context["addresses_and_amounts"] = [
+                list(addresses),
+                list(amounts),
+                get_env_variable("REWARDS_TOKEN_DECIMALS", 6),
+            ]
             context["use_admin_account"] = is_admin_account_configured()
 
         return context

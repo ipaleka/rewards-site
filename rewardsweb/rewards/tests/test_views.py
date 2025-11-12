@@ -3,6 +3,7 @@
 import pytest
 from django.contrib.auth import get_user_model
 from django.contrib.auth.models import AnonymousUser
+from django.contrib.messages import get_messages
 from django.test import RequestFactory
 from django.urls import reverse
 
@@ -12,8 +13,8 @@ from rewards.views import AddAllocationsView, ClaimView, ReclaimAllocationsView
 User = get_user_model()
 
 
-class TestRewardsViews:
-    """Test suite for ActiveNetworkAPIView."""
+class TestRewardsClaimViews:
+    """Test suite for :class:`rewards.views.ClaimView`."""
 
     @pytest.fixture
     def rf(self):
@@ -29,7 +30,6 @@ class TestRewardsViews:
         """Create a superuser."""
         return User.objects.create_superuser(username="admin", password="pass123")
 
-    # # ClaimView
     @pytest.mark.django_db
     def test_claimview_requires_login(self, rf):
         request = rf.get(reverse("claim"))
@@ -41,6 +41,7 @@ class TestRewardsViews:
         assert response.status_code == 302
         assert "/login" in response.url.lower()
 
+    # # get_context_data
     @pytest.mark.django_db
     def test_claimview_context_claimable_true(self, rf, user, mocker):
         """User has contributor address → claimable=True"""
@@ -70,7 +71,24 @@ class TestRewardsViews:
 
         assert context["claimable"] is False
 
-    # # AddAllocationsView
+
+class TestRewardsAddAllocationsView:
+    """Test suite for :class:`rewards.views.AddAllocationsView`."""
+
+    @pytest.fixture
+    def rf(self):
+        return RequestFactory()
+
+    @pytest.fixture
+    def user(self, db):
+        """Create a normal authenticated user."""
+        return User.objects.create_user(username="testuser", password="pass123")
+
+    @pytest.fixture
+    def superuser(self, db):
+        """Create a superuser."""
+        return User.objects.create_superuser(username="admin", password="pass123")
+
     @pytest.mark.django_db
     def test_addallocationsview_requires_login(self, rf, mocker):
         """Ensure the view redirects anonymous users to login page."""
@@ -109,6 +127,7 @@ class TestRewardsViews:
         assert response.status_code == 200
         assert response.template_name == ["rewards/add_allocations.html"]
 
+    # # get_context_data
     @pytest.mark.django_db
     def test_addallocationsview_context_contains_allocations(
         self, rf, superuser, mocker
@@ -183,6 +202,7 @@ class TestRewardsViews:
         assert "allocations" not in context
         assert "use_admin_account" not in context
 
+    # # post
     @pytest.mark.django_db
     def test_addallocationsview_normal_user_blocked(self, rf, user):
         """Non-superusers should NOT be allowed to access the page."""
@@ -194,7 +214,256 @@ class TestRewardsViews:
         # LoginRequiredMixin lets login first, so user gets 302 to login
         assert response.status_code in (302, 403)
 
-    # # ReclaimAllocationsView
+    @pytest.mark.django_db
+    def test_addallocationsview_post_admin_account_not_configured(
+        self, client, superuser, mocker
+    ):
+        """Test post when admin account is not configured."""
+        mocker.patch("rewards.views.is_admin_account_configured", return_value=False)
+
+        client.force_login(superuser)
+        response = client.post(reverse("add_allocations"))
+
+        assert response.status_code == 204  # Changed from 302 to 204
+        assert response["HX-Redirect"] == reverse("add_allocations")
+
+        # Check error message
+        messages = list(get_messages(response.wsgi_request))
+        assert any(
+            "Admin account not configured" in str(message) for message in messages
+        )
+
+    @pytest.mark.django_db
+    def test_addallocationsview_post_single_batch_success(
+        self, client, superuser, mocker
+    ):
+        """Test successful post with single batch processing."""
+        mocker.patch("rewards.views.is_admin_account_configured", return_value=True)
+
+        # Mock contributions and allocation processing
+        mock_contributions = mocker.MagicMock()
+        mocker.patch(
+            "rewards.views.Contribution.objects.filter", return_value=mock_contributions
+        )
+
+        # Mock the generator to return one successful batch
+        mock_generator = mocker.patch(
+            "rewards.views.process_allocations_for_contributions"
+        )
+        mock_generator.return_value = [("tx_hash_123", ["address1", "address2"])]
+
+        # Mock the update method
+        mock_update = mocker.patch(
+            "rewards.views.Contribution.objects.update_issue_statuses_for_addresses"
+        )
+
+        # Mock user profile logging
+        mock_profile = mocker.MagicMock()
+        mocker.patch.object(User, "profile", mock_profile)
+
+        client.force_login(superuser)
+        response = client.post(reverse("add_allocations"))
+
+        assert response.status_code == 204
+        assert response["HX-Redirect"] == reverse("add_allocations")
+
+        # Check success message
+        messages = list(get_messages(response.wsgi_request))
+        message_texts = [str(msg) for msg in messages]
+        assert any(
+            "✅ Allocation successful TXID: tx_hash_123" in msg for msg in message_texts
+        )
+        assert any("✅ All batches completed" in msg for msg in message_texts)
+
+        # Verify update was called
+        mock_update.assert_called_once_with(
+            ["address1", "address2"], mock_contributions
+        )
+
+        # Verify log action was called with formatted addresses
+        mock_profile.log_action.assert_called_once_with(
+            "boxes_created", "addre..ress1; addre..ress2"
+        )
+
+    @pytest.mark.django_db
+    def test_addallocationsview_post_multiple_batches_mixed_results(
+        self, client, superuser, mocker
+    ):
+        """Test post with multiple batches including both success and failure."""
+        mocker.patch("rewards.views.is_admin_account_configured", return_value=True)
+
+        mock_contributions = mocker.MagicMock()
+        mocker.patch(
+            "rewards.views.Contribution.objects.filter", return_value=mock_contributions
+        )
+
+        # Mock generator with mixed results
+        mock_generator = mocker.patch(
+            "rewards.views.process_allocations_for_contributions"
+        )
+        mock_generator.return_value = [
+            ("tx_hash_1", ["addr1", "addr2"]),  # Batch 1 success
+            (False, []),  # Batch 2 failure
+            ("tx_hash_3", ["addr5"]),  # Batch 3 success
+        ]
+
+        mock_update = mocker.patch(
+            "rewards.views.Contribution.objects.update_issue_statuses_for_addresses"
+        )
+
+        mock_profile = mocker.MagicMock()
+        mocker.patch.object(User, "profile", mock_profile)
+
+        client.force_login(superuser)
+        response = client.post(reverse("add_allocations"))
+
+        assert response.status_code == 204
+
+        # Check messages for mixed results
+        messages = list(get_messages(response.wsgi_request))
+        message_texts = [str(msg) for msg in messages]
+
+        assert any(
+            "✅ Allocation successful TXID: tx_hash_1" in msg for msg in message_texts
+        )
+        assert any("❌ Allocation batch failed" in msg for msg in message_texts)
+        assert any(
+            "✅ Allocation successful TXID: tx_hash_3" in msg for msg in message_texts
+        )
+        assert any("✅ All batches completed" in msg for msg in message_texts)
+
+        # Verify update was called only for successful batches
+        assert mock_update.call_count == 2
+        mock_update.assert_has_calls(
+            [
+                mocker.call(["addr1", "addr2"], mock_contributions),
+                mocker.call(["addr5"], mock_contributions),
+            ]
+        )
+
+        # Verify log action was called for each successful batch
+        assert mock_profile.log_action.call_count == 2
+
+    @pytest.mark.django_db
+    def test_addallocationsview_post_all_batches_fail(self, client, superuser, mocker):
+        """Test post when all batches fail."""
+        mocker.patch("rewards.views.is_admin_account_configured", return_value=True)
+
+        mock_contributions = mocker.MagicMock()
+        mocker.patch(
+            "rewards.views.Contribution.objects.filter", return_value=mock_contributions
+        )
+
+        # Mock generator with all failures
+        mock_generator = mocker.patch(
+            "rewards.views.process_allocations_for_contributions"
+        )
+        mock_generator.return_value = [(False, []), (False, []), (False, [])]
+
+        mock_update = mocker.patch(
+            "rewards.views.Contribution.objects.update_issue_statuses_for_addresses"
+        )
+
+        mock_profile = mocker.MagicMock()
+        mocker.patch.object(User, "profile", mock_profile)
+
+        client.force_login(superuser)
+        response = client.post(reverse("add_allocations"))
+
+        assert response.status_code == 204
+
+        # Check error messages
+        messages = list(get_messages(response.wsgi_request))
+        message_texts = [str(msg) for msg in messages]
+
+        # Should have 3 error messages and 1 completion message
+        error_count = sum(
+            1 for msg in message_texts if "❌ Allocation batch failed" in msg
+        )
+        assert error_count == 3
+        assert any("✅ All batches completed" in msg for msg in message_texts)
+
+        # Verify no updates were made
+        mock_update.assert_not_called()
+        mock_profile.log_action.assert_not_called()
+
+    @pytest.mark.django_db
+    def test_addallocationsview_post_no_contributions(self, client, superuser, mocker):
+        """Test post when there are no contributions to process."""
+        mocker.patch("rewards.views.is_admin_account_configured", return_value=True)
+
+        # Mock empty contributions
+        mock_contributions = mocker.MagicMock()
+        mocker.patch(
+            "rewards.views.Contribution.objects.filter", return_value=mock_contributions
+        )
+
+        # Mock generator with no batches (empty case)
+        mock_generator = mocker.patch(
+            "rewards.views.process_allocations_for_contributions"
+        )
+        mock_generator.return_value = []  # No batches yielded
+
+        mock_update = mocker.patch(
+            "rewards.views.Contribution.objects.update_issue_statuses_for_addresses"
+        )
+
+        client.force_login(superuser)
+        response = client.post(reverse("add_allocations"))
+
+        assert response.status_code == 204
+
+        # Check only completion message
+        messages = list(get_messages(response.wsgi_request))
+        message_texts = [str(msg) for msg in messages]
+
+        assert any("✅ All batches completed" in msg for msg in message_texts)
+        assert not any("❌ Allocation batch failed" in msg for msg in message_texts)
+        assert not any("✅ Allocation successful TXID:" in msg for msg in message_texts)
+
+        # Verify no updates were made
+        mock_update.assert_not_called()
+
+    @pytest.mark.django_db
+    def test_addallocationsview_post_normal_user_blocked(self, client, user, mocker):
+        """Test that normal users cannot access post method."""
+        mocker.patch("rewards.views.is_admin_account_configured", return_value=True)
+
+        client.force_login(user)
+        response = client.post(reverse("add_allocations"))
+
+        # Should be redirected or forbidden
+        assert response.status_code in (302, 403)
+
+    @pytest.mark.django_db
+    def test_addallocationsview_post_anonymous_user_blocked(self, client, mocker):
+        """Test that anonymous users cannot access post method."""
+        mocker.patch("rewards.views.is_admin_account_configured", return_value=True)
+
+        response = client.post(reverse("add_allocations"))
+
+        # Should be redirected to login
+        assert response.status_code == 302
+        assert "/login" in response.url
+
+
+class TestRewardsReclaimAllocationsView:
+    """Test suite for :class:`rewards.views.ReclaimAllocationsView`."""
+
+    @pytest.fixture
+    def rf(self):
+        return RequestFactory()
+
+    @pytest.fixture
+    def user(self, db):
+        """Create a normal authenticated user."""
+        return User.objects.create_user(username="testuser", password="pass123")
+
+    @pytest.fixture
+    def superuser(self, db):
+        """Create a superuser."""
+        return User.objects.create_superuser(username="admin", password="pass123")
+
     @pytest.mark.django_db
     def test_reclaimallocationsview_requires_login(self, rf):
         request = rf.get(reverse("reclaim_allocations"))
@@ -217,6 +486,7 @@ class TestRewardsViews:
         assert response.status_code == 200
         assert response.template_name == ["rewards/reclaim_allocations.html"]
 
+    # # get_context_data
     @pytest.mark.django_db
     def test_reclaimallocationsview_context_contains_addresses(
         self, rf, superuser, mocker
@@ -258,3 +528,240 @@ class TestRewardsViews:
 
         assert context["use_admin_account"] == mocked_admin.return_value
         mocked_admin.assert_called_once_with()
+
+    # # post
+    @pytest.mark.django_db
+    def test_reclaimallocationsview_post_admin_account_not_configured(
+        self, client, superuser, mocker
+    ):
+        """Test post when admin account is not configured."""
+        mocker.patch("rewards.views.is_admin_account_configured", return_value=False)
+
+        client.force_login(superuser)
+        response = client.post(
+            reverse("reclaim_allocations"),
+            {"address": "2EVGZ4BGOSL3J64UYDE2BUGTNTBZZZLI54VUQQNZZLYCDODLY33UGXNSIU"},
+        )
+
+        assert response.status_code == 204
+        assert response["HX-Redirect"] == reverse("reclaim_allocations")
+
+        # Check error message
+        messages = list(get_messages(response.wsgi_request))
+        assert any(
+            "Admin account not configured" in str(message) for message in messages
+        )
+
+    @pytest.mark.django_db
+    def test_reclaimallocationsview_post_missing_address(
+        self, client, superuser, mocker
+    ):
+        """Test post when address is missing from request."""
+        mocker.patch("rewards.views.is_admin_account_configured", return_value=True)
+
+        client.force_login(superuser)
+        response = client.post(
+            reverse("reclaim_allocations"), {}
+        )  # No address provided
+
+        assert response.status_code == 204
+        assert response["HX-Redirect"] == reverse("reclaim_allocations")
+
+        # Check error message
+        messages = list(get_messages(response.wsgi_request))
+        assert any("Missing reclaim address" in str(message) for message in messages)
+
+    @pytest.mark.django_db
+    def test_reclaimallocationsview_post_empty_address(self, client, superuser, mocker):
+        """Test post when address is empty string."""
+        mocker.patch("rewards.views.is_admin_account_configured", return_value=True)
+
+        client.force_login(superuser)
+        response = client.post(reverse("reclaim_allocations"), {"address": ""})
+
+        assert response.status_code == 204
+        assert response["HX-Redirect"] == reverse("reclaim_allocations")
+
+        # Check error message
+        messages = list(get_messages(response.wsgi_request))
+        assert any("Missing reclaim address" in str(message) for message in messages)
+
+    @pytest.mark.django_db
+    def test_reclaimallocationsview_post_successful_reclaim(
+        self, client, superuser, mocker
+    ):
+        """Test successful allocation reclaim."""
+        mocker.patch("rewards.views.is_admin_account_configured", return_value=True)
+
+        # Mock the reclaim process to return a transaction ID
+        mock_reclaim = mocker.patch(
+            "rewards.views.process_reclaim_allocation", return_value="tx_hash_123"
+        )
+
+        # Mock user profile logging
+        mock_profile = mocker.MagicMock()
+        mocker.patch.object(User, "profile", mock_profile)
+
+        client.force_login(superuser)
+        response = client.post(
+            reverse("reclaim_allocations"),
+            {"address": "2EVGZ4BGOSL3J64UYDE2BUGTNTBZZZLI54VUQQNZZLYCDODLY33UGXNSIU"},
+        )
+
+        assert response.status_code == 204
+        assert response["HX-Redirect"] == reverse("reclaim_allocations")
+
+        # Check success message
+        messages = list(get_messages(response.wsgi_request))
+        message_texts = [str(msg) for msg in messages]
+        assert any(
+            (
+                "✅ Successfully reclaimed "
+                "2EVGZ4BGOSL3J64UYDE2BUGTNTBZZZLI54VUQQNZZLYCDODLY33UGXNSIU "
+                "(TXID: tx_hash_123)"
+            )
+            in msg
+            for msg in message_texts
+        )
+
+        # Verify reclaim was called with correct address
+        mock_reclaim.assert_called_once_with(
+            "2EVGZ4BGOSL3J64UYDE2BUGTNTBZZZLI54VUQQNZZLYCDODLY33UGXNSIU"
+        )
+
+        # Verify log action was called
+        mock_profile.log_action.assert_called_once_with(
+            "allocation_reclaimed",
+            "2EVGZ4BGOSL3J64UYDE2BUGTNTBZZZLI54VUQQNZZLYCDODLY33UGXNSIU",
+        )
+
+    @pytest.mark.django_db
+    def test_reclaimallocationsview_post_reclaim_failure(
+        self, client, superuser, mocker
+    ):
+        """Test when allocation reclaim fails with exception."""
+        mocker.patch("rewards.views.is_admin_account_configured", return_value=True)
+
+        # Mock the reclaim process to raise an exception
+        mock_reclaim = mocker.patch(
+            "rewards.views.process_reclaim_allocation",
+            side_effect=Exception("Contract execution reverted"),
+        )
+
+        # Mock user profile logging
+        mock_profile = mocker.MagicMock()
+        mocker.patch.object(User, "profile", mock_profile)
+
+        client.force_login(superuser)
+        response = client.post(
+            reverse("reclaim_allocations"),
+            {"address": "2EVGZ4BGOSL3J64UYDE2BUGTNTBZZZLI54VUQQNZZLYCDODLY33UGXNSIU"},
+        )
+
+        assert response.status_code == 204
+        assert response["HX-Redirect"] == reverse("reclaim_allocations")
+
+        # Check error message
+        messages = list(get_messages(response.wsgi_request))
+        message_texts = [str(msg) for msg in messages]
+        assert any(
+            (
+                "❌ Failed reclaiming allocation for "
+                "2EVGZ4BGOSL3J64UYDE2BUGTNTBZZZLI54VUQQNZZLYCDODLY33UGXNSIU"
+                ": Contract execution reverted"
+            )
+            in msg
+            for msg in message_texts
+        )
+
+        # Verify reclaim was called with correct address
+        mock_reclaim.assert_called_once_with(
+            "2EVGZ4BGOSL3J64UYDE2BUGTNTBZZZLI54VUQQNZZLYCDODLY33UGXNSIU"
+        )
+
+        # Verify log action was NOT called on failure
+        mock_profile.log_action.assert_not_called()
+
+    @pytest.mark.django_db
+    def test_reclaimallocationsview_post_specific_exception_handling(
+        self, client, superuser, mocker
+    ):
+        """Test handling of specific exception types."""
+        mocker.patch("rewards.views.is_admin_account_configured", return_value=True)
+
+        # Test with different exception types
+        test_cases = [
+            (
+                ValueError("Invalid address format"),
+                (
+                    "❌ Failed reclaiming allocation for "
+                    "2EVGZ4BGOSL3J64UYDE2BUGTNTBZZZLI54VUQQNZZLYCDODLY33UGXNSIU"
+                    ": Invalid address format"
+                ),
+            ),
+            (
+                RuntimeError("Network error"),
+                (
+                    "❌ Failed reclaiming allocation for "
+                    "2EVGZ4BGOSL3J64UYDE2BUGTNTBZZZLI54VUQQNZZLYCDODLY33UGXNSIU"
+                    ": Network error"
+                ),
+            ),
+            (
+                Exception("Generic error"),
+                (
+                    "❌ Failed reclaiming allocation for "
+                    "2EVGZ4BGOSL3J64UYDE2BUGTNTBZZZLI54VUQQNZZLYCDODLY33UGXNSIU"
+                    ": Generic error"
+                ),
+            ),
+        ]
+
+        for exception, expected_message in test_cases:
+            mocker.patch(
+                "rewards.views.process_reclaim_allocation", side_effect=exception
+            )
+
+            client.force_login(superuser)
+            data = {
+                "address": "2EVGZ4BGOSL3J64UYDE2BUGTNTBZZZLI54VUQQNZZLYCDODLY33UGXNSIU"
+            }
+            response = client.post(reverse("reclaim_allocations"), data)
+
+            assert response.status_code == 204
+            assert response["HX-Redirect"] == reverse("reclaim_allocations")
+
+            # Check error message contains the exception message
+            messages = list(get_messages(response.wsgi_request))
+            message_texts = [str(msg) for msg in messages]
+            assert any(expected_message in msg for msg in message_texts)
+
+    @pytest.mark.django_db
+    def test_reclaimallocationsview_post_normal_user_blocked(
+        self, client, user, mocker
+    ):
+        """Test that normal users cannot access post method."""
+        mocker.patch("rewards.views.is_admin_account_configured", return_value=True)
+
+        client.force_login(user)
+        response = client.post(
+            reverse("reclaim_allocations"),
+            {"address": "2EVGZ4BGOSL3J64UYDE2BUGTNTBZZZLI54VUQQNZZLYCDODLY33UGXNSIU"},
+        )
+
+        # Should be redirected or forbidden
+        assert response.status_code in (302, 403)
+
+    @pytest.mark.django_db
+    def test_reclaimallocationsview_post_anonymous_user_blocked(self, client, mocker):
+        """Test that anonymous users cannot access post method."""
+        mocker.patch("rewards.views.is_admin_account_configured", return_value=True)
+
+        response = client.post(
+            reverse("reclaim_allocations"),
+            {"address": "2EVGZ4BGOSL3J64UYDE2BUGTNTBZZZLI54VUQQNZZLYCDODLY33UGXNSIU"},
+        )
+
+        # Should be redirected to login
+        assert response.status_code == 302
+        assert "/login" in response.url

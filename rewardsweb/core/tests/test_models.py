@@ -3020,6 +3020,7 @@ class TestContributionManager:
             contributor=contributor2,
             platform=platform,
             reward=reward2,
+            percentage=0.5,
         )
         Contribution.objects.create(
             cycle=cycle,
@@ -3027,6 +3028,7 @@ class TestContributionManager:
             contributor=contributor3,
             platform=platform,
             reward=reward2,
+            percentage=0.5,
         )
         Contribution.objects.create(
             cycle=cycle,
@@ -3063,7 +3065,117 @@ class TestContributionManager:
             "2EVGZ4BGOSL3J64UYDE2BUGTNTBZZZLI54VUQQNZZLYCDODLY33UGXNSIU",
             "VW55KZ3NF4GDOWI7IPWLGZDFWNXWKSRD5PETRLDABZVU5XPKRJJRK3CBSU",
         ]
-        assert amounts == [6000, 5000]
+        assert amounts == [6000, 2500]
+
+    # # update_issue_statuses_for_addresses
+    def test_contributionmanager_update_issue_statuses_for_addresses_functionality(
+        self,
+    ):
+        contributor1 = Contributor.objects.create(
+            name="user-addressed-10",
+            address="2EVGZ4BGOSL3J64UYDE2BUGTNTBZZZLI54VUQQNZZLYCDODLY33UGXNSIU",
+        )
+        contributor2 = Contributor.objects.create(
+            name="user-addressed-20", address="address-20"
+        )
+        contributor3 = Contributor.objects.create(
+            name="user-addressed-30",
+            address="VW55KZ3NF4GDOWI7IPWLGZDFWNXWKSRD5PETRLDABZVU5XPKRJJRK3CBSU",
+        )
+        issue_1 = Issue.objects.create(number=1524, status=IssueStatus.ADDRESSED)
+        issue_2 = Issue.objects.create(number=1525, status=IssueStatus.CREATED)
+        issue_3 = Issue.objects.create(number=1526, status=IssueStatus.ADDRESSED)
+        issue_4 = Issue.objects.create(number=1527, status=IssueStatus.ADDRESSED)
+        issue_5 = Issue.objects.create(number=1528, status=IssueStatus.ARCHIVED)
+        issue_6 = Issue.objects.create(number=1529, status=IssueStatus.ADDRESSED)
+        issue_7 = Issue.objects.create(number=1530, status=IssueStatus.ADDRESSED)
+        cycle = Cycle.objects.create(start="2025-05-02")
+        platform = SocialPlatform.objects.create(name="GitHub")
+        reward_type = RewardType.objects.create(label="B1", name="Bug Fix")
+        reward1 = Reward.objects.create(type=reward_type, level=1, amount=1000)
+        reward2 = Reward.objects.create(type=reward_type, level=3, amount=5000)
+        reward3 = Reward.objects.create(type=reward_type, level=2, amount=2000)
+        reward4 = Reward.objects.create(type=reward_type, level=1, amount=0)
+        contributions = []
+        contributions.append(
+            Contribution.objects.create(
+                cycle=cycle,
+                issue=issue_1,
+                contributor=contributor1,
+                platform=platform,
+                reward=reward1,
+            )
+        )
+        Contribution.objects.create(
+            cycle=cycle,
+            issue=issue_2,
+            contributor=contributor2,
+            platform=platform,
+            reward=reward2,
+            percentage=0.5,
+        )
+        contributions.append(
+            Contribution.objects.create(
+                cycle=cycle,
+                issue=issue_3,
+                contributor=contributor3,
+                platform=platform,
+                reward=reward2,
+                percentage=0.5,
+            )
+        )
+        contributions.append(
+            Contribution.objects.create(
+                cycle=cycle,
+                issue=issue_4,
+                contributor=contributor2,
+                platform=platform,
+                reward=reward3,
+            )
+        )
+        contributions.append(
+            Contribution.objects.create(
+                cycle=cycle,
+                issue=issue_5,
+                contributor=contributor1,
+                platform=platform,
+                reward=reward1,
+            )
+        )
+        Contribution.objects.create(
+            cycle=cycle,
+            issue=issue_6,
+            contributor=contributor1,
+            platform=platform,
+            reward=reward4,
+        )
+        contributions.append(
+            Contribution.objects.create(
+                cycle=cycle,
+                issue=issue_7,
+                contributor=contributor1,
+                platform=platform,
+                reward=reward2,
+            )
+        )
+        Contribution.objects.update_issue_statuses_for_addresses(
+            ["2EVGZ4BGOSL3J64UYDE2BUGTNTBZZZLI54VUQQNZZLYCDODLY33UGXNSIU"],
+            contributions,
+        )
+        issue_1.refresh_from_db()
+        issue_2.refresh_from_db()
+        issue_3.refresh_from_db()
+        issue_4.refresh_from_db()
+        issue_5.refresh_from_db()
+        issue_6.refresh_from_db()
+        issue_7.refresh_from_db()
+        assert issue_1.status == IssueStatus.CLAIMABLE
+        assert issue_2.status == IssueStatus.CREATED
+        assert issue_3.status == IssueStatus.ADDRESSED
+        assert issue_4.status == IssueStatus.ADDRESSED
+        assert issue_5.status == IssueStatus.ARCHIVED
+        assert issue_6.status == IssueStatus.ADDRESSED
+        assert issue_7.status == IssueStatus.CLAIMABLE
 
     # # user_has_claimed
     def test_contributionmanager_user_has_claimed_updates_related_issues(self):

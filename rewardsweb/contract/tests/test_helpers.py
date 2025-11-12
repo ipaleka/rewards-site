@@ -9,6 +9,7 @@ import pytest
 from contract.helpers import (
     ALGOD_EXCEPTIONS,
     HTTPError,
+    address_from_box_name,
     app_schemas,
     atc_method_stub,
     box_name_from_address,
@@ -26,45 +27,81 @@ from contract.helpers import (
 class TestContractHelpersFunctions:
     """Testing class for :py:mod:`contract.helpers` helpers functions."""
 
-    # # box_name_from_address
+    # # address_from_box_name
     @pytest.mark.parametrize(
         "address,box_name",
         [
             (
                 "2EVGZ4BGOSL3J64UYDE2BUGTNTBZZZLI54VUQQNZZLYCDODLY33UGXNSIU",
                 (
-                    b"\xd1*l\xf0&t\x97\xb4\xfb\x94\xc0\xc9\xa0\xd0"
-                    b"\xd3l\xc3\x9c\xe5h\xef+HA\xb9\xca\xf0!\xb8k\xc6\xf7"
+                    b"allocations\xd1*l\xf0&t\x97\xb4\xfb\x94\xc0\xc9\xa0"
+                    b"\xd0\xd3l\xc3\x9c\xe5h\xef+HA\xb9\xca\xf0!\xb8k\xc6\xf7"
                 ),
             ),
             (
                 "VW55KZ3NF4GDOWI7IPWLGZDFWNXWKSRD5PETRLDABZVU5XPKRJJRK3CBSU",
                 (
-                    b"\xad\xbb\xd5gm/\x0c7Y\x1fC\xec\xb3de\xb3oeJ#"
-                    b"\xeb\xc98\xac`\x0ekN\xdd\xea\x8aS"
+                    b"allocations\xad\xbb\xd5gm/\x0c7Y\x1fC\xec\xb3de"
+                    b"\xb3oeJ#\xeb\xc98\xac`\x0ekN\xdd\xea\x8aS"
                 ),
             ),
             (
                 "LXJ3Q6RZ2TJ6VCJDFMSM4ZVNYYYE4KVSL3N2TYR23PLNCJCIXBM3NYTBYE",
                 (
-                    b"]\xd3\xb8z9\xd4\xd3\xea\x89#+$\xcef\xad\xc60N*"
-                    b"\xb2^\xdb\xa9\xe2:\xdb\xd6\xd1$H\xb8Y"
+                    b"allocations]\xd3\xb8z9\xd4\xd3\xea\x89#+$\xcef\xad"
+                    b"\xc60N*\xb2^\xdb\xa9\xe2:\xdb\xd6\xd1$H\xb8Y"
                 ),
             ),
             (
                 "VKENBO5W2DZAZFQR45SOQO6IMWS5UMVZCHLPEACNOII7BDJTGBZKSEL4Y4",
                 (
-                    b"\xaa\x88\xd0\xbb\xb6\xd0\xf2\x0c\x96\x11\xe7d"
+                    b"allocations\xaa\x88\xd0\xbb\xb6\xd0\xf2\x0c\x96\x11\xe7d"
                     b"\xe8;\xc8e\xa5\xda2\xb9\x11\xd6\xf2\x00Mr\x11\xf0\x8d30r"
                 ),
             ),
         ],
     )
-    def test_contract_helpers_box_name_from_address_functionality(
+    def test_contract_helpers_address_from_box_name_functionality(
         self, address, box_name
     ):
         returned = box_name_from_address(address)
         assert returned == box_name
+
+    # # box_name_from_address
+    def test_contract_helpers_box_name_from_address_for_wrong_box(self):
+        box_name = "YWxsc2NhdGlvbnPRKmzwJnSXtPuUwMmg0NNsw5zlaO8rSEG5yvAhuGvG9w=="
+        with pytest.raises(ValueError) as exception:
+            address_from_box_name(box_name)
+            assert "Invalid box name, prefix 'allocations' missing" in str(
+                exception.value
+            )
+
+    @pytest.mark.parametrize(
+        "box_name,address",
+        [
+            (
+                "YWxsb2NhdGlvbnPRKmzwJnSXtPuUwMmg0NNsw5zlaO8rSEG5yvAhuGvG9w==",
+                "2EVGZ4BGOSL3J64UYDE2BUGTNTBZZZLI54VUQQNZZLYCDODLY33UGXNSIU",
+            ),
+            (
+                "YWxsb2NhdGlvbnOtu9VnbS8MN1kfQ+yzZGWzb2VKI+vJOKxgDmtO3eqKUw==",
+                "VW55KZ3NF4GDOWI7IPWLGZDFWNXWKSRD5PETRLDABZVU5XPKRJJRK3CBSU",
+            ),
+            (
+                "YWxsb2NhdGlvbnNd07h6OdTT6okjKyTOZq3GME4qsl7bqeI629bRJEi4WQ==",
+                "LXJ3Q6RZ2TJ6VCJDFMSM4ZVNYYYE4KVSL3N2TYR23PLNCJCIXBM3NYTBYE",
+            ),
+            (
+                "YWxsb2NhdGlvbnOqiNC7ttDyDJYR52ToO8hlpdoyuRHW8gBNchHwjTMwcg==",
+                "VKENBO5W2DZAZFQR45SOQO6IMWS5UMVZCHLPEACNOII7BDJTGBZKSEL4Y4",
+            ),
+        ],
+    )
+    def test_contract_helpers_box_name_from_address_functionality(
+        self, box_name, address
+    ):
+        returned = address_from_box_name(box_name)
+        assert returned == address
 
     # # environment_variables
     def test_contract_helpers_environment_variables_functionality(self, mocker):
@@ -80,6 +117,7 @@ class TestContractHelpersFunctions:
             "user_mainnet_mnemonic",
             "rewards_token_id_testnet",
             "rewards_token_id_mainnet",
+            "rewards_token_decimals",
             "rewards_dapp_name",
             "claim_period_duration",
             "dapp_minimum_algo",
@@ -92,7 +130,12 @@ class TestContractHelpersFunctions:
         ) as mocked_getenv:
             returned = environment_variables()
             assert returned == mocks
-            calls = [mocker.call(var.upper()) for var in mocks]
+            calls = [
+                mocker.call(var.upper())
+                for var in mocks
+                if var != "rewards_token_decimals"
+            ]
+            calls.append(mocker.call("rewards_token_decimals".upper(), 6))
             mocked_getenv.assert_has_calls(calls, any_order=True)
             assert mocked_getenv.call_count == len(mocks)
         mocked_load_dotenv.assert_called_once_with()

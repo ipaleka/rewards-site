@@ -5,6 +5,7 @@ import struct
 import time
 
 import pytest
+from algosdk.logic import get_application_address
 
 from contract.network import (
     ACTIVE_NETWORK,
@@ -28,14 +29,19 @@ class TestContractNetworkPrivateFunctions:
     # # _add_allocations
     def test_contract_network_add_allocations_functionality(self, mocker):
         network = "testnet"
-        addresses = ["ADDR1", "ADDR2"]
+        addresses = [
+            "2EVGZ4BGOSL3J64UYDE2BUGTNTBZZZLI54VUQQNZZLYCDODLY33UGXNSIU",
+            "VW55KZ3NF4GDOWI7IPWLGZDFWNXWKSRD5PETRLDABZVU5XPKRJJRK3CBSU",
+        ]
         amounts = [100, 200]
         token_id = 505
+        app_id = 749507218
 
         env = {
             "algod_token_testnet": "token",
             "algod_address_testnet": "address",
             "rewards_token_id_testnet": token_id,
+            "rewards_token_decimals": 6,
         }
 
         mocked_env = mocker.patch(
@@ -51,7 +57,7 @@ class TestContractNetworkPrivateFunctions:
         stub_contract.get_method_by_name.return_value = "METHOD_OBJ"
 
         atc_stub = {
-            "app_id": 555,
+            "app_id": app_id,
             "contract": stub_contract,
             "sender": "sender_address",
             "sp": mocker.MagicMock(),
@@ -61,7 +67,13 @@ class TestContractNetworkPrivateFunctions:
         mocked_atc_stub = mocker.patch(
             "contract.network.atc_method_stub", return_value=atc_stub
         )
+        transfer = mocker.MagicMock()
+        mocked_transfer = mocker.patch(
+            "contract.network.AssetTransferTxn", return_value=transfer
+        )
+        mocked_signer = mocker.patch("contract.network.TransactionWithSigner")
 
+        app_address = get_application_address(atc_stub["app_id"])
         atc = mocker.MagicMock()
         mocked_atc = mocker.patch(
             "contract.network.AtomicTransactionComposer", return_value=atc
@@ -75,18 +87,51 @@ class TestContractNetworkPrivateFunctions:
 
         returned = _add_allocations(network, addresses, amounts)
         assert returned == "TX123"
-
+        microasa_amounts = [amount * 10**6 for amount in amounts]
+        boxes = [
+            (
+                app_id,
+                (
+                    b"allocations\xd1*l\xf0&t\x97\xb4\xfb\x94\xc0\xc9\xa0"
+                    b"\xd0\xd3l\xc3\x9c\xe5h\xef+HA\xb9\xca\xf0!\xb8k\xc6\xf7"
+                ),
+            ),
+            (
+                app_id,
+                (
+                    b"allocations\xad\xbb\xd5gm/\x0c7Y\x1fC\xec\xb3de\xb3oeJ#"
+                    b"\xeb\xc98\xac`\x0ekN\xdd\xea\x8aS"
+                ),
+            ),
+        ]
         mocked_env.assert_called_once_with()
         mocked_client.assert_called_once_with("token", "address")
+        client.suggested_params.assert_called_with()
+        assert client.suggested_params.call_count == 2
+        mocked_transfer.assert_called_once_with(
+            sender=atc_stub.get("sender"),
+            receiver=app_address,
+            amt=sum(microasa_amounts),
+            index=token_id,
+            sp=client.suggested_params.return_value,
+        )
+        mocked_signer.assert_called_once_with(
+            txn=mocked_transfer.return_value,
+            signer=atc_stub.get("signer"),
+        )
+        mocked_atc.return_value.add_transaction.assert_called_once_with(
+            mocked_signer.return_value
+        )
         mocked_atc_stub.assert_called_once_with(client, network)
         mocked_atc.assert_called_once_with()
         atc.add_method_call.assert_called_once_with(
-            app_id=555,
+            app_id=app_id,
             method="METHOD_OBJ",
             sender="sender_address",
-            sp=atc_stub["sp"],
+            sp=client.suggested_params.return_value,
             signer=atc_stub["signer"],
-            method_args=[addresses, amounts],
+            method_args=[addresses, microasa_amounts],
+            boxes=boxes,
             foreign_assets=[token_id],
         )
         atc.execute.assert_called_once_with(client, 2)
@@ -142,13 +187,14 @@ class TestContractNetworkPrivateFunctions:
     # # _reclaim_allocation
     def test_contract_network_reclaim_allocation_functionality(self, mocker):
         network = "mainnet"
-        user_address = "USER123"
+        user_address = "2EVGZ4BGOSL3J64UYDE2BUGTNTBZZZLI54VUQQNZZLYCDODLY33UGXNSIU"
         token_id = 507
 
         env = {
             "algod_token_mainnet": "main_token",
             "algod_address_mainnet": "main_address",
             "rewards_token_id_mainnet": token_id,
+            "rewards_token_decimals": 6,
         }
 
         mocked_env = mocker.patch(
@@ -186,7 +232,8 @@ class TestContractNetworkPrivateFunctions:
 
         mocker.patch("builtins.print")  # Silence logs
 
-        _reclaim_allocation(network, user_address)
+        returned = _reclaim_allocation(network, user_address)
+        assert returned == "TX777"
 
         mocked_env.assert_called_once_with()
         mocked_client.assert_called_once_with("main_token", "main_address")
@@ -200,6 +247,15 @@ class TestContractNetworkPrivateFunctions:
             sp=atc_stub["sp"],
             signer=atc_stub["signer"],
             method_args=[user_address],
+            boxes=[
+                (
+                    222,
+                    (
+                        b"allocations\xd1*l\xf0&t\x97\xb4\xfb\x94\xc0\xc9\xa0\xd0"
+                        b"\xd3l\xc3\x9c\xe5h\xef+HA\xb9\xca\xf0!\xb8k\xc6\xf7"
+                    ),
+                )
+            ],
             foreign_assets=[token_id],
         )
 
@@ -602,6 +658,7 @@ class TestContractNetworkPublicFunctions:
             "algod_address_testnet": "address",
             "rewards_token_id_testnet": token_id,
             "dapp_minimum_algo": 100000,
+            "rewards_token_decimals": 6,
         }
         mocker.patch("contract.network.environment_variables", return_value=env)
 
@@ -621,7 +678,7 @@ class TestContractNetworkPublicFunctions:
             "contract.network._check_balances",
             side_effect=[
                 (200_000, 0),  # app_algo_balance (sufficient)
-                (150_000, 500),  # admin balances
+                (150_000, 16 * 10**6),  # admin balances
             ],
         )
 
@@ -647,6 +704,7 @@ class TestContractNetworkPublicFunctions:
             "algod_address_testnet": "address",
             "rewards_token_id_testnet": token_id,
             "dapp_minimum_algo": 200000,
+            "rewards_token_decimals": 6,
         }
         mocker.patch("contract.network.environment_variables", return_value=env)
 
@@ -664,7 +722,7 @@ class TestContractNetworkPublicFunctions:
             side_effect=[
                 (50_000, 0),  # app balance insufficient
                 (300_000, 0),  # admin algo enough to fund
-                (300_000, 100),  # admin token after funding
+                (300_000, 11 * 10**6),  # admin token after funding
             ],
         )
 
@@ -730,6 +788,7 @@ class TestContractNetworkPublicFunctions:
             "algod_address_testnet": "address",
             "rewards_token_id_testnet": token_id,
             "dapp_minimum_algo": 100000,
+            "rewards_token_decimals": 6,
         }
         mocker.patch("contract.network.environment_variables", return_value=env)
 
@@ -746,7 +805,7 @@ class TestContractNetworkPublicFunctions:
             "contract.network._check_balances",
             side_effect=[
                 (500_000, 0),  # app algo ok
-                (0, 100),  # admin doesn't have enough tokens
+                (0, 19 * 10**6),  # admin doesn't have enough tokens
             ],
         )
 
@@ -756,57 +815,210 @@ class TestContractNetworkPublicFunctions:
         with pytest.raises(ValueError, match="Not enough token"):
             process_allocations(network, addresses, amounts)
 
-    # # process_allocations_for_contributions
-    def test_contract_network_process_allocations_for_contributions_no_addreses(
+    # process_allocations_for_contributions
+    def test_contract_network_process_allocations_for_contributions_no_addresses(
         self, mocker
     ):
         contributions = mocker.MagicMock()
         allocations_callback = mocker.MagicMock()
         allocations_callback.return_value = ([], [])
         mocked_process = mocker.patch("contract.network.process_allocations")
-        returned = process_allocations_for_contributions(
-            contributions, allocations_callback
+
+        results = list(
+            process_allocations_for_contributions(contributions, allocations_callback)
         )
-        assert returned is False
+
+        assert results == [(False, [])]
         allocations_callback.assert_called_once_with(contributions)
         mocked_process.assert_not_called()
 
-    def test_contract_network_process_allocations_for_contributions_for_exception(
-        self, mocker
-    ):
+    def test_contract_allocations_for_contributions_single_batch_success(self, mocker):
         contributions = mocker.MagicMock()
-        addresses, amounts = mocker.MagicMock(), mocker.MagicMock()
+        addresses = ["addr1", "addr2"]
+        amounts = [100, 200]
         allocations_callback = mocker.MagicMock()
         allocations_callback.return_value = (addresses, amounts)
+
+        # Mock batch size larger than addresses count
+        mocker.patch("contract.network.ADD_ALLOCATIONS_BATCH_SIZE", 10)
+
         mocked_process = mocker.patch(
-            "contract.network.process_allocations", side_effect=ValueError("")
+            "contract.network.process_allocations", return_value="tx_hash_123"
         )
-        returned = process_allocations_for_contributions(
-            contributions, allocations_callback
+
+        results = list(
+            process_allocations_for_contributions(contributions, allocations_callback)
         )
-        assert returned is False
+
+        # Should yield: (result, batch_addresses)
+        assert results == [("tx_hash_123", ["addr1", "addr2"])]
         allocations_callback.assert_called_once_with(contributions)
         mocked_process.assert_called_once_with(ACTIVE_NETWORK, addresses, amounts)
 
-    def test_contract_network_process_allocations_for_contributions_functionality(
+    def test_contract_network_process_allocations_for_contributions_multiple_batches_success(
         self, mocker
     ):
         contributions = mocker.MagicMock()
-        addresses, amounts = mocker.MagicMock(), mocker.MagicMock()
+        addresses = ["addr1", "addr2", "addr3", "addr4", "addr5"]
+        amounts = [100, 200, 300, 400, 500]
         allocations_callback = mocker.MagicMock()
         allocations_callback.return_value = (addresses, amounts)
-        mocked_process = mocker.patch("contract.network.process_allocations")
-        returned = process_allocations_for_contributions(
-            contributions, allocations_callback
+
+        # Mock batch size of 2
+        mocker.patch("contract.network.ADD_ALLOCATIONS_BATCH_SIZE", 2)
+
+        # Mock process_allocations to return different results for each batch
+        batch_results = ["tx_hash_1", "tx_hash_2", "tx_hash_3"]
+        mocked_process = mocker.patch(
+            "contract.network.process_allocations", side_effect=batch_results
         )
-        assert returned == mocked_process.return_value
+
+        results = list(
+            process_allocations_for_contributions(contributions, allocations_callback)
+        )
+
+        # Expected results with batch addresses for each batch
+        expected_results = [
+            ("tx_hash_1", ["addr1", "addr2"]),  # Batch 1
+            ("tx_hash_2", ["addr3", "addr4"]),  # Batch 2
+            ("tx_hash_3", ["addr5"]),  # Batch 3
+        ]
+
+        assert results == expected_results
+        allocations_callback.assert_called_once_with(contributions)
+        assert mocked_process.call_count == 3
+
+        # Verify the batch calls
+        expected_calls = [
+            mocker.call(ACTIVE_NETWORK, ["addr1", "addr2"], [100, 200]),
+            mocker.call(ACTIVE_NETWORK, ["addr3", "addr4"], [300, 400]),
+            mocker.call(ACTIVE_NETWORK, ["addr5"], [500]),
+        ]
+        mocked_process.assert_has_calls(expected_calls)
+
+    def test_contract_network_process_allocations_for_contributions_batch_with_exception(
+        self, mocker
+    ):
+        contributions = mocker.MagicMock()
+        addresses = ["addr1", "addr2", "addr3", "addr4"]
+        amounts = [100, 200, 300, 400]
+        allocations_callback = mocker.MagicMock()
+        allocations_callback.return_value = (addresses, amounts)
+
+        mocker.patch("contract.network.ADD_ALLOCATIONS_BATCH_SIZE", 2)
+
+        # First call succeeds, second call raises exception
+        mocked_process = mocker.patch(
+            "contract.network.process_allocations",
+            side_effect=["tx_hash_1", ValueError("Transaction failed")],
+        )
+
+        results = list(
+            process_allocations_for_contributions(contributions, allocations_callback)
+        )
+
+        # First batch succeeds, second batch returns (False, []) due to exception
+        expected_results = [
+            ("tx_hash_1", ["addr1", "addr2"]),  # Batch 1 (success)
+            (False, []),  # Batch 2 (failed)
+        ]
+
+        assert results == expected_results
+        allocations_callback.assert_called_once_with(contributions)
+        assert mocked_process.call_count == 2
+
+    def test_contract_network_process_allocations_for_contributions_all_batches_fail(
+        self, mocker
+    ):
+        contributions = mocker.MagicMock()
+        addresses = ["addr1", "addr2", "addr3"]
+        amounts = [100, 200, 300]
+        allocations_callback = mocker.MagicMock()
+        allocations_callback.return_value = (addresses, amounts)
+
+        mocker.patch("contract.network.ADD_ALLOCATIONS_BATCH_SIZE", 1)
+
+        # All calls raise exceptions
+        mocked_process = mocker.patch(
+            "contract.network.process_allocations",
+            side_effect=ValueError("Transaction failed"),
+        )
+
+        results = list(
+            process_allocations_for_contributions(contributions, allocations_callback)
+        )
+
+        # All batches return (False, []) due to exceptions
+        expected_results = [
+            (False, []),  # Batch 1 (failed)
+            (False, []),  # Batch 2 (failed)
+            (False, []),  # Batch 3 (failed)
+        ]
+
+        assert results == expected_results
+        allocations_callback.assert_called_once_with(contributions)
+        assert mocked_process.call_count == 3
+
+    def test_contract_network_process_allocations_for_contributions_exact_batch_size(
+        self, mocker
+    ):
+        """Test when number of addresses exactly matches batch size"""
+        contributions = mocker.MagicMock()
+        addresses = ["addr1", "addr2", "addr3", "addr4"]
+        amounts = [100, 200, 300, 400]
+        allocations_callback = mocker.MagicMock()
+        allocations_callback.return_value = (addresses, amounts)
+
+        mocker.patch("contract.network.ADD_ALLOCATIONS_BATCH_SIZE", 4)
+
+        mocked_process = mocker.patch(
+            "contract.network.process_allocations", return_value="tx_hash_123"
+        )
+
+        results = list(
+            process_allocations_for_contributions(contributions, allocations_callback)
+        )
+
+        # Single batch with all addresses
+        assert results == [("tx_hash_123", ["addr1", "addr2", "addr3", "addr4"])]
         allocations_callback.assert_called_once_with(contributions)
         mocked_process.assert_called_once_with(ACTIVE_NETWORK, addresses, amounts)
+
+    def test_contract_network_process_allocations_for_contributions_mixed_success_failure(
+        self, mocker
+    ):
+        """Test mixed scenario with success, failure, and success"""
+        contributions = mocker.MagicMock()
+        addresses = ["addr1", "addr2", "addr3", "addr4", "addr5"]
+        amounts = [100, 200, 300, 400, 500]
+        allocations_callback = mocker.MagicMock()
+        allocations_callback.return_value = (addresses, amounts)
+
+        mocker.patch("contract.network.ADD_ALLOCATIONS_BATCH_SIZE", 2)
+
+        # Mixed results: success, failure, success
+        mocked_process = mocker.patch(
+            "contract.network.process_allocations",
+            side_effect=["tx_hash_1", ValueError("Failed"), "tx_hash_3"],
+        )
+
+        results = list(
+            process_allocations_for_contributions(contributions, allocations_callback)
+        )
+
+        expected_results = [
+            ("tx_hash_1", ["addr1", "addr2"]),  # Batch 1 (success)
+            (False, []),  # Batch 2 (failed)
+            ("tx_hash_3", ["addr5"]),  # Batch 3 (success)
+        ]
+
+        assert results == expected_results
+        allocations_callback.assert_called_once_with(contributions)
+        assert mocked_process.call_count == 3
 
     # # process_reclaim_allocation
     def test_contract_network_process_reclaim_allocation_calls_reclaim(self, mocker):
-        network = "testnet"
-        user_address = "USER123"
+        user_address = "2EVGZ4BGOSL3J64UYDE2BUGTNTBZZZLI54VUQQNZZLYCDODLY33UGXNSIU"
 
         env = {
             "algod_token_testnet": "token",
@@ -819,10 +1031,6 @@ class TestContractNetworkPublicFunctions:
 
         atc_stub = {"app_id": 123}
         mocker.patch("contract.network.atc_method_stub", return_value=atc_stub)
-
-        mock_decode = mocker.patch(
-            "contract.network.decode_address", return_value=b"decoded"
-        )
 
         # simulate box value (amount=100, expires_at = past timestamp)
         past_timestamp = int(time.time()) - 1000
@@ -832,17 +1040,23 @@ class TestContractNetworkPublicFunctions:
 
         mocked_reclaim = mocker.patch("contract.network._reclaim_allocation")
 
-        process_reclaim_allocation(network, user_address)
+        returned = process_reclaim_allocation(user_address)
+        assert returned == mocked_reclaim.return_value
 
-        mock_decode.assert_called_once_with(user_address)
-        client.application_box_by_name.assert_called_once_with(123, b"decoded")
-        mocked_reclaim.assert_called_once_with(network, user_address)
+        client.application_box_by_name.assert_called_once_with(
+            123,
+            (
+                b"allocations\xd1*l\xf0&t\x97\xb4\xfb\x94\xc0\xc9\xa0"
+                b"\xd0\xd3l\xc3\x9c\xe5h\xef+HA\xb9\xca\xf0!\xb8k\xc6\xf7"
+            ),
+        )
+        mocked_reclaim.assert_called_once_with(ACTIVE_NETWORK, user_address)
 
     def test_contract_network_process_reclaim_allocation_raises_for_missing_box(
         self, mocker
     ):
         network = "testnet"
-        user_address = "USER123"
+        user_address = "2EVGZ4BGOSL3J64UYDE2BUGTNTBZZZLI54VUQQNZZLYCDODLY33UGXNSIU"
 
         env = {
             "algod_token_testnet": "token",
@@ -856,18 +1070,16 @@ class TestContractNetworkPublicFunctions:
         atc_stub = {"app_id": 123}
         mocker.patch("contract.network.atc_method_stub", return_value=atc_stub)
 
-        mocker.patch("contract.network.decode_address", return_value=b"decoded")
-
         client.application_box_by_name.return_value = {"value": None}
 
         with pytest.raises(ValueError, match="No user's box"):
-            process_reclaim_allocation(network, user_address)
+            process_reclaim_allocation(user_address, network)
 
     def test_contract_network_process_reclaim_allocation_raises_when_claim_period_not_over(
         self, mocker
     ):
         network = "mainnet"
-        user_address = "USERABC"
+        user_address = "VW55KZ3NF4GDOWI7IPWLGZDFWNXWKSRD5PETRLDABZVU5XPKRJJRK3CBSU"
 
         env = {
             "algod_token_mainnet": "token",
@@ -881,8 +1093,6 @@ class TestContractNetworkPublicFunctions:
         atc_stub = {"app_id": 999}
         mocker.patch("contract.network.atc_method_stub", return_value=atc_stub)
 
-        mocker.patch("contract.network.decode_address", return_value=b"decoded")
-
         # simulate future timestamp (claim not expired)
         future_timestamp = int(time.time()) + 9999
         encoded = base64.b64encode(struct.pack(">QQ", 50, future_timestamp))
@@ -890,13 +1100,13 @@ class TestContractNetworkPublicFunctions:
         client.application_box_by_name.return_value = {"value": encoded}
 
         with pytest.raises(ValueError, match="User claim period hasn't ended"):
-            process_reclaim_allocation(network, user_address)
+            process_reclaim_allocation(user_address, network)
 
-    def test_contract_network_process_reclaim_allocation_does_not_call_reclaim_if_amount_zero(
+    def test_contract_network_process_reclaim_allocation_not_calling_reclaim_no_amount(
         self, mocker
     ):
         network = "testnet"
-        user_address = "USER999"
+        user_address = "VW55KZ3NF4GDOWI7IPWLGZDFWNXWKSRD5PETRLDABZVU5XPKRJJRK3CBSU"
 
         env = {
             "algod_token_testnet": "token",
@@ -910,8 +1120,6 @@ class TestContractNetworkPublicFunctions:
         atc_stub = {"app_id": 999}
         mocker.patch("contract.network.atc_method_stub", return_value=atc_stub)
 
-        mocker.patch("contract.network.decode_address", return_value=b"decoded")
-
         # amount = 0 (nothing to reclaim)
         past_timestamp = int(time.time()) - 9999
         encoded = base64.b64encode(struct.pack(">QQ", 0, past_timestamp))
@@ -920,7 +1128,7 @@ class TestContractNetworkPublicFunctions:
 
         mocked_reclaim = mocker.patch("contract.network._reclaim_allocation")
 
-        process_reclaim_allocation(network, user_address)
+        process_reclaim_allocation(user_address, network)
 
         mocked_reclaim.assert_not_called()
 
@@ -945,17 +1153,17 @@ class TestContractNetworkPublicFunctions:
         mocker.patch("contract.network.atc_method_stub", return_value=atc_stub)
 
         # Simulate three application boxes
-        box1 = {"name": b"BOX1"}  # expired, amount > 0 → reclaimable
-        box2 = {"name": b"BOX2"}  # expired, amount == 0 → not reclaimable
-        box3 = {"name": b"BOX3"}  # not expired → not reclaimable
+        box1 = {
+            "name": "YWxsb2NhdGlvbnPRKmzwJnSXtPuUwMmg0NNsw5zlaO8rSEG5yvAhuGvG9w=="
+        }  # expired, amount > 0 → reclaimable
+        box2 = {
+            "name": "YWxsb2NhdGlvbnOtu9VnbS8MN1kfQ+yzZGWzb2VKI+vJOKxgDmtO3eqKUw=="
+        }  # expired, amount == 0 → not reclaimable
+        box3 = {
+            "name": "YWxsb2NhdGlvbnNd07h6OdTT6okjKyTOZq3GME4qsl7bqeI629bRJEi4WQ=="
+        }  # not expired → not reclaimable
 
         client.application_boxes.return_value = {"boxes": [box1, box2, box3]}
-
-        # encode three different user addresses
-        mocked_encode = mocker.patch(
-            "contract.network.encode_address",
-            side_effect=["ADDR1", "ADDR2", "ADDR3"],
-        )
 
         now = int(time.time())
 
@@ -973,14 +1181,9 @@ class TestContractNetworkPublicFunctions:
 
         returned = reclaimable_addresses(network)
 
-        assert returned == ["ADDR1"]
-        mocked_encode.assert_has_calls(
-            [
-                mocker.call(b"BOX1"),
-                mocker.call(b"BOX2"),
-                mocker.call(b"BOX3"),
-            ]
-        )
+        assert returned == [
+            "2EVGZ4BGOSL3J64UYDE2BUGTNTBZZZLI54VUQQNZZLYCDODLY33UGXNSIU"
+        ]
         assert len(returned) == 1
         mocked_client.assert_called_once_with("token", "address")
 
@@ -1002,17 +1205,17 @@ class TestContractNetworkPublicFunctions:
         mocker.patch("contract.network.atc_method_stub", return_value=atc_stub)
 
         # Simulate three application boxes
-        box1 = {"name": b"BOX1"}  # expired, amount > 0 → reclaimable
-        box2 = {"name": b"BOX2"}  # expired, amount == 0 → not reclaimable
-        box3 = {"name": b"BOX3"}  # not expired → not reclaimable
+        box1 = {
+            "name": "YWxsb2NhdGlvbnPRKmzwJnSXtPuUwMmg0NNsw5zlaO8rSEG5yvAhuGvG9w=="
+        }  # expired, amount > 0 → reclaimable
+        box2 = {
+            "name": "YWxsb2NhdGlvbnOtu9VnbS8MN1kfQ+yzZGWzb2VKI+vJOKxgDmtO3eqKUw=="
+        }  # expired, amount == 0 → not reclaimable
+        box3 = {
+            "name": "YWxsb2NhdGlvbnNd07h6OdTT6okjKyTOZq3GME4qsl7bqeI629bRJEi4WQ=="
+        }  # not expired → not reclaimable
 
         client.application_boxes.return_value = {"boxes": [box1, box2, box3]}
-
-        # encode three different user addresses
-        mocked_encode = mocker.patch(
-            "contract.network.encode_address",
-            side_effect=["ADDR1", "ADDR2", "ADDR3"],
-        )
 
         now = int(time.time())
 
@@ -1030,16 +1233,37 @@ class TestContractNetworkPublicFunctions:
 
         returned = reclaimable_addresses()
 
-        assert returned == ["ADDR1"]
-        mocked_encode.assert_has_calls(
-            [
-                mocker.call(b"BOX1"),
-                mocker.call(b"BOX2"),
-                mocker.call(b"BOX3"),
-            ]
-        )
+        assert returned == [
+            "2EVGZ4BGOSL3J64UYDE2BUGTNTBZZZLI54VUQQNZZLYCDODLY33UGXNSIU"
+        ]
         assert len(returned) == 1
         mocked_client.assert_called_once_with("token", "address")
+        client.application_boxes.assert_called_once_with(123)
+        calls = [
+            mocker.call(
+                123,
+                (
+                    b"allocations\xd1*l\xf0&t\x97\xb4\xfb\x94\xc0\xc9\xa0"
+                    b"\xd0\xd3l\xc3\x9c\xe5h\xef+HA\xb9\xca\xf0!\xb8k\xc6\xf7"
+                ),
+            ),
+            mocker.call(
+                123,
+                (
+                    b"allocations\xad\xbb\xd5gm/\x0c7Y\x1fC\xec\xb3de"
+                    b"\xb3oeJ#\xeb\xc98\xac`\x0ekN\xdd\xea\x8aS"
+                ),
+            ),
+            mocker.call(
+                123,
+                (
+                    b"allocations]\xd3\xb8z9\xd4\xd3\xea\x89#+$\xcef\xad"
+                    b"\xc60N*\xb2^\xdb\xa9\xe2:\xdb\xd6\xd1$H\xb8Y"
+                ),
+            ),
+        ]
+        client.application_box_by_name.assert_has_calls(calls, any_order=True)
+        assert client.application_box_by_name.call_count == 3
 
     def test_contract_network_reclaimable_addresses_returns_empty_when_no_boxes(
         self, mocker
@@ -1081,10 +1305,8 @@ class TestContractNetworkPublicFunctions:
         atc_stub = {"app_id": 999}
         mocker.patch("contract.network.atc_method_stub", return_value=atc_stub)
 
-        box = {"name": b"BOX1"}
+        box = {"name": "YWxsb2NhdGlvbnOtu9VnbS8MN1kfQ+yzZGWzb2VKI+vJOKxgDmtO3eqKUw=="}
         client.application_boxes.return_value = {"boxes": [box]}
-
-        mocker.patch("contract.network.encode_address", return_value="ADDR1")
 
         # Application box returns None for "value"
         client.application_box_by_name.return_value = {"value": None}

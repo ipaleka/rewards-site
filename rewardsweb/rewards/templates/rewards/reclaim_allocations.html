@@ -1,51 +1,69 @@
 {% extends "base_generic.html" %}
+{% load partials %}
 {% load static %}
 
-{% block head_title %}
-  Reclaim Allocations
-{% endblock head_title %}
+{% partialdef reclaim_allocations_table_partial %}
+<div class="space-y-4 p-4 rounded-lg bg-base-200 mt-4">
+
+  <h4 class="font-semibold text-lg">Reclaimable allocations</h4>
+
+  <div class="overflow-x-auto">
+    <table class="table w-full">
+      <thead>
+        <tr><th></th><th>Address</th></tr>
+      </thead>
+      <tbody>
+        {% for address in addresses %}
+        <tr>
+          <td class="py-2 px-2">
+            {% if use_admin_account %}
+            <form method="post"
+                  hx-post="{% url 'reclaim_allocations' %}"
+                  hx-vals='{"blocking": "true"}'
+                  hx-trigger="click"
+                  hx-swap="none">
+              {% csrf_token %}
+              <input type="hidden" name="address" value="{{ address }}">
+              <button type="submit"
+                      class="btn btn-soft btn-warning btn-sm"
+                      hx-disable>
+                Reclaim
+              </button>
+            </form>
+            {% else %}
+              <button type="button" class="btn btn-soft btn-warning btn-sm">
+                Reclaim
+              </button>
+            {% endif %}
+          </td>
+          <td class="py-2 px-2">{{ address }}</td>
+        </tr>
+        {% empty %}
+        <tr>
+          <td colspan="2" class="py-4 text-center text-success">
+            ✅ No reclaimable allocations found!
+          </td>
+        </tr>
+        {% endfor %}
+      </tbody>
+    </table>
+  </div>
+
+</div>
+{% endpartialdef reclaim_allocations_table_partial %}
 
 {% block content %}
-  <div class="container mx-auto px-4 py-8">
-    <h1 class="text-3xl font-bold mb-6">Reclaim allocations (superuser only)</h1>
 
-    <div id="reclaim-allocations-container">
-      <div class="space-y-4 p-4 rounded-lg bg-base-200 mt-4">
-        <h4 class="font-semibold text-lg">Reclaimable addresses</h4>
+<div class="container mx-auto px-4 py-8">
+  <h1 class="text-3xl font-bold mb-6">Reclaim allocations (superuser only)</h1>
 
-          <table class="table w-full">
-            <thead>
-              <tr>
-                <th>Address</th>
-                <th></th>
-              </tr>
-            </thead>
-            <tbody>
-              {% for address in addresses %}
-                <tr>
-                  <td>{{ address }}</td>
-                  <td class="text-right">
-                    <button
-                      id="reclaim-button-{{ address }}"
-                      data-address="{{ address }}"
-                      type="button"
-                      class="btn btn-warning btn-xs"
-                    >
-                      Reclaim
-                    </button>
-                  </td>
-                </tr>
-              {% endfor %}
-            </tbody>
-          </table>
-        {% else %}
-          <p>No reclaimable allocations found.</p>
-        {% endif %}
-      </div>
-    </div>
-
-    <p class="mt-4 text-sm text-base-content/70">
-      This page allows a superuser to reclaim allocations from the smart contract.
-    </p>
+  <div id="reclaim-allocations-container">
+    {% partial reclaim_allocations_table_partial %}
   </div>
-{% endblock content %}
+
+  <p class="mt-4 text-sm text-base-content/70">
+    This page allows a superuser to reclaim allocations from the smart contract.
+  </p>
+</div>
+
+{% endblock %}

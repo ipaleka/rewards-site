@@ -4,8 +4,6 @@ import pytest
 from django.contrib.auth import get_user_model
 from django.contrib.messages import get_messages
 from django.contrib.messages.storage.fallback import FallbackStorage
-from django.http import HttpResponse
-from django.template.loader import render_to_string
 from django.urls import reverse
 from django.views.generic import DetailView, ListView, UpdateView
 
@@ -654,12 +652,8 @@ class TestContributionInvalidateViewDb:
         """Test form submission when reply operation fails."""
         client.force_login(superuser)
 
-        mock_add_reply = mocker.patch(
-            "core.views.add_reply_to_message", return_value=False
-        )
-        mock_add_reaction = mocker.patch(
-            "core.views.add_reaction_to_message", return_value=True
-        )
+        mocker.patch("core.views.add_reply_to_message", return_value=False)
+        mocker.patch("core.views.add_reaction_to_message", return_value=True)
 
         response = client.post(invalidate_url, {"comment": "This is a test reply"})
 
@@ -678,9 +672,7 @@ class TestContributionInvalidateViewDb:
         """Test form submission when reaction operation fails."""
         client.force_login(superuser)
 
-        mock_add_reaction = mocker.patch(
-            "core.views.add_reaction_to_message", return_value=False
-        )
+        mocker.patch("core.views.add_reaction_to_message", return_value=False)
 
         response = client.post(invalidate_url, {"comment": ""})
 
@@ -703,12 +695,8 @@ class TestContributionInvalidateViewDb:
         """Test form submission when both operations fail."""
         client.force_login(superuser)
 
-        mock_add_reply = mocker.patch(
-            "core.views.add_reply_to_message", return_value=False
-        )
-        mock_add_reaction = mocker.patch(
-            "core.views.add_reaction_to_message", return_value=False
-        )
+        mocker.patch("core.views.add_reply_to_message", return_value=False)
+        mocker.patch("core.views.add_reaction_to_message", return_value=False)
 
         response = client.post(invalidate_url, {"comment": "This is a test reply"})
 
@@ -726,12 +714,10 @@ class TestContributionInvalidateViewDb:
         """Test form submission when reply operation raises exception."""
         client.force_login(superuser)
 
-        mock_add_reply = mocker.patch(
+        mocker.patch(
             "core.views.add_reply_to_message", side_effect=Exception("Reply failed")
         )
-        mock_add_reaction = mocker.patch(
-            "core.views.add_reaction_to_message", return_value=True
-        )
+        mocker.patch("core.views.add_reaction_to_message", return_value=True)
 
         response = client.post(invalidate_url, {"comment": "This is a test reply"})
 
@@ -752,7 +738,7 @@ class TestContributionInvalidateViewDb:
         """Test form submission when reaction operation raises exception."""
         client.force_login(superuser)
 
-        mock_add_reaction = mocker.patch(
+        mocker.patch(
             "core.views.add_reaction_to_message",
             side_effect=Exception("Reaction failed"),
         )
@@ -787,7 +773,7 @@ class TestContributionInvalidateViewDb:
             "core.views.add_reaction_to_message", return_value=True
         )
 
-        response = client.post(url, {"comment": ""})
+        client.post(url, {"comment": ""})
 
         # Check that reaction was called with correct type
         mock_add_reaction.assert_called_once_with(

@@ -58,7 +58,7 @@
 
   {% if allocations %}
   <div id="add-allocations-container">
-      {{ addresses_and_amounts|json_script:"addresses_and_amounts" }}
+      {% csrf_token %}
       {% partial allocations_table_partial %}
   </div>
   {% else %}

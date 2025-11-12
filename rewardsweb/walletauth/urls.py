@@ -5,6 +5,7 @@ from django.urls import path
 from walletauth.views import (
     ActiveNetworkAPIView,
     AddAllocationsAPIView,
+    AllocationsSuccessfulAPIView,
     ClaimAllocationAPIView,
     ReclaimAllocationsAPIView,
     UserClaimedAPIView,
@@ -23,6 +24,11 @@ urlpatterns = [
     path("nonce/", WalletNonceAPIView.as_view(), name="wallet_nonce"),
     path("verify/", WalletVerifyAPIView.as_view(), name="wallet_verify"),
     path("add-allocations/", AddAllocationsAPIView.as_view(), name="add_allocations"),
+    path(
+        "allocations-successful/",
+        AllocationsSuccessfulAPIView.as_view(),
+        name="allocations_successful",
+    ),
     path(
         "claim-allocation/", ClaimAllocationAPIView.as_view(), name="claim_allocation"
     ),

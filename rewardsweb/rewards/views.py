@@ -15,7 +15,7 @@ from contract.network import (
     reclaimable_addresses,
 )
 from core.models import Contribution, IssueStatus
-from utils.helpers import get_env_variable
+from rewards.helpers import added_allocations_for_addresses
 
 
 class ClaimView(LoginRequiredMixin, TemplateView):
@@ -75,11 +75,6 @@ class AddAllocationsView(LoginRequiredMixin, TemplateView):
         )
         if addresses:
             context["allocations"] = zip(addresses, amounts)
-            context["addresses_and_amounts"] = [
-                list(addresses),
-                list(amounts),
-                get_env_variable("REWARDS_TOKEN_DECIMALS", 6),
-            ]
             context["use_admin_account"] = is_admin_account_configured()
 
         return context
@@ -107,14 +102,7 @@ class AddAllocationsView(LoginRequiredMixin, TemplateView):
             Contribution.objects.addresses_and_amounts_from_contributions,
         ):
             if result:
-                messages.success(request, f"✅ Allocation successful TXID: {result}")
-                Contribution.objects.update_issue_statuses_for_addresses(
-                    addresses, contributions
-                )
-                self.request.user.profile.log_action(
-                    "boxes_created",
-                    "; ".join([addr[:5] + ".." + addr[-5:] for addr in addresses]),
-                )
+                added_allocations_for_addresses(addresses, result)
 
             else:
                 messages.error(request, "❌ Allocation batch failed.")

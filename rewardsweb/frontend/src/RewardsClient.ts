@@ -323,6 +323,24 @@ export class RewardsClient {
     }
   }
 
+  public async notifyAllocationsSuccessful(addresses: string[], txIDs: string[]): Promise<{ success: boolean }> {
+    try {
+      const response = await fetch('/api/wallet/allocations-successful/', {
+        method: 'POST',
+        headers: this.getHeaders(),
+        body: JSON.stringify({ addresses, txIDs })
+      })
+      if (!response.ok) {
+        throw new Error(`HTTP error! status: ${response.status}`)
+      }
+      const data = await response.json()
+      return data
+    } catch (error) {
+      console.error('[RewardsClient] Error notifying allocations successful:', error)
+      throw error
+    }
+  }
+
   /**
    * Fetches add allocations data for an address from the backend API.
    *

@@ -9,11 +9,13 @@ from algosdk.encoding import is_valid_address
 from algosdk.transaction import SignedTransaction
 from django.conf import settings
 from django.contrib.auth import get_user_model, login
+from rest_framework.permissions import IsAdminUser
 from rest_framework.response import Response
 from rest_framework.views import APIView
 
 from contract.network import can_user_claim, reclaimable_addresses
 from core.models import Contribution, Contributor, Profile
+from rewards.helpers import added_allocations_for_addresses
 from utils.constants.core import (
     ALGORAND_WALLETS,
     WALLET_CONNECT_NETWORK_OPTIONS,
@@ -130,6 +132,42 @@ class AddAllocationsAPIView(APIView):
         )
         allocations = {"addresses": addresses, "amounts": amounts}
         return Response(allocations)
+
+
+class AllocationsSuccessfulAPIView(APIView):
+    """Mark allocations as successful."""
+
+    permission_classes = [IsAdminUser]
+
+    def post(self, request, *args, **kwargs):
+        """Update status of related issues to PROCESSED.
+
+        Expected JSON:
+            - addresses (list[str])
+            - txIDs (list[str])
+
+        :param request: HTTP request object
+        :return: JSON response with:
+            - success (bool)
+            OR error message
+        """
+        try:
+            data = getattr(request, "data", None)
+            if data is None:
+                data = json.loads(request.body.decode())
+
+            addresses = data.get("addresses")
+            txid = data.get("txIDs")
+
+        except Exception:
+            return Response({"error": "Invalid JSON"}, status=400)
+
+        if not addresses:
+            return Response({"error": "Missing addresses"}, status=400)
+
+        added_allocations_for_addresses(request, addresses, txid)
+
+        return Response({"success": True})
 
 
 class ClaimAllocationAPIView(APIView):

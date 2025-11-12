@@ -42,17 +42,11 @@ export class AddAllocationsComponent {
   bind(element: HTMLElement) {
     this.element = element
     this.addEventListeners()
-
-    const scriptElement = document.getElementById('addresses_and_amounts')
-    if (scriptElement && scriptElement.textContent) {
-      try {
-        const data = JSON.parse(scriptElement.textContent)
-        this.addresses = data[0] || []
-        this.amounts = data[1] || []
-        this.decimals = data[2] || 6
-      } catch (error) {
-        console.error('[AddAllocationsComponent] Error parsing addresses_and_amounts from script tag:', error)
-      }
+    // Ensure the DOM is fully loaded before fetching data to ensure CSRF token is available
+    if (document.readyState === 'loading') {
+      document.addEventListener('DOMContentLoaded', () => this.fetchAllocationsData());
+    } else {
+      this.fetchAllocationsData();
     }
   }
 
@@ -69,7 +63,6 @@ export class AddAllocationsComponent {
     if (!activeAddress) {
       this.addresses = []
       this.amounts = []
-      this.render()
       return
     }
 
@@ -82,10 +75,8 @@ export class AddAllocationsComponent {
         this.addresses = []
         this.amounts = []
       }
-      this.render()
     } catch (error) {
       console.error('[AddAllocationsComponent] Error fetching add allocations data:', error)
-      alert(`Failed to fetch allocations data: ${error instanceof Error ? error.message : String(error)}`)
     }
   }
 
@@ -102,27 +93,15 @@ export class AddAllocationsComponent {
       console.info('[AddAllocationsComponent] Initiating add allocations...')
       const addressesChunk = this.addresses.slice(0, 4)
       const amountsChunk = this.amounts.slice(0, 4)
-      await this.rewardsClient.addAllocations(addressesChunk, amountsChunk, this.decimals)
-      alert('Add allocations transaction sent successfully!')
-      // Re-fetch data after successful transaction
-      await this.fetchAllocationsData()
+      const result = await this.rewardsClient.addAllocations(addressesChunk, amountsChunk, this.decimals)
+      await this.rewardsClient.notifyAllocationsSuccessful(addressesChunk, result.txIDs)
+      location.reload()
     } catch (error) {
       console.error('[AddAllocationsComponent] Error during add allocations:', error)
       alert(`Add allocations failed: ${error instanceof Error ? error.message : String(error)}`)
     }
   }
 
-  /**
-   * Renders the current allocation data to the UI.
-   *
-   * Updates textareas and display elements with current addresses and amounts.
-   *
-   * @private
-   */
-  render() {
-    // No longer responsible for rendering the table, as it's now done by Django template.
-    // The data is still fetched and held in this.addresses and this.amounts for submission.
-  }
 
   /**
    * Adds event listeners for user interactions.

@@ -5,6 +5,7 @@ import struct
 import time
 
 import pytest
+from algosdk.logic import get_application_address
 
 from contract.network import (
     ACTIVE_NETWORK,
@@ -34,6 +35,7 @@ class TestContractNetworkPrivateFunctions:
         ]
         amounts = [100, 200]
         token_id = 505
+        app_id = 749507218
 
         env = {
             "algod_token_testnet": "token",
@@ -55,7 +57,7 @@ class TestContractNetworkPrivateFunctions:
         stub_contract.get_method_by_name.return_value = "METHOD_OBJ"
 
         atc_stub = {
-            "app_id": 555,
+            "app_id": app_id,
             "contract": stub_contract,
             "sender": "sender_address",
             "sp": mocker.MagicMock(),
@@ -65,7 +67,13 @@ class TestContractNetworkPrivateFunctions:
         mocked_atc_stub = mocker.patch(
             "contract.network.atc_method_stub", return_value=atc_stub
         )
+        transfer = mocker.MagicMock()
+        mocked_transfer = mocker.patch(
+            "contract.network.AssetTransferTxn", return_value=transfer
+        )
+        mocked_signer = mocker.patch("contract.network.TransactionWithSigner")
 
+        app_address = get_application_address(atc_stub["app_id"])
         atc = mocker.MagicMock()
         mocked_atc = mocker.patch(
             "contract.network.AtomicTransactionComposer", return_value=atc
@@ -79,35 +87,50 @@ class TestContractNetworkPrivateFunctions:
 
         returned = _add_allocations(network, addresses, amounts)
         assert returned == "TX123"
-
+        microasa_amounts = [amount * 10**6 for amount in amounts]
         boxes = [
             (
-                555,
+                app_id,
                 (
                     b"allocations\xd1*l\xf0&t\x97\xb4\xfb\x94\xc0\xc9\xa0"
                     b"\xd0\xd3l\xc3\x9c\xe5h\xef+HA\xb9\xca\xf0!\xb8k\xc6\xf7"
                 ),
             ),
             (
-                555,
+                app_id,
                 (
                     b"allocations\xad\xbb\xd5gm/\x0c7Y\x1fC\xec\xb3de\xb3oeJ#"
                     b"\xeb\xc98\xac`\x0ekN\xdd\xea\x8aS"
                 ),
             ),
         ]
-
         mocked_env.assert_called_once_with()
         mocked_client.assert_called_once_with("token", "address")
+        client.suggested_params.assert_called_with()
+        assert client.suggested_params.call_count == 2
+        mocked_transfer.assert_called_once_with(
+            sender=atc_stub.get("sender"),
+            receiver=app_address,
+            amt=sum(microasa_amounts),
+            index=token_id,
+            sp=client.suggested_params.return_value,
+        )
+        mocked_signer.assert_called_once_with(
+            txn=mocked_transfer.return_value,
+            signer=atc_stub.get("signer"),
+        )
+        mocked_atc.return_value.add_transaction.assert_called_once_with(
+            mocked_signer.return_value
+        )
         mocked_atc_stub.assert_called_once_with(client, network)
         mocked_atc.assert_called_once_with()
         atc.add_method_call.assert_called_once_with(
-            app_id=555,
+            app_id=app_id,
             method="METHOD_OBJ",
             sender="sender_address",
-            sp=atc_stub["sp"],
+            sp=client.suggested_params.return_value,
             signer=atc_stub["signer"],
-            method_args=[addresses, amounts],
+            method_args=[addresses, microasa_amounts],
             boxes=boxes,
             foreign_assets=[token_id],
         )
@@ -635,6 +658,7 @@ class TestContractNetworkPublicFunctions:
             "algod_address_testnet": "address",
             "rewards_token_id_testnet": token_id,
             "dapp_minimum_algo": 100000,
+            "rewards_token_decimals": 6,
         }
         mocker.patch("contract.network.environment_variables", return_value=env)
 
@@ -654,7 +678,7 @@ class TestContractNetworkPublicFunctions:
             "contract.network._check_balances",
             side_effect=[
                 (200_000, 0),  # app_algo_balance (sufficient)
-                (150_000, 11 * 10**6),  # admin balances
+                (150_000, 16 * 10**6),  # admin balances
             ],
         )
 
@@ -680,6 +704,7 @@ class TestContractNetworkPublicFunctions:
             "algod_address_testnet": "address",
             "rewards_token_id_testnet": token_id,
             "dapp_minimum_algo": 200000,
+            "rewards_token_decimals": 6,
         }
         mocker.patch("contract.network.environment_variables", return_value=env)
 

@@ -68,6 +68,14 @@ class TestContractHelpersFunctions:
         assert returned == box_name
 
     # # box_name_from_address
+    def test_contract_helpers_box_name_from_address_for_wrong_box(self):
+        box_name = "YWxsc2NhdGlvbnPRKmzwJnSXtPuUwMmg0NNsw5zlaO8rSEG5yvAhuGvG9w=="
+        with pytest.raises(ValueError) as exception:
+            address_from_box_name(box_name)
+            assert "Invalid box name, prefix 'allocations' missing" in str(
+                exception.value
+            )
+
     @pytest.mark.parametrize(
         "box_name,address",
         [
@@ -122,7 +130,12 @@ class TestContractHelpersFunctions:
         ) as mocked_getenv:
             returned = environment_variables()
             assert returned == mocks
-            calls = [mocker.call(var.upper()) for var in mocks]
+            calls = [
+                mocker.call(var.upper())
+                for var in mocks
+                if var != "rewards_token_decimals"
+            ]
+            calls.append(mocker.call("rewards_token_decimals".upper(), 6))
             mocked_getenv.assert_has_calls(calls, any_order=True)
             assert mocked_getenv.call_count == len(mocks)
         mocked_load_dotenv.assert_called_once_with()

@@ -91,7 +91,7 @@ export class App {
 
       // Rewards client + other UI components
       if (this.walletManager && this.walletManager.wallets.length > 0) {
-        const rewardsClient = new RewardsClient(this.walletManager.wallets[0], this.walletManager)
+        const rewardsClient = new RewardsClient(this.walletManager)
 
         const claimContainer = document.getElementById('claim-container')
         if (claimContainer) {

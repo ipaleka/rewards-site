@@ -4,7 +4,7 @@ import {
   makeAssetTransferTxnWithSuggestedParamsFromObject,
   Algodv2
 } from 'algosdk'
-import { BaseWallet, WalletManager, NetworkId } from '@txnlab/use-wallet'
+import { WalletManager, NetworkId } from '@txnlab/use-wallet'
 import rewardsABI from '../../contract/artifacts/Rewards.arc56.json'
 
 /**
@@ -22,7 +22,6 @@ import rewardsABI from '../../contract/artifacts/Rewards.arc56.json'
  * ```
  */
 export class RewardsClient {
-  private wallet: BaseWallet
   private manager: WalletManager
   private algodClient: Algodv2
   private contract: ABIContract
@@ -34,8 +33,7 @@ export class RewardsClient {
    * @param wallet - The wallet instance for transaction signing
    * @param manager - The wallet manager for network and account management
    */
-  constructor(wallet: BaseWallet, manager: WalletManager) {
-    this.wallet = wallet
+  constructor(manager: WalletManager) {
     this.manager = manager
     this.algodClient = this.manager.algodClient
     this.contract = new ABIContract(rewardsABI as any)
@@ -81,7 +79,7 @@ export class RewardsClient {
    * @throws {Error} When no active account, arrays are empty, or arrays length mismatch
    */
   public async addAllocations(addresses: string[], amounts: number[]) {
-    if (!this.wallet.activeAccount?.address) {
+    if (!this.manager.activeAccount?.address) {
       throw new Error('No active account selected.')
     }
     if (!addresses.length || addresses.length !== amounts.length) {
@@ -102,8 +100,8 @@ export class RewardsClient {
         appID: appId,
         method: this.contract.getMethodByName('add_allocations'),
         methodArgs: [addresses, amounts],
-        sender: this.wallet.activeAccount.address,
-        signer: this.wallet.transactionSigner,
+        sender: this.manager.activeAccount.address,
+        signer: this.manager.transactionSigner,
         suggestedParams
       })
 
@@ -130,7 +128,7 @@ export class RewardsClient {
    * @throws {Error} When no active account or app ID not configured
    */
   public async reclaimAllocation(userAddress: string) {
-    if (!this.wallet.activeAccount?.address) {
+    if (!this.manager.activeAccount?.address) {
       throw new Error('No active account selected.')
     }
 
@@ -148,8 +146,8 @@ export class RewardsClient {
         appID: appId,
         method: this.contract.getMethodByName('reclaim_allocation'),
         methodArgs: [userAddress],
-        sender: this.wallet.activeAccount.address,
-        signer: this.wallet.transactionSigner,
+        sender: this.manager.activeAccount.address,
+        signer: this.manager.transactionSigner,
         suggestedParams
       })
 
@@ -176,15 +174,15 @@ export class RewardsClient {
    * @throws {Error} When no active account, app ID not configured, or token_id not found
    */
   public async claim() {
-    if (!this.wallet.activeAccount?.address) {
+    if (!this.manager.activeAccount?.address) {
       throw new Error('No active account selected.')
     }
 
     try {
       const suggestedParams = await this.algodClient.getTransactionParams().do()
       const atc = new AtomicTransactionComposer()
-      const sender = this.wallet.activeAccount.address
-      const signer = this.wallet.transactionSigner
+      const sender = this.manager.activeAccount.address
+      const signer = this.manager.transactionSigner
       const currentNetwork = this.manager.activeNetwork as NetworkId
       const appId = this.rewardsAppIds[currentNetwork]
 

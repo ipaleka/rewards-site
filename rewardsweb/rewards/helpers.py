@@ -17,3 +17,13 @@ def added_allocations_for_addresses(request, addresses, txid):
             "boxes_created",
             f"{txid}; ".join([addr[:5] + ".." + addr[-5:] for addr in addresses]),
         )
+
+
+
+def reclaimed_allocation_for_address(request, address, txid):
+    """TODO: docstring and tests"""
+    if txid:
+        messages.success(
+            request, f"✅ Successfully reclaimed {address} (TXID: {txid})"
+        )
+        request.user.profile.log_action("allocation_reclaimed", address)

@@ -15,7 +15,10 @@ from rest_framework.views import APIView
 
 from contract.network import can_user_claim, reclaimable_addresses
 from core.models import Contribution, Contributor, Profile
-from rewards.helpers import added_allocations_for_addresses
+from rewards.helpers import (
+    added_allocations_for_addresses,
+    reclaimed_allocation_for_address,
+)
 from utils.constants.core import (
     ALGORAND_WALLETS,
     WALLET_CONNECT_NETWORK_OPTIONS,
@@ -265,6 +268,42 @@ class ReclaimAllocationsAPIView(APIView):
 
         reclaimable_allocations = {"addresses": reclaimable_addresses()}
         return Response(reclaimable_allocations)
+
+
+class ReclaimSuccessfulAPIView(APIView):
+    """Mark reclaim allocation as successful."""
+
+    permission_classes = [IsAdminUser]
+
+    def post(self, request, *args, **kwargs):
+        """Update status of related issues to PROCESSED.
+
+        Expected JSON:
+            - address (str)
+            - txIDs (str)
+
+        :param request: HTTP request object
+        :return: JSON response with:
+            - success (bool)
+            OR error message
+        """
+        try:
+            data = getattr(request, "data", None)
+            if data is None:
+                data = json.loads(request.body.decode())
+
+            address = data.get("address")
+            txid = data.get("txIDs")
+
+        except Exception:
+            return Response({"error": "Invalid JSON"}, status=400)
+
+        if not address:
+            return Response({"error": "Missing address"}, status=400)
+
+        reclaimed_allocation_for_address(request, address, txid)
+
+        return Response({"success": True})
 
 
 class WalletNonceAPIView(APIView):

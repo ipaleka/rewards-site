@@ -15,7 +15,10 @@ from contract.network import (
     reclaimable_addresses,
 )
 from core.models import Contribution, IssueStatus
-from rewards.helpers import added_allocations_for_addresses
+from rewards.helpers import (
+    added_allocations_for_addresses,
+    reclaimed_allocation_for_address,
+)
 
 
 class ClaimView(LoginRequiredMixin, TemplateView):
@@ -160,10 +163,7 @@ class ReclaimAllocationsView(LoginRequiredMixin, TemplateView):
 
         try:
             txid = process_reclaim_allocation(address)
-            messages.success(
-                request, f"✅ Successfully reclaimed {address} (TXID: {txid})"
-            )
-            request.user.profile.log_action("allocation_reclaimed", address)
+            reclaimed_allocation_for_address(request, address, txid)
 
         except Exception as e:
             messages.error(

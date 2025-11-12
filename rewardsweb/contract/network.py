@@ -12,7 +12,7 @@ from algosdk.atomic_transaction_composer import (
 )
 from algosdk.encoding import decode_address
 from algosdk.logic import get_application_address
-from algosdk.transaction import PaymentTxn
+from algosdk.transaction import AssetTransferTxn, PaymentTxn
 from algosdk.v2client.algod import AlgodClient
 
 from contract.helpers import (
@@ -48,6 +48,10 @@ def _add_allocations(network, addresses, amounts):
     :type atc_stub: dict
     :var atc: clear program source code
     :type atc: :class:`AtomicTransactionComposer`
+    :var microasa_amounts: amounts collection in microASA
+    :type microasa_amounts: list
+    :var funding_txn: clear program source code
+    :type funding_txn: :class:`algosdk.transaction.AssetTransferTxn`
     :var boxes: collection of boxes to create
     :type boxes: list
     :var response: atomic transaction creation response
@@ -63,12 +67,16 @@ def _add_allocations(network, addresses, amounts):
     atc_stub = atc_method_stub(client, network)
     atc = AtomicTransactionComposer()
 
-    funding_txn = transaction.AssetTransferTxn(
+    microasa_amounts = [
+        int(amount * 10 ** int(env.get("rewards_token_decimals"))) for amount in amounts
+    ]
+
+    funding_txn = AssetTransferTxn(
         sender=atc_stub.get("sender"),
         receiver=get_application_address(atc_stub.get("app_id")),
-        amt=sum(amounts),
+        amt=sum(microasa_amounts),
         index=token_id,
-        sp=atc_stub.get("sp"),
+        sp=client.suggested_params(),
     )
     atc.add_transaction(
         TransactionWithSigner(
@@ -84,9 +92,9 @@ def _add_allocations(network, addresses, amounts):
         app_id=atc_stub.get("app_id"),
         method=atc_stub.get("contract").get_method_by_name("add_allocations"),
         sender=atc_stub.get("sender"),
-        sp=atc_stub.get("sp"),
+        sp=client.suggested_params(),
         signer=atc_stub.get("signer"),
-        method_args=[addresses, amounts],
+        method_args=[addresses, microasa_amounts],
         boxes=boxes,
         foreign_assets=[token_id],
     )
@@ -442,7 +450,9 @@ def process_allocations(network, addresses, amounts):
         fund_app(app_id, network)
 
     _, admin_token_balance = _check_balances(client, admin_address, token_id)
-    if admin_token_balance < sum(amount for amount in amounts):
+    if admin_token_balance < sum(
+        int(amount * 10 ** int(env.get("rewards_token_decimals"))) for amount in amounts
+    ):
         raise ValueError("Not enough token in admin account to process allocations")
 
     return _add_allocations(network, addresses, amounts)

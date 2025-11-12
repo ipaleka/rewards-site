@@ -109,6 +109,7 @@ class TestContractHelpersFunctions:
             "user_mainnet_mnemonic",
             "rewards_token_id_testnet",
             "rewards_token_id_mainnet",
+            "rewards_token_decimals",
             "rewards_dapp_name",
             "claim_period_duration",
             "dapp_minimum_algo",

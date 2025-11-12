@@ -76,6 +76,7 @@ def environment_variables():
         "user_mainnet_mnemonic": os.getenv("USER_MAINNET_MNEMONIC"),
         "rewards_token_id_testnet": os.getenv("REWARDS_TOKEN_ID_TESTNET"),
         "rewards_token_id_mainnet": os.getenv("REWARDS_TOKEN_ID_MAINNET"),
+        "rewards_token_decimals": os.getenv("REWARDS_TOKEN_DECIMALS", 6),
         "rewards_dapp_name": os.getenv("REWARDS_DAPP_NAME"),
         "claim_period_duration": os.getenv("CLAIM_PERIOD_DURATION"),
         "dapp_minimum_algo": os.getenv("DAPP_MINIMUM_ALGO"),

@@ -123,20 +123,16 @@ class Rewards(arc4.ARC4Contract):
         for j in urange(addresses.length):
             required_funding += amounts[j].as_uint64()
 
-        funded = False
-
         assert op.Global.group_size >= UInt64(2), "Missing funding transaction in group"
 
+        funded_amount = UInt64(0)
         for i in urange(op.Global.group_size):
             if op.GTxn.type_enum(i) == TransactionType.AssetTransfer:
                 if op.GTxn.xfer_asset(i).id == self.token_id.value:
                     if op.GTxn.asset_receiver(i) == Global.current_application_address:
-                        assert (
-                            op.GTxn.amount(i) == required_funding
-                        ), "Incorrect ASA funding"
-                        funded = True
+                        funded_amount += op.GTxn.asset_amount(i)
 
-        assert funded, "ASA funding transaction missing"
+        assert funded_amount == required_funding, "Incorrect ASA funding"
 
         expires_at = Global.latest_timestamp + self.claim_period_duration.value
         for i in urange(addresses.length):

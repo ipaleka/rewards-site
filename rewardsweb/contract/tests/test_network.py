@@ -652,7 +652,7 @@ class TestContractNetworkPublicFunctions:
             "contract.network._check_balances",
             side_effect=[
                 (200_000, 0),  # app_algo_balance (sufficient)
-                (150_000, 500),  # admin balances
+                (150_000, 11 * 10**6),  # admin balances
             ],
         )
 
@@ -695,7 +695,7 @@ class TestContractNetworkPublicFunctions:
             side_effect=[
                 (50_000, 0),  # app balance insufficient
                 (300_000, 0),  # admin algo enough to fund
-                (300_000, 100),  # admin token after funding
+                (300_000, 11 * 10**6),  # admin token after funding
             ],
         )
 
@@ -777,7 +777,7 @@ class TestContractNetworkPublicFunctions:
             "contract.network._check_balances",
             side_effect=[
                 (500_000, 0),  # app algo ok
-                (0, 100),  # admin doesn't have enough tokens
+                (0, 19 * 10**6),  # admin doesn't have enough tokens
             ],
         )
 

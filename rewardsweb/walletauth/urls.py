@@ -9,7 +9,7 @@ from walletauth.views import (
     ClaimAllocationAPIView,
     ReclaimAllocationsAPIView,
     ReclaimSuccessfulAPIView,
-    UserClaimedAPIView,
+    ClaimSuccessfulAPIView,
     WalletNonceAPIView,
     WalletsAPIView,
     WalletVerifyAPIView,
@@ -33,7 +33,7 @@ urlpatterns = [
     path(
         "claim-allocation/", ClaimAllocationAPIView.as_view(), name="claim_allocation"
     ),
-    path("user-claimed/", UserClaimedAPIView.as_view(), name="user_claimed"),
+    path("claim-successful/", ClaimSuccessfulAPIView.as_view(), name="claim_successful"),
     path(
         "reclaim-allocations/",
         ReclaimAllocationsAPIView.as_view(),

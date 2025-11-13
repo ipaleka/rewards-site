@@ -52,6 +52,25 @@ export class App {
    */
   async init() {
     try {
+
+      // Check if wallet containers exist on this page
+      const walletSelectors = [
+        '#active-network',
+        '#claim-container',
+        '#add-allocations-container',
+        '#reclaim-allocations-container',
+        '[id^="wallet-"]'
+      ]
+
+      const hasWalletElements = walletSelectors.some(selector =>
+        document.querySelector(selector) !== null
+      )
+
+      if (!hasWalletElements) {
+        console.log('Skipping wallet initialization - no wallet elements found')
+        return
+      }
+
       const [walletsResponse, networkResponse] = await Promise.all([
         fetch('/api/wallet/wallets/'),
         fetch('/api/wallet/active-network/')

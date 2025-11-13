@@ -236,10 +236,10 @@ export class RewardsClient {
    * 1. Asset opt-in transaction for the reward token
    * 2. Claim method call to the rewards contract
    *
-   * @returns The transaction result
+   * @returns The transaction ID from the claim operation
    * @throws {Error} When no active account, app ID not configured, or token_id not found
    */
-  public async claim() {
+  public async claimRewards(): Promise<string> {
     if (!this.manager.activeAccount?.address) {
       throw new Error('No active account selected.')
     }
@@ -299,7 +299,9 @@ export class RewardsClient {
         confirmedRound: result.confirmedRound,
         txIDs: result.txIDs
       })
-      return result
+
+      // Return the first transaction ID to match reclaim pattern
+      return result.txIDs[0]
     } catch (error) {
       console.error('[RewardsClient] Error claiming allocation:', error)
       throw error
@@ -331,12 +333,17 @@ export class RewardsClient {
     }
   }
 
-  public async userClaimed(address: string): Promise<{ success: boolean }> {
+  /**
+   * Notifies the backend about successful claim transaction
+   * @param address - The address that claimed rewards
+   * @param txID - The transaction ID from the claim operation
+   */
+  public async userClaimed(address: string, txID: string): Promise<{ success: boolean }> {
     try {
-      const response = await fetch('/api/wallet/user-claimed/', {
+      const response = await fetch('/api/wallet/claim-successful/', {
         method: 'POST',
         headers: this.getHeaders(),
-        body: JSON.stringify({ address })
+        body: JSON.stringify({ address, txID })
       })
       if (!response.ok) {
         throw new Error(`HTTP error! status: ${response.status}`)

@@ -1,22 +1,40 @@
 {% extends "base_generic.html" %}
+{% load partials %}
 {% load static %}
 
+{% partialdef claim_partial %}
+<div class="space-y-4 p-4 rounded-lg bg-base-200 mt-4">
+  <h4 class="font-semibold text-lg">Claim your rewards</h4>
+  <button
+    id="claim-button"
+    type="button"
+    class="btn btn-success btn-sm"
+    {% if not amount %}disabled{% endif %}
+  >
+    {% if amount %}Claim{% else %}No claim available{% endif %}
+  </button>
+</div>
+{% endpartialdef claim_partial %}
+
 {% block head_title %}
-  Claim Rewards
+  Claim rewards
 {% endblock head_title %}
 
 {% block content %}
-  <div class="container mx-auto px-4 py-8">
-    <h1 class="text-3xl font-bold mb-6">Claim Your Rewards</h1>
 
-    <div id="claim-container">
-      {% include "rewards/snippets/claim_rewards.html" %}
-    </div>
+<div class="container mx-auto px-4 py-8">
+  <h1 class="text-3xl font-bold mb-6">Claim your rewards</h1>
 
-    <p class="mt-4 text-sm text-base-content/70">
-      This page allows you to claim your rewards from the smart contract.
-      Click the "Claim" button if it is enabled. You will be prompted to sign
-      a transaction with your wallet.
-    </p>
+  <div id="claim-container">
+    {% csrf_token %}
+    {% partial claim_partial %}
   </div>
-{% endblock content %}
+
+  <p class="mt-4 text-sm text-base-content/70">
+    This page allows you to claim your rewards from the smart contract.
+    Click the "Claim" button if it is enabled. You will be prompted to sign
+    a transaction with your wallet.
+  </p>
+</div>
+
+{% endblock %}

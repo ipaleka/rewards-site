@@ -17,6 +17,7 @@ from contract.network import can_user_claim, reclaimable_addresses
 from core.models import Contribution, Contributor, Profile
 from rewards.helpers import (
     added_allocations_for_addresses,
+    claim_successful_for_address,
     reclaimed_allocation_for_address,
 )
 from utils.constants.core import (
@@ -206,7 +207,7 @@ class ClaimAllocationAPIView(APIView):
         return Response({"claimable": has_claimable_allocation})
 
 
-class UserClaimedAPIView(APIView):
+class ClaimSuccessfulAPIView(APIView):
     """Mark all user's contributions as claimed."""
 
     def post(self, request, *args, **kwargs):
@@ -214,6 +215,7 @@ class UserClaimedAPIView(APIView):
 
         Expected JSON:
             - address (str)
+            - txIDs (str)
 
         :param request: HTTP request object
         :return: JSON response with:
@@ -226,6 +228,7 @@ class UserClaimedAPIView(APIView):
                 data = json.loads(request.body.decode())
 
             address = data.get("address")
+            txid = data.get("txIDs")
 
         except Exception:
             return Response({"error": "Invalid JSON"}, status=400)
@@ -235,7 +238,8 @@ class UserClaimedAPIView(APIView):
                 {"error": f"Invalid or missing address: {address}"}, status=400
             )
 
-        Contribution.objects.user_has_claimed(address)
+        claim_successful_for_address(request, address, txid)
+
         return Response({"success": True})
 
 

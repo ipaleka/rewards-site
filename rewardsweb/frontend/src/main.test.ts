@@ -142,6 +142,7 @@ describe('main.ts', () => {
 
   let originalQuerySelector: typeof document.querySelector
   let consoleErrorSpy: jest.SpyInstance
+  let consoleLogSpy: jest.SpyInstance
 
   beforeEach(() => {
     jest.clearAllMocks()
@@ -206,6 +207,7 @@ describe('main.ts', () => {
     })
 
     consoleErrorSpy = jest.spyOn(console, 'error').mockImplementation(() => { })
+    consoleLogSpy = jest.spyOn(console, 'log').mockImplementation(() => { })
 
     // Mock fetch for initial data
     global.fetch = jest.fn((url) => {
@@ -234,10 +236,11 @@ describe('main.ts', () => {
     document.querySelector = originalQuerySelector
     document.body.innerHTML = ''
     consoleErrorSpy.mockRestore()
+    consoleLogSpy.mockRestore()
     jest.restoreAllMocks()
   })
 
-  it('should initialize the application without errors', async () => {
+  it('should initialize the application without errors when wallet elements are present', async () => {
     const { WalletManager } = require('@txnlab/use-wallet')
     const { ActiveNetwork } = require('./ActiveNetwork')
     const { WalletComponent } = require('./WalletComponent')
@@ -321,5 +324,107 @@ describe('main.ts', () => {
     expect(ReclaimAllocationsComponent().destroy).toHaveBeenCalled()
   })
 
+  it('should skip initialization when no wallet elements are present', async () => {
+    // Remove all wallet elements
+    document.body.innerHTML = ''
+    
+    const { WalletManager } = require('@txnlab/use-wallet')
+    const { ActiveNetwork } = require('./ActiveNetwork')
+    const { WalletComponent } = require('./WalletComponent')
+    const { RewardsClient } = require('./RewardsClient')
 
+    require('./main')
+
+    // Simulate DOMContentLoaded
+    const event = new Event('DOMContentLoaded')
+    document.dispatchEvent(event)
+
+    await new Promise(process.nextTick)
+
+    // Verify no wallet initialization occurred
+    expect(WalletManager).not.toHaveBeenCalled()
+    expect(ActiveNetwork).not.toHaveBeenCalled()
+    expect(WalletComponent).not.toHaveBeenCalled()
+    expect(RewardsClient).not.toHaveBeenCalled()
+    expect(consoleLogSpy).toHaveBeenCalledWith('Skipping wallet initialization - no wallet elements found')
+    expect(consoleErrorSpy).not.toHaveBeenCalled()
+  })
+
+  it('should initialize when only active-network element is present', async () => {
+    // Remove all elements except active-network
+    document.body.innerHTML = ''
+    const activeNetworkEl = document.createElement('div')
+    activeNetworkEl.id = 'active-network'
+    document.body.appendChild(activeNetworkEl)
+
+    // Mock getElementById to only return active-network
+    jest.spyOn(document, 'getElementById').mockImplementation((id: string) => {
+      if (id === 'active-network') return activeNetworkEl
+      return null
+    })
+
+    const { WalletManager } = require('@txnlab/use-wallet')
+    const { ActiveNetwork } = require('./ActiveNetwork')
+
+    require('./main')
+
+    const event = new Event('DOMContentLoaded')
+    document.dispatchEvent(event)
+
+    await new Promise(process.nextTick)
+
+    expect(WalletManager).toHaveBeenCalled()
+    expect(ActiveNetwork).toHaveBeenCalled()
+    expect(consoleLogSpy).not.toHaveBeenCalledWith('Skipping wallet initialization - no wallet elements found')
+  })
+
+  it('should initialize when only wallet-* elements are present', async () => {
+    // Remove all elements except wallet elements
+    document.body.innerHTML = ''
+    const walletPeraEl = document.createElement('div')
+    walletPeraEl.id = 'wallet-pera'
+    document.body.appendChild(walletPeraEl)
+
+    // Mock getElementById to only return wallet-pera
+    jest.spyOn(document, 'getElementById').mockImplementation((id: string) => {
+      if (id === 'wallet-pera') return walletPeraEl
+      return null
+    })
+
+    const { WalletManager } = require('@txnlab/use-wallet')
+    const { WalletComponent } = require('./WalletComponent')
+
+    require('./main')
+
+    const event = new Event('DOMContentLoaded')
+    document.dispatchEvent(event)
+
+    await new Promise(process.nextTick)
+
+    expect(WalletManager).toHaveBeenCalled()
+    expect(WalletComponent).toHaveBeenCalled()
+    expect(consoleLogSpy).not.toHaveBeenCalledWith('Skipping wallet initialization - no wallet elements found')
+  })
+
+  it('should not initialize when only non-wallet elements are present', async () => {
+    // Remove all wallet elements and add some non-wallet elements
+    document.body.innerHTML = ''
+    const someOtherElement = document.createElement('div')
+    someOtherElement.id = 'some-other-element'
+    document.body.appendChild(someOtherElement)
+
+    const { WalletManager } = require('@txnlab/use-wallet')
+    const { ActiveNetwork } = require('./ActiveNetwork')
+
+    require('./main')
+
+    const event = new Event('DOMContentLoaded')
+    document.dispatchEvent(event)
+
+    await new Promise(process.nextTick)
+
+    expect(WalletManager).not.toHaveBeenCalled()
+    expect(ActiveNetwork).not.toHaveBeenCalled()
+    expect(consoleLogSpy).toHaveBeenCalledWith('Skipping wallet initialization - no wallet elements found')
+  })
 })

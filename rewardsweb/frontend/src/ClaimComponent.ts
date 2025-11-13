@@ -23,13 +23,13 @@ export class ClaimComponent {
   /**
    * Creates an instance of ClaimComponent.
    *
-   * @param rewardsClient - The client for interacting with rewards contract
-   * @param walletManager - The wallet manager for account state management
+   * @param rewardsClient - The client for interacting with rewards contract and API
+   * @param walletManager - The wallet manager for account and network state
    */
   constructor(rewardsClient: RewardsClient, walletManager: WalletManager) {
     this.rewardsClient = rewardsClient
     this.walletManager = walletManager
-    this.walletManager.subscribe(() => this.checkClaimableStatus())
+    this.walletManager.subscribe(() => this.fetchClaimableStatus())
   }
 
   /**
@@ -40,18 +40,23 @@ export class ClaimComponent {
   bind(element: HTMLElement) {
     this.element = element
     this.addEventListeners()
-    this.checkClaimableStatus()
+    // Ensure the DOM is fully loaded before fetching data to ensure CSRF token is available
+    if (document.readyState === 'loading') {
+      document.addEventListener('DOMContentLoaded', () => this.fetchClaimableStatus());
+    } else {
+      this.fetchClaimableStatus();
+    }
   }
 
   /**
-   * Checks if the current account has any claimable rewards.
+   * Fetches claimable status data from the backend API.
    *
-   * Fetches claimable status from the backend API and updates the UI accordingly.
-   * Handles errors by setting claimable to false and re-rendering.
+   * Retrieves whether the current account has any claimable rewards.
+   * Updates the internal state with the results and re-renders the UI.
    *
    * @private
    */
-  private async checkClaimableStatus() {
+  private async fetchClaimableStatus() {
     const activeAddress = this.walletManager.activeAccount?.address
     if (!activeAddress) {
       this.claimable = false
@@ -62,10 +67,12 @@ export class ClaimComponent {
     try {
       const status = await this.rewardsClient.fetchClaimableStatus(activeAddress)
       this.claimable = status.claimable
-      this.render()
     } catch (error) {
-      console.error('[ClaimComponent] Error checking claimable status:', error)
+      console.error('[ClaimComponent] Error fetching claimable status:', error)
+      // Don't show alert for initial data load - it's not user-initiated
+      // Just log it and set claimable to false
       this.claimable = false
+    } finally {
       this.render()
     }
   }
@@ -73,28 +80,36 @@ export class ClaimComponent {
   /**
    * Handles the claim transaction submission.
    *
-   * Submits a claim transaction to the blockchain and updates the UI
-   * based on the result. Re-checks claimable status after completion.
+   * Submits a claim transaction to the blockchain and notifies the backend
+   * on success. Refreshes the page after successful claim to show updated state.
    *
    * @private
    */
   private async handleClaim() {
     try {
       console.info('[ClaimComponent] Initiating claim...')
-      await this.rewardsClient.claim()
-      alert('Claim transaction sent successfully!')
 
-      const activeAddress = this.walletManager.activeAccount?.address
-      if (activeAddress) {
-        await this.rewardsClient.userClaimed(activeAddress)
+      // Step 1: Call smart contract
+      const txID = await this.rewardsClient.claimRewards()
+  
+      // Step 2: Notify backend (fail silently)
+      try {
+        const activeAddress = this.walletManager.activeAccount?.address
+        if (activeAddress) {
+          await this.rewardsClient.userClaimed(activeAddress, txID)
+        }
+      } catch (notificationError) {
+        console.error('Backend notification failed:', notificationError)
+        // Silently continue - the blockchain transaction succeeded
       }
-      // Re-check status after successful claim
-      await this.checkClaimableStatus()
+
+      // Step 3: Reload to show updated state
+      location.reload()
+
     } catch (error) {
+      // Only handle smart contract errors with alerts
       console.error('[ClaimComponent] Error during claim:', error)
       alert(`Claim failed: ${error instanceof Error ? error.message : String(error)}`)
-      // Also re-check status after failed claim to ensure UI is up to date
-      await this.checkClaimableStatus()
     }
   }
 
@@ -106,7 +121,7 @@ export class ClaimComponent {
    *
    * @private
    */
-  render() {
+  private render() {
     if (!this.element) return
 
     const claimButton = this.element.querySelector<HTMLButtonElement>('#claim-button')
@@ -123,7 +138,7 @@ export class ClaimComponent {
    *
    * @private
    */
-  addEventListeners() {
+  private addEventListeners() {
     if (!this.element) return
 
     this.element.addEventListener('click', (e: Event) => {

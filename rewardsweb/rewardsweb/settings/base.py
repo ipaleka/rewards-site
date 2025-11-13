@@ -224,4 +224,4 @@ REST_FRAMEWORK = {
 }
 
 GITHUB_REPO_OWNER = "asastats"
-GITHUB_REPO_NAME = "channel"  # "rewards-site"  # "channel"
+GITHUB_REPO_NAME = "channel"  # "rewards-site"

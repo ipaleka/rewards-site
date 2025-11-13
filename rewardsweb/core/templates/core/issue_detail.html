@@ -67,28 +67,26 @@
 {% partialdef close_modal_partial %}
 <dialog id="{{ modal_id }}" class="modal">
   <div class="modal-box">
+    <h3 class="font-bold text-lg">{{ action_label }}</h3>
+    <p class="py-4">This will close the issue as <strong>{{ action_value }}</strong>.</p>
 
-      <h3 class="font-bold text-lg">{{ action_label }}</h3>
-      <p class="py-4">This will close the issue as <strong>{{ action_value }}</strong>.</p>
+    <form method="post"
+          action="{% url 'issue-detail' issue.pk %}"
+          onsubmit="document.getElementById('{{ modal_id }}').close()"
+          class="space-y-4">
 
-      <form method="post"
-            hx-post="{% url 'issue-detail' issue.pk %}"
-            hx-target="body"
-            hx-swap="none">
+        {% csrf_token %}
+        <input type="hidden" name="close_action" value="{{ action_value }}">
 
-          {% csrf_token %}
-          <input type="hidden" name="close_action" value="{{ action_value }}">
+        <textarea name="close_comment"
+                  class="textarea textarea-bordered w-full h-24 mb-4"
+                  placeholder="Comment (optional)..."></textarea>
 
-          <textarea name="close_comment"
-                    class="textarea textarea-bordered w-full h-24 mb-4"
-                    placeholder="Comment (optional)..."></textarea>
-
-          <div class="modal-action">
-              <button type="button" class="btn" onclick="document.getElementById('{{ modal_id }}').close()">Cancel</button>
-              <button type="submit" class="btn {{ btn_class }}">{{ action_label }}</button>
-          </div>
-      </form>
-
+        <div class="modal-action">
+            <button type="button" class="btn" onclick="document.getElementById('{{ modal_id }}').close()">Cancel</button>
+            <button type="submit" name="submit_close" class="btn {{ btn_class }}">{{ action_label }}</button>
+        </div>
+    </form>
   </div>
 
   <form method="dialog" class="modal-backdrop">

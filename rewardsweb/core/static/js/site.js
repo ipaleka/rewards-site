@@ -115,6 +115,26 @@ document.body.addEventListener("htmx:afterSwap", (event) => {
 });
 
 
+/************************************************************
+ *  Auto-open modals after HTMX swap
+ ************************************************************/
+document.body.addEventListener('htmx:afterSwap', function(evt) {
+    // Look for any dialog elements in the swapped content
+    const dialogs = evt.detail.target.querySelectorAll('dialog');
+    dialogs.forEach(dialog => {
+        if (!dialog.open) {
+            console.log('Auto-opening modal:', dialog.id);
+            dialog.showModal();
+        }
+    });
+    // Also check if the target itself is a dialog
+    if (evt.detail.target.tagName === 'DIALOG' && !evt.detail.target.open) {
+        console.log('Auto-opening dialog target:', evt.detail.target.id);
+        evt.detail.target.showModal();
+    }
+});
+
+
 /**
  * Error case — always stop blocking
  */

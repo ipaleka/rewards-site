@@ -112,6 +112,7 @@ class IndexView(ListView):
         return Contribution.objects.filter(confirmed=False).reverse()
 
 
+
 class ContributionDetailView(DetailView):
     """View for displaying detailed information about a single contribution.
 
@@ -191,7 +192,7 @@ class ContributionEditView(UpdateView):
             "contribution_edited", Contribution.objects.get(id=self.object.pk).info()
         )
         messages.success(self.request, "Contribution updated successfully!")
-        return reverse_lazy("contribution-detail", kwargs={"pk": self.object.pk})
+        return reverse_lazy("contribution_detail", kwargs={"pk": self.object.pk})
 
 
 @method_decorator(user_passes_test(lambda user: user.is_superuser), name="dispatch")
@@ -308,7 +309,7 @@ class ContributionInvalidateView(UpdateView):
 
     def get_success_url(self):
         """Return URL to redirect after successful update."""
-        return reverse_lazy("contribution-detail", kwargs={"pk": self.object.pk})
+        return reverse_lazy("contribution_detail", kwargs={"pk": self.object.pk})
 
 
 class ContributorListView(ListView):
@@ -542,7 +543,7 @@ class IssueDetailView(DetailView):
         # Only superusers can submit forms
         if not request.user.is_superuser:
             messages.error(request, "You don't have permission to perform this action.")
-            return redirect("issue-detail", pk=self.get_object().pk)
+            return redirect("issue_detail", pk=self.get_object().pk)
 
         issue = self.get_object()
 
@@ -557,7 +558,7 @@ class IssueDetailView(DetailView):
 
         else:
             messages.error(request, "Invalid form submission.")
-            return redirect("issue-detail", pk=issue.pk)
+            return redirect("issue_detail", pk=issue.pk)
 
     def _handle_labels_submission(self, request, issue):
         """Handle the labels form submission."""
@@ -593,7 +594,7 @@ class IssueDetailView(DetailView):
                 request, form, issue, result["current_labels"]
             )
 
-        return redirect("issue-detail", pk=issue.pk)
+        return redirect("issue_detail", pk=issue.pk)
 
     def _handle_close_submission(self, request, issue):
         """Handle the close issue submission."""
@@ -602,7 +603,7 @@ class IssueDetailView(DetailView):
 
         if action not in ["addressed", "wontfix"]:
             messages.error(request, "Invalid close action.")
-            return redirect("issue-detail", pk=issue.pk)
+            return redirect("issue_detail", pk=issue.pk)
 
         try:
             # Get current labels from GitHub
@@ -611,14 +612,14 @@ class IssueDetailView(DetailView):
                 messages.error(
                     request, f"Failed to fetch GitHub issue: {issue_data.get('error')}"
                 )
-                return redirect("issue-detail", pk=issue.pk)
+                return redirect("issue_detail", pk=issue.pk)
 
             # Check if issue is still open
             if issue_data["issue"]["state"] != "open":
                 messages.error(
                     request, "Cannot close an issue that is already closed on GitHub."
                 )
-                return redirect("issue-detail", pk=issue.pk)
+                return redirect("issue_detail", pk=issue.pk)
 
             current_labels = issue_data["issue"]["labels"]
 
@@ -675,7 +676,7 @@ class IssueDetailView(DetailView):
         except Exception as e:
             messages.error(request, f"Error closing issue: {str(e)}")
 
-        return redirect("issue-detail", pk=issue.pk)
+        return redirect("issue_detail", pk=issue.pk)
 
     def _labels_response_from_hx_request(self, request, form, issue, labels):
         """Prepare HTML response for labels sections fro mprovided data."""
@@ -802,7 +803,7 @@ class CreateIssueView(FormView):
 
         :return: str
         """
-        return reverse_lazy("contribution-detail", args=[self.contribution_id])
+        return reverse_lazy("contribution_detail", args=[self.contribution_id])
 
     def get_initial(self):
         """Set initial form data from contribution.
@@ -1045,3 +1046,27 @@ class SignupView(AllauthSignupView):
             "active_network", "testnet"
         )
         return context
+
+
+class UnconfirmedContributionsView(ListView):
+    """View for displaying unconfirmed contribution links.
+
+    :ivar model: Model class for contributions
+    :type model: :class:`core.models.Contribution`
+    :ivar paginate_by: Number of items per page
+    :type paginate_by: int
+    :ivar template_name: HTML template for the page
+    :type template_name: str
+    """
+
+    model = Contribution
+    paginate_by = 20
+    template_name = "unconfirmed_contributions.html"
+
+    def get_queryset(self):
+        """Return queryset of unconfirmed contributions in reverse order.
+
+        :return: QuerySet of unconfirmed contributions
+        :rtype: :class:`django.db.models.QuerySet`
+        """
+        return Contribution.objects.filter(confirmed=False).reverse()

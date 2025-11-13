@@ -1,5 +1,5 @@
 <!DOCTYPE html>
-<html lang="en">
+<html lang="en" data-theme="light">
   <head>
     {% block title %}
       <title>ASA Stats rewards web</title>
@@ -14,35 +14,207 @@
     <link href="{% static 'css/style.css' %}" rel="stylesheet" type="text/css" />
     <link rel="icon" type="image/x-icon" href="{% static 'favicon.ico' %}">
   </head>
-  <body hx-boost="true">
+  <body hx-boost="true" class="min-h-screen bg-base-200">
     {% include "snippets/app_error.html" %}
-    <div class="max-w-5xl mx-auto">
-      <div class="navbar bg-base-100 shadow-sm">
-        <div class="flex-1">
-          <a href="{% url 'index' %}" class="btn btn-ghost text-xl">
-            <img src="{% static 'img/brand-logo.png' %}" alt="Logo" class="w-10 h-10 mr-3" />
-            Rewards
-          </a>
+    
+    <div class="drawer lg:drawer-open">
+      <input id="main-drawer" type="checkbox" class="drawer-toggle" />
+      
+      <!-- Main Content -->
+      <div class="drawer-content flex flex-col">
+        <!-- Top Navbar - Your existing navbar modified -->
+        <div class="navbar bg-base-100 shadow-sm border-b border-base-300">
+          <!-- Hamburger menu for mobile -->
+          <div class="flex-none lg:hidden">
+            <label for="main-drawer" class="btn btn-square btn-ghost drawer-button">
+              <i class="fas fa-bars"></i>
+            </label>
+          </div>
+          
+          <!-- Your existing navbar content -->
+          <div class="flex-1">
+            <a href="{% url 'index' %}" class="btn btn-ghost text-xl">
+              <img src="{% static 'img/brand-logo.png' %}" alt="Logo" class="w-8 h-8 mr-2" />
+              Rewards
+            </a>
+          </div>
+          <div class="flex-none">
+            <ul class="menu menu-horizontal px-1">
+              {% if user.is_authenticated %}
+              <li>
+                <details class="dropdown dropdown-end">
+                  <summary class="cursor-pointer">
+                    <div class="avatar placeholder">
+                      <div class="bg-primary text-primary-content rounded-full w-8">
+                        <span class="text-xs">{{ user.username|first|upper }}</span>
+                      </div>
+                    </div>
+                    <span class="hidden sm:inline ml-2">{{ user.username }}</span>
+                  </summary>
+                  <ul class="p-2 shadow menu dropdown-content z-[1] bg-base-100 rounded-box w-52">
+                    <li><a href="{% url 'profile' %}"><i class="fas fa-user mr-2"></i>Profile</a></li>
+                    <li><a href="{% url 'account_logout' %}"><i class="fas fa-sign-out-alt mr-2"></i>Logout</a></li>
+                  </ul>
+                </details>
+              </li>
+              {% else %}
+              <li><a href="{% url 'account_login' %}" hx-boost="false" hx-disable="true" class="btn btn-primary btn-sm">
+                <i class="fas fa-sign-in-alt mr-2"></i>Login
+              </a></li>
+              {% endif %}
+            </ul>
+          </div>
         </div>
-        <div class="flex-none">
-          <ul class="menu menu-horizontal px-1">
-            {% if user.is_authenticated %}
-            <li><a href="{% url 'account_logout' %}">Logout {{ user }}</a></li>
-            <li><a href="{% url 'profile' %}">Profile</a></li>
-            {% else %}
-            <li><a href="{% url 'account_login' %}" hx-boost="false" hx-disable="true">Login</a></li>
+
+        <!-- Page Content -->
+        <main class="flex-1 p-6">
+          {% block content %}{% endblock %}
+        </main>
+
+        <!-- Pagination -->
+        {% block pagination %}
+          {% if is_paginated %}
+          <div class="p-6 pt-0">
+            <div class="flex justify-center items-center gap-4">
+              {% if page_obj.has_previous %}
+                <a href="{{ request.path }}?page={{ page_obj.previous_page_number }}" class="btn btn-outline btn-sm">
+                  <i class="fas fa-chevron-left mr-1"></i>
+                  Previous
+                </a>
+              {% endif %}
+              
+              <span class="text-sm">
+                Page {{ page_obj.number }} of {{ page_obj.paginator.num_pages }}
+              </span>
+              
+              {% if page_obj.has_next %}
+                <a href="{{ request.path }}?page={{ page_obj.next_page_number }}" class="btn btn-outline btn-sm">
+                  Next
+                  <i class="fas fa-chevron-right ml-1"></i>
+                </a>
+              {% endif %}
+            </div>
+          </div>
+          {% endif %}
+        {% endblock %}
+      </div>
+      
+      <!-- Sidebar - This appears on the left on large screens, behind hamburger on mobile -->
+      <div class="drawer-side">
+        <label for="main-drawer" class="drawer-overlay"></label>
+        <div class="bg-base-100 min-h-screen w-64 p-4">
+          <!-- Logo for sidebar -->
+          <div class="mb-8 p-2">
+            <a href="{% url 'index' %}" class="flex items-center gap-3 text-xl font-bold">
+              <img src="{% static 'img/brand-logo.png' %}" alt="Logo" class="w-10 h-10" />
+              <span>Rewards</span>
+            </a>
+          </div>
+          
+          <!-- Navigation Menu - Your existing menu items moved here -->
+          <ul class="menu text-base-content space-y-1">
+            <li class="menu-title">Main Navigation</li>
+            
+            <li>
+              <a href="{% url 'index' %}" class="{% if request.resolver_match.url_name == 'index' %}active{% endif %}">
+                <i class="fas fa-home w-5"></i>
+                Home
+              </a>
+            </li>
+            
+            <li>
+              <a href="{% url 'contributors' %}" class="{% if request.resolver_match.url_name == 'contributors' %}active{% endif %}">
+                <i class="fas fa-users w-5"></i>
+                Contributors
+              </a>
+            </li>
+            
+            <li>
+              <a href="{% url 'cycles' %}" class="{% if request.resolver_match.url_name == 'cycles' %}active{% endif %}">
+                <i class="fas fa-sync-alt w-5"></i>
+                Cycles
+              </a>
+            </li>
+            
+            <li>
+              <a href="{% url 'issues' %}" class="{% if request.resolver_match.url_name == 'issues' %}active{% endif %}">
+                <i class="fas fa-tasks w-5"></i>
+                Issues
+              </a>
+            </li>
+
+            <!-- Administration Section for Superusers -->
+            {% if user.is_superuser %}
+            <li class="menu-title mt-6">Administration</li>
+            <li>
+              <a href="{% url 'unconfirmed_contributions' %}" class="{% if request.resolver_match.url_name == 'unconfirmed_contributions' %}active{% endif %}">
+                <i class="fas fa-clock w-5"></i>
+                Unconfirmed Contributions
+              </a>
+            </li>
+            <li>
+              <a href="{% url 'add_allocations' %}" class="{% if request.resolver_match.url_name == 'add_allocations' %}active{% endif %}">
+                <i class="fas fa-plus-circle w-5"></i>
+                Add Allocations
+              </a>
+            </li>
+            <li>
+              <a href="{% url 'reclaim_allocations' %}" class="{% if request.resolver_match.url_name == 'reclaim_allocations' %}active{% endif %}">
+                <i class="fas fa-recycle w-5"></i>
+                Reclaim Allocations
+              </a>
+            </li>
             {% endif %}
 
-            <li><a href="{% url 'issues' %}">Issues</a></li>
-            <li><a href="{% url 'cycles' %}">Cycles</a></li>
-            <li><a href="{% url 'contributors' %}">Contributors</a></li>
+            <!-- Account Section for Authenticated Users -->
+            {% if user.is_authenticated %}
+            <li class="menu-title mt-6">Account</li>
+            <li>
+              <a href="{% url 'profile' %}" class="{% if request.resolver_match.url_name == 'profile' %}active{% endif %}">
+                <i class="fas fa-user-cog w-5"></i>
+                Profile Settings
+              </a>
+            </li>
+            <li>
+              <a href="{{ user.profile.contributor.get_absolute_url }}" class="{% if request.resolver_match.url_name == 'contributor_detail' %}active{% endif %}">
+                <i class="fas fa-code-branch w-5"></i>
+                Your Contributions
+              </a>
+            </li>
+            {% endif %}
+
+            <!-- Quick Links -->
+            <li class="menu-title mt-6">Quick Links</li>
+            {% if user.is_authenticated %}
+            <li>
+              <a href="{% url 'account_logout' %}">
+                <i class="fas fa-sign-out-alt w-5"></i>
+                Logout
+              </a>
+            </li>
+            {% else %}
+            <li>
+              <a href="{% url 'account_login' %}" hx-boost="false" hx-disable="true">
+                <i class="fas fa-sign-in-alt w-5"></i>
+                Login
+              </a>
+            </li>
+            {% endif %}
           </ul>
+
+          <!-- Theme selector (optional) -->
+          <div class="absolute bottom-4 left-4 right-4">
+            <div class="flex justify-between items-center p-2 bg-base-200 rounded-lg">
+              <span class="text-sm">Theme</span>
+              <label class="swap swap-rotate">
+                <input type="checkbox" class="theme-controller" value="dark" />
+                <i class="fas fa-sun swap-on"></i>
+                <i class="fas fa-moon swap-off"></i>
+              </label>
+            </div>
+          </div>
         </div>
       </div>
-    </div>
-
-    <div class="max-w-5xl mx-auto p-4">
-      {% block content %}{% endblock %}
     </div>
 
     {% if messages %}
@@ -55,33 +227,25 @@
     </script>
     {% endif %}
 
-    {% block pagination %}
-      {% if is_paginated %}
-      <div class="max-w-5xl mx-auto p-4">
-        <div class="flex justify-center items-center gap-4">
-          {% if page_obj.has_previous %}
-            <a href="{{ request.path }}?page={{ page_obj.previous_page_number }}" class="btn btn-outline btn-sm">
-              Previous
-            </a>
-          {% endif %}
-          
-          <span class="text-sm">
-            Page {{ page_obj.number }} of {{ page_obj.paginator.num_pages }}
-          </span>
-          
-          {% if page_obj.has_next %}
-            <a href="{{ request.path }}?page={{ page_obj.next_page_number }}" class="btn btn-outline btn-sm">
-              Next
-            </a>
-          {% endif %}
-        </div>
-      </div>
-      {% endif %}
-    {% endblock %}
-  <div id="toast-container" class="toast toast-end z-50"></div>
-  <div id="htmx-progress-bar" class="hidden fixed top-0 left-0 h-1 bg-primary z-[9999]" style="width:0%"></div>
-  <script src="{% static 'js/htmx.min.js' %}"></script>
-  <script src="{% static 'js/site.js' %}"></script>
-  <script type="module" src="{% static 'js/bundle.js' %}"></script>
+    <div id="toast-container" class="toast toast-end z-50"></div>
+    <div id="htmx-progress-bar" class="hidden fixed top-0 left-0 h-1 bg-primary z-[9999]" style="width:0%"></div>
+    <script src="{% static 'js/htmx.min.js' %}"></script>
+    <script src="{% static 'js/site.js' %}"></script>
+    <script type="module" src="{% static 'js/bundle.js' %}"></script>
+
+    <!-- Simple theme toggle script -->
+    <script>
+      // Simple theme toggle
+      const themeToggle = document.querySelector('.theme-controller');
+      if (themeToggle) {
+        themeToggle.addEventListener('change', function() {
+          if (this.checked) {
+            document.documentElement.setAttribute('data-theme', 'dark');
+          } else {
+            document.documentElement.setAttribute('data-theme', 'light');
+          }
+        });
+      }
+    </script>
   </body>
 </html>

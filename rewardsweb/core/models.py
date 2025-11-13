@@ -114,7 +114,7 @@ class Contributor(models.Model):
 
     def get_absolute_url(self):
         """Returns the URL to access a detail record for this contributor."""
-        return reverse("contributor-detail", args=[str(self.id)])
+        return reverse("contributor_detail", args=[str(self.id)])
 
     @cached_property
     def sorted_handles(self):
@@ -501,7 +501,7 @@ class Cycle(models.Model):
 
     def get_absolute_url(self):
         """Returns the URL to access a detail record for this cycle."""
-        return reverse("cycle-detail", args=[str(self.id)])
+        return reverse("cycle_detail", args=[str(self.id)])
 
     def info(self):
         """Return extended string representation of the cycle instance
@@ -689,7 +689,7 @@ class Issue(models.Model):
 
     def get_absolute_url(self):
         """Returns the URL to access a detail record for this issue."""
-        return reverse("issue-detail", args=[str(self.id)])
+        return reverse("issue_detail", args=[str(self.id)])
 
     @cached_property
     def sorted_contributions(self):
@@ -838,7 +838,7 @@ class Contribution(models.Model):
 
     def get_absolute_url(self):
         """Returns the URL to access a detail record for this contribution."""
-        return reverse("contribution-detail", args=[str(self.id)])
+        return reverse("contribution_detail", args=[str(self.id)])
 
     def info(self):
         """Return basic information for this contribution.

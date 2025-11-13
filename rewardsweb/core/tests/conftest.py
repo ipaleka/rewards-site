@@ -95,7 +95,7 @@ def contribution_with_issue(contribution, issue):
 def invalidate_url(contribution):
     """URL for invalidate view."""
     return reverse(
-        "contribution-invalidate",
+        "contribution_invalidate",
         kwargs={"pk": contribution.pk, "reaction": "duplicate"},
     )
 

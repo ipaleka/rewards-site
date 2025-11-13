@@ -2,21 +2,33 @@
 {% load partials %}
 {% load static %}
 
-{% partialdef allocations_table_partial %}
-<div class="space-y-4 p-4 rounded-lg bg-base-200 mt-4">
+{% block title %}
+  <title>Add Allocations - ASA Stats Rewards</title>
+{% endblock %}
 
+{% partialdef allocations_table_partial %}
+<div class="stat-card">
   <div class="overflow-x-auto">
-    <table class="table w-full">
+    <table class="data-table">
       <thead>
-        <tr><th>Address</th><th>Amount</th></tr>
+        <tr>
+          <th class="bg-base-200">Amount</th>
+          <th class="bg-base-200">Address</th>
+        </tr>
       </thead>
       <tbody>
         {% for address, amount in allocations %}
-        <tr><td>{{ address }}</td><td>{{ amount|floatformat:"g" }}</td></tr>
+        <tr class="hover:bg-base-200 transition-colors">
+          <td class="font-semibold">{{ amount|floatformat:"g" }}</td>
+          <td class="font-mono text-sm">{{ address }}</td>
+        </tr>
         {% empty %}
         <tr>
-          <td colspan="2" class="py-4 text-center text-success">
-            ✅ All allocations processed!
+          <td colspan="2" class="py-8 text-center">
+            <div class="flex flex-col items-center justify-center text-success">
+              <i class="fas fa-check-circle text-3xl mb-2"></i>
+              <span class="font-semibold">All allocations processed!</span>
+            </div>
           </td>
         </tr>
         {% endfor %}
@@ -24,49 +36,84 @@
     </table>
   </div>
 
-  {% if use_admin_account %}
-  <form method="post"
-        hx-post="{% url 'add_allocations' %}"
-        hx-vals='{"blocking": "true"}'
-        hx-trigger="click"
-        hx-swap="none">
-    {% csrf_token %}
-    <button id="add-allocations-admin"
-            type="submit"
-            class="btn btn-primary btn-sm mt-4"
-            hx-disable>
-      Add allocations (admin mode)
+  <div class="flex gap-3 mt-6 pt-4 border-t border-base-300">
+    {% if use_admin_account %}
+    <form method="post"
+          hx-post="{% url 'add_allocations' %}"
+          hx-vals='{"blocking": "true"}'
+          hx-trigger="click"
+          hx-swap="none">
+      {% csrf_token %}
+      <button id="add-allocations-admin"
+              type="submit"
+              class="btn btn-warning"
+              hx-disable>
+        <i class="fas fa-plus-circle mr-2"></i>
+        Add allocations (admin mode)
+      </button>
+    </form>
+    {% else %}
+    <button id="add-allocations-button" type="button" class="btn btn-warning">
+      <i class="fas fa-plus-circle mr-2"></i>
+      Add allocations
     </button>
-  </form>
-  {% else %}
-  <button id="add-allocations-button" type="button" class="btn btn-primary btn-sm mt-4">
-    Add allocations
-  </button>
-  {% endif %}
+    {% endif %}
+    
+    <a href="{% url 'index' %}" class="btn btn-outline">
+      <i class="fas fa-arrow-left mr-2"></i>
+      Back to Home
+    </a>
+  </div>
 </div>
 {% endpartialdef %}
 
-{% block head_title %}
-  Add allocations
-{% endblock head_title %}
-
 {% block content %}
+<div class="space-y-6 fade-in">
+  <!-- Page Header -->
+  <div class="flex flex-col sm:flex-row justify-between items-start sm:items-center gap-4">
+    <div>
+      <h1 class="text-3xl font-bold">Add Allocations</h1>
+      <p class="mt-2 text-lg text-base-content/70">
+        Superuser administration panel
+      </p>
+    </div>
+    <div class="badge badge-warning badge-lg">
+      <i class="fas fa-shield-alt mr-1"></i>
+      Superuser Only
+    </div>
+  </div>
 
-<div class="container mx-auto px-4 py-8">
+  <!-- Warning Card -->
+  <div class="stat-card bg-warning/5 border-warning/20">
+    <div class="flex items-start gap-3">
+      <i class="fas fa-exclamation-triangle text-warning text-xl mt-1"></i>
+      <div>
+        <h3 class="font-semibold text-warning mb-2">Important Notice</h3>
+        <p class="text-base-content/80">
+          This page allows a superuser to add new allocations to the smart contract 
+          when automatic allocation doesn't occur. Use this tool carefully as it 
+          directly modifies blockchain allocations.
+        </p>
+      </div>
+    </div>
+  </div>
 
-  <h1 class="text-3xl font-bold mb-6">Add allocations (superuser only)</h1>
-
+  <!-- Allocations Table -->
   {% if allocations %}
   <div id="add-allocations-container">
       {% csrf_token %}
       {% partial allocations_table_partial %}
   </div>
   {% else %}
-    <p>No allocations found.</p>
+  <div class="stat-card text-center py-12">
+    <i class="fas fa-inbox text-4xl text-base-content/30 mb-4"></i>
+    <h3 class="text-xl font-semibold mb-2">No Allocations Found</h3>
+    <p class="text-base-content/70 max-w-md mx-auto">
+      There are no pending allocations to process at this time. 
+      All allocations have been successfully added to the contract.
+    </p>
+  </div>
   {% endif %}
 
-  <p class="mt-4 text-sm text-base-content/70">
-    This page allows a superuser to add new allocations to the smart contract if automatic allocation didn't occur.
-  </p>
 </div>
 {% endblock content %}

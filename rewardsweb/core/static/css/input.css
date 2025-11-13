@@ -19,6 +19,33 @@
   }
 }
 
+/* Dashboard specific styles */
+@layer components {
+  .stat-card {
+    @apply bg-base-100 rounded-xl shadow-sm border border-base-300 p-6;
+  }
+
+  .data-table {
+    @apply table table-zebra w-full bg-base-100 rounded-lg overflow-hidden shadow-sm;
+  }
+
+  .metric-badge {
+    @apply badge badge-lg font-semibold;
+  }
+
+  .metric-badge.positive {
+    @apply badge-success;
+  }
+
+  .metric-badge.negative {
+    @apply badge-error;
+  }
+
+  .metric-badge.neutral {
+    @apply badge-info;
+  }
+}
+
 /* ✅ HTMX loading indicator (MUST be outside Tailwind layer) */
 [hx-indicator] {
   opacity: 0;

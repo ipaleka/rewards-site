@@ -2,39 +2,145 @@
 {% load partials %}
 {% load static %}
 
+{% block title %}
+  <title>Claim Rewards - ASA Stats Rewards</title>
+{% endblock %}
+
 {% partialdef claim_partial %}
-<div class="space-y-4 p-4 rounded-lg bg-base-200 mt-4">
-  <h4 class="font-semibold text-lg">Claim your rewards</h4>
-  <button
-    id="claim-button"
-    type="button"
-    class="btn btn-success btn-sm"
-    {% if not amount %}disabled{% endif %}
-  >
-    {% if amount %}Claim{% else %}No claim available{% endif %}
-  </button>
+<div class="stat-card">
+  <div class="flex items-center gap-2 mb-4">
+    <i class="fas fa-gift text-success"></i>
+    <h3 class="text-xl font-bold">Claim Your Rewards</h3>
+  </div>
+
+  <div class="text-center py-6">
+    {% if amount %}
+    <div class="mb-6">
+      <div class="text-sm font-medium text-base-content/70 mb-2">Available Reward</div>
+      <div class="text-3xl font-bold text-success">{{ amount|floatformat:"g" }}</div>
+    </div>
+    
+    <button
+      id="claim-button"
+      type="button"
+      class="btn btn-success btn-lg"
+    >
+      <i class="fas fa-gift mr-2"></i>
+      Claim Rewards
+    </button>
+    {% else %}
+    <div class="mb-6">
+      <div class="text-sm font-medium text-base-content/70 mb-2">Available Reward</div>
+      <div class="text-2xl font-bold text-base-content/50">0</div>
+    </div>
+    
+    <button
+      id="claim-button"
+      type="button"
+      class="btn btn-disabled btn-lg"
+      disabled
+    >
+      <i class="fas fa-check-circle mr-2"></i>
+      No Rewards Available
+    </button>
+    {% endif %}
+  </div>
+
+  <div class="flex gap-3 mt-6 pt-4 border-t border-base-300">
+    <a href="{% url 'index' %}" class="btn btn-outline">
+      <i class="fas fa-arrow-left mr-2"></i>
+      Back to Home
+    </a>
+    <a href="{{ user.profile.contributor.get_absolute_url }}" class="btn btn-primary">
+      <i class="fas fa-code-branch mr-2"></i>
+      Your Contributions
+    </a>
+  </div>
 </div>
 {% endpartialdef claim_partial %}
 
-{% block head_title %}
-  Claim rewards
-{% endblock head_title %}
-
 {% block content %}
+<div class="space-y-6 fade-in">
+  <!-- Page Header -->
+  <div class="flex flex-col sm:flex-row justify-between items-start sm:items-center gap-4">
+    <div>
+      <h1 class="text-3xl font-bold">Claim Rewards</h1>
+      <p class="mt-2 text-lg text-base-content/70">
+        Collect your earned rewards from the smart contract
+      </p>
+    </div>
+    {% if amount %}
+    <div class="badge badge-success badge-lg">
+      <i class="fas fa-coins mr-1"></i>
+      Rewards Available
+    </div>
+    {% else %}
+    <div class="badge badge-neutral badge-lg">
+      <i class="fas fa-check-circle mr-1"></i>
+      No Rewards
+    </div>
+    {% endif %}
+  </div>
 
-<div class="container mx-auto px-4 py-8">
-  <h1 class="text-3xl font-bold mb-6">Claim your rewards</h1>
+  <!-- Info Card -->
+  <div class="stat-card bg-info/5 border-info/20">
+    <div class="flex items-start gap-3">
+      <i class="fas fa-info-circle text-info text-xl mt-1"></i>
+      <div>
+        <h3 class="font-semibold text-info mb-2">How to Claim Rewards</h3>
+        <p class="text-base-content/80 mb-3">
+          Click the "Claim Rewards" button to initiate the transaction. You will be prompted 
+          to sign the transaction with your wallet. The rewards will be transferred directly 
+          to your connected wallet address.
+        </p>
+        <ul class="text-base-content/70 space-y-1 text-sm">
+          <li><i class="fas fa-check-circle text-success mr-2"></i>Ensure your wallet is connected</li>
+          <li><i class="fas fa-check-circle text-success mr-2"></i>Verify the transaction details</li>
+          <li><i class="fas fa-check-circle text-success mr-2"></i>Confirm the transaction signature</li>
+        </ul>
+      </div>
+    </div>
+  </div>
 
+  <!-- Claim Section -->
   <div id="claim-container">
     {% csrf_token %}
     {% partial claim_partial %}
   </div>
 
-  <p class="mt-4 text-sm text-base-content/70">
-    This page allows you to claim your rewards from the smart contract.
-    Click the "Claim" button if it is enabled. You will be prompted to sign
-    a transaction with your wallet.
-  </p>
+  <!-- Quick Stats -->
+  <div class="grid grid-cols-1 md:grid-cols-3 gap-4">
+    <div class="stat-card text-center">
+      <div class="p-3 rounded-lg {% if amount %}bg-success/10 text-success{% else %}bg-base-300 text-base-content/50{% endif %} inline-block mb-3">
+        <i class="fas fa-coins text-xl"></i>
+      </div>
+      <p class="text-sm font-medium text-base-content/70">Reward Status</p>
+      <p class="text-lg font-semibold">
+        {% if amount %}
+        <span class="text-success">Available</span>
+        {% else %}
+        <span class="text-base-content/50">None</span>
+        {% endif %}
+      </p>
+    </div>
+    
+    <div class="stat-card text-center">
+      <div class="p-3 rounded-lg bg-primary/10 text-primary inline-block mb-3">
+        <i class="fas fa-user text-xl"></i>
+      </div>
+      <p class="text-sm font-medium text-base-content/70">Contributor</p>
+      <p class="text-lg font-semibold text-primary">
+        {% if user.is_authenticated %}{{ user.username }}{% else %}Guest{% endif %}
+      </p>
+    </div>
+    
+    <div class="stat-card text-center">
+      <div class="p-3 rounded-lg bg-accent/10 text-accent inline-block mb-3">
+        <i class="fas fa-wallet text-xl"></i>
+      </div>
+      <p class="text-sm font-medium text-base-content/70">Wallet Required</p>
+      <p class="text-lg font-semibold text-info">Yes</p>
+    </div>
+  </div>
 </div>
-
-{% endblock %}
+{% endblock content %}

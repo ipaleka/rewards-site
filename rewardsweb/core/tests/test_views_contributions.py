@@ -106,7 +106,7 @@ class TestDbContributionEditView:
 
         success_url = view.get_success_url()
 
-        expected_url = reverse("contribution-detail", kwargs={"pk": contribution.pk})
+        expected_url = reverse("contribution_detail", kwargs={"pk": contribution.pk})
         assert success_url == expected_url
         mocked_log_action.assert_called_once()
 
@@ -639,7 +639,7 @@ class TestContributionInvalidateViewDb:
         assert "successfully" in messages[0].message
 
         # Check redirect
-        expected_url = reverse("contribution-detail", kwargs={"pk": contribution.pk})
+        expected_url = reverse("contribution_detail", kwargs={"pk": contribution.pk})
         assert response.url == expected_url
 
         mocked_log_action.assert_called_once_with(
@@ -763,7 +763,7 @@ class TestContributionInvalidateViewDb:
     ):
         """Test view works with different type parameters."""
         url = reverse(
-            "contribution-invalidate",
+            "contribution_invalidate",
             kwargs={"pk": contribution.pk, "reaction": reaction},
         )
 
@@ -812,7 +812,7 @@ class TestContributionInvalidateViewDb:
     ):
         """Test that original comment is empty when message_from_url fails."""
         url = reverse(
-            "contribution-invalidate",
+            "contribution_invalidate",
             kwargs={"pk": contribution.pk, "reaction": "duplicate"},
         )
 

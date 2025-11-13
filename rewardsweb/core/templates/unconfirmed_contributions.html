@@ -1,0 +1,39 @@
+{% extends "base_generic.html" %}
+{% load partials %}
+
+{% block content %}
+<div class="space-y-6 fade-in">
+
+  <div class="flex flex-col sm:flex-row justify-between items-start sm:items-center gap-4">
+    <div>
+      <h1 class="text-3xl font-bold">Unconfirmed Contributions</h1>
+      <p class="mt-2 text-lg text-base-content/70">
+        Here is a list of suggested contributions pending administrator approval.
+      </p>
+    </div>
+  </div>
+
+  <div class="grid grid-cols-1">
+    <div class="stat-card">
+      {% if contribution_list %}
+        <div class="space-y-3">
+          {% for contribution in contribution_list %}
+          <div class="flex items-center justify-between p-3 bg-base-200 rounded-lg hover:bg-base-300 transition-colors">
+            <a class="link link-accent font-medium" href="{{ contribution.get_absolute_url }}">
+              {{ contribution.info }}
+            </a>
+            <span class="badge badge-warning badge-sm">Pending</span>
+          </div>
+          {% endfor %}
+        </div>
+      {% else %}
+        <div class="text-center py-8">
+          <i class="fas fa-check-circle text-3xl text-success mb-3"></i>
+          <p class="text-base-content/70">All contributions are confirmed</p>
+        </div>
+      {% endif %}
+    </div>
+
+  </div>
+</div>
+{% endblock %}

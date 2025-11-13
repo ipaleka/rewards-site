@@ -71,7 +71,7 @@
     <p class="py-4">This will close the issue as <strong>{{ action_value }}</strong>.</p>
 
     <form method="post"
-          action="{% url 'issue-detail' issue.pk %}"
+          action="{% url 'issue_detail' issue.pk %}"
           onsubmit="document.getElementById('{{ modal_id }}').close()"
           class="space-y-4">
 
@@ -141,14 +141,14 @@
     <!-- Close Issue Buttons - Only for superusers and if GitHub issue is open -->
     {% if user.is_superuser and github_issue and issue_state == 'open' %}
       <button class="btn btn-soft btn-success btn-sm"
-              hx-get="{% url 'issue-modal' issue.pk %}?action=addressed"
+              hx-get="{% url 'issue_modal' issue.pk %}?action=addressed"
               hx-target="#modal-container"
               hx-swap="innerHTML transition:true">
         Close as addressed
       </button>
 
       <button class="btn btn-soft btn-warning btn-sm"
-              hx-get="{% url 'issue-modal' issue.pk %}?action=wontfix"
+              hx-get="{% url 'issue_modal' issue.pk %}?action=wontfix"
               hx-target="#modal-container"
               hx-swap="innerHTML transition:true">
         Close as wontfix

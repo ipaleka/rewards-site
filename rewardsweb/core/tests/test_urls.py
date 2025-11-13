@@ -33,7 +33,7 @@ class TestCoreUrls:
         url = self._url_from_pattern("cycle/<int:pk>")
         assert isinstance(url, URLPattern)
         assert url.lookup_str == "core.views.CycleDetailView"
-        assert url.name == "cycle-detail"
+        assert url.name == "cycle_detail"
 
     def test_core_urls_contributors(self):
         url = self._url_from_pattern("contributors/")
@@ -45,25 +45,25 @@ class TestCoreUrls:
         url = self._url_from_pattern("contributor/<int:pk>")
         assert isinstance(url, URLPattern)
         assert url.lookup_str == "core.views.ContributorDetailView"
-        assert url.name == "contributor-detail"
+        assert url.name == "contributor_detail"
 
     def test_core_urls_contribution_detail(self):
         url = self._url_from_pattern("contribution/<int:pk>")
         assert isinstance(url, URLPattern)
         assert url.lookup_str == "core.views.ContributionDetailView"
-        assert url.name == "contribution-detail"
+        assert url.name == "contribution_detail"
 
     def test_core_urls_contribution_edit(self):
         url = self._url_from_pattern("contribution/<int:pk>/edit/")
         assert isinstance(url, URLPattern)
         assert url.lookup_str == "core.views.ContributionEditView"
-        assert url.name == "contribution-edit"
+        assert url.name == "contribution_edit"
 
     def test_core_urls_contribution_invalidate(self):
         url = self._url_from_pattern("contribution/<int:pk>/invalidate/<str:reaction>")
         assert isinstance(url, URLPattern)
         assert url.lookup_str == "core.views.ContributionInvalidateView"
-        assert url.name == "contribution-invalidate"
+        assert url.name == "contribution_invalidate"
 
     def test_core_urls_issues(self):
         url = self._url_from_pattern("issues/")
@@ -75,19 +75,25 @@ class TestCoreUrls:
         url = self._url_from_pattern("create-issue/<int:contribution_id>")
         assert isinstance(url, URLPattern)
         assert url.lookup_str == "core.views.CreateIssueView"
-        assert url.name == "create-issue"
+        assert url.name == "create_issue"
 
     def test_core_urls_issue_detail(self):
         url = self._url_from_pattern("issue/<int:pk>")
         assert isinstance(url, URLPattern)
         assert url.lookup_str == "core.views.IssueDetailView"
-        assert url.name == "issue-detail"
+        assert url.name == "issue_detail"
 
     def test_core_urls_issue_modal(self):
         url = self._url_from_pattern("issue/<int:pk>/modal/")
         assert isinstance(url, URLPattern)
         assert url.lookup_str == "core.views.IssueModalView"
-        assert url.name == "issue-modal"
+        assert url.name == "issue_modal"
+
+    def test_core_urls_unconfirmed_contributions(self):
+        url = self._url_from_pattern("unconfirmed-contributions/")
+        assert isinstance(url, URLPattern)
+        assert url.lookup_str == "core.views.UnconfirmedContributionsView"
+        assert url.name == "unconfirmed_contributions"
 
     def test_core_urls_patterns_count(self):
-        assert len(urls.urlpatterns) == 13
+        assert len(urls.urlpatterns) == 14

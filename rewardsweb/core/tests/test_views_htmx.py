@@ -12,7 +12,7 @@ class TestIssueModalHTMX:
         """Modal fragment loads correctly using HTMX."""
         client.force_login(superuser)
 
-        url = reverse("issue-modal", kwargs={"pk": issue.pk}) + "?action=addressed"
+        url = reverse("issue_modal", kwargs={"pk": issue.pk}) + "?action=addressed"
         response = client.get(url, HTTP_HX_REQUEST="true")
 
         assert response.status_code == 200
@@ -23,7 +23,7 @@ class TestIssueModalHTMX:
 
     def test_modal_raises_404_for_non_superuser(self, client, issue):
         """Anonymous or normal user should trigger Http404"""
-        url = reverse("issue-modal", kwargs={"pk": issue.pk}) + "?action=addressed"
+        url = reverse("issue_modal", kwargs={"pk": issue.pk}) + "?action=addressed"
         response = client.get(url, HTTP_HX_REQUEST="true")
         assert response.status_code == 404
 
@@ -31,7 +31,7 @@ class TestIssueModalHTMX:
         """Invalid ?action should raise Http404"""
         client.force_login(superuser)
 
-        url = reverse("issue-modal", kwargs={"pk": issue.pk}) + "?action=banana"
+        url = reverse("issue_modal", kwargs={"pk": issue.pk}) + "?action=banana"
         response = client.get(url, HTTP_HX_REQUEST="true")
         assert response.status_code == 404
 
@@ -49,7 +49,7 @@ class TestIssueModalHTMX:
                 "current_labels": ["bug", "blocker"],
             },
         )
-        url = reverse("issue-detail", kwargs={"pk": issue.pk})
+        url = reverse("issue_detail", kwargs={"pk": issue.pk})
         data = {
             "submit_labels": "",
             "labels": ["bug"],

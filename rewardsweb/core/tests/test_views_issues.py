@@ -208,14 +208,14 @@ class TestDbIssueDetailView:
     ):
         """Test that regular users can access the view."""
         client.force_login(regular_user)
-        url = reverse("issue-detail", kwargs={"pk": issue.pk})
+        url = reverse("issue_detail", kwargs={"pk": issue.pk})
         response = client.get(url)
         assert response.status_code == 200
 
     def test_issuedetailview_accessible_to_superuser(self, client, superuser, issue):
         """Test that superusers can access the view."""
         client.force_login(superuser)
-        url = reverse("issue-detail", kwargs={"pk": issue.pk})
+        url = reverse("issue_detail", kwargs={"pk": issue.pk})
         response = client.get(url)
         assert response.status_code == 200
 
@@ -247,7 +247,7 @@ class TestDbIssueDetailView:
         mock_get_issue.return_value = mock_github_data
 
         client.force_login(superuser)
-        url = reverse("issue-detail", kwargs={"pk": issue.pk})
+        url = reverse("issue_detail", kwargs={"pk": issue.pk})
         response = client.get(url)
 
         assert response.status_code == 200
@@ -265,7 +265,7 @@ class TestDbIssueDetailView:
         mock_get_issue = mocker.patch("core.views.issue_by_number")
 
         client.force_login(regular_user)
-        url = reverse("issue-detail", kwargs={"pk": issue.pk})
+        url = reverse("issue_detail", kwargs={"pk": issue.pk})
         response = client.get(url)
 
         assert response.status_code == 200
@@ -286,7 +286,7 @@ class TestDbIssueDetailView:
         mock_get_issue.return_value = mock_github_data
 
         client.force_login(superuser)
-        url = reverse("issue-detail", kwargs={"pk": issue.pk})
+        url = reverse("issue_detail", kwargs={"pk": issue.pk})
         response = client.get(url)
 
         assert response.status_code == 200
@@ -298,7 +298,7 @@ class TestDbIssueDetailView:
     ):
         """Test that the same template is used for both user types."""
         client.force_login(regular_user)
-        url = reverse("issue-detail", kwargs={"pk": issue.pk})
+        url = reverse("issue_detail", kwargs={"pk": issue.pk})
         response_regular = client.get(url)
 
         client.force_login(superuser)
@@ -334,7 +334,7 @@ class TestDbIssueDetailView:
         mock_get_issue.return_value = mock_github_data
 
         client.force_login(superuser)
-        url = reverse("issue-detail", kwargs={"pk": issue.pk})
+        url = reverse("issue_detail", kwargs={"pk": issue.pk})
         response = client.get(url)
 
         assert response.status_code == 200
@@ -364,7 +364,7 @@ class TestDbIssueDetailView:
         mock_get_issue.return_value = mock_github_data
 
         client.force_login(superuser)
-        url = reverse("issue-detail", kwargs={"pk": issue.pk})
+        url = reverse("issue_detail", kwargs={"pk": issue.pk})
         response = client.get(url)
 
         assert response.status_code == 200
@@ -412,7 +412,7 @@ class TestIssueDetailViewWithForm:
         mock_get_issue.return_value = mock_github_data
 
         client.force_login(superuser)
-        url = reverse("issue-detail", kwargs={"pk": issue.pk})
+        url = reverse("issue_detail", kwargs={"pk": issue.pk})
         response = client.get(url)
 
         assert response.status_code == 200
@@ -442,7 +442,7 @@ class TestIssueDetailViewWithForm:
         mock_get_issue.return_value = mock_github_data
 
         client.force_login(superuser)
-        url = reverse("issue-detail", kwargs={"pk": issue.pk})
+        url = reverse("issue_detail", kwargs={"pk": issue.pk})
         response = client.get(url)
 
         assert response.status_code == 200
@@ -471,7 +471,7 @@ class TestIssueDetailViewWithForm:
         mock_get_issue.return_value = mock_github_data
 
         client.force_login(regular_user)
-        url = reverse("issue-detail", kwargs={"pk": issue.pk})
+        url = reverse("issue_detail", kwargs={"pk": issue.pk})
         response = client.get(url)
 
         assert response.status_code == 200
@@ -487,7 +487,7 @@ class TestIssueDetailViewWithForm:
         mock_get_issue.return_value = mock_github_data
 
         client.force_login(superuser)
-        url = reverse("issue-detail", kwargs={"pk": issue.pk})
+        url = reverse("issue_detail", kwargs={"pk": issue.pk})
         response = client.get(url)
 
         assert response.status_code == 200
@@ -525,7 +525,7 @@ class TestIssueDetailViewWithForm:
         mock_get_issue.return_value = mock_github_data
 
         client.force_login(superuser)
-        url = reverse("issue-detail", kwargs={"pk": issue.pk})
+        url = reverse("issue_detail", kwargs={"pk": issue.pk})
         response = client.get(url)
 
         assert response.status_code == 200
@@ -561,7 +561,7 @@ class TestIssueDetailViewWithForm:
         mock_get_issue.return_value = mock_github_data
 
         client.force_login(superuser)
-        url = reverse("issue-detail", kwargs={"pk": issue.pk})
+        url = reverse("issue_detail", kwargs={"pk": issue.pk})
         response = client.get(url)
 
         assert response.status_code == 200
@@ -596,7 +596,7 @@ class TestIssueDetailViewWithForm:
         mock_get_issue.return_value = mock_github_data
 
         client.force_login(superuser)
-        url = reverse("issue-detail", kwargs={"pk": issue.pk})
+        url = reverse("issue_detail", kwargs={"pk": issue.pk})
         response = client.get(url)
 
         assert response.status_code == 200
@@ -634,7 +634,7 @@ class TestIssueDetailViewWithForm:
         mock_get_issue.return_value = mock_github_data
 
         client.force_login(superuser)
-        url = reverse("issue-detail", kwargs={"pk": issue.pk})
+        url = reverse("issue_detail", kwargs={"pk": issue.pk})
         response = client.get(url)
 
         assert response.status_code == 200
@@ -660,7 +660,7 @@ class TestIssueDetailViewWithForm:
         }
 
         client.force_login(superuser)
-        url = reverse("issue-detail", kwargs={"pk": issue.pk})
+        url = reverse("issue_detail", kwargs={"pk": issue.pk})
 
         # Submit form with selected labels and priority
         response = client.post(
@@ -669,7 +669,7 @@ class TestIssueDetailViewWithForm:
 
         assert response.status_code == 302  # Redirect after POST
         # Fix the URL assertion to match your actual URL pattern
-        expected_url = reverse("issue-detail", kwargs={"pk": issue.pk})
+        expected_url = reverse("issue_detail", kwargs={"pk": issue.pk})
         assert response.url == expected_url
 
     def test_issuedetailview_post_request_handles_github_error(
@@ -684,7 +684,7 @@ class TestIssueDetailViewWithForm:
         }
 
         client.force_login(superuser)
-        url = reverse("issue-detail", kwargs={"pk": issue.pk})
+        url = reverse("issue_detail", kwargs={"pk": issue.pk})
 
         response = client.post(url, {"labels": ["bug"], "priority": "medium priority"})
 
@@ -693,7 +693,7 @@ class TestIssueDetailViewWithForm:
     def test_issuedetailview_post_request_invalid_form(self, client, superuser, issue):
         """Test that invalid form submission shows error."""
         client.force_login(superuser)
-        url = reverse("issue-detail", kwargs={"pk": issue.pk})
+        url = reverse("issue_detail", kwargs={"pk": issue.pk})
 
         # Submit empty form (invalid)
         response = client.post(url, {})
@@ -705,7 +705,7 @@ class TestIssueDetailViewWithForm:
     ):
         """Test that regular users cannot submit the form."""
         client.force_login(regular_user)
-        url = reverse("issue-detail", kwargs={"pk": issue.pk})
+        url = reverse("issue_detail", kwargs={"pk": issue.pk})
 
         response = client.post(url, {"labels": ["bug"], "priority": "medium priority"})
 
@@ -736,7 +736,7 @@ class TestIssueDetailViewWithForm:
         mock_get_issue.return_value = mock_github_data
 
         client.force_login(superuser)
-        url = reverse("issue-detail", kwargs={"pk": issue.pk})
+        url = reverse("issue_detail", kwargs={"pk": issue.pk})
         response = client.get(url)
 
         assert response.status_code == 200
@@ -769,7 +769,7 @@ class TestIssueDetailViewWithForm:
         mock_get_issue.return_value = mock_github_data
 
         client.force_login(superuser)
-        url = reverse("issue-detail", kwargs={"pk": issue.pk})
+        url = reverse("issue_detail", kwargs={"pk": issue.pk})
         response = client.get(url)
 
         assert response.status_code == 200
@@ -799,7 +799,7 @@ class TestIssueDetailViewSubmissionHandlers:
         mocked_log_action = mocker.patch("core.models.Profile.log_action")
 
         client.force_login(superuser)
-        url = reverse("issue-detail", kwargs={"pk": issue.pk})
+        url = reverse("issue_detail", kwargs={"pk": issue.pk})
 
         response = client.post(
             url,
@@ -811,7 +811,7 @@ class TestIssueDetailViewSubmissionHandlers:
         )
 
         assert response.status_code == 302
-        assert response.url == reverse("issue-detail", kwargs={"pk": issue.pk})
+        assert response.url == reverse("issue_detail", kwargs={"pk": issue.pk})
 
         # Verify the function was called with correct arguments
         mock_add_labels.assert_called_once_with(
@@ -837,7 +837,7 @@ class TestIssueDetailViewSubmissionHandlers:
         }
 
         client.force_login(superuser)
-        url = reverse("issue-detail", kwargs={"pk": issue.pk})
+        url = reverse("issue_detail", kwargs={"pk": issue.pk})
 
         response = client.post(
             url,
@@ -849,7 +849,7 @@ class TestIssueDetailViewSubmissionHandlers:
         )
 
         assert response.status_code == 302
-        assert response.url == reverse("issue-detail", kwargs={"pk": issue.pk})
+        assert response.url == reverse("issue_detail", kwargs={"pk": issue.pk})
 
         # Check error message
         messages = list(get_messages(response.wsgi_request))
@@ -863,7 +863,7 @@ class TestIssueDetailViewSubmissionHandlers:
     ):
         """Test labels form submission with invalid form data."""
         client.force_login(superuser)
-        url = reverse("issue-detail", kwargs={"pk": issue.pk})
+        url = reverse("issue_detail", kwargs={"pk": issue.pk})
 
         # Submit empty form (invalid - required fields missing)
         response = client.post(
@@ -875,7 +875,7 @@ class TestIssueDetailViewSubmissionHandlers:
         )
 
         assert response.status_code == 302
-        assert response.url == reverse("issue-detail", kwargs={"pk": issue.pk})
+        assert response.url == reverse("issue_detail", kwargs={"pk": issue.pk})
 
         # Check error message
         messages = list(get_messages(response.wsgi_request))
@@ -889,7 +889,7 @@ class TestIssueDetailViewSubmissionHandlers:
     ):
         """Test labels form submission with empty labels list."""
         client.force_login(superuser)
-        url = reverse("issue-detail", kwargs={"pk": issue.pk})
+        url = reverse("issue_detail", kwargs={"pk": issue.pk})
 
         # Submit form with empty labels (invalid)
         response = client.post(
@@ -902,7 +902,7 @@ class TestIssueDetailViewSubmissionHandlers:
         )
 
         assert response.status_code == 302
-        assert response.url == reverse("issue-detail", kwargs={"pk": issue.pk})
+        assert response.url == reverse("issue_detail", kwargs={"pk": issue.pk})
 
         # Check error message
         messages = list(get_messages(response.wsgi_request))
@@ -942,7 +942,7 @@ class TestIssueDetailViewSubmissionHandlers:
         mock_close_issue.return_value = {"success": True}
 
         client.force_login(superuser)
-        url = reverse("issue-detail", kwargs={"pk": issue.pk})
+        url = reverse("issue_detail", kwargs={"pk": issue.pk})
 
         response = client.post(
             url,
@@ -954,7 +954,7 @@ class TestIssueDetailViewSubmissionHandlers:
         )
 
         assert response.status_code == 302
-        assert response.url == reverse("issue-detail", kwargs={"pk": issue.pk})
+        assert response.url == reverse("issue_detail", kwargs={"pk": issue.pk})
 
         # Check that issue status was updated
         issue.refresh_from_db()
@@ -1026,7 +1026,7 @@ class TestIssueDetailViewSubmissionHandlers:
         client.force_login(superuser)
         contribution.issue = issue
         contribution.save()
-        url = reverse("issue-detail", kwargs={"pk": issue.pk})
+        url = reverse("issue_detail", kwargs={"pk": issue.pk})
 
         response = client.post(
             url,
@@ -1091,7 +1091,7 @@ class TestIssueDetailViewSubmissionHandlers:
         mock_close_issue.return_value = {"success": True}
 
         client.force_login(superuser)
-        url = reverse("issue-detail", kwargs={"pk": issue.pk})
+        url = reverse("issue_detail", kwargs={"pk": issue.pk})
 
         response = client.post(
             url,
@@ -1103,7 +1103,7 @@ class TestIssueDetailViewSubmissionHandlers:
         )
 
         assert response.status_code == 302
-        assert response.url == reverse("issue-detail", kwargs={"pk": issue.pk})
+        assert response.url == reverse("issue_detail", kwargs={"pk": issue.pk})
 
         # Check that issue status was updated
         issue.refresh_from_db()
@@ -1130,7 +1130,7 @@ class TestIssueDetailViewSubmissionHandlers:
     ):
         """Test close submission with invalid action."""
         client.force_login(superuser)
-        url = reverse("issue-detail", kwargs={"pk": issue.pk})
+        url = reverse("issue_detail", kwargs={"pk": issue.pk})
 
         response = client.post(
             url,
@@ -1142,7 +1142,7 @@ class TestIssueDetailViewSubmissionHandlers:
         )
 
         assert response.status_code == 302
-        assert response.url == reverse("issue-detail", kwargs={"pk": issue.pk})
+        assert response.url == reverse("issue_detail", kwargs={"pk": issue.pk})
 
         # Check error message
         messages = list(get_messages(response.wsgi_request))
@@ -1158,7 +1158,7 @@ class TestIssueDetailViewSubmissionHandlers:
         mock_get_issue.return_value = mock_github_data
 
         client.force_login(superuser)
-        url = reverse("issue-detail", kwargs={"pk": issue.pk})
+        url = reverse("issue_detail", kwargs={"pk": issue.pk})
 
         response = client.post(
             url,
@@ -1170,7 +1170,7 @@ class TestIssueDetailViewSubmissionHandlers:
         )
 
         assert response.status_code == 302
-        assert response.url == reverse("issue-detail", kwargs={"pk": issue.pk})
+        assert response.url == reverse("issue_detail", kwargs={"pk": issue.pk})
 
         # Check error message
         messages = list(get_messages(response.wsgi_request))
@@ -1202,7 +1202,7 @@ class TestIssueDetailViewSubmissionHandlers:
         mock_get_issue.return_value = mock_github_data
 
         client.force_login(superuser)
-        url = reverse("issue-detail", kwargs={"pk": issue.pk})
+        url = reverse("issue_detail", kwargs={"pk": issue.pk})
 
         response = client.post(
             url,
@@ -1214,7 +1214,7 @@ class TestIssueDetailViewSubmissionHandlers:
         )
 
         assert response.status_code == 302
-        assert response.url == reverse("issue-detail", kwargs={"pk": issue.pk})
+        assert response.url == reverse("issue_detail", kwargs={"pk": issue.pk})
 
         # Check error message
         messages = list(get_messages(response.wsgi_request))
@@ -1249,7 +1249,7 @@ class TestIssueDetailViewSubmissionHandlers:
         }
 
         client.force_login(superuser)
-        url = reverse("issue-detail", kwargs={"pk": issue.pk})
+        url = reverse("issue_detail", kwargs={"pk": issue.pk})
 
         response = client.post(
             url,
@@ -1261,7 +1261,7 @@ class TestIssueDetailViewSubmissionHandlers:
         )
 
         assert response.status_code == 302
-        assert response.url == reverse("issue-detail", kwargs={"pk": issue.pk})
+        assert response.url == reverse("issue_detail", kwargs={"pk": issue.pk})
 
         # Check that local status was reverted
         issue.refresh_from_db()
@@ -1282,7 +1282,7 @@ class TestIssueDetailViewSubmissionHandlers:
         mock_get_issue.side_effect = Exception("Unexpected error")
 
         client.force_login(superuser)
-        url = reverse("issue-detail", kwargs={"pk": issue.pk})
+        url = reverse("issue_detail", kwargs={"pk": issue.pk})
 
         response = client.post(
             url,
@@ -1294,7 +1294,7 @@ class TestIssueDetailViewSubmissionHandlers:
         )
 
         assert response.status_code == 302
-        assert response.url == reverse("issue-detail", kwargs={"pk": issue.pk})
+        assert response.url == reverse("issue_detail", kwargs={"pk": issue.pk})
 
         # Check error message
         messages = list(get_messages(response.wsgi_request))
@@ -1332,7 +1332,7 @@ class TestIssueDetailViewSubmissionHandlers:
         mock_close_issue.return_value = {"success": True}
 
         client.force_login(superuser)
-        url = reverse("issue-detail", kwargs={"pk": issue.pk})
+        url = reverse("issue_detail", kwargs={"pk": issue.pk})
 
         response = client.post(
             url,
@@ -1383,7 +1383,7 @@ class TestIssueDetailViewSubmissionHandlers:
         mock_close_issue.return_value = {"success": True}
 
         client.force_login(superuser)
-        url = reverse("issue-detail", kwargs={"pk": issue.pk})
+        url = reverse("issue_detail", kwargs={"pk": issue.pk})
 
         response = client.post(
             url,
@@ -1432,7 +1432,7 @@ class TestIssueDetailViewCloseFunctionality:
         mock_get_issue.return_value = mock_github_data
 
         client.force_login(regular_user)
-        url = reverse("issue-detail", kwargs={"pk": issue.pk})
+        url = reverse("issue_detail", kwargs={"pk": issue.pk})
         response = client.get(url)
 
         assert response.status_code == 200
@@ -1463,7 +1463,7 @@ class TestIssueDetailViewCloseFunctionality:
         mock_get_issue.return_value = mock_github_data
 
         client.force_login(superuser)
-        url = reverse("issue-detail", kwargs={"pk": issue.pk})
+        url = reverse("issue_detail", kwargs={"pk": issue.pk})
         response = client.get(url)
 
         assert response.status_code == 200
@@ -1497,7 +1497,7 @@ class TestIssueDetailViewCloseFunctionality:
         mock_get_issue.return_value = mock_github_data
 
         client.force_login(superuser)
-        url = reverse("issue-detail", kwargs={"pk": issue.pk})
+        url = reverse("issue_detail", kwargs={"pk": issue.pk})
         response = client.get(url)
 
         assert response.status_code == 200
@@ -1533,7 +1533,7 @@ class TestIssueDetailViewCloseFunctionality:
         mock_close_issue.return_value = {"success": True}
 
         client.force_login(superuser)
-        url = reverse("issue-detail", kwargs={"pk": issue.pk})
+        url = reverse("issue_detail", kwargs={"pk": issue.pk})
 
         response = client.post(
             url,
@@ -1545,7 +1545,7 @@ class TestIssueDetailViewCloseFunctionality:
         )
 
         assert response.status_code == 302
-        assert response.url == reverse("issue-detail", kwargs={"pk": issue.pk})
+        assert response.url == reverse("issue_detail", kwargs={"pk": issue.pk})
 
         # Check that issue status was updated
         issue.refresh_from_db()
@@ -1593,7 +1593,7 @@ class TestIssueDetailViewCloseFunctionality:
         mock_close_issue.return_value = {"success": True}
 
         client.force_login(superuser)
-        url = reverse("issue-detail", kwargs={"pk": issue.pk})
+        url = reverse("issue_detail", kwargs={"pk": issue.pk})
 
         response = client.post(
             url,
@@ -1605,7 +1605,7 @@ class TestIssueDetailViewCloseFunctionality:
         )
 
         assert response.status_code == 302
-        assert response.url == reverse("issue-detail", kwargs={"pk": issue.pk})
+        assert response.url == reverse("issue_detail", kwargs={"pk": issue.pk})
 
         # Check that issue status was updated
         issue.refresh_from_db()
@@ -1650,7 +1650,7 @@ class TestIssueDetailViewCloseFunctionality:
         mock_close_issue.return_value = {"success": True}
 
         client.force_login(superuser)
-        url = reverse("issue-detail", kwargs={"pk": issue.pk})
+        url = reverse("issue_detail", kwargs={"pk": issue.pk})
 
         response = client.post(
             url,
@@ -1662,7 +1662,7 @@ class TestIssueDetailViewCloseFunctionality:
         )
 
         assert response.status_code == 302
-        assert response.url == reverse("issue-detail", kwargs={"pk": issue.pk})
+        assert response.url == reverse("issue_detail", kwargs={"pk": issue.pk})
 
         # Check that issue status was updated
         issue.refresh_from_db()
@@ -1703,7 +1703,7 @@ class TestIssueDetailViewCloseFunctionality:
         mock_close_issue.return_value = {"success": True}
 
         client.force_login(superuser)
-        url = reverse("issue-detail", kwargs={"pk": issue.pk})
+        url = reverse("issue_detail", kwargs={"pk": issue.pk})
 
         response = client.post(
             url,
@@ -1715,7 +1715,7 @@ class TestIssueDetailViewCloseFunctionality:
         )
 
         assert response.status_code == 302
-        assert response.url == reverse("issue-detail", kwargs={"pk": issue.pk})
+        assert response.url == reverse("issue_detail", kwargs={"pk": issue.pk})
 
         # Check that issue status was updated
         issue.refresh_from_db()
@@ -1756,7 +1756,7 @@ class TestIssueDetailViewCloseFunctionality:
         mock_close_issue.return_value = {"success": False, "error": "GitHub API error"}
 
         client.force_login(superuser)
-        url = reverse("issue-detail", kwargs={"pk": issue.pk})
+        url = reverse("issue_detail", kwargs={"pk": issue.pk})
 
         response = client.post(
             url,
@@ -1796,7 +1796,7 @@ class TestIssueDetailViewCloseFunctionality:
         mock_get_issue.return_value = mock_github_data
 
         client.force_login(superuser)
-        url = reverse("issue-detail", kwargs={"pk": issue.pk})
+        url = reverse("issue_detail", kwargs={"pk": issue.pk})
 
         response = client.post(
             url,
@@ -1816,7 +1816,7 @@ class TestIssueDetailViewCloseFunctionality:
     def test_issuedetailview_close_issue_invalid_action(self, client, superuser, issue):
         """Test closing with invalid action."""
         client.force_login(superuser)
-        url = reverse("issue-detail", kwargs={"pk": issue.pk})
+        url = reverse("issue_detail", kwargs={"pk": issue.pk})
 
         response = client.post(
             url,
@@ -1856,7 +1856,7 @@ class TestIssueDetailViewCloseFunctionality:
         mock_get_issue.return_value = mock_github_data
 
         client.force_login(superuser)
-        url = reverse("issue-detail", kwargs={"pk": issue.pk})
+        url = reverse("issue_detail", kwargs={"pk": issue.pk})
         response = client.get(url)
 
         assert response.status_code == 200
@@ -1885,7 +1885,7 @@ class TestIssueDetailViewCloseFunctionality:
         mock_get_issue.return_value = mock_github_data
 
         client.force_login(superuser)
-        url = reverse("issue-detail", kwargs={"pk": issue.pk})
+        url = reverse("issue_detail", kwargs={"pk": issue.pk})
         response = client.get(url)
 
         assert response.status_code == 200
@@ -1943,7 +1943,7 @@ class TestDbCreateIssueView:
 
         success_url = view.get_success_url()
 
-        expected_url = reverse("contribution-detail", args=[contribution.id])
+        expected_url = reverse("contribution_detail", args=[contribution.id])
         assert success_url == expected_url
 
     def test_createissueview_get_initial_with_contribution_id(

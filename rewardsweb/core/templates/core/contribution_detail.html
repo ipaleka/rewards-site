@@ -46,16 +46,16 @@
         <!-- Left group -->
         <div class="flex gap-2">
           {% if not contribution.confirmed %}
-          <a class="btn btn-success btn-sm" href="{% url 'create-issue' contribution.id %}">Create issue</a>
+          <a class="btn btn-success btn-sm" href="{% url 'create_issue' contribution.id %}">Create issue</a>
           {% endif %}
-          <a href="{% url 'contribution-edit' contribution.id %}" class="btn btn-primary btn-sm">Edit Contribution</a>
+          <a href="{% url 'contribution_edit' contribution.id %}" class="btn btn-primary btn-sm">Edit Contribution</a>
         </div>
         
         <!-- Right group - pushes to the right -->
         {% if not contribution.confirmed %}
         <div class="flex gap-2 ml-auto">
-          <a class="btn btn-warning btn-sm" href="{% url 'contribution-invalidate' contribution.id 'wontfix' %}">Wontfix</a>
-          <a class="btn btn-warning btn-sm" href="{% url 'contribution-invalidate' contribution.id 'duplicate' %}">Duplicate</a>
+          <a class="btn btn-warning btn-sm" href="{% url 'contribution_invalidate' contribution.id 'wontfix' %}">Wontfix</a>
+          <a class="btn btn-warning btn-sm" href="{% url 'contribution_invalidate' contribution.id 'duplicate' %}">Duplicate</a>
         </div>
         {% endif %}
       </div>

@@ -148,12 +148,13 @@
 </div>
 {% endpartialdef message_toast %}
 
+{% block page_title %}GitHub issue #{{ issue.number }}{% endblock %}
+
 {% block content %}
 <div class="space-y-6 fade-in">
   <!-- Page Header -->
   <div class="flex flex-col sm:flex-row justify-between items-start sm:items-center gap-4">
     <div>
-      <h1 class="text-3xl font-bold">GitHub Issue #{{ issue.number }}</h1>
       <p class="mt-2 text-lg text-base-content/70">
         Issue details and management
       </p>
@@ -182,7 +183,7 @@
                     hx-target="#modal-container"
                     hx-swap="innerHTML transition:true">
               <i class="fas fa-check-circle mr-2"></i>
-              Close as Addressed
+              Close as addressed
             </button>
 
             <button class="btn btn-warning flex-1"
@@ -190,7 +191,7 @@
                     hx-target="#modal-container"
                     hx-swap="innerHTML transition:true">
               <i class="fas fa-times-circle mr-2"></i>
-              Close as Wontfix
+              Close as wontfix
             </button>
           {% endif %}
         </div>

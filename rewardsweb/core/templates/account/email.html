@@ -3,15 +3,16 @@
 {% load allauth %}
 
 {% block head_title %}
-  {% trans "Email Addresses - ASA Stats Rewards" %}
+  Email Addresses - ASA Stats Rewards
 {% endblock %}
+
+{% block page_title %}Email Addresses{% endblock %}
 
 {% block inner_content %}
 <div class="space-y-6 fade-in">
   <!-- Page Header -->
   <div class="flex flex-col sm:flex-row justify-between items-start sm:items-center gap-4">
     <div>
-      <h1 class="text-3xl font-bold">Email Addresses</h1>
       <p class="mt-2 text-lg text-base-content/70">
         Manage your email addresses and verification status
       </p>

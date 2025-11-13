@@ -292,9 +292,7 @@ class ContributionInvalidateView(UpdateView):
             return f"Failed to set contribution as {reaction}. All operations failed."
 
         failed_ops_str = " and ".join(failed_operations)
-        return (
-            f"Failed to add {failed_ops_str}. Contribution was not confirmed as {reaction}."
-        )
+        return f"Failed to add {failed_ops_str}. Contribution was not confirmed as {reaction}."
 
     def _get_success_message(self, comment, reaction):
         """Generate appropriate success message."""
@@ -399,13 +397,23 @@ class CycleListView(ListView):
     model = Cycle
     paginate_by = 10
 
+    def get_context_data(self, *args, **kwargs):
+        """Add total cycles count context data to template.
+
+        :param kwargs: Additional keyword arguments
+        :return: dict
+        """
+        context = super().get_context_data(*args, **kwargs)
+        context["total_cycles"] = self.object_list.count()
+        return context
+
     def get_queryset(self):
         """Return queryset of all cycles in reverse chronological order.
 
         :return: QuerySet of cycles in reverse order
         :rtype: :class:`django.db.models.QuerySet`
         """
-        return Cycle.objects.all().reverse()
+        return Cycle.objects.order_by("-id")
 
 
 class CycleDetailView(DetailView):
@@ -460,8 +468,12 @@ class IssueListView(ListView):
         total_contributions = Issue.objects.filter(
             status=IssueStatus.CREATED
         ).aggregate(total=Count("contribution"))["total"]
-
         context["total_contributions"] = total_contributions
+
+        latest_issue = (
+            Issue.objects.filter(status=IssueStatus.CREATED).order_by("-id").first()
+        )
+        context["latest_issue"] = latest_issue
 
         return context
 

@@ -794,7 +794,7 @@ class TestContributionInvalidateViewDb:
         content = response.content.decode()
         assert 'name="comment"' in content
         assert "textarea" in content
-        assert "Confirm as duplicate" in content
+        assert "Confirm as Duplicate" in content
 
     def test_contributioninvalidateview_original_comment_in_context_message_success(
         self, client, superuser, invalidate_url, mock_message_from_url
@@ -1315,12 +1315,27 @@ class TestCycleListView:
 class TestDbCycleListView:
     """Testing class for :class:`core.views.CycleListView` with database."""
 
+    def test_cyclelistview_get_context_data(self, rf):
+        request = rf.get("/cycles/")
+
+        # Create test cycles
+        Cycle.objects.create(start="2023-01-01", end="2023-01-31")
+        Cycle.objects.create(start="2023-02-01", end="2023-02-28")
+
+        view = CycleListView()
+        view.setup(request)
+
+        view.object_list = view.get_queryset()
+        context = view.get_context_data()
+
+        assert context["total_cycles"] == 2
+
     def test_cyclelistview_get_queryset(self, rf):
         request = rf.get("/cycles/")
 
         # Create test cycles
-        cycle1 = Cycle.objects.create(start="2023-01-01", end="2023-01-31")
-        cycle2 = Cycle.objects.create(start="2023-02-01", end="2023-02-28")
+        cycle1 = Cycle.objects.create(start="2023-01-02", end="2023-01-31")
+        cycle2 = Cycle.objects.create(start="2023-02-02", end="2023-02-28")
 
         view = CycleListView()
         view.setup(request)

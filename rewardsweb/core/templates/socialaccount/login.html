@@ -5,16 +5,13 @@
   {% trans "Social Login - ASA Stats Rewards" %}
 {% endblock %}
 
+{% block page_title %}Continue with {{ provider_name }}{% endblock %}
+
 {% block inner_content %}
 <div class="space-y-6 fade-in">
   <!-- Page Header -->
   <div class="flex flex-col sm:flex-row justify-between items-start sm:items-center gap-4">
     <div>
-      <h1 class="text-3xl font-bold">
-        {% blocktrans with provider_name=provider.name %}
-          Continue with {{ provider_name }}
-        {% endblocktrans %}
-      </h1>
       <p class="mt-2 text-lg text-base-content/70">
         Connect your social media account to ASA Stats Rewards
       </p>

@@ -50,6 +50,53 @@ class TestIssueListView:
 class TestDbIssueListView:
     """Testing class for :class:`core.views.IssueListView` with database."""
 
+    def test_issuelistview_get_context_data(self, rf):
+        request = rf.get("/issues/")
+
+        # Create test issues
+        Issue.objects.create(number=5055)
+        issue1 = Issue.objects.create(number=5050)
+        issue2 = Issue.objects.create(number=5051)
+        Issue.objects.create(number=5052, status=IssueStatus.CREATED)
+        latest_issue = Issue.objects.create(number=5054, status=IssueStatus.CREATED)
+        Issue.objects.create(number=5053, status=IssueStatus.ADDRESSED)
+
+        cycle = Cycle.objects.create(start="2025-09-08")
+        contributor = Contributor.objects.create(name="test_contributor")
+        platform = SocialPlatform.objects.create(name="GitHub")
+        reward_type = RewardType.objects.create(label="BUG", name="Bug Fix")
+        reward = Reward.objects.create(type=reward_type, level=1, amount=1000)
+
+        Contribution.objects.create(
+            cycle=cycle,
+            issue=issue1,
+            contributor=contributor,
+            platform=platform,
+            reward=reward,
+        )
+        Contribution.objects.create(
+            cycle=cycle,
+            issue=issue2,
+            contributor=contributor,
+            platform=platform,
+            reward=reward,
+        )
+        Contribution.objects.create(
+            cycle=cycle,
+            issue=latest_issue,
+            contributor=contributor,
+            platform=platform,
+            reward=reward,
+        )
+        view = IssueListView()
+        view.setup(request)
+        view.object_list = view.get_queryset()
+
+        context = view.get_context_data()
+
+        assert context["total_contributions"] == 3
+        assert context["latest_issue"] == latest_issue
+
     # # get_queryset
     def test_issuelistview_get_queryset(self, rf):
         request = rf.get("/issues/")
@@ -775,7 +822,7 @@ class TestIssueDetailViewWithForm:
         assert response.status_code == 200
         # Check that form elements are in the response
         content = response.content.decode()
-        assert "Update labels" in content  # Button text
+        assert "Update Labels" in content  # Button text
         assert "bug" in content  # Label option
         assert "high priority" in content  # Priority option
 

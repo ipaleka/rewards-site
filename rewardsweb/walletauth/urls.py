@@ -7,9 +7,9 @@ from walletauth.views import (
     AddAllocationsAPIView,
     AllocationsSuccessfulAPIView,
     ClaimAllocationAPIView,
+    ClaimSuccessfulAPIView,
     ReclaimAllocationsAPIView,
     ReclaimSuccessfulAPIView,
-    ClaimSuccessfulAPIView,
     WalletNonceAPIView,
     WalletsAPIView,
     WalletVerifyAPIView,
@@ -24,16 +24,22 @@ urlpatterns = [
     ),
     path("nonce/", WalletNonceAPIView.as_view(), name="wallet_nonce"),
     path("verify/", WalletVerifyAPIView.as_view(), name="wallet_verify"),
-    path("add-allocations/", AddAllocationsAPIView.as_view(), name="auth_add_allocations"),
+    path(
+        "add-allocations/", AddAllocationsAPIView.as_view(), name="auth_add_allocations"
+    ),
     path(
         "allocations-successful/",
         AllocationsSuccessfulAPIView.as_view(),
         name="allocations_successful",
     ),
     path(
-        "claim-allocation/", ClaimAllocationAPIView.as_view(), name="auth_claim_allocation"
+        "claim-allocation/",
+        ClaimAllocationAPIView.as_view(),
+        name="auth_claim_allocation",
     ),
-    path("claim-successful/", ClaimSuccessfulAPIView.as_view(), name="claim_successful"),
+    path(
+        "claim-successful/", ClaimSuccessfulAPIView.as_view(), name="claim_successful"
+    ),
     path(
         "reclaim-allocations/",
         ReclaimAllocationsAPIView.as_view(),

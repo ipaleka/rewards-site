@@ -1,13 +1,14 @@
 {% extends "account/base_entrance.html" %}
 {% load i18n %}
 
+{% block page_title %}Confirm Email Address{% endblock %}
+
 {% block inner_content %}
 <div class="space-y-6 fade-in">
   <div class="text-center">
     <div class="p-4 rounded-lg bg-warning/10 text-warning inline-block mb-4">
       <i class="fas fa-envelope-circle-check text-3xl"></i>
     </div>
-    <h1 class="text-3xl font-bold mb-2">{% trans "Confirm Email Address" %}</h1>
     <p class="text-lg text-base-content/70">
       {% trans "Please confirm that you want to use this email address for your account:" %}
     </p>

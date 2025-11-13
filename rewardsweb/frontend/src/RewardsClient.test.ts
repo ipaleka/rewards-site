@@ -160,7 +160,7 @@ describe("RewardsClient", () => {
 
 
     it("should call claim method on the smart contract", async () => {
-      await rewardsClient.claim();
+      await rewardsClient.claimRewards();
 
       // Opt-in txn created
       expect(
@@ -188,7 +188,7 @@ describe("RewardsClient", () => {
       await expect(rewardsClient.reclaimAllocation(TEST_ADDRESS_2)).rejects.toThrow(
         "No active account selected."
       );
-      await expect(rewardsClient.claim()).rejects.toThrow(
+      await expect(rewardsClient.claimRewards()).rejects.toThrow(
         "No active account selected."
       );
     });
@@ -422,7 +422,7 @@ describe("RewardsClient", () => {
       it("should throw error when contract call fails", async () => {
         mockExecute.mockRejectedValueOnce(new Error("Claim execution failed"));
 
-        await expect(rewardsClient.claim()).rejects.toThrow(
+        await expect(rewardsClient.claimRewards()).rejects.toThrow(
           "Claim execution failed"
         );
 
@@ -437,7 +437,7 @@ describe("RewardsClient", () => {
 
         mockExecute.mockRejectedValueOnce(error);
 
-        await expect(rewardsClient.claim()).rejects.toThrow(
+        await expect(rewardsClient.claimRewards()).rejects.toThrow(
           "Claim execution failed"
         );
 
@@ -569,7 +569,7 @@ describe("RewardsClient", () => {
       it("should throw error when no active account for claim", async () => {
         mockManager.activeAccount = null;
 
-        await expect(rewardsClient.claim()).rejects.toThrow(
+        await expect(rewardsClient.claimRewards()).rejects.toThrow(
           "No active account selected."
         );
       });
@@ -593,10 +593,10 @@ describe("RewardsClient", () => {
       ).rejects.toThrow("App ID not configured for network: betanet");
     });
 
-    it("should throw error when App ID is not configured for claim()", async () => {
+    it("should throw error when App ID is not configured for claimRewards()", async () => {
       mockManager.activeNetwork = "betanet";
 
-      await expect(rewardsClient.claim()).rejects.toThrow(
+      await expect(rewardsClient.claimRewards()).rejects.toThrow(
         "App ID not configured for network: betanet"
       );
     });
@@ -610,7 +610,7 @@ describe("RewardsClient", () => {
         }),
       });
 
-      await expect(rewardsClient.claim()).rejects.toThrow(
+      await expect(rewardsClient.claimRewards()).rejects.toThrow(
         "Contract global state is empty or not found"
       );
     });
@@ -626,7 +626,7 @@ describe("RewardsClient", () => {
         }),
       });
 
-      await expect(rewardsClient.claim()).rejects.toThrow(
+      await expect(rewardsClient.claimRewards()).rejects.toThrow(
         "token_id not found in contract's global state"
       );
     });
@@ -699,7 +699,7 @@ describe('RewardsClient userClaimed method', () => {
 
       expect(result).toEqual(mockResponse);
       expect(fetch).toHaveBeenCalledWith(
-        '/api/wallet/user-claimed/',
+        '/api/wallet/claim-successful/',
         expect.objectContaining({
           method: 'POST',
           headers: expect.objectContaining({
@@ -740,7 +740,7 @@ describe('RewardsClient userClaimed method', () => {
       await rewardsClient.userClaimed('test-address');
 
       expect(fetch).toHaveBeenCalledWith(
-        '/api/wallet/user-claimed/',
+        '/api/wallet/claim-successful/',
         expect.objectContaining({
           headers: expect.objectContaining({
             'X-CSRFToken': 'test-csrf-token-123',
@@ -770,7 +770,7 @@ describe('RewardsClient userClaimed method', () => {
       await rewardsClient.userClaimed('test-address');
 
       expect(fetch).toHaveBeenCalledWith(
-        '/api/wallet/user-claimed/',
+        '/api/wallet/claim-successful/',
         expect.objectContaining({
           headers: expect.objectContaining({
             'X-CSRFToken': 'form-csrf-token-456',
@@ -916,7 +916,7 @@ describe('RewardsClient userClaimed method', () => {
         }),
       });
 
-      await expect(rewardsClient.claim()).rejects.toThrow(
+      await expect(rewardsClient.claimRewards()).rejects.toThrow(
         "Contract global state is empty or not found"
       );
     });
@@ -932,7 +932,7 @@ describe('RewardsClient userClaimed method', () => {
         }),
       });
 
-      await expect(rewardsClient.claim()).rejects.toThrow(
+      await expect(rewardsClient.claimRewards()).rejects.toThrow(
         "token_id not found in contract's global state"
       );
     });
@@ -1088,7 +1088,7 @@ describe('RewardsClient userClaimed method', () => {
         await rewardsClient.userClaimed(TEST_ADDRESS_2);
 
         expect(fetch).toHaveBeenCalledWith(
-          '/api/wallet/user-claimed/',
+          '/api/wallet/claim-successful/',
           expect.objectContaining({
             headers: expect.objectContaining({
               'X-CSRFToken': cookieToken,
@@ -1119,7 +1119,7 @@ describe('RewardsClient userClaimed method', () => {
         await rewardsClient.userClaimed(TEST_ADDRESS_2);
 
         expect(fetch).toHaveBeenCalledWith(
-          '/api/wallet/user-claimed/',
+          '/api/wallet/claim-successful/',
           expect.objectContaining({
             headers: expect.objectContaining({
               'X-CSRFToken': formToken,
@@ -1151,7 +1151,7 @@ describe('RewardsClient userClaimed method', () => {
         await expect(rewardsClient.userClaimed(TEST_ADDRESS_2)).resolves.toEqual({ success: true });
 
         expect(fetch).toHaveBeenCalledWith(
-          '/api/wallet/user-claimed/',
+          '/api/wallet/claim-successful/',
           expect.objectContaining({
             headers: expect.objectContaining({
               'X-CSRFToken': '',
@@ -1172,7 +1172,7 @@ describe('RewardsClient userClaimed method', () => {
         }),
       });
 
-      await expect(rewardsClient.claim()).rejects.toThrow(
+      await expect(rewardsClient.claimRewards()).rejects.toThrow(
         "Contract global state is empty or not found"
       );
     });
@@ -1202,7 +1202,7 @@ describe('RewardsClient userClaimed method', () => {
 
       // This should still find the token_id but might fail elsewhere
       // The test ensures we don't crash on malformed data
-      await expect(rewardsClient.claim()).rejects.toThrow(); // Any error is acceptable
+      await expect(rewardsClient.claimRewards()).rejects.toThrow(); // Any error is acceptable
     });
   });
 

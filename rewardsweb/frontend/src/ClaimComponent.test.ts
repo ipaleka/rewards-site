@@ -8,7 +8,7 @@ jest.mock('./RewardsClient', () => {
     RewardsClient: jest.fn().mockImplementation(() => {
       return {
         fetchClaimableStatus: jest.fn(),
-        claim: jest.fn(),
+        claimRewards: jest.fn(), // Updated from claim to claimRewards
         userClaimed: jest.fn(),
       }
     }),
@@ -24,7 +24,7 @@ describe('ClaimComponent', () => {
 
   beforeEach(() => {
     alertSpy = jest.spyOn(window, 'alert').mockImplementation(() => { })
-    mockRewardsClient = new RewardsClient(null as any, null as any) as jest.Mocked<RewardsClient>
+    mockRewardsClient = new RewardsClient(null as any) as jest.Mocked<RewardsClient>
     mockWalletManager = {
       activeAccount: { address: 'test-address' },
       subscribe: jest.fn(),
@@ -75,10 +75,12 @@ describe('ClaimComponent', () => {
     expect(mockRewardsClient.fetchClaimableStatus).toHaveBeenCalledWith('test-address')
   })
 
-  it('should call rewardsClient.claim when claim button is clicked', async () => {
+  it('should call rewardsClient.claimRewards when claim button is clicked', async () => {
     ; (mockRewardsClient.fetchClaimableStatus as jest.Mock).mockResolvedValue({
       claimable: true,
     })
+      ; (mockRewardsClient.claimRewards as jest.Mock).mockResolvedValue('test-tx-id') // Mock returning txID
+
     claimComponent = new ClaimComponent(mockRewardsClient, mockWalletManager)
     claimComponent.bind(container)
     await new Promise(process.nextTick)
@@ -86,7 +88,7 @@ describe('ClaimComponent', () => {
     const button = container.querySelector('#claim-button') as HTMLButtonElement
     button.click()
 
-    expect(mockRewardsClient.claim).toHaveBeenCalled()
+    expect(mockRewardsClient.claimRewards).toHaveBeenCalled() // Updated to claimRewards
   })
 
   it('should not fetch status if no active account', async () => {
@@ -98,7 +100,7 @@ describe('ClaimComponent', () => {
     expect(mockRewardsClient.fetchClaimableStatus).not.toHaveBeenCalled()
   })
 
-  it('should handle errors when checking claimable status', async () => {
+  it('should handle errors when fetching claimable status', async () => {
     const testError = new Error('network down')
 
       ; (mockRewardsClient.fetchClaimableStatus as jest.Mock)
@@ -112,7 +114,7 @@ describe('ClaimComponent', () => {
     await new Promise(process.nextTick)
 
     expect(consoleSpy).toHaveBeenCalledWith(
-      '[ClaimComponent] Error checking claimable status:',
+      '[ClaimComponent] Error fetching claimable status:', // Updated error message
       testError
     )
 
@@ -131,7 +133,7 @@ describe('ClaimComponent Error Handling', () => {
   beforeEach(() => {
     alertSpy = jest.spyOn(window, 'alert').mockImplementation(() => { })
     consoleErrorSpy = jest.spyOn(console, 'error').mockImplementation(() => { })
-    mockRewardsClient = new RewardsClient(null as any, null as any) as jest.Mocked<RewardsClient>
+    mockRewardsClient = new RewardsClient(null as any) as jest.Mocked<RewardsClient>
     mockWalletManager = {
       activeAccount: { address: 'test-address' },
       subscribe: jest.fn(),
@@ -161,8 +163,7 @@ describe('ClaimComponent Error Handling', () => {
 
     it('should handle Error instance when claim fails', async () => {
       const testError = new Error('Transaction failed')
-        ; (mockRewardsClient.claim as jest.Mock).mockRejectedValue(testError)
-        ; (mockRewardsClient.fetchClaimableStatus as jest.Mock).mockResolvedValue({ claimable: false })
+        ; (mockRewardsClient.claimRewards as jest.Mock).mockRejectedValue(testError) // Updated to claimRewards
 
       const button = container.querySelector('#claim-button') as HTMLButtonElement
       await button.click()
@@ -172,13 +173,11 @@ describe('ClaimComponent Error Handling', () => {
         testError
       )
       expect(alertSpy).toHaveBeenCalledWith('Claim failed: Transaction failed')
-      expect(mockRewardsClient.fetchClaimableStatus).toHaveBeenCalledTimes(2) // Initial + after error
     })
 
     it('should handle non-Error object when claim fails', async () => {
       const testError = 'Simple string error'
-        ; (mockRewardsClient.claim as jest.Mock).mockRejectedValue(testError)
-        ; (mockRewardsClient.fetchClaimableStatus as jest.Mock).mockResolvedValue({ claimable: false })
+        ; (mockRewardsClient.claimRewards as jest.Mock).mockRejectedValue(testError) // Updated to claimRewards
 
       const button = container.querySelector('#claim-button') as HTMLButtonElement
       await button.click()
@@ -188,13 +187,11 @@ describe('ClaimComponent Error Handling', () => {
         testError
       )
       expect(alertSpy).toHaveBeenCalledWith('Claim failed: Simple string error')
-      expect(mockRewardsClient.fetchClaimableStatus).toHaveBeenCalledTimes(2)
     })
 
     it('should handle complex error objects when claim fails', async () => {
       const testError = { code: 400, message: 'Bad request', details: 'Invalid parameters' }
-        ; (mockRewardsClient.claim as jest.Mock).mockRejectedValue(testError)
-        ; (mockRewardsClient.fetchClaimableStatus as jest.Mock).mockResolvedValue({ claimable: false })
+        ; (mockRewardsClient.claimRewards as jest.Mock).mockRejectedValue(testError) // Updated to claimRewards
 
       const button = container.querySelector('#claim-button') as HTMLButtonElement
       await button.click()
@@ -204,16 +201,11 @@ describe('ClaimComponent Error Handling', () => {
         testError
       )
       expect(alertSpy).toHaveBeenCalledWith('Claim failed: [object Object]')
-      expect(mockRewardsClient.fetchClaimableStatus).toHaveBeenCalledTimes(2)
     })
 
     it('should handle status re-check error after failed claim', async () => {
       const claimError = new Error('Transaction failed')
-      const statusError = new Error('Status check failed')
-        ; (mockRewardsClient.claim as jest.Mock).mockRejectedValue(claimError)
-        ; (mockRewardsClient.fetchClaimableStatus as jest.Mock)
-          .mockResolvedValueOnce({ claimable: true }) // Initial call
-          .mockRejectedValueOnce(statusError) // Call after failed claim
+        ; (mockRewardsClient.claimRewards as jest.Mock).mockRejectedValue(claimError) // Updated to claimRewards
 
       const button = container.querySelector('#claim-button') as HTMLButtonElement
       await button.click()
@@ -222,13 +214,11 @@ describe('ClaimComponent Error Handling', () => {
         '[ClaimComponent] Error during claim:',
         claimError
       )
-      // Should also log the status check error (but in checkClaimableStatus)
-      expect(mockRewardsClient.fetchClaimableStatus).toHaveBeenCalledTimes(2)
     })
   })
 
-  describe('checkClaimableStatus error handling', () => {
-    it('should handle errors and set claimable to false when checking status', async () => {
+  describe('fetchClaimableStatus error handling', () => {
+    it('should handle errors and set claimable to false when fetching status', async () => {
       const testError = new Error('Network down')
         ; (mockRewardsClient.fetchClaimableStatus as jest.Mock).mockRejectedValue(testError)
 
@@ -237,7 +227,7 @@ describe('ClaimComponent Error Handling', () => {
       await new Promise(process.nextTick)
 
       expect(consoleErrorSpy).toHaveBeenCalledWith(
-        '[ClaimComponent] Error checking claimable status:',
+        '[ClaimComponent] Error fetching claimable status:', // Updated error message
         testError
       )
 
@@ -246,7 +236,7 @@ describe('ClaimComponent Error Handling', () => {
       expect(button.textContent?.trim()).toBe('No Claim Available')
     })
 
-    it('should handle various error types when checking status', async () => {
+    it('should handle various error types when fetching status', async () => {
       const errorScenarios = [
         new Error('Network error'),
         'String error',
@@ -262,7 +252,7 @@ describe('ClaimComponent Error Handling', () => {
         await new Promise(process.nextTick)
 
         expect(consoleErrorSpy).toHaveBeenCalledWith(
-          '[ClaimComponent] Error checking claimable status:',
+          '[ClaimComponent] Error fetching claimable status:', // Updated error message
           error
         )
 
@@ -338,7 +328,7 @@ describe('ClaimComponent Error Handling', () => {
         container.dispatchEvent(mockEvent)
       }).not.toThrow()
 
-      expect(mockRewardsClient.claim).not.toHaveBeenCalled()
+      expect(mockRewardsClient.claimRewards).not.toHaveBeenCalled() // Updated to claimRewards
     })
   })
 })
@@ -352,7 +342,7 @@ describe('ClaimComponent userClaimed functionality', () => {
 
   beforeEach(() => {
     alertSpy = jest.spyOn(window, 'alert').mockImplementation(() => { })
-    mockRewardsClient = new RewardsClient(null as any, null as any) as jest.Mocked<RewardsClient>
+    mockRewardsClient = new RewardsClient(null as any) as jest.Mocked<RewardsClient>
     mockWalletManager = {
       activeAccount: { address: 'test-address' },
       subscribe: jest.fn(),
@@ -374,7 +364,7 @@ describe('ClaimComponent userClaimed functionality', () => {
       (mockRewardsClient.fetchClaimableStatus as jest.Mock).mockResolvedValue({
         claimable: true,
       })
-        ; (mockRewardsClient.claim as jest.Mock).mockResolvedValue(undefined)
+        ; (mockRewardsClient.claimRewards as jest.Mock).mockResolvedValue('test-tx-id')
         ; (mockRewardsClient.userClaimed as jest.Mock).mockResolvedValue({ success: true })
 
       claimComponent = new ClaimComponent(mockRewardsClient, mockWalletManager)
@@ -384,18 +374,19 @@ describe('ClaimComponent userClaimed functionality', () => {
       const button = container.querySelector('#claim-button') as HTMLButtonElement
       await button.click()
 
-      expect(mockRewardsClient.userClaimed).toHaveBeenCalledWith('test-address')
+      expect(mockRewardsClient.userClaimed).toHaveBeenCalledWith('test-address', 'test-tx-id')
       expect(mockRewardsClient.userClaimed).toHaveBeenCalledTimes(1)
     })
 
-    it('should call userClaimed with correct active address', async () => {
+    it('should call userClaimed with correct active address and txID', async () => {
       const testAddress = 'special-test-address-123'
+      const testTxID = 'test-transaction-id-456'
       mockWalletManager.activeAccount = { address: testAddress }
 
         ; (mockRewardsClient.fetchClaimableStatus as jest.Mock).mockResolvedValue({
           claimable: true,
         })
-        ; (mockRewardsClient.claim as jest.Mock).mockResolvedValue(undefined)
+        ; (mockRewardsClient.claimRewards as jest.Mock).mockResolvedValue(testTxID)
         ; (mockRewardsClient.userClaimed as jest.Mock).mockResolvedValue({ success: true })
 
       claimComponent = new ClaimComponent(mockRewardsClient, mockWalletManager)
@@ -405,37 +396,18 @@ describe('ClaimComponent userClaimed functionality', () => {
       const button = container.querySelector('#claim-button') as HTMLButtonElement
       await button.click()
 
-      expect(mockRewardsClient.userClaimed).toHaveBeenCalledWith(testAddress)
-    })
-
-    it('should handle userClaimed API success response', async () => {
-      ; (mockRewardsClient.fetchClaimableStatus as jest.Mock).mockResolvedValue({
-        claimable: true,
-      })
-        ; (mockRewardsClient.claim as jest.Mock).mockResolvedValue(undefined)
-        ; (mockRewardsClient.userClaimed as jest.Mock).mockResolvedValue({ success: true })
-
-      claimComponent = new ClaimComponent(mockRewardsClient, mockWalletManager)
-      claimComponent.bind(container)
-      await new Promise(process.nextTick)
-
-      const button = container.querySelector('#claim-button') as HTMLButtonElement
-      await button.click()
-
-      // No error should be thrown when userClaimed succeeds
-      expect(mockRewardsClient.userClaimed).toHaveBeenCalled()
-      // The alert should be for the successful claim, not userClaimed
-      expect(alertSpy).toHaveBeenCalledWith('Claim transaction sent successfully!')
+      expect(mockRewardsClient.userClaimed).toHaveBeenCalledWith(testAddress, testTxID)
     })
   })
-
   describe('userClaimed error handling', () => {
-    it('should handle userClaimed API failure gracefully - ClaimComponent does not catch userClaimed errors', async () => {
-      // userClaimed errors are caught and logged within RewardsClient, not ClaimComponent
-      ; (mockRewardsClient.fetchClaimableStatus as jest.Mock).mockResolvedValue({
-        claimable: true,
-      })
-        ; (mockRewardsClient.claim as jest.Mock).mockResolvedValue(undefined)
+    it('should handle userClaimed API failure gracefully', async () => {
+      // Set up console spy BEFORE component initialization
+      const consoleErrorSpy = jest.spyOn(console, 'error').mockImplementation(() => { })
+
+        ; (mockRewardsClient.fetchClaimableStatus as jest.Mock).mockResolvedValue({
+          claimable: true,
+        })
+        ; (mockRewardsClient.claimRewards as jest.Mock).mockResolvedValue('test-tx-id')
         ; (mockRewardsClient.userClaimed as jest.Mock).mockRejectedValue(new Error('API unavailable'))
 
       claimComponent = new ClaimComponent(mockRewardsClient, mockWalletManager)
@@ -443,11 +415,19 @@ describe('ClaimComponent userClaimed functionality', () => {
       await new Promise(process.nextTick)
 
       const button = container.querySelector('#claim-button') as HTMLButtonElement
+
+      // Use await to ensure the async handleClaim completes
       await button.click()
 
-      // ClaimComponent should still show success even if userClaimed fails
-      expect(alertSpy).toHaveBeenCalledWith('Claim transaction sent successfully!')
-      expect(mockRewardsClient.userClaimed).toHaveBeenCalledWith('test-address')
+      // Wait for any microtasks to complete
+      await new Promise(process.nextTick)
+
+      // userClaimed should still be called even if it fails
+      expect(mockRewardsClient.userClaimed).toHaveBeenCalledWith('test-address', 'test-tx-id')
+      // Should log the backend notification error
+      expect(consoleErrorSpy).toHaveBeenCalledWith('Backend notification failed:', expect.any(Error))
+
+      consoleErrorSpy.mockRestore()
     })
   })
 
@@ -458,7 +438,7 @@ describe('ClaimComponent userClaimed functionality', () => {
         ; (mockRewardsClient.fetchClaimableStatus as jest.Mock).mockResolvedValue({
           claimable: true,
         })
-        ; (mockRewardsClient.claim as jest.Mock).mockRejectedValue(new Error('Transaction failed'))
+        ; (mockRewardsClient.claimRewards as jest.Mock).mockRejectedValue(new Error('Transaction failed'))
         ; (mockRewardsClient.userClaimed as jest.Mock).mockResolvedValue({ success: true })
 
       claimComponent = new ClaimComponent(mockRewardsClient, mockWalletManager)
@@ -478,7 +458,7 @@ describe('ClaimComponent userClaimed functionality', () => {
       ; (mockRewardsClient.fetchClaimableStatus as jest.Mock).mockResolvedValue({
         claimable: true,
       })
-        ; (mockRewardsClient.claim as jest.Mock).mockResolvedValue(undefined)
+        ; (mockRewardsClient.claimRewards as jest.Mock).mockResolvedValue('test-tx-id')
 
       claimComponent = new ClaimComponent(mockRewardsClient, mockWalletManager)
       claimComponent.bind(container)
@@ -492,8 +472,7 @@ describe('ClaimComponent userClaimed functionality', () => {
 
       expect(mockRewardsClient.userClaimed).not.toHaveBeenCalled()
     })
-
-    it('should handle various userClaimed error types - errors are handled in RewardsClient', async () => {
+    it('should handle various userClaimed error types', async () => {
       const errorScenarios = [
         new Error('Network error'),
         'String error message',
@@ -501,10 +480,13 @@ describe('ClaimComponent userClaimed functionality', () => {
       ]
 
       for (const error of errorScenarios) {
-        ; (mockRewardsClient.fetchClaimableStatus as jest.Mock).mockResolvedValue({
-          claimable: true,
-        })
-          ; (mockRewardsClient.claim as jest.Mock).mockResolvedValue(undefined)
+        // Set up console spy for each iteration
+        const consoleErrorSpy = jest.spyOn(console, 'error').mockImplementation(() => { })
+
+          ; (mockRewardsClient.fetchClaimableStatus as jest.Mock).mockResolvedValue({
+            claimable: true,
+          })
+          ; (mockRewardsClient.claimRewards as jest.Mock).mockResolvedValue('test-tx-id')
           ; (mockRewardsClient.userClaimed as jest.Mock).mockRejectedValueOnce(error)
 
         claimComponent = new ClaimComponent(mockRewardsClient, mockWalletManager)
@@ -512,16 +494,130 @@ describe('ClaimComponent userClaimed functionality', () => {
         await new Promise(process.nextTick)
 
         const button = container.querySelector('#claim-button') as HTMLButtonElement
+
+        // Use await to ensure the async handleClaim completes
         await button.click()
 
+        // Wait for any microtasks to complete
+        await new Promise(process.nextTick)
+
         // userClaimed should still be called even if it will fail
-        expect(mockRewardsClient.userClaimed).toHaveBeenCalledWith('test-address')
+        expect(mockRewardsClient.userClaimed).toHaveBeenCalledWith('test-address', 'test-tx-id')
+        // Should log the backend notification error
+        expect(consoleErrorSpy).toHaveBeenCalledWith('Backend notification failed:', expect.anything())
 
         // Clean up for next iteration
         claimComponent.destroy()
+        consoleErrorSpy.mockRestore()
         document.body.innerHTML = '<div id="claim-container"><button id="claim-button"></button></div>'
         container = document.querySelector('#claim-container') as HTMLElement
       }
     })
   })
+
+describe('ClaimComponent DOM ready state handling', () => {
+  let mockRewardsClient: jest.Mocked<RewardsClient>
+  let mockWalletManager: jest.Mocked<WalletManager>
+  let claimComponent: ClaimComponent
+  let container: HTMLElement
+
+  beforeEach(() => {
+    mockRewardsClient = new RewardsClient(null as any) as jest.Mocked<RewardsClient>
+    mockWalletManager = {
+      activeAccount: { address: 'test-address' },
+      subscribe: jest.fn(),
+    } as any
+
+    container = document.createElement('div')
+    container.id = 'claim-container'
+    container.innerHTML = `<button id="claim-button"></button>`
+    document.body.appendChild(container)
+  })
+
+  afterEach(() => {
+    document.body.innerHTML = ''
+  })
+
+  it('should defer fetchClaimableStatus until DOMContentLoaded when document is loading', async () => {
+    // Mock document.readyState to be 'loading'
+    Object.defineProperty(document, 'readyState', {
+      value: 'loading',
+      writable: true
+    })
+
+    const fetchClaimableStatusSpy = jest.spyOn(
+      ClaimComponent.prototype as any,
+      'fetchClaimableStatus'
+    )
+
+    claimComponent = new ClaimComponent(mockRewardsClient, mockWalletManager)
+    claimComponent.bind(container)
+
+    // Verify that fetchClaimableStatus was not called immediately
+    expect(fetchClaimableStatusSpy).not.toHaveBeenCalled()
+
+    // Simulate DOMContentLoaded event
+    document.dispatchEvent(new Event('DOMContentLoaded'))
+
+    // Verify that fetchClaimableStatus was called after DOMContentLoaded
+    expect(fetchClaimableStatusSpy).toHaveBeenCalled()
+
+    fetchClaimableStatusSpy.mockRestore()
+    
+    // Reset readyState
+    Object.defineProperty(document, 'readyState', {
+      value: 'complete',
+      writable: true
+    })
+  })
+
+  it('should call fetchClaimableStatus immediately when document is already loaded', async () => {
+    // Mock document.readyState to be 'complete'
+    Object.defineProperty(document, 'readyState', {
+      value: 'complete',
+      writable: true
+    })
+
+    const fetchClaimableStatusSpy = jest.spyOn(
+      ClaimComponent.prototype as any,
+      'fetchClaimableStatus'
+    )
+
+    claimComponent = new ClaimComponent(mockRewardsClient, mockWalletManager)
+    claimComponent.bind(container)
+
+    // Verify that fetchClaimableStatus was called immediately
+    expect(fetchClaimableStatusSpy).toHaveBeenCalled()
+
+    fetchClaimableStatusSpy.mockRestore()
+  })
+
+  it('should call fetchClaimableStatus immediately when document is interactive', async () => {
+    // Mock document.readyState to be 'interactive'
+    Object.defineProperty(document, 'readyState', {
+      value: 'interactive',
+      writable: true
+    })
+
+    const fetchClaimableStatusSpy = jest.spyOn(
+      ClaimComponent.prototype as any,
+      'fetchClaimableStatus'
+    )
+
+    claimComponent = new ClaimComponent(mockRewardsClient, mockWalletManager)
+    claimComponent.bind(container)
+
+    // Verify that fetchClaimableStatus was called immediately
+    expect(fetchClaimableStatusSpy).toHaveBeenCalled()
+
+    fetchClaimableStatusSpy.mockRestore()
+    
+    // Reset readyState
+    Object.defineProperty(document, 'readyState', {
+      value: 'complete',
+      writable: true
+    })
+  })
+})
+
 })

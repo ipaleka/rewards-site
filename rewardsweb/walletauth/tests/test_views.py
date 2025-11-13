@@ -25,7 +25,7 @@ from walletauth.views import (
     ClaimAllocationAPIView,
     ReclaimAllocationsAPIView,
     ReclaimSuccessfulAPIView,
-    UserClaimedAPIView,
+    ClaimSuccessfulAPIView,
     WalletNonceAPIView,
     WalletsAPIView,
     WalletVerifyAPIView,
@@ -534,12 +534,12 @@ class TestClaimAllocationAPIView:
         assert "Invalid or missing address" in response.data["error"]
 
 
-class TestUserClaimedAPIView:
-    """Test suite for UserClaimedAPIView."""
+class TestClaimSuccessfulAPIView:
+    """Test suite for ClaimSuccessfulAPIView."""
 
     @pytest.fixture
     def view(self):
-        return UserClaimedAPIView().as_view()
+        return ClaimSuccessfulAPIView().as_view()
 
     @pytest.fixture
     def rf(self):
@@ -549,64 +549,66 @@ class TestUserClaimedAPIView:
     def valid_address(self):
         return "2EVGZ4BGOSL3J64UYDE2BUGTNTBZZZLI54VUQQNZZLYCDODLY33UGXNSIU"
 
-    def test_walletauth_userclaimedapiview_is_subclass_of_view(self):
-        """Ensure UserClaimedAPIView is a valid Django view."""
-        assert issubclass(UserClaimedAPIView, View)
+    def test_walletauth_claimsuccessfulapiview_is_subclass_of_view(self):
+        """Ensure ClaimSuccessfulAPIView is a valid Django view."""
+        assert issubclass(ClaimSuccessfulAPIView, View)
 
     @pytest.mark.django_db
-    def test_walletauth_userclaimedapiview_valid_request(
+    def test_walletauth_claimsuccessfulapiview_valid_request(
         self, view, rf, valid_address, mocker
     ):
         """Test a valid request marks contributions as claimed."""
         mocked_address = mocker.patch(
             "walletauth.views.is_valid_address", return_value=True
         )
-        mocked_claim = mocker.patch(
-            "walletauth.views.Contribution.objects.user_has_claimed"
-        )
-
-        data = {"address": valid_address}
-        request = rf.post("/user-claimed/", data=data, format="json")
+        mocked_claim = mocker.patch("walletauth.views.claim_successful_for_address")
+        txid = "txid"
+        data = {"address": valid_address, "txIDs": txid}
+        request = rf.post("/claim-successful/", data=data, format="json")
         response = view(request)
 
         assert response.status_code == 200
         assert response.data == {"success": True}
         mocked_address.assert_called_once_with(valid_address)
-        mocked_claim.assert_called_once_with(valid_address)
+        mocked_claim.assert_called_once()
+        call_args = mocked_claim.call_args[0]
+        assert call_args[1] == valid_address
+        assert call_args[2] == txid
 
     @pytest.mark.django_db
-    def test_walletauth_userclaimedapiview_fallback_to_json_body(self, mocker):
+    def test_walletauth_claimsuccessfulapiview_fallback_to_json_body(
+        self, valid_address, mocker
+    ):
         """Test fallback JSON decoding when request.data is not available."""
         mocker.patch("walletauth.views.is_valid_address", return_value=True)
-        mocked_claim = mocker.patch(
-            "walletauth.views.Contribution.objects.user_has_claimed"
-        )
-
+        mocked_claim = mocker.patch("walletauth.views.claim_successful_for_address")
         rf = RequestFactory()
-        json_body = (
-            '{"address": "2EVGZ4BGOSL3J64UYDE2BUGTNTBZZZLI54VUQQNZZLYCDODLY33UGXNSIU"}'
-        )
+        txid = "txid"
+        json_body = f'{{"address": "{valid_address}", "txIDs": "{txid}"}}'
 
         request = rf.post(
-            "/user-claimed/", data=json_body, content_type="application/json"
+            "/claim-successful/", data=json_body, content_type="application/json"
         )
-        response = UserClaimedAPIView().post(request)
+        response = ClaimSuccessfulAPIView().post(request)
 
         assert response.status_code == 200
         assert response.data == {"success": True}
         mocked_claim.assert_called_once()
+        call_args = mocked_claim.call_args[0]
+        assert call_args[1] == valid_address
+        assert call_args[2] == txid
 
-    def test_walletauth_userclaimedapiview_invalid_json(self, view, rf):
+    def test_walletauth_claimsuccessfulapiview_invalid_json(self, view, rf):
         """Test handling of invalid JSON data."""
-        request = rf.post("/user-claimed/", data="invalid json", format="json")
+        request = rf.post("/claim-successful/", data="invalid json", format="json")
         response = view(request)
 
         assert response.status_code == 400
         assert response.data == {"error": "Invalid JSON"}
 
-    def test_walletauth_userclaimedapiview_missing_address(self, view, rf):
+    def test_walletauth_claimsuccessfulapiview_missing_address(self, view, rf):
         """Test missing address yields error."""
-        request = rf.post("/user-claimed/", data={}, format="json")
+        request = rf.post("/claim-successful/", data={}, format="json")
         response = view(request)
 
         assert response.status_code == 400

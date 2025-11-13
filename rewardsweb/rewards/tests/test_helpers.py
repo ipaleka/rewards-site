@@ -1,10 +1,9 @@
 """Testing module for rewards app helper functions."""
 
-import pytest
-
 from core.models import IssueStatus
 from rewards.helpers import (
     added_allocations_for_addresses,
+    claim_successful_for_address,
     reclaimed_allocation_for_address,
 )
 
@@ -54,6 +53,37 @@ class TestRewardsHelpers:
             txid
             + "; "
             + "; ".join([addr[:5] + ".." + addr[-5:] for addr in addresses]),
+        )
+
+    # # claim_successful_for_address
+    def test_rewards_helpers_claim_successful_for_address_for_no_txid(self, mocker):
+        request = mocker.MagicMock()
+        address = "ADDR1AAAAADDR1"
+        txid = None
+        mocked_success = mocker.patch("rewards.helpers.messages.success")
+        mocked_user_has_claimed = mocker.patch(
+            "rewards.helpers.Contribution.objects.user_has_claimed"
+        )
+        claim_successful_for_address(request, address, txid)
+        mocked_success.assert_not_called()
+        mocked_user_has_claimed.assert_not_called()
+        request.user.profile.log_action.assert_not_called()
+
+    def test_rewards_helpers_claim_successful_for_address_functionality(self, mocker):
+        request = mocker.MagicMock()
+        address = "ADDR1AAAAADDR1"
+        txid = "txid"
+        mocked_success = mocker.patch("rewards.helpers.messages.success")
+        mocked_user_has_claimed = mocker.patch(
+            "rewards.helpers.Contribution.objects.user_has_claimed"
+        )
+        claim_successful_for_address(request, address, txid)
+        mocked_success.assert_called_once_with(
+            request, f"✅ Successfully claimed {address} (TXID: {txid})"
+        )
+        mocked_user_has_claimed.assert_called_once_with(address)
+        request.user.profile.log_action.assert_called_once_with(
+            "allocation_claimed", address
         )
 
     # # reclaimed_allocation_for_address

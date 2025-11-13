@@ -25,11 +25,6 @@ class TestRewardsClaimViews:
         """Create a normal authenticated user."""
         return User.objects.create_user(username="testuser", password="pass123")
 
-    @pytest.fixture
-    def superuser(self, db):
-        """Create a superuser."""
-        return User.objects.create_superuser(username="admin", password="pass123")
-
     @pytest.mark.django_db
     def test_claimview_requires_login(self, rf):
         request = rf.get(reverse("claim"))
@@ -43,33 +38,85 @@ class TestRewardsClaimViews:
 
     # # get_context_data
     @pytest.mark.django_db
-    def test_claimview_context_claimable_true(self, rf, user, mocker):
-        """User has contributor address → claimable=True"""
-
-        contributor = Contributor.objects.create(
-            name="claimview", address="SOMEADDRESS"
+    def test_claimview_context_amount_functionality(self, rf, user, mocker):
+        amount = 1000
+        mocked_fetch = mocker.patch(
+            "rewards.views.fetch_claimable_amount_for_address",
+            return_value=amount,
         )
-        user.profile.contributor = contributor
-
         request = rf.get(reverse("claim"))
         request.user = user
-
+        contributor = Contributor("contributor")
+        address = "2EVGZ4BGOSL3J64UYDE2BUGTNTBZZZLI54VUQQNZZLYCDODLY33UGXNSIU"
+        contributor.address = address
+        user.profile.contributor = contributor
         response = ClaimView.as_view()(request)
         context = response.context_data
 
-        assert context["claimable"] is True
+        assert context["amount"] == amount
+        mocked_fetch.assert_called_once_with(address)
 
     @pytest.mark.django_db
-    def test_claimview_context_claimable_false_no_contributor(self, rf, user):
-        """User has no contributor → claimable=False"""
-
+    def test_claimview_context_amount_false_no_contributor(self, rf, user, mocker):
+        mocked_fetch = mocker.patch("rewards.views.fetch_claimable_amount_for_address")
         request = rf.get(reverse("claim"))
         request.user = user
-
+        user.profile.contributor = None
         response = ClaimView.as_view()(request)
         context = response.context_data
 
-        assert context["claimable"] is False
+        assert context["amount"] == 0
+        mocked_fetch.assert_not_called()
+
+    @pytest.mark.django_db
+    def test_claimview_context_amount_false_no_contributor_address(
+        self, rf, user, mocker
+    ):
+        mocked_fetch = mocker.patch("rewards.views.fetch_claimable_amount_for_address")
+        request = rf.get(reverse("claim"))
+        request.user = user
+        contributor = Contributor("contributor")
+        user.profile.contributor = contributor
+        response = ClaimView.as_view()(request)
+        context = response.context_data
+
+        assert context["amount"] == 0
+        mocked_fetch.assert_not_called()
+
+    @pytest.mark.django_db
+    def test_claimview_context_amount_false_no_valid_contributor_address(
+        self, rf, user, mocker
+    ):
+        mocked_fetch = mocker.patch("rewards.views.fetch_claimable_amount_for_address")
+        request = rf.get(reverse("claim"))
+        request.user = user
+        contributor = Contributor("contributor")
+        contributor.address = "ADDRESS"
+        user.profile.contributor = contributor
+        response = ClaimView.as_view()(request)
+        context = response.context_data
+
+        assert context["amount"] == 0
+        mocked_fetch.assert_not_called()
+
+    @pytest.mark.django_db
+    def test_claimview_context_amount_0_for_valid_contributor_address(
+        self, rf, user, mocker
+    ):
+        mocked_fetch = mocker.patch(
+            "rewards.views.fetch_claimable_amount_for_address", return_value=0
+        )
+        request = rf.get(reverse("claim"))
+        request.user = user
+        contributor = Contributor("contributor")
+        address = "2EVGZ4BGOSL3J64UYDE2BUGTNTBZZZLI54VUQQNZZLYCDODLY33UGXNSIU"
+        contributor.address = address
+        user.profile.contributor = contributor
+        response = ClaimView.as_view()(request)
+        context = response.context_data
+
+        assert context["amount"] == 0
+        mocked_fetch.assert_called_once_with(address)
 
 
 class TestRewardsAddAllocationsView:

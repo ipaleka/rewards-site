@@ -1,5 +1,6 @@
 """Module containing the views for the rewards app."""
 
+from algosdk.encoding import is_valid_address
 from django.contrib import messages
 from django.contrib.auth.decorators import user_passes_test
 from django.contrib.auth.mixins import LoginRequiredMixin
@@ -10,6 +11,7 @@ from django.views.generic import TemplateView
 
 from contract.helpers import is_admin_account_configured
 from contract.network import (
+    fetch_claimable_amount_for_address,
     process_allocations_for_contributions,
     process_reclaim_allocation,
     reclaimable_addresses,
@@ -41,15 +43,15 @@ class ClaimView(LoginRequiredMixin, TemplateView):
         :rtype: dict
         """
         context = super().get_context_data(**kwargs)
+        context["amount"] = 0
 
-        # TODO: Replace this with actual logic to check the Algorand box
-        # based on the user's linked contributor address.
         contributor = getattr(self.request.user.profile, "contributor", None)
-        if contributor and contributor.address:
-            # Placeholder logic
-            context["claimable"] = True
-        else:
-            context["claimable"] = False
+        if (
+            contributor
+            and contributor.address
+            and is_valid_address(contributor.address)
+        ):
+            context["amount"] = fetch_claimable_amount_for_address(contributor.address)
 
         return context
 

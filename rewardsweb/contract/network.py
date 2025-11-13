@@ -335,6 +335,36 @@ def delete_app(client, private_key, app_id):
     print("Deleted app-id: ", transaction_response["txn"]["txn"]["apid"])
 
 
+def fetch_claimable_amount_for_address(address, network=ACTIVE_NETWORK):
+    """Process reclaim allocation after performing a couple of checks.
+
+    TODO: implement, docstring, and tests
+
+    :param address: address of the user to check claimable status
+    :type address: str
+    :param network: network to deploy to (e.g., "testnet")
+    :type network: str
+
+    :var env: environment variables collection
+    :type env: dict
+    :var client: Algorand Node client instance
+    :type client: :class:`AlgodClient`
+    :var atc_stub: collection of data required to create atomic transaction
+    :type atc_stub: dict
+    :var app_id: Rewards dApp unique identifier
+    :type app_id: int
+    :var box_name: user's box name
+    :type box_name: bytes
+    :var value: user's box value
+    :type value: bytes
+    :var amount: amount to reclaim
+    :type amount: int
+    :var expires_at: timestamp when user's claim period ends
+    :type expires_at: int
+    """
+    return 0
+
+
 def fund_app(app_id, network, amount=None):
     """Fund the application escrow account with 0.2 Algo.
 

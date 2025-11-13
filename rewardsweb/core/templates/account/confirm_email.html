@@ -2,15 +2,33 @@
 {% load i18n %}
 
 {% block inner_content %}
-<h1 class="text-2xl font-bold">{% trans "Confirm Email" %}</h1>
+<div class="space-y-6 fade-in">
+  <div class="text-center">
+    <div class="p-4 rounded-lg bg-warning/10 text-warning inline-block mb-4">
+      <i class="fas fa-envelope-circle-check text-3xl"></i>
+    </div>
+    <h1 class="text-3xl font-bold mb-2">{% trans "Confirm Email Address" %}</h1>
+    <p class="text-lg text-base-content/70">
+      {% trans "Please confirm that you want to use this email address for your account:" %}
+    </p>
+  </div>
 
-<p class="mb-4">
-    {% trans "Please confirm that you want to use this email:" %}
-    <strong class="text-accent">{{ email }}</strong>
-</p>
+  <div class="bg-base-100 p-6 rounded-xl border-2 border-base-300 text-center">
+    <div class="text-2xl font-bold text-accent mb-4">{{ email }}</div>
+    <form method="post" class="space-y-4">
+      {% csrf_token %}
+      <button class="btn btn-success w-full" type="submit">
+        <i class="fas fa-check-circle mr-2"></i>
+        {% trans "Confirm Email Address" %}
+      </button>
+    </form>
+  </div>
 
-<form method="post" class="space-y-4">
-  {% csrf_token %}
-  <button class="btn btn-success w-full" type="submit">{% trans "Confirm" %}</button>
-</form>
+  <div class="text-center">
+    <a href="{% url 'index' %}" class="btn btn-outline">
+      <i class="fas fa-arrow-left mr-2"></i>
+      {% trans "Back to Home" %}
+    </a>
+  </div>
+</div>
 {% endblock %}

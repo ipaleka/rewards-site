@@ -2,88 +2,149 @@
 {% load i18n static allauth account %}
 
 {% block head_title %}
-  {% trans "Sign In" %}
+  {% trans "Sign In - ASA Stats Rewards" %}
 {% endblock head_title %}
 
 {% block inner_content %}
+<div class="space-y-8 fade-in">
+  <!-- Header -->
+  <div class="text-center mb-8">
+    <h1 class="text-3xl font-bold mb-2">Welcome Back</h1>
+    <p class="text-lg text-base-content/70">
+      Sign in to access your ASA Stats Rewards account
+    </p>
+  </div>
 
-<div class="card bg-base-100 shadow-xl mt-10 border border-base-300">
-  <div class="card-body space-y-4">
+  <div class="grid grid-cols-1 xl:grid-cols-2 gap-8 max-w-6xl mx-auto">
+    <!-- Left Column - Algorand Wallet -->
+    <div class="space-y-6">
+      <!-- Algorand Wallet Login -->
+      <div class="bg-base-100 p-6 rounded-xl border-2 border-base-300">
+        <div class="flex items-center gap-2 mb-4">
+          <i class="fas fa-wallet text-primary text-xl"></i>
+          <h2 class="text-xl font-bold">Algorand Wallet</h2>
+        </div>
+        <p class="text-base-content/70 mb-4">
+          Connect your Algorand wallet for secure, passwordless authentication
+        </p>
+        {% include "account/snippets/algorand_connect.html" with method="Login" %}
+      </div>
 
-    <h2 class="text-2xl font-bold text-center">
-      {% trans "Sign In" %}
-    </h2>
-
-    <!-- ✅ Your Algorand wallet login -->
-    <div class="mt-2">
-      {% include "account/snippets/algorand_connect.html" with method="Login" %}
+      <!-- Alternative Methods -->
+      {% if LOGIN_BY_CODE_ENABLED or PASSKEY_LOGIN_ENABLED %}
+      <div class="bg-base-100 p-6 rounded-xl border-2 border-base-300">
+        <div class="flex items-center gap-2 mb-4">
+          <i class="fas fa-key text-accent text-xl"></i>
+          <h2 class="text-xl font-bold">Other Methods</h2>
+        </div>
+        <div class="space-y-3">
+          {% if PASSKEY_LOGIN_ENABLED %}
+            <button type="submit"
+                    form="mfa_login"
+                    id="passkey_login"
+                    class="btn btn-outline w-full justify-start">
+              <i class="fas fa-fingerprint mr-3"></i>
+              {% trans "Sign in with a passkey" %}
+            </button>
+          {% endif %}
+          {% if LOGIN_BY_CODE_ENABLED %}
+            <a href="{{ request_login_code_url }}" class="btn btn-outline w-full justify-start">
+              <i class="fas fa-envelope mr-3"></i>
+              {% trans "Send me a sign-in code" %}
+            </a>
+          {% endif %}
+        </div>
+      </div>
+      {% endif %}
     </div>
 
-    {% if not SOCIALACCOUNT_ONLY %}
-      <p class="text-sm text-base-content/70 text-center">
-        {% blocktranslate %}
-          If you have not created an account yet,
-          then please <a href="{{ signup_url }}" class="link link-accent" hx-boost="false" hx-disable="true">sign up</a> first.
-        {% endblocktranslate %}
-      </p>
+    <!-- Right Column - Traditional Login & Social -->
+    <div class="space-y-6">
+      <!-- Traditional Login -->
+      {% if not SOCIALACCOUNT_ONLY %}
+      <div class="bg-base-100 p-6 rounded-xl border-2 border-base-300">
+        <div class="flex items-center gap-2 mb-4">
+          <i class="fas fa-envelope text-secondary text-xl"></i>
+          <h2 class="text-xl font-bold">Email & Password</h2>
+        </div>
 
-      {% url 'account_login' as login_url %}
+        <p class="text-base-content/70 mb-4 text-sm">
+          {% blocktranslate %}
+            Don't have an account? 
+            <a href="{{ signup_url }}" class="link link-accent font-semibold" hx-boost="false" hx-disable="true">Sign up here</a>.
+          {% endblocktranslate %}
+        </p>
 
-      <!-- ✅ Native allauth form (email/pass) -->
-      {% element form form=form method="post" action=login_url class="space-y-4" tags="entrance,login" %}
-        {% slot body %}
-          {% csrf_token %}
-          {% for field in form %}
-            {% include "account/elements/field.html" %}
-          {% endfor %}
-          {% if form.non_field_errors %}
-            <div class="alert alert-error shadow-lg">
-              <span>{{ form.non_field_errors }}</span>
-            </div>
-          {% endif %}
-          {{ redirect_field }}
-        {% endslot %}
-        {% slot actions %}
-          <button type="submit"
-                  class="btn btn-primary w-full"
-                  tags="prominent,login">
-            {% trans "Sign In" %}
-          </button>
-        {% endslot %}
-      {% endelement %}
-    {% endif %}
-
-    {% if LOGIN_BY_CODE_ENABLED or PASSKEY_LOGIN_ENABLED %}
-      <div class="divider"></div>
-      <div class="space-y-2">
-        {% if PASSKEY_LOGIN_ENABLED %}
-          <button type="submit"
-                  form="mfa_login"
-                  id="passkey_login"
-                  class="btn btn-outline btn-primary w-full"
-                  tags="prominent,login,outline,primary">
-            {% trans "Sign in with a passkey" %}
-          </button>
-        {% endif %}
-        {% if LOGIN_BY_CODE_ENABLED %}
-          <a href="{{ request_login_code_url }}" class="btn btn-outline btn-primary w-full">
-            {% trans "Send me a sign-in code" %}
-          </a>
-        {% endif %}
+        {% url 'account_login' as login_url %}
+        {% element form form=form method="post" action=login_url class="space-y-4" tags="entrance,login" %}
+          {% slot body %}
+            {% csrf_token %}
+            {% for field in form %}
+              <div class="form-control">
+                <label class="label">
+                  <span class="label-text font-semibold">{{ field.label }}</span>
+                </label>
+                <div class="bg-base-200 p-1 rounded-lg border border-base-300">
+                  {{ field }}
+                </div>
+                {% if field.errors %}
+                <div class="text-error text-sm mt-2 flex items-center gap-2">
+                  <i class="fas fa-exclamation-circle"></i>
+                  {{ field.errors }}
+                </div>
+                {% endif %}
+              </div>
+            {% endfor %}
+            {% if form.non_field_errors %}
+              <div class="alert alert-error">
+                <i class="fas fa-exclamation-triangle mr-2"></i>
+                {{ form.non_field_errors }}
+              </div>
+            {% endif %}
+            {{ redirect_field }}
+          {% endslot %}
+          {% slot actions %}
+            <button type="submit"
+                    class="btn btn-primary w-full mt-4"
+                    tags="prominent,login">
+              <i class="fas fa-sign-in-alt mr-2"></i>
+              {% trans "Sign In" %}
+            </button>
+          {% endslot %}
+        {% endelement %}
       </div>
-    {% endif %}
+      {% endif %}
 
-    {% if SOCIALACCOUNT_ENABLED %}
-      <div class="divider">OR</div>
-
-      <div class="w-full">
+      <!-- Social Login -->
+      {% if SOCIALACCOUNT_ENABLED %}
+      <div class="bg-base-100 p-6 rounded-xl border-2 border-base-300">
+        <div class="flex items-center gap-2 mb-4">
+          <i class="fas fa-share-alt text-info text-xl"></i>
+          <h2 class="text-xl font-bold">Social Login</h2>
+        </div>
+        <p class="text-base-content/70 mb-4 text-sm">
+          Sign in quickly with your social media accounts
+        </p>
         {% include "socialaccount/snippets/providers_list.html" %}
       </div>
-    {% endif %}
+      {% endif %}
 
+      <!-- Help Links -->
+      <div class="bg-base-100 p-4 rounded-xl border-2 border-base-300">
+        <div class="flex flex-col sm:flex-row gap-3 justify-center">
+          <a href="{% url 'account_reset_password' %}" class="btn btn-ghost btn-sm">
+            <i class="fas fa-key mr-2"></i>
+            Forgot Password?
+          </a>
+          <a href="{% url 'index' %}" class="btn btn-ghost btn-sm">
+            <i class="fas fa-home mr-2"></i>
+            Back to Home
+          </a>
+        </div>
+      </div>
+    </div>
   </div>
 </div>
-
 {% endblock inner_content %}
 
 {% block extra_body %}

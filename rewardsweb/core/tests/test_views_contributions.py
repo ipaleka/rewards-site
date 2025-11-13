@@ -794,7 +794,7 @@ class TestContributionInvalidateViewDb:
         content = response.content.decode()
         assert 'name="comment"' in content
         assert "textarea" in content
-        assert "Set as duplicate" in content
+        assert "Confirm as duplicate" in content
 
     def test_contributioninvalidateview_original_comment_in_context_message_success(
         self, client, superuser, invalidate_url, mock_message_from_url

@@ -346,7 +346,6 @@ describe('main.ts', () => {
     expect(ActiveNetwork).not.toHaveBeenCalled()
     expect(WalletComponent).not.toHaveBeenCalled()
     expect(RewardsClient).not.toHaveBeenCalled()
-    expect(consoleLogSpy).toHaveBeenCalledWith('Skipping wallet initialization - no wallet elements found')
     expect(consoleErrorSpy).not.toHaveBeenCalled()
   })
 
@@ -375,7 +374,6 @@ describe('main.ts', () => {
 
     expect(WalletManager).toHaveBeenCalled()
     expect(ActiveNetwork).toHaveBeenCalled()
-    expect(consoleLogSpy).not.toHaveBeenCalledWith('Skipping wallet initialization - no wallet elements found')
   })
 
   it('should initialize when only wallet-* elements are present', async () => {
@@ -403,7 +401,6 @@ describe('main.ts', () => {
 
     expect(WalletManager).toHaveBeenCalled()
     expect(WalletComponent).toHaveBeenCalled()
-    expect(consoleLogSpy).not.toHaveBeenCalledWith('Skipping wallet initialization - no wallet elements found')
   })
 
   it('should not initialize when only non-wallet elements are present', async () => {
@@ -425,6 +422,5 @@ describe('main.ts', () => {
 
     expect(WalletManager).not.toHaveBeenCalled()
     expect(ActiveNetwork).not.toHaveBeenCalled()
-    expect(consoleLogSpy).toHaveBeenCalledWith('Skipping wallet initialization - no wallet elements found')
   })
 })

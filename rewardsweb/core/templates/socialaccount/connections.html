@@ -1,30 +1,191 @@
 {% extends "account/base_entrance.html" %}
 {% load socialaccount i18n %}
 
-{% block inner_content %}
-<h1 class="text-2xl font-bold mb-4">{% trans "Linked Accounts" %}</h1>
-
-{% get_social_accounts user as accounts %}
-{% if accounts %}
-<ul class="space-y-3">
-  {% for provider, provider_accounts in accounts.items %}
-    {% for account in provider_accounts %}
-    <li class="flex justify-between items-center p-3 rounded bg-base-200">
-      <span>{{ provider.name }} → {{ account.extra_data.username|default:account.uid }}</span>
-
-      <form action="{% url 'socialaccount_connections' %}" method="post">
-        {% csrf_token %}
-        <input type="hidden" name="account" value="{{ account.pk }}">
-        <button class="btn btn-error btn-sm" type="submit">{% trans "Disconnect" %}</button>
-      </form>
-    </li>
-    {% endfor %}
-  {% endfor %}
-</ul>
-{% else %}
-<p class="opacity-70">{% trans "You have no linked accounts." %}</p>
-{% endif %}
-
-<div class="divider">{% trans "Add account" %}</div>
-{% include "socialaccount/snippets/providers_list.html" %}
+{% block head_title %}
+  {% trans "Linked Accounts - ASA Stats Rewards" %}
 {% endblock %}
+
+{% block inner_content %}
+<div class="space-y-6 fade-in">
+  <!-- Page Header -->
+  <div class="flex flex-col sm:flex-row justify-between items-start sm:items-center gap-4">
+    <div>
+      <h1 class="text-3xl font-bold">Linked Accounts</h1>
+      <p class="mt-2 text-lg text-base-content/70">
+        Manage your connected social media accounts
+      </p>
+    </div>
+    <div class="badge badge-primary badge-lg">
+      <i class="fas fa-share-alt mr-1"></i>
+      Social Accounts
+    </div>
+  </div>
+
+  <div class="grid grid-cols-1 lg:grid-cols-3 gap-6">
+    <!-- Main Content -->
+    <div class="lg:col-span-2 space-y-6">
+      <!-- Current Linked Accounts -->
+      <div class="stat-card">
+        <div class="flex items-center gap-2 mb-6">
+          <i class="fas fa-link text-primary"></i>
+          <h2 class="text-xl font-bold">Currently Linked Accounts</h2>
+        </div>
+
+        {% get_social_accounts user as accounts %}
+        {% if accounts %}
+          <div class="space-y-4">
+            {% for provider, provider_accounts in accounts.items %}
+              {% for account in provider_accounts %}
+              <div class="flex items-center justify-between p-4 bg-base-200 rounded-lg hover:bg-base-300 transition-colors">
+                <div class="flex items-center gap-4">
+                  <div class="p-3 rounded-lg bg-primary/10 text-primary">
+                    <i class="fab fa-{{ provider.name|lower }}"></i>
+                  </div>
+                  <div>
+                    <div class="font-semibold text-lg">{{ provider.name }}</div>
+                    <div class="text-sm text-base-content/70">
+                      Connected as: {{ account.extra_data.username|default:account.uid }}
+                    </div>
+                  </div>
+                </div>
+                <form action="{% url 'socialaccount_connections' %}" method="post">
+                  {% csrf_token %}
+                  <input type="hidden" name="account" value="{{ account.pk }}">
+                  <button class="btn btn-error btn-sm" type="submit">
+                    <i class="fas fa-unlink mr-2"></i>
+                    {% trans "Disconnect" %}
+                  </button>
+                </form>
+              </div>
+              {% endfor %}
+            {% endfor %}
+          </div>
+        {% else %}
+          <div class="text-center py-8">
+            <i class="fas fa-unlink text-4xl text-base-content/30 mb-4"></i>
+            <h3 class="text-xl font-semibold mb-2">No Linked Accounts</h3>
+            <p class="text-base-content/70 max-w-md mx-auto">
+              You haven't connected any social media accounts yet. 
+              Link your accounts below for easier sign-in.
+            </p>
+          </div>
+        {% endif %}
+      </div>
+
+      <!-- Add New Accounts -->
+      <div class="stat-card">
+        <div class="flex items-center gap-2 mb-6">
+          <i class="fas fa-plus-circle text-success"></i>
+          <h2 class="text-xl font-bold">Add New Account</h2>
+        </div>
+
+        <div class="bg-base-200 p-6 rounded-xl border-2 border-base-300">
+          <p class="text-base-content/70 mb-4 text-center">
+            Connect additional social media accounts for easier sign-in
+          </p>
+          {% include "socialaccount/snippets/providers_list.html" %}
+        </div>
+      </div>
+    </div>
+
+    <!-- Sidebar -->
+    <div class="space-y-6">
+      <!-- Account Stats -->
+      <div class="stat-card">
+        <div class="flex items-center gap-2 mb-4">
+          <i class="fas fa-chart-bar text-info"></i>
+          <h2 class="text-xl font-bold">Account Stats</h2>
+        </div>
+
+        <div class="space-y-4">
+          <div class="flex justify-between items-center">
+            <span class="text-base-content/70">Linked Accounts</span>
+            <span class="font-semibold text-primary">
+              {% get_social_accounts user as accounts %}
+              {{ accounts|length }}
+            </span>
+          </div>
+          
+          <div class="flex justify-between items-center">
+            <span class="text-base-content/70">Status</span>
+            <span class="badge badge-success">Active</span>
+          </div>
+          
+          <div class="flex justify-between items-center">
+            <span class="text-base-content/70">Last Updated</span>
+            <span class="font-semibold text-info">Now</span>
+          </div>
+        </div>
+      </div>
+
+      <!-- Quick Actions -->
+      <div class="stat-card">
+        <div class="flex items-center gap-2 mb-4">
+          <i class="fas fa-rocket text-accent"></i>
+          <h2 class="text-xl font-bold">Quick Actions</h2>
+        </div>
+
+        <div class="space-y-3">
+          <a href="{% url 'index' %}" class="btn btn-outline justify-start w-full">
+            <i class="fas fa-arrow-left mr-2"></i>
+            Back to Home
+          </a>
+          <a href="{% url 'profile' %}" class="btn btn-outline justify-start w-full">
+            <i class="fas fa-user-cog mr-2"></i>
+            Profile Settings
+          </a>
+          <a href="{% url 'account_email' %}" class="btn btn-outline justify-start w-full">
+            <i class="fas fa-envelope mr-2"></i>
+            Email Settings
+          </a>
+          <a href="{% url 'account_change_password' %}" class="btn btn-outline justify-start w-full">
+            <i class="fas fa-key mr-2"></i>
+            Change Password
+          </a>
+        </div>
+      </div>
+
+      <!-- Benefits Info -->
+      <div class="stat-card">
+        <div class="flex items-center gap-2 mb-4">
+          <i class="fas fa-lightbulb text-warning"></i>
+          <h2 class="text-xl font-bold">Benefits</h2>
+        </div>
+
+        <div class="space-y-3 text-sm">
+          <div class="flex items-start gap-2">
+            <i class="fas fa-check text-success mt-1"></i>
+            <span>Quick and easy sign-in</span>
+          </div>
+          <div class="flex items-start gap-2">
+            <i class="fas fa-check text-success mt-1"></i>
+            <span>No need to remember passwords</span>
+          </div>
+          <div class="flex items-start gap-2">
+            <i class="fas fa-check text-success mt-1"></i>
+            <span>Secure authentication</span>
+          </div>
+          <div class="flex items-start gap-2">
+            <i class="fas fa-check text-success mt-1"></i>
+            <span>Easy account recovery</span>
+          </div>
+        </div>
+      </div>
+
+      <!-- Security Notice -->
+      <div class="stat-card bg-info/5 border-info/20">
+        <div class="flex items-start gap-3">
+          <i class="fas fa-shield-alt text-info text-xl mt-1"></i>
+          <div>
+            <h3 class="font-semibold text-info mb-2">Security Notice</h3>
+            <p class="text-base-content/80 text-sm">
+              You can safely disconnect social accounts at any time. 
+              This won't affect your primary account access through other methods.
+            </p>
+          </div>
+        </div>
+      </div>
+    </div>
+  </div>
+</div>
+{% endblock inner_content %}

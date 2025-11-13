@@ -16,22 +16,18 @@
   </head>
   <body hx-boost="true" class="min-h-screen bg-base-200">
     {% include "snippets/app_error.html" %}
-    
+
     <div class="drawer lg:drawer-open">
       <input id="main-drawer" type="checkbox" class="drawer-toggle" />
-      
+
       <!-- Main Content -->
       <div class="drawer-content flex flex-col">
-        <!-- Top Navbar - Your existing navbar modified -->
         <div class="navbar bg-base-100 shadow-sm border-b border-base-300">
-          <!-- Hamburger menu for mobile -->
           <div class="flex-none lg:hidden">
             <label for="main-drawer" class="btn btn-square btn-ghost drawer-button">
               <i class="fas fa-bars"></i>
             </label>
           </div>
-          
-          <!-- Your existing navbar content -->
           <div class="flex-1">
             <a href="{% url 'index' %}" class="btn btn-ghost text-xl">
               <img src="{% static 'img/brand-logo.png' %}" alt="Logo" class="w-8 h-8 mr-2" />
@@ -98,8 +94,7 @@
           {% endif %}
         {% endblock %}
       </div>
-      
-      <!-- Sidebar - This appears on the left on large screens, behind hamburger on mobile -->
+
       <div class="drawer-side">
         <label for="main-drawer" class="drawer-overlay"></label>
         <div class="bg-base-100 min-h-screen w-64 p-4">
@@ -110,25 +105,25 @@
               <span>Rewards</span>
             </a>
           </div>
-          
+
           <!-- Navigation Menu - Your existing menu items moved here -->
           <ul class="menu text-base-content space-y-1">
             <li class="menu-title">Main Navigation</li>
-            
+
             <li>
               <a href="{% url 'index' %}" class="{% if request.resolver_match.url_name == 'index' %}active{% endif %}">
                 <i class="fas fa-home w-5"></i>
-                Home
+                Dashboard
               </a>
             </li>
-            
+
             <li>
               <a href="{% url 'contributors' %}" class="{% if request.resolver_match.url_name == 'contributors' %}active{% endif %}">
                 <i class="fas fa-users w-5"></i>
                 Contributors
               </a>
             </li>
-            
+
             <li>
               <a href="{% url 'cycles' %}" class="{% if request.resolver_match.url_name == 'cycles' %}active{% endif %}">
                 <i class="fas fa-sync-alt w-5"></i>
@@ -232,20 +227,5 @@
     <script src="{% static 'js/htmx.min.js' %}"></script>
     <script src="{% static 'js/site.js' %}"></script>
     <script type="module" src="{% static 'js/bundle.js' %}"></script>
-
-    <!-- Simple theme toggle script -->
-    <script>
-      // Simple theme toggle
-      const themeToggle = document.querySelector('.theme-controller');
-      if (themeToggle) {
-        themeToggle.addEventListener('change', function() {
-          if (this.checked) {
-            document.documentElement.setAttribute('data-theme', 'dark');
-          } else {
-            document.documentElement.setAttribute('data-theme', 'light');
-          }
-        });
-      }
-    </script>
   </body>
 </html>

@@ -9,7 +9,7 @@ from django.conf import settings
 from django.contrib import messages
 from django.contrib.auth.decorators import login_required, user_passes_test
 from django.contrib.auth.models import User
-from django.db.models import Prefetch, Q, Sum
+from django.db.models import Count, Prefetch, Q, Sum
 from django.db.models.functions import Lower
 from django.forms import ValidationError
 from django.http import Http404, HttpResponse, HttpResponseRedirect
@@ -110,7 +110,6 @@ class IndexView(ListView):
         :rtype: :class:`django.db.models.QuerySet`
         """
         return Contribution.objects.filter(confirmed=False).reverse()
-
 
 
 class ContributionDetailView(DetailView):
@@ -294,12 +293,12 @@ class ContributionInvalidateView(UpdateView):
 
         failed_ops_str = " and ".join(failed_operations)
         return (
-            f"Failed to add {failed_ops_str}. Contribution was not set as {reaction}."
+            f"Failed to add {failed_ops_str}. Contribution was not confirmed as {reaction}."
         )
 
     def _get_success_message(self, comment, reaction):
         """Generate appropriate success message."""
-        actions = [f"set as {reaction}"]
+        actions = [f"Confirmed as {reaction}"]
         if comment:
             actions.append("reply sent")
         actions.append("reaction added")
@@ -449,6 +448,22 @@ class IssueListView(ListView):
 
     model = Issue
     paginate_by = 20
+
+    def get_context_data(self, *args, **kwargs):
+        """Add open issues' context data to template.
+
+        :param kwargs: Additional keyword arguments
+        :return: dict
+        """
+        context = super().get_context_data(*args, **kwargs)
+
+        total_contributions = Issue.objects.filter(
+            status=IssueStatus.CREATED
+        ).aggregate(total=Count("contribution"))["total"]
+
+        context["total_contributions"] = total_contributions
+
+        return context
 
     def get_queryset(self):
         """Return open issues queryset in reverse order with prefetched contributions.

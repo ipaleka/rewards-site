@@ -2,15 +2,36 @@
 {% load i18n %}
 
 {% block inner_content %}
-<h1 class="text-2xl font-bold">{% trans "Verify Your Email" %}</h1>
+<div class="space-y-6 fade-in text-center">
+  <div class="p-4 rounded-lg bg-info/10 text-info inline-block mb-4">
+    <i class="fas fa-envelope text-3xl"></i>
+  </div>
+  <h1 class="text-3xl font-bold mb-2">{% trans "Verify Your Email" %}</h1>
+  
+  <div class="bg-base-100 p-6 rounded-xl border-2 border-base-300 max-w-md mx-auto">
+    <p class="text-lg text-base-content/70 mb-4">
+      {% trans "We have sent an email to you with a confirmation link." %}
+    </p>
+    <p class="text-base-content/70 mb-6">
+      {% trans "Please click the link in the email to activate your account and complete your registration." %}
+    </p>
 
-<p>
-  {% trans "We have sent an email to you." %}
-  {% trans "Please click the confirmation link to activate your account." %}
-</p>
+    <div class="border-t border-base-300 pt-4">
+      <p class="text-sm text-base-content/60 mb-3">
+        {% trans "Did not receive the email?" %}
+      </p>
+      <a href="{% url 'account_email' %}" class="btn btn-outline btn-sm">
+        <i class="fas fa-redo mr-2"></i>
+        {% trans "Request Another" %}
+      </a>
+    </div>
+  </div>
 
-<p class="pt-2 text-sm opacity-60">
-  {% trans "Did not receive the email?" %}
-  <a href="{% url 'account_reset_password' %}" class="link link-accent">Request another</a>
-</p>
+  <div class="text-center">
+    <a href="{% url 'index' %}" class="btn btn-ghost">
+      <i class="fas fa-home mr-2"></i>
+      {% trans "Return to Home" %}
+    </a>
+  </div>
+</div>
 {% endblock %}

@@ -2,94 +2,245 @@
 {% load i18n %}
 {% load allauth %}
 
+{% block head_title %}
+  {% trans "Email Addresses - ASA Stats Rewards" %}
+{% endblock %}
+
 {% block inner_content %}
+<div class="space-y-6 fade-in">
+  <!-- Page Header -->
+  <div class="flex flex-col sm:flex-row justify-between items-start sm:items-center gap-4">
+    <div>
+      <h1 class="text-3xl font-bold">Email Addresses</h1>
+      <p class="mt-2 text-lg text-base-content/70">
+        Manage your email addresses and verification status
+      </p>
+    </div>
+    <div class="badge badge-primary badge-lg">
+      <i class="fas fa-envelope mr-1"></i>
+      {{ user.emailaddress_set.all|length }} Email{{ user.emailaddress_set.all|length|pluralize }}
+    </div>
+  </div>
 
-<h1 class="text-2xl font-bold mb-6">{% trans "Email Addresses" %}</h1>
-
-{% if user.emailaddress_set.all %}
-  <div class="space-y-8">
-
-    {% for emailaddress in user.emailaddress_set.all %}
-      <div class="p-4 rounded-lg border border-base-300 bg-base-100 space-y-3">
-
-        <!-- EMAIL + BADGES -->
-        <div class="flex flex-wrap items-center gap-2">
-          <span class="text-lg font-medium">{{ emailaddress.email }}</span>
-
-          {% if emailaddress.verified %}
-            <span class="badge badge-success">{% trans "Verified" %}</span>
-          {% else %}
-            <span class="badge badge-warning">{% trans "Unverified" %}</span>
-          {% endif %}
-
-          {% if emailaddress.primary %}
-            <span class="badge badge-info">{% trans "Primary" %}</span>
-          {% endif %}
+  <div class="grid grid-cols-1 lg:grid-cols-3 gap-6">
+    <!-- Main Content -->
+    <div class="lg:col-span-2 space-y-6">
+      <!-- Current Email Addresses -->
+      <div class="bg-base-100 p-6 rounded-xl border-2 border-base-300">
+        <div class="flex items-center gap-2 mb-6">
+          <i class="fas fa-list text-primary"></i>
+          <h2 class="text-xl font-bold">Your Email Addresses</h2>
         </div>
 
-        <!-- BUTTONS BELOW EMAIL -->
-        <div class="flex flex-wrap gap-2">
+        {% if user.emailaddress_set.all %}
+          <div class="space-y-4">
+            {% for emailaddress in user.emailaddress_set.all %}
+              <div class="flex items-center justify-between p-4 bg-base-200 rounded-lg hover:bg-base-300 transition-colors">
+                <div class="flex items-center gap-4">
+                  <div class="p-3 rounded-lg bg-primary/10 text-primary">
+                    <i class="fas fa-envelope"></i>
+                  </div>
+                  <div>
+                    <div class="font-semibold text-lg">{{ emailaddress.email }}</div>
+                    <div class="flex gap-2 mt-1">
+                      {% if emailaddress.verified %}
+                        <span class="badge badge-success badge-sm">
+                          <i class="fas fa-check-circle mr-1"></i>
+                          {% trans "Verified" %}
+                        </span>
+                      {% else %}
+                        <span class="badge badge-warning badge-sm">
+                          <i class="fas fa-clock mr-1"></i>
+                          {% trans "Unverified" %}
+                        </span>
+                      {% endif %}
 
-          {% if not emailaddress.primary %}
-            <form method="post" action="{% url 'account_email' %}">
-              {% csrf_token %}
-              <input type="hidden" name="email" value="{{ emailaddress.email }}">
-              <button name="action_primary" class="btn btn-xs btn-outline btn-info">
-                {% trans "Set primary" %}
-              </button>
-            </form>
-          {% endif %}
+                      {% if emailaddress.primary %}
+                        <span class="badge badge-info badge-sm">
+                          <i class="fas fa-star mr-1"></i>
+                          {% trans "Primary" %}
+                        </span>
+                      {% endif %}
+                    </div>
+                  </div>
+                </div>
+                <div class="flex gap-2">
+                  {% if not emailaddress.primary %}
+                    <form method="post" action="{% url 'account_email' %}">
+                      {% csrf_token %}
+                      <input type="hidden" name="email" value="{{ emailaddress.email }}">
+                      <button name="action_primary" class="btn btn-outline btn-sm">
+                        <i class="fas fa-star mr-1"></i>
+                        {% trans "Set Primary" %}
+                      </button>
+                    </form>
+                  {% endif %}
 
-          {% if not emailaddress.verified %}
-            <form method="post" action="{% url 'account_email' %}">
-              {% csrf_token %}
-              <input type="hidden" name="email" value="{{ emailaddress.email }}">
-              <button name="action_send" class="btn btn-xs btn-outline">
-                {% trans "Resend verification" %}
-              </button>
-            </form>
-          {% endif %}
+                  {% if not emailaddress.verified %}
+                    <form method="post" action="{% url 'account_email' %}">
+                      {% csrf_token %}
+                      <input type="hidden" name="email" value="{{ emailaddress.email }}">
+                      <button name="action_send" class="btn btn-outline btn-sm">
+                        <i class="fas fa-paper-plane mr-1"></i>
+                        {% trans "Resend" %}
+                      </button>
+                    </form>
+                  {% endif %}
 
-          {% if not emailaddress.primary %}
-            <form method="post" action="{% url 'account_email' %}">
-              {% csrf_token %}
-              <input type="hidden" name="email" value="{{ emailaddress.email }}">
-              <button name="action_remove" class="btn btn-xs btn-error">
-                {% trans "Remove" %}
-              </button>
-            </form>
-          {% endif %}
+                  {% if not emailaddress.primary %}
+                    <form method="post" action="{% url 'account_email' %}">
+                      {% csrf_token %}
+                      <input type="hidden" name="email" value="{{ emailaddress.email }}">
+                      <button name="action_remove" class="btn btn-error btn-sm">
+                        <i class="fas fa-trash mr-1"></i>
+                        {% trans "Remove" %}
+                      </button>
+                    </form>
+                  {% endif %}
+                </div>
+              </div>
+            {% endfor %}
+          </div>
+        {% else %}
+          <div class="text-center py-8">
+            <i class="fas fa-envelope text-4xl text-base-content/30 mb-4"></i>
+            <h3 class="text-xl font-semibold mb-2">No Email Addresses</h3>
+            <p class="text-base-content/70 max-w-md mx-auto">
+              You haven't added any email addresses to your account yet.
+              Add your first email address below to get started.
+            </p>
+          </div>
+        {% endif %}
+      </div>
 
+      <!-- Add Email Address -->
+      <div class="bg-base-100 p-6 rounded-xl border-2 border-base-300">
+        <div class="flex items-center gap-2 mb-6">
+          <i class="fas fa-plus-circle text-success"></i>
+          <h2 class="text-xl font-bold">Add Email Address</h2>
+        </div>
+
+        <form method="post" action="{% url 'account_email' %}" class="space-y-4">
+          {% csrf_token %}
+          <div class="form-control">
+            <label class="label">
+              <span class="label-text font-semibold">Email Address</span>
+            </label>
+            <div class="bg-base-200 p-1 rounded-lg border border-base-300">
+              <input type="email"
+                     name="email"
+                     placeholder="Enter your email address..."
+                     class="input input-ghost w-full"
+                     required>
+            </div>
+            <div class="text-xs text-base-content/60 mt-2">
+              We'll send a verification link to this email address
+            </div>
+          </div>
+
+          <button type="submit"
+                  name="action_add"
+                  class="btn btn-success w-full">
+            <i class="fas fa-plus-circle mr-2"></i>
+            {% trans "Add Email Address" %}
+          </button>
+        </form>
+      </div>
+    </div>
+
+    <!-- Sidebar -->
+    <div class="space-y-6">
+      <!-- Email Stats -->
+      <div class="bg-base-100 p-6 rounded-xl border-2 border-base-300">
+        <div class="flex items-center gap-2 mb-4">
+          <i class="fas fa-chart-bar text-info"></i>
+          <h2 class="text-xl font-bold">Email Stats</h2>
+        </div>
+
+        <div class="space-y-4">
+          <div class="flex justify-between items-center">
+            <span class="text-base-content/70">Total Emails</span>
+            <span class="font-semibold text-primary">{{ user.emailaddress_set.all|length }}</span>
+          </div>
+          
+          <div class="flex justify-between items-center">
+            <span class="text-base-content/70">Verified</span>
+            <span class="font-semibold text-success">
+              {{ user.emailaddress_set.all|length|add:"-1" }}
+            </span>
+          </div>
+          
+          <div class="flex justify-between items-center">
+            <span class="text-base-content/70">Primary</span>
+            <span class="font-semibold text-info">1</span>
+          </div>
         </div>
       </div>
-    {% endfor %}
 
+      <!-- Quick Actions -->
+      <div class="bg-base-100 p-6 rounded-xl border-2 border-base-300">
+        <div class="flex items-center gap-2 mb-4">
+          <i class="fas fa-rocket text-accent"></i>
+          <h2 class="text-xl font-bold">Quick Actions</h2>
+        </div>
+
+        <div class="space-y-3">
+          <a href="{% url 'profile' %}" class="btn btn-outline justify-start w-full">
+            <i class="fas fa-user-cog mr-2"></i>
+            Profile Settings
+          </a>
+          <a href="{% url 'account_change_password' %}" class="btn btn-outline justify-start w-full">
+            <i class="fas fa-key mr-2"></i>
+            Change Password
+          </a>
+          <a href="{% url 'socialaccount_connections' %}" class="btn btn-outline justify-start w-full">
+            <i class="fas fa-share-alt mr-2"></i>
+            Social Accounts
+          </a>
+          <a href="{% url 'index' %}" class="btn btn-outline justify-start w-full">
+            <i class="fas fa-home mr-2"></i>
+            Back to Home
+          </a>
+        </div>
+      </div>
+
+      <!-- Email Tips -->
+      <div class="bg-base-100 p-6 rounded-xl border-2 border-base-300">
+        <div class="flex items-center gap-2 mb-4">
+          <i class="fas fa-lightbulb text-warning"></i>
+          <h2 class="text-xl font-bold">Email Tips</h2>
+        </div>
+
+        <div class="space-y-3 text-sm">
+          <div class="flex items-start gap-2">
+            <i class="fas fa-check text-success mt-1"></i>
+            <span>Verify all email addresses for security</span>
+          </div>
+          <div class="flex items-start gap-2">
+            <i class="fas fa-check text-success mt-1"></i>
+            <span>Set a primary email for notifications</span>
+          </div>
+          <div class="flex items-start gap-2">
+            <i class="fas fa-check text-success mt-1"></i>
+            <span>Keep your email addresses up to date</span>
+          </div>
+        </div>
+      </div>
+
+      <!-- Security Notice -->
+      <div class="bg-base-100 p-6 rounded-xl border-2 border-base-300 bg-info/5 border-info/20">
+        <div class="flex items-start gap-3">
+          <i class="fas fa-shield-alt text-info text-xl mt-1"></i>
+          <div>
+            <h3 class="font-semibold text-info mb-2">Security Notice</h3>
+            <p class="text-base-content/80 text-sm">
+              Your email addresses are secure and protected. 
+              We never share your information with third parties.
+            </p>
+          </div>
+        </div>
+      </div>
+    </div>
   </div>
-{% else %}
-  <div class="alert alert-warning shadow-lg mb-6">
-    {% trans "You currently do not have any emails attached to your account." %}
-  </div>
-{% endif %}
-
-<!-- ADD EMAIL FIELD -->
-<div class="mt-8 space-y-4 p-4 rounded-lg border border-base-300 bg-base-100">
-
-  <h2 class="text-xl font-semibold">{% trans "Add Email Address" %}</h2>
-
-  <form method="post" action="{% url 'account_email' %}" class="space-y-4">
-    {% csrf_token %}
-    <input type="email"
-           name="email"
-           placeholder="{% trans 'Email address' %}"
-           class="input input-bordered w-full"
-           required>
-
-    <button type="submit"
-            name="action_add"
-            class="btn btn-primary w-full">
-      {% trans "Add Email" %}
-    </button>
-  </form>
 </div>
-
 {% endblock %}

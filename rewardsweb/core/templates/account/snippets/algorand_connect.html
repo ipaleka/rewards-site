@@ -1,77 +1,117 @@
 {% load i18n static allauth account %}
 
-<h3 class="text-lg font-semibold mb-3">{{ method }} with Algorand Wallet</h3>
-<div class="p-4 rounded-lg bg-base-200 mb-6">
-  <div id="app" class="space-y-4">
-    <div id="active-network" data-network="{{ active_network|default:'testnet' }}">
-      <div class="space-y-3">
-        <h4 class="font-semibold text-lg">
-          Current Network:
-          <span class="badge badge-outline">{{ active_network|default:"testnet" }}</span>
-        </h4>
+<div class="space-y-6">
+  <!-- Network Selection -->
+  <div id="active-network" data-network="{{ active_network|default:'testnet' }}" class="bg-base-100 p-6 rounded-xl border-2 border-base-300">
+    <div class="flex items-center gap-2 mb-4">
+      <i class="fas fa-network-wired text-info"></i>
+      <h3 class="text-lg font-semibold">Network Configuration</h3>
+    </div>
+    
+    <div class="space-y-4">
+      <div class="flex items-center gap-3">
+        <span class="font-semibold text-base-content/70">Current Network:</span>
+        <span class="badge {% if active_network == 'mainnet' %}badge-success{% else %}badge-warning{% endif %} badge-lg">
+          {{ active_network|default:"testnet"|title }}
+        </span>
+      </div>
 
-        <div class="flex gap-2">
-          <button type="button" data-network="testnet"
-                  class="btn btn-outline btn-sm {% if active_network == 'testnet' %}disabled{% endif %}">
-            Set to Testnet
-          </button>
+      <div class="flex gap-3">
+        <button type="button" data-network="testnet"
+                class="btn btn-outline {% if active_network == 'testnet' %}btn-disabled{% else %}btn-warning{% endif %}">
+          <i class="fas fa-vial mr-2"></i>
+          Set to Testnet
+        </button>
 
-          <button type="button" data-network="mainnet"
-                  class="btn btn-outline btn-sm {% if active_network == 'mainnet' %}disabled{% endif %}">
-            Set to Mainnet
-          </button>
+        <button type="button" data-network="mainnet"
+                class="btn btn-outline {% if active_network == 'mainnet' %}btn-disabled{% else %}btn-success{% endif %}">
+          <i class="fas fa-rocket mr-2"></i>
+          Set to Mainnet
+        </button>
+      </div>
+    </div>
+  </div>
+
+  <!-- Wallet Connections -->
+  {% for wallet in wallets %}
+    <div id="wallet-{{ wallet.id }}" class="bg-base-100 p-6 rounded-xl border-2 border-base-300 space-y-4">
+      <div class="flex items-center justify-between">
+        <div class="flex items-center gap-3">
+          <div class="p-2 rounded-lg bg-primary/10 text-primary">
+            <i class="fas fa-wallet"></i>
+          </div>
+          <div>
+            <h4 class="font-semibold text-lg">{{ wallet.name }}</h4>
+            <p class="text-sm text-base-content/70">Algorand Wallet Provider</p>
+          </div>
+        </div>
+        <div id="wallet-status-{{ wallet.id }}" class="badge badge-outline badge-warning">
+          Disconnected
+        </div>
+      </div>
+
+      <!-- Connect Button - Full width like Sign In button -->
+      <button id="connect-button-{{ wallet.id }}"
+              type="button"
+              class="btn btn-primary w-full">
+        <i class="fas fa-plug mr-2"></i>
+        Connect Wallet
+      </button>
+
+      <!-- Other Actions - Smaller buttons below -->
+      <div class="grid grid-cols-2 sm:grid-cols-4 gap-2">
+        <button id="disconnect-button-{{ wallet.id }}"
+                type="button"
+                class="btn btn-error btn-sm">
+          <i class="fas fa-unlink mr-1"></i>
+          Disconnect
+        </button>
+        <button id="transaction-button-{{ wallet.id }}"
+                type="button"
+                class="btn btn-accent btn-sm">
+          <i class="fas fa-paper-plane mr-1"></i>
+          Send Tx
+        </button>
+        <button id="auth-button-{{ wallet.id }}"
+                type="button"
+                class="btn btn-success btn-sm"
+                data-next-url="{{ request.GET.next }}">
+          <i class="fas fa-fingerprint mr-1"></i>
+          Auth
+        </button>
+        <button id="set-active-button-{{ wallet.id }}"
+                type="button"
+                class="btn btn-outline btn-sm">
+          <i class="fas fa-star mr-1"></i>
+          Set Active
+        </button>
+      </div>
+
+      <!-- Account Selection -->
+      <div class="form-control">
+        <label class="label">
+          <span class="label-text font-semibold">Active Account</span>
+        </label>
+        <div class="bg-base-200 p-1 rounded-lg border border-base-300">
+          <select id="active-account-select-{{ wallet.id }}" class="select select-ghost w-full">
+            <option value="">No accounts connected</option>
+          </select>
+        </div>
+        <div class="text-xs text-base-content/60 mt-2">
+          Select an account to use for authentication
         </div>
       </div>
     </div>
-
-    {% for wallet in wallets %}
-      <div id="wallet-{{ wallet.id }}" class="space-y-4 p-4 rounded-lg bg-base-200">
-        <h4 class="font-semibold text-lg flex items-center gap-2">
-          {{ wallet.name }}
-          {% comment %}
-            The 'Active' badge will be dynamically added/removed by the frontend JS
-          {% endcomment %}
-        </h4>
-
-        <div class="flex flex-wrap gap-2">
-          <button id="connect-button-{{ wallet.id }}"
-                  type="button"
-                  class="btn btn-primary btn-sm">
-            Connect
-          </button>
-          <button id="disconnect-button-{{ wallet.id }}"
-                  type="button"
-                  class="btn btn-error btn-sm">
-            Disconnect
-          </button>
-          <button id="transaction-button-{{ wallet.id }}"
-                  type="button"
-                  class="btn btn-accent btn-sm">
-            Send Transaction
-          </button>
-          <button id="auth-button-{{ wallet.id }}"
-                  type="button"
-                  class="btn btn-secondary btn-sm"
-                  data-next-url="{{ request.GET.next }}">
-            Authenticate
-          </button>
-          <button id="set-active-button-{{ wallet.id }}"
-                  type="button"
-                  class="btn btn-outline btn-sm">
-            Set Active
-          </button>
-        </div>
-
-        <div class="form-control">
-          <label class="label">
-            <span class="label-text">Active Account</span>
-          </label>
-          <select id="active-account-select-{{ wallet.id }}" class="select select-bordered w-full">
-            <option value="">No accounts</option>
-          </select>
-        </div>
-      </div>
-    {% endfor %}
-  </div>
-  <script type="module" src="{% static 'js/bundle.js' %}"></script>
+  {% empty %}
+    <div class="bg-base-100 p-8 rounded-xl border-2 border-base-300 text-center">
+      <i class="fas fa-wallet text-4xl text-base-content/30 mb-4"></i>
+      <h3 class="text-xl font-semibold mb-2">No Wallets Available</h3>
+      <p class="text-base-content/70 max-w-md mx-auto">
+        No Algorand wallet providers are currently available. 
+        Please ensure you have a compatible wallet extension installed.
+      </p>
+    </div>
+  {% endfor %}
 </div>
+
+<script type="module" src="{% static 'js/bundle.js' %}"></script>

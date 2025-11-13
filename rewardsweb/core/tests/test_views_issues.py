@@ -775,7 +775,7 @@ class TestIssueDetailViewWithForm:
         assert response.status_code == 200
         # Check that form elements are in the response
         content = response.content.decode()
-        assert "Set labels" in content  # Button text
+        assert "Update labels" in content  # Button text
         assert "bug" in content  # Label option
         assert "high priority" in content  # Priority option
 

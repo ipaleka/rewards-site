@@ -20,6 +20,8 @@ rewardsweb/fixtures/*.pkl
 rewardsweb/fixtures/*.pem
 rewardsweb/.coverage
 rewardsweb/core/static/css/tailwindcss
+rewardsweb/core/coverage
+rewardsweb/core/node_modules
 rewardsweb/rewardsbot/.env
 rewardsweb/rewardsbot/*.log
 rewardsweb/frontend/coverage

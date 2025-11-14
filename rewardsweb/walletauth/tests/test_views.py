@@ -1197,7 +1197,7 @@ class TestClaimAllocationAPIView:
             "walletauth.views.is_valid_address", return_value=True
         )
         mocked_claim = mocker.patch(
-            "walletauth.views.can_user_claim", return_value=True
+            "walletauth.views.claimable_amount_for_address", return_value=100
         )
         data = {"address": valid_address}
         request = rf.post("/claim-allocations/", data=data, format="json")
@@ -1218,7 +1218,7 @@ class TestClaimAllocationAPIView:
             "walletauth.views.is_valid_address", return_value=True
         )
         mocked_claim = mocker.patch(
-            "walletauth.views.can_user_claim", return_value=False
+            "walletauth.views.claimable_amount_for_address", return_value=200
         )
 
         rf = RequestFactory()
@@ -1234,7 +1234,7 @@ class TestClaimAllocationAPIView:
 
         assert response.status_code == 200
         response_data = response.data
-        assert response_data["claimable"] is False
+        assert response_data["claimable"] is True
         mocked_address.assert_called_once_with(valid_address)
         mocked_claim.assert_called_once_with(valid_address)
 

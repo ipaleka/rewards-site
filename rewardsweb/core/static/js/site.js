@@ -1,6 +1,6 @@
-/************************************************************
- *  Toast Notifications (DaisyUI)
- ************************************************************/
+/**
+ * Toast Notifications (DaisyUI)
+ */
 function showToast(type, text) {
   const toastContainer = document.getElementById("toast-container");
   if (!toastContainer) return;
@@ -20,17 +20,15 @@ function showToast(type, text) {
 //     messages.forEach(({ tag, text }) => showToast(tag, text));
 // }
 
-/************************************************************
- *  Modal Close Helpers
- ************************************************************/
+/**
+ * Modal Close Helpers
+ */
 function closeModal() {
   const modalContainer = document.getElementById("modal-container");
   if (modalContainer) modalContainer.innerHTML = "";
 }
 
-/************************************************************
- *  ✅ GLOBAL HTMX TOP PROGRESS BAR (GitHub-style)
- ************************************************************/
+
 var progressInterval = null;
 var htmxRequestBlocking = false;
 
@@ -78,10 +76,6 @@ function finishProgressBar(blocking = false) {
     bar.style.width = "0%";
   }, 300);
 }
-
-/************************************************************
- *  ✅ UNIFIED HTMX EVENT PIPELINE (single afterSwap handler)
- ************************************************************/
 
 /**
  * Request started — progress bar
@@ -140,6 +134,30 @@ document.body.addEventListener("htmx:afterSwap", function (evt) {
 
 
 /**
+ * Simple Network Button Toggle
+ */
+function processActiveNetwork() {
+  const networkContainer = document.getElementById('active-network');
+  
+  if (networkContainer) {
+    const [button1, button2] = networkContainer.querySelectorAll('button[data-network]');
+    
+    networkContainer.addEventListener('click', function(e) {
+      const clicked = e.target.closest('button[data-network]');
+      if (!clicked) return;
+      
+      const other = clicked === button1 ? button2 : button1;
+      
+      clicked.disabled = true;
+      clicked.classList.add('btn-disabled');
+      
+      other.disabled = false;
+      other.classList.remove('btn-disabled');
+    });
+  }
+}
+
+/**
  * DaisyUI Theme Persistence (localStorage)
  */
 function processDaisyUITheme() {
@@ -181,7 +199,9 @@ function processDjangoMessages() {
 
 // Theme toggle functionality
 document.addEventListener("DOMContentLoaded", function () {
+  processActiveNetwork()
   processDaisyUITheme();
+  processDjangoMessages();
 
   document.querySelectorAll(".toast").forEach((toast) => {
     setTimeout(() => {
@@ -190,7 +210,8 @@ document.addEventListener("DOMContentLoaded", function () {
     }, 4500);
   });
 
-  processDjangoMessages();
+  
+  
 });
 
 /**
@@ -206,6 +227,7 @@ document.body.addEventListener("htmx:afterSwap", processDaisyUITheme);
 if (typeof exports !== "undefined") {
   module.exports = {
     showToast,
+    processActiveNetwork,
     processDaisyUITheme,
     processDjangoMessages,
     closeModal,

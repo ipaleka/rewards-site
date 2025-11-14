@@ -11,7 +11,7 @@ from django.views.generic import TemplateView
 
 from contract.helpers import is_admin_account_configured
 from contract.network import (
-    fetch_claimable_amount_for_address,
+    claimable_amount_for_address,
     process_allocations_for_contributions,
     process_reclaim_allocation,
     reclaimable_addresses,
@@ -51,7 +51,7 @@ class ClaimView(LoginRequiredMixin, TemplateView):
             and contributor.address
             and is_valid_address(contributor.address)
         ):
-            context["amount"] = fetch_claimable_amount_for_address(contributor.address)
+            context["amount"] = claimable_amount_for_address(contributor.address)
 
         return context
 

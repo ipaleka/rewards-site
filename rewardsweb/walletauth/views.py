@@ -13,7 +13,7 @@ from rest_framework.permissions import IsAdminUser
 from rest_framework.response import Response
 from rest_framework.views import APIView
 
-from contract.network import can_user_claim, reclaimable_addresses
+from contract.network import claimable_amount_for_address, reclaimable_addresses
 from core.models import Contribution, Contributor, Profile
 from rewards.helpers import (
     added_allocations_for_addresses,
@@ -370,7 +370,7 @@ class ClaimAllocationAPIView(APIView):
                 {"error": f"Invalid or missing address: {address}"}, status=400
             )
 
-        has_claimable_allocation = can_user_claim(address)
+        has_claimable_allocation = bool(claimable_amount_for_address(address))
         return Response({"claimable": has_claimable_allocation})
 
 

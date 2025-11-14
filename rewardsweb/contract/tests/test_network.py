@@ -13,7 +13,7 @@ from contract.network import (
     _add_allocations,
     _check_balances,
     _reclaim_allocation,
-    can_user_claim,
+    claimable_amount_for_address,
     create_app,
     delete_app,
     fund_app,
@@ -266,7 +266,7 @@ class TestContractNetworkPrivateFunctions:
 class TestContractNetworkPublicFunctions:
     """Testing class for :py:mod:`contract.network` public functions."""
 
-    def test_contract_network_can_user_claim_returns_true_when_claimable_default_network(
+    def test_contract_network_claimable_amount_for_address_claimable_default_network(
         self, mocker
     ):
         user_address = "USER123"
@@ -287,16 +287,16 @@ class TestContractNetworkPublicFunctions:
 
         # amount > 0 and expires_at in the future → True
         future_timestamp = int(time.time()) + 5000
-        packed = struct.pack(">QQ", 100, future_timestamp)
+        packed = struct.pack(">QQ", 150, future_timestamp)
         encoded = base64.b64encode(packed)
 
         client.application_box_by_name.return_value = {"value": encoded}
 
-        returned = can_user_claim(user_address)
+        returned = claimable_amount_for_address(user_address)
 
-        assert returned is True
+        assert returned == 150
 
-    def test_contract_network_can_user_claim_returns_true_when_claimable(self, mocker):
+    def test_contract_network_claimable_amount_for_address_claimable(self, mocker):
         network = "mainnet"
         user_address = "USER123"
 
@@ -321,11 +321,11 @@ class TestContractNetworkPublicFunctions:
 
         client.application_box_by_name.return_value = {"value": encoded}
 
-        returned = can_user_claim(user_address, network)
+        returned = claimable_amount_for_address(user_address, network)
 
-        assert returned is True
+        assert returned == 100
 
-    def test_contract_network_can_user_claim_returns_false_for_no_box(self, mocker):
+    def test_contract_network_claimable_amount_for_address_returns_false_for_no_box(self, mocker):
         network = "testnet"
         user_address = "USER123"
 
@@ -342,11 +342,11 @@ class TestContractNetworkPublicFunctions:
 
         client.application_box_by_name.side_effect = AlgodHTTPError("box not found")
 
-        returned = can_user_claim(user_address, network)
+        returned = claimable_amount_for_address(user_address, network)
 
         assert returned is False
 
-    def test_contract_network_can_user_claim_returns_false_when_box_missing(
+    def test_contract_network_claimable_amount_for_address_returns_false_when_box_missing(
         self, mocker
     ):
         network = "testnet"
@@ -365,11 +365,11 @@ class TestContractNetworkPublicFunctions:
 
         client.application_box_by_name.return_value = {"value": None}
 
-        returned = can_user_claim(user_address, network)
+        returned = claimable_amount_for_address(user_address, network)
 
         assert returned is False
 
-    def test_contract_network_can_user_claim_returns_false_when_amount_zero(
+    def test_contract_network_claimable_amount_for_address_returns_false_when_amount_zero(
         self, mocker
     ):
         network = "testnet"
@@ -393,11 +393,11 @@ class TestContractNetworkPublicFunctions:
 
         client.application_box_by_name.return_value = {"value": encoded}
 
-        returned = can_user_claim(user_address, network)
+        returned = claimable_amount_for_address(user_address, network)
 
         assert returned is False
 
-    def test_contract_network_can_user_claim_raises_when_expired(self, mocker):
+    def test_contract_network_claimable_amount_for_address_raises_when_expired(self, mocker):
         network = "mainnet"
         user_address = "USEREXPIRED"
 
@@ -420,7 +420,7 @@ class TestContractNetworkPublicFunctions:
         client.application_box_by_name.return_value = {"value": encoded}
 
         with pytest.raises(ValueError, match="claim period has ended"):
-            can_user_claim(user_address, network)
+            claimable_amount_for_address(user_address, network)
 
     # # create_app
     def test_contract_network_create_app_calls_wait_and_returns_app_id(self, mocker):

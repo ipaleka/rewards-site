@@ -332,18 +332,40 @@ class ContributorListView(ListView):
         # Get search query from GET parameters
         search_query = self.request.GET.get("q")
         if search_query:
-            # Search in contributor names and handle handles
-            return queryset.filter(
-                Q(name__icontains=search_query)
-                | Q(handle__handle__icontains=search_query)
-            ).distinct()
+            # For search results, we can't use the complex prefetch
+            return (
+                queryset.filter(
+                    Q(name__icontains=search_query)
+                    | Q(handle__handle__icontains=search_query)
+                )
+                .distinct()
+                .prefetch_related(
+                    Prefetch(
+                        "handle_set",
+                        queryset=Handle.objects.select_related("platform").order_by(
+                            Lower("handle")
+                        ),
+                        to_attr="prefetched_handles",
+                    )
+                )
+            )
 
+        # For non-search queries, use full prefetching
         return queryset.prefetch_related(
             Prefetch(
                 "handle_set",
-                queryset=Handle.objects.order_by(Lower("handle")),
+                queryset=Handle.objects.select_related("platform").order_by(
+                    Lower("handle")
+                ),
                 to_attr="prefetched_handles",
-            )
+            ),
+            Prefetch(
+                "contribution_set",
+                queryset=Contribution.objects.select_related(
+                    "cycle", "reward", "reward__type", "issue"
+                ).order_by("cycle__start", "created_at"),
+                to_attr="prefetched_contributions",
+            ),
         )
 
     def render_to_response(self, context, **response_kwargs):
@@ -384,6 +406,29 @@ class ContributorDetailView(DetailView):
 
     model = Contributor
 
+    def get_queryset(self):
+        """Prefetch all related data to avoid N+1 queries.
+
+        :return: QuerySet of this cycle's contributions ordered by ID in reverse
+        :rtype: :class:`django.db.models.QuerySet`
+        """
+        return Contributor.objects.prefetch_related(
+            Prefetch(
+                "handle_set",
+                queryset=Handle.objects.select_related("platform").order_by(
+                    Lower("handle")
+                ),
+                to_attr="prefetched_handles",
+            ),
+            Prefetch(
+                "contribution_set",
+                queryset=Contribution.objects.select_related(
+                    "cycle", "reward", "reward__type", "issue"
+                ).order_by("cycle__start", "created_at"),
+                to_attr="prefetched_contributions",
+            ),
+        )
+
 
 class CycleListView(ListView):
     """View for displaying a paginated list of all cycles in reverse order.
@@ -408,12 +453,21 @@ class CycleListView(ListView):
         return context
 
     def get_queryset(self):
-        """Return queryset of all cycles in reverse chronological order.
+        """Return prefetch data of all cycles in reverse chronological order.
+
+        Annotate with counts and totals to avoid any additional queries
 
         :return: QuerySet of cycles in reverse order
         :rtype: :class:`django.db.models.QuerySet`
         """
-        return Cycle.objects.order_by("-id")
+        return Cycle.objects.annotate(
+            contributions_count=Count("contribution"),
+            total_rewards_amount=Sum(
+                "contribution__reward__amount",
+                filter=Q(contribution__issue__status__isnull=True)
+                | ~Q(contribution__issue__status=IssueStatus.WONTFIX),
+            ),
+        ).order_by("-id")
 
 
 class CycleDetailView(DetailView):
@@ -426,7 +480,7 @@ class CycleDetailView(DetailView):
     model = Cycle
 
     def get_queryset(self):
-        """Optimize queryset to reduce database queries.
+        """Optimize queryset with annotations to avoid additional queries.
 
         :return: QuerySet of this cycle's contributions ordered by ID in reverse
         :rtype: :class:`django.db.models.QuerySet`
@@ -434,12 +488,23 @@ class CycleDetailView(DetailView):
         return (
             super()
             .get_queryset()
+            .annotate(
+                # Count all contributions
+                contributions_count=Count("contribution"),
+                # Sum rewards, excluding WONTFIX issues
+                total_rewards_amount=Sum(
+                    "contribution__reward__amount",
+                    filter=Q(contribution__issue__status__isnull=True)
+                    | ~Q(contribution__issue__status=IssueStatus.WONTFIX),
+                ),
+            )
             .prefetch_related(
                 Prefetch(
                     "contribution_set",
                     queryset=Contribution.objects.select_related(
-                        "contributor", "reward__type", "platform"
+                        "contributor", "reward", "reward__type", "platform", "issue"
                     ).order_by("-id"),
+                    to_attr="prefetched_contributions",
                 )
             )
         )

@@ -121,17 +121,17 @@
               <a class="link link-accent text-xl font-semibold hover:no-underline" href="{{ contributor.get_absolute_url }}">
                 {{ contributor.info }}
               </a>
-              {% if contributor.handle_set.all %}
+              {% if contributor.prefetched_handles %}
               <div class="flex items-center gap-3 mt-1">
-                {% for handle in contributor.handle_set.all|slice:":3" %}
+                {% for handle in contributor.prefetched_handles|slice:":3" %}
                 <span class="badge badge-outline badge-sm">
                   <i class="fab fa-{{ handle.platform.name|lower }} mr-1"></i>
                   {{ handle.handle }}
                 </span>
                 {% endfor %}
-                {% if contributor.handle_set.all|length > 3 %}
+                {% if contributor.prefetched_handles|length > 3 %}
                 <span class="badge badge-ghost badge-sm">
-                  +{{ contributor.handle_set.all|length|add:"-3" }} more
+                  +{{ contributor.prefetched_handles|length|add:"-3" }} more
                 </span>
                 {% endif %}
               </div>
@@ -139,12 +139,14 @@
             </div>
           </div>
           <div class="flex items-center gap-4">
-            {% if contributor.total_rewards %}
+            {% with rewards=contributor.total_rewards %}
+            {% if rewards %}
             <div class="text-right">
               <div class="text-sm font-semibold text-base-content/70">Total Rewards</div>
-              <div class="text-success font-bold">{{ contributor.total_rewards|floatformat:"g" }}</div>
+              <div class="text-success font-bold">{{ rewards|floatformat:"g" }}</div>
             </div>
             {% endif %}
+            {% endwith %}
             <i class="fas fa-chevron-right text-base-content/30 group-hover:text-base-content/60 transition-colors"></i>
           </div>
         </div>

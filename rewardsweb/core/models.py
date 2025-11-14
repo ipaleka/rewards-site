@@ -159,11 +159,15 @@ class Contributor(models.Model):
         :rtype: dict
         """
         # Single query to get everything with related data
-        all_contributions = list(
-            self.contribution_set.select_related(
-                "cycle", "reward", "reward__type", "issue"
-            ).order_by("cycle__start", "created_at")
-        )
+        if hasattr(self, "prefetched_contributions"):
+            all_contributions = self.prefetched_contributions
+        else:
+            # Fallback to database query
+            all_contributions = list(
+                self.contribution_set.select_related(
+                    "cycle", "reward", "reward__type", "issue"
+                ).order_by("cycle__start", "created_at")
+            )
 
         # Categorize contributions in memory
         open_contribs = []
@@ -736,9 +740,9 @@ class ContributionManager(models.Manager):
 
         :param contributions: all contributions for the user defined by provided `address`
         :type contributions: :class:`django.db.models.query.QuerySet`
-        :var amounts: colection of addresses and related contribution ammounts
+        :var amounts: collection of addresses and related contribution amounts
         :type amounts: dict
-        :var contrib: colection of addresses and related contribution ammounts
+        :var contrib: collection of addresses and related contribution amounts
         :type contrib: :class:`Contribution`
         :return: two-tuple
         """
@@ -758,7 +762,9 @@ class ContributionManager(models.Manager):
         :type contributions: :class:`django.db.models.query.QuerySet`
         :return: two-tuple
         """
-        contributions = self.filter(issue__status=IssueStatus.ADDRESSED)
+        contributions = self.filter(issue__status=IssueStatus.ADDRESSED).select_related(
+            "contributor", "reward", "issue"
+        )
         return self.addresses_and_amounts_from_contributions(contributions)
 
     def update_issue_statuses_for_addresses(self, addresses, contributions):

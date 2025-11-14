@@ -1370,7 +1370,10 @@ class TestCycleDetailView:
         returned = view.get_queryset()
 
         # Verify the final return value
-        assert returned == mocked_queryset.return_value.prefetch_related.return_value
+        assert (
+            returned
+            == mocked_queryset.return_value.annotate.return_value.prefetch_related.return_value
+        )
 
         # Verify Prefetch was called with correct parameters
         mocked_prefetch.assert_called_once_with(
@@ -1421,11 +1424,10 @@ class TestCycleDetailView:
         # Verify prefetch_related is applied
         assert hasattr(queryset, "_prefetch_related_lookups")
 
-        # When we access the contributions, they should be in reverse ID order
-        contributions = list(cycle_from_queryset.contribution_set.all())
-
-        # Should be in reverse ID order: newest/largest ID first
-        assert contributions == [contribution3, contribution2, contribution1]
+        # Test 1: Prefetched data should be in reverse order
+        assert hasattr(cycle_from_queryset, "prefetched_contributions")
+        prefetched_contributions = cycle_from_queryset.prefetched_contributions
+        assert prefetched_contributions == [contribution3, contribution2, contribution1]
 
 
 @pytest.mark.django_db

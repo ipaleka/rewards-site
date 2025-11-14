@@ -121,6 +121,29 @@
       {% endif %}
     </div>
 
+    <!-- Claimable Rewards Section -->
+    {% if user.profile.contributor and user.profile.contributor.claimable_contributions %}
+    <div class="stat-card bg-gradient-to-r from-success/10 to-success/5 border border-success/20">
+      <div class="flex items-center justify-between">
+        <div class="flex items-center gap-3">
+          <div class="p-3 rounded-lg bg-success/20 text-success">
+            <i class="fas fa-gift text-xl"></i>
+          </div>
+          <div>
+            <h2 class="text-xl font-bold text-success">Claimable Rewards Available!</h2>
+            <p class="text-base-content/70 mt-1">
+              You have {{ user.profile.contributor.claimable_contributions|length }} contribution(s) ready to be claimed.
+            </p>
+          </div>
+        </div>
+        <a href="{% url 'claim' %}" class="btn btn-success btn-lg">
+          <i class="fas fa-gift mr-2"></i>
+          Claim Rewards
+        </a>
+      </div>
+    </div>
+    {% endif %}
+
     <!-- User Active Contributions -->
     {% if user.is_authenticated %}
     <div class="stat-card">

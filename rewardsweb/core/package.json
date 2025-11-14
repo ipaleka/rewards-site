@@ -1,0 +1,19 @@
+{
+  "name": "rewardsweb-js-tests",
+  "version": "1.0.0",
+  "description": "JavaScript tests for the rewardsweb project.",
+  "main": "index.js",
+  "scripts": {
+    "test": "jest",
+    "test:coverage": "jest --coverage",
+    "test:watch": "jest --coverage --watch",
+    "test:coverage:verbose": "jest --coverage --verbose"
+  },
+  "keywords": [],
+  "author": "",
+  "license": "ISC",
+  "devDependencies": {
+    "jest": "^29.7.0",
+    "jest-environment-jsdom": "^29.7.0"
+  }
+}

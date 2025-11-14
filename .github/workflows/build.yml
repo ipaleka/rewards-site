@@ -116,3 +116,21 @@ jobs:
           directory: rewardsweb/frontend/coverage
           flags: frontend
           name: frontend-coverage
+
+      - name: Install dependencies
+        run: |
+          cd rewardsweb/core
+          npm ci
+
+      - name: Run core app's tests with coverage
+        run: |
+          cd rewardsweb/core
+          npm run test:coverage
+
+      - name: Upload corer app's coverage to Codecov
+        uses: codecov/codecov-action@v5
+        with:
+          token: ${{ secrets.CODECOV_TOKEN }}
+          directory: rewardsweb/core/coverage
+          flags: core
+          name: core-coverage

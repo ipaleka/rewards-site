@@ -61,7 +61,7 @@ function closeModal() {
  *****************************************************************************/
 
 var progressInterval = null;
-var htmxRequestBlocking = false;
+var htmxState = { requestBlocking: false };
 
 /**
  * Determines if an HTMX request should be "blocking," meaning it disables
@@ -104,7 +104,7 @@ function startProgressBar(blocking = false) {
  * Completes and hides the HTMX progress bar.
  * @param {boolean} blocking - If true, re-enables pointer events on the body.
  */
-function finishProgressBar(blocking = false) {
+function finishProgressBar(blocking = false, callback) {
   const bar = document.getElementById("htmx-progress-bar");
   if (!bar) return;
 
@@ -118,6 +118,9 @@ function finishProgressBar(blocking = false) {
   setTimeout(() => {
     bar.classList.add("hidden");
     bar.style.width = "0%";
+    if (callback) {
+      callback();
+    }
   }, 300);
 }
 
@@ -185,22 +188,28 @@ function processDaisyUITheme() {
 /**
  * Initializes UI components when the DOM is fully loaded.
  */
-document.addEventListener("DOMContentLoaded", function () {
+/* istanbul ignore next */
+function initializeDomReadyListeners() {
   processActiveNetwork();
   processDaisyUITheme();
   processDjangoMessages();
-});
+}
+
+/**
+ * Initializes UI components when the DOM is fully loaded.
+ */
+document.addEventListener("DOMContentLoaded", initializeDomReadyListeners);
 
 /**
  * HTMX listener: Fired before a request is sent.
  * Starts the progress bar.
  */
 document.body.addEventListener("htmx:configRequest", (event) => {
-  htmxRequestBlocking = isBlockingRequest(
+  htmxState.requestBlocking = isBlockingRequest(
     event.detail.elt,
     event.detail.requestConfig
   );
-  startProgressBar(htmxRequestBlocking);
+  startProgressBar(htmxState.requestBlocking);
 });
 
 /**
@@ -208,33 +217,36 @@ document.body.addEventListener("htmx:configRequest", (event) => {
  * Handles post-swap UI updates like animations, focus, toasts, and modals.
  */
 document.body.addEventListener("htmx:afterSwap", (event) => {
-  finishProgressBar(htmxRequestBlocking);
+  finishProgressBar(htmxState.requestBlocking);
+
+  const swappedEl = event.detail.target;
 
   // Fade-in animation for the new content
-  event.target.classList.add("fade-in");
-  setTimeout(() => event.target.classList.remove("fade-in"), 300);
+  swappedEl.classList.add("fade-in");
+  setTimeout(() => swappedEl.classList.remove("fade-in"), 300);
 
   // Autofocus on the first input in the new content
-  const firstInput = event.target.querySelector(
+  const firstInput = swappedEl.querySelector(
     "input:not([type=hidden]), textarea, select"
   );
   if (firstInput) setTimeout(() => firstInput.focus(), 30);
 
   // Show toast notifications if specified in the response
-  if (event.target.dataset.toastMessage) {
+  if (swappedEl.dataset.toastMessage) {
     showToast(
-      event.target.dataset.toastType || "success",
-      event.target.dataset.toastMessage
+      swappedEl.dataset.toastType || "success",
+      swappedEl.dataset.toastMessage
     );
   }
 
   // Auto-open any dialogs in the swapped content
-  const dialogs = event.target.querySelectorAll("dialog");
+  const dialogs = swappedEl.querySelectorAll("dialog");
   dialogs.forEach((dialog) => {
+    /* istanbul ignore next */
     if (!dialog.open) dialog.showModal();
   });
-  if (event.target.tagName === "DIALOG" && !event.target.open) {
-    event.target.showModal();
+  if (swappedEl.tagName === "DIALOG" && !swappedEl.open) {
+    swappedEl.showModal();
   }
 
   // Re-apply theme logic if theme-related elements were swapped
@@ -246,7 +258,7 @@ document.body.addEventListener("htmx:afterSwap", (event) => {
  * Ensures the progress bar and blocking state are always reset.
  */
 document.body.addEventListener("htmx:error", () => {
-  finishProgressBar(htmxRequestBlocking);
+  finishProgressBar(htmxState.requestBlocking);
 });
 
 /******************************************************************************
@@ -266,5 +278,7 @@ if (typeof exports !== "undefined") {
     finishProgressBar,
     processActiveNetwork,
     processDaisyUITheme,
+    htmxState,
+    initializeDomReadyListeners,
   };
 }

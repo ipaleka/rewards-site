@@ -6,7 +6,6 @@ from walletauth.views import (
     ActiveNetworkAPIView,
     AddAllocationsAPIView,
     AllocationsSuccessfulAPIView,
-    ClaimAllocationAPIView,
     ClaimSuccessfulAPIView,
     ReclaimAllocationsAPIView,
     ReclaimSuccessfulAPIView,
@@ -31,11 +30,6 @@ urlpatterns = [
         "allocations-successful/",
         AllocationsSuccessfulAPIView.as_view(),
         name="allocations_successful",
-    ),
-    path(
-        "claim-allocation/",
-        ClaimAllocationAPIView.as_view(),
-        name="auth_claim_allocation",
     ),
     path(
         "claim-successful/", ClaimSuccessfulAPIView.as_view(), name="claim_successful"

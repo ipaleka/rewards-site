@@ -1,13 +1,12 @@
-import { RewardsClient } from './RewardsClient'
-import { WalletManager } from '@txnlab/use-wallet'
+import { RewardsClient } from "./RewardsClient";
+import { WalletManager } from "@txnlab/use-wallet";
 
 /**
  * Component for handling reward claim operations.
- * 
- * Manages the UI and logic for checking claimable status and submitting
- * claim transactions to the blockchain. Automatically updates when wallet
- * state changes.
- * 
+ *
+ * Manages the logic for submitting claim transactions to the blockchain.
+ * No longer handles UI rendering - relies on Django template for initial state.
+ *
  * @example
  * ```typescript
  * const claimComponent = new ClaimComponent(rewardsClient, walletManager)
@@ -15,10 +14,9 @@ import { WalletManager } from '@txnlab/use-wallet'
  * ```
  */
 export class ClaimComponent {
-  private element: HTMLElement | null = null
-  private rewardsClient: RewardsClient
-  private walletManager: WalletManager
-  private claimable: boolean = false
+  private element: HTMLElement | null = null;
+  private rewardsClient: RewardsClient;
+  private walletManager: WalletManager;
 
   /**
    * Creates an instance of ClaimComponent.
@@ -27,9 +25,8 @@ export class ClaimComponent {
    * @param walletManager - The wallet manager for account and network state
    */
   constructor(rewardsClient: RewardsClient, walletManager: WalletManager) {
-    this.rewardsClient = rewardsClient
-    this.walletManager = walletManager
-    this.walletManager.subscribe(() => this.fetchClaimableStatus())
+    this.rewardsClient = rewardsClient;
+    this.walletManager = walletManager;
   }
 
   /**
@@ -38,43 +35,8 @@ export class ClaimComponent {
    * @param element - The HTML element to bind the component to
    */
   bind(element: HTMLElement) {
-    this.element = element
-    this.addEventListeners()
-    // Ensure the DOM is fully loaded before fetching data to ensure CSRF token is available
-    if (document.readyState === 'loading') {
-      document.addEventListener('DOMContentLoaded', () => this.fetchClaimableStatus());
-    } else {
-      this.fetchClaimableStatus();
-    }
-  }
-
-  /**
-   * Fetches claimable status data from the backend API.
-   *
-   * Retrieves whether the current account has any claimable rewards.
-   * Updates the internal state with the results and re-renders the UI.
-   *
-   * @private
-   */
-  private async fetchClaimableStatus() {
-    const activeAddress = this.walletManager.activeAccount?.address
-    if (!activeAddress) {
-      this.claimable = false
-      this.render()
-      return
-    }
-
-    try {
-      const status = await this.rewardsClient.fetchClaimableStatus(activeAddress)
-      this.claimable = status.claimable
-    } catch (error) {
-      console.error('[ClaimComponent] Error fetching claimable status:', error)
-      // Don't show alert for initial data load - it's not user-initiated
-      // Just log it and set claimable to false
-      this.claimable = false
-    } finally {
-      this.render()
-    }
+    this.element = element;
+    this.addEventListeners();
   }
 
   /**
@@ -87,47 +49,36 @@ export class ClaimComponent {
    */
   private async handleClaim() {
     try {
-      console.info('[ClaimComponent] Initiating claim...')
+      console.info("[ClaimComponent] Initiating claim...");
 
       // Step 1: Call smart contract
-      const txID = await this.rewardsClient.claimRewards()
-  
+      const txID = await this.rewardsClient.claimRewards();
+      console.log("[DEBUG] claimRewards completed, txID:", txID);
+
       // Step 2: Notify backend (fail silently)
       try {
-        const activeAddress = this.walletManager.activeAccount?.address
+        const activeAddress = this.walletManager.activeAccount?.address;
+        console.log("[DEBUG] Active address:", activeAddress);
         if (activeAddress) {
-          await this.rewardsClient.userClaimed(activeAddress, txID)
+          await this.rewardsClient.userClaimed(activeAddress, txID);
+          console.log("[DEBUG] userClaimed completed");
         }
       } catch (notificationError) {
-        console.error('Backend notification failed:', notificationError)
+        console.error("Backend notification failed:", notificationError);
         // Silently continue - the blockchain transaction succeeded
       }
 
       // Step 3: Reload to show updated state
-      location.reload()
-
+      console.log("[DEBUG] About to call location.reload()");
+      location.reload();
+      console.log("[DEBUG] After location.reload()");
     } catch (error) {
-      // Only handle smart contract errors with alerts
-      console.error('[ClaimComponent] Error during claim:', error)
-      alert(`Claim failed: ${error instanceof Error ? error.message : String(error)}`)
-    }
-  }
-
-  /**
-   * Renders the current claimable status to the UI.
-   *
-   * Updates the claim button state and text based on whether rewards
-   * are currently claimable.
-   *
-   * @private
-   */
-  private render() {
-    if (!this.element) return
-
-    const claimButton = this.element.querySelector<HTMLButtonElement>('#claim-button')
-    if (claimButton) {
-      claimButton.disabled = !this.claimable
-      claimButton.textContent = this.claimable ? 'Claim' : 'No Claim Available'
+      console.error("[ClaimComponent] Error during claim:", error);
+      alert(
+        `Claim failed: ${
+          error instanceof Error ? error.message : String(error)
+        }`
+      );
     }
   }
 
@@ -139,14 +90,20 @@ export class ClaimComponent {
    * @private
    */
   private addEventListeners() {
-    if (!this.element) return
+    if (!this.element) return;
 
-    this.element.addEventListener('click', (e: Event) => {
-      const target = e.target as HTMLElement
-      if (target.id === 'claim-button') {
-        this.handleClaim()
+    this.element.addEventListener("click", (e: Event) => {
+      const target = e.target as HTMLElement;
+
+      // Check if the clicked element is a button and has the claim-button ID
+      if (
+        target.id === "claim-button" &&
+        target instanceof HTMLButtonElement &&
+        !target.disabled
+      ) {
+        this.handleClaim();
       }
-    })
+    });
   }
 
   /**

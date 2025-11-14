@@ -11,6 +11,7 @@ from algosdk.atomic_transaction_composer import (
     TransactionWithSigner,
 )
 from algosdk.encoding import decode_address
+from algosdk.error import AlgodHTTPError
 from algosdk.logic import get_application_address
 from algosdk.transaction import AssetTransferTxn, PaymentTxn
 from algosdk.v2client.algod import AlgodClient
@@ -186,13 +187,13 @@ def _reclaim_allocation(network, user_address):
 
 
 # # PUBLIC
-def can_user_claim(network, user_address):
+def claimable_amount_for_address(user_address, network=ACTIVE_NETWORK):
     """Check if the provided address can claim their allocation.
 
-    :param network: network to deploy to (e.g., "testnet")
-    :type network: str
     :param user_address: The address of the user to check for claimability
     :type user_address: str
+    :param network: network to deploy to (e.g., "testnet")
+    :type network: str
     :var env: environment variables collection
     :type env: dict
     :var client: Algorand Node client instance
@@ -218,16 +219,21 @@ def can_user_claim(network, user_address):
     )
     atc_stub = atc_method_stub(client, network)
     app_id = atc_stub.get("app_id")
-    box_name = decode_address(user_address)
-    value = client.application_box_by_name(app_id, box_name).get("value")
-    if value is None:
+    box_name = box_name_from_address(user_address)
+    try:
+        value = client.application_box_by_name(app_id, box_name).get("value")
+        if value is None:
+            return False
+
+    except AlgodHTTPError:
         return False
 
     amount, expires_at = struct.unpack(">QQ", base64.b64decode(value))
     if amount:
         if expires_at < int(time.time()):
             raise ValueError("User's claim period has ended")
-        return True
+
+        return int(amount / 10 ** int(env.get("rewards_token_decimals")))
 
     return False
 
@@ -333,36 +339,6 @@ def delete_app(client, private_key, app_id):
     # display results
     transaction_response = client.pending_transaction_info(tx_id)
     print("Deleted app-id: ", transaction_response["txn"]["txn"]["apid"])
-
-
-def fetch_claimable_amount_for_address(address, network=ACTIVE_NETWORK):
-    """Process reclaim allocation after performing a couple of checks.
-
-    TODO: implement, docstring, and tests
-
-    :param address: address of the user to check claimable status
-    :type address: str
-    :param network: network to deploy to (e.g., "testnet")
-    :type network: str
-
-    :var env: environment variables collection
-    :type env: dict
-    :var client: Algorand Node client instance
-    :type client: :class:`AlgodClient`
-    :var atc_stub: collection of data required to create atomic transaction
-    :type atc_stub: dict
-    :var app_id: Rewards dApp unique identifier
-    :type app_id: int
-    :var box_name: user's box name
-    :type box_name: bytes
-    :var value: user's box value
-    :type value: bytes
-    :var amount: amount to reclaim
-    :type amount: int
-    :var expires_at: timestamp when user's claim period ends
-    :type expires_at: int
-    """
-    return 0
 
 
 def fund_app(app_id, network, amount=None):

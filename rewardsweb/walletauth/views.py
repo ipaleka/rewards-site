@@ -13,7 +13,10 @@ from rest_framework.permissions import IsAdminUser
 from rest_framework.response import Response
 from rest_framework.views import APIView
 
-from contract.network import can_user_claim, reclaimable_addresses
+from contract.network import (
+    claimable_amount_for_address,
+    reclaimable_addresses,
+)
 from core.models import Contribution, Contributor, Profile
 from rewards.helpers import (
     added_allocations_for_addresses,
@@ -339,39 +342,6 @@ class AllocationsSuccessfulAPIView(APIView):
         added_allocations_for_addresses(request, addresses, txid)
 
         return Response({"success": True})
-
-
-class ClaimAllocationAPIView(APIView):
-    """Check if a user has a claimable allocation."""
-
-    def post(self, request, *args, **kwargs):
-        """Return whether allocation exists for given address.
-
-        Expected JSON:
-            - address (str)
-
-        :param request: HTTP request object
-        :return: JSON response with:
-            - claimable (bool)
-            OR error message
-        """
-        try:
-            data = getattr(request, "data", None)
-            if data is None:
-                data = json.loads(request.body.decode())
-
-            address = data.get("address")
-
-        except Exception:
-            return Response({"error": "Invalid JSON"}, status=400)
-
-        if not address or not is_valid_address(address):
-            return Response(
-                {"error": f"Invalid or missing address: {address}"}, status=400
-            )
-
-        has_claimable_allocation = can_user_claim(address)
-        return Response({"claimable": has_claimable_allocation})
 
 
 class ClaimSuccessfulAPIView(APIView):

@@ -90,15 +90,6 @@ export class ActiveNetwork {
     if (networkSpan) {
       networkSpan.textContent = activeNetwork || "none";
     }
-
-    const buttons = this.element.querySelectorAll("button");
-    buttons.forEach((btn) => {
-      if (btn.dataset.network === activeNetwork) {
-        btn.classList.add("disabled");
-      } else {
-        btn.classList.remove("disabled");
-      }
-    });
   }
 
   /**

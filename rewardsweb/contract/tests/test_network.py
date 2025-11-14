@@ -5,6 +5,7 @@ import struct
 import time
 
 import pytest
+from algosdk.error import AlgodHTTPError
 from algosdk.logic import get_application_address
 
 from contract.network import (
@@ -12,7 +13,7 @@ from contract.network import (
     _add_allocations,
     _check_balances,
     _reclaim_allocation,
-    can_user_claim,
+    claimable_amount_for_address,
     create_app,
     delete_app,
     fund_app,
@@ -265,13 +266,15 @@ class TestContractNetworkPrivateFunctions:
 class TestContractNetworkPublicFunctions:
     """Testing class for :py:mod:`contract.network` public functions."""
 
-    def test_contract_network_can_user_claim_returns_true_when_claimable(self, mocker):
-        network = "testnet"
-        user_address = "USER123"
+    def test_contract_network_claimable_amount_for_address_claimable_default_network(
+        self, mocker
+    ):
+        user_address = "2EVGZ4BGOSL3J64UYDE2BUGTNTBZZZLI54VUQQNZZLYCDODLY33UGXNSIU"
 
         env = {
-            "algod_token_testnet": "token",
-            "algod_address_testnet": "address",
+            f"algod_token_{ACTIVE_NETWORK}": "token",
+            f"algod_address_{ACTIVE_NETWORK}": "address",
+            "rewards_token_decimals": 6,
         }
         mocker.patch("contract.network.environment_variables", return_value=env)
 
@@ -281,24 +284,50 @@ class TestContractNetworkPublicFunctions:
         atc_stub = {"app_id": 111}
         mocker.patch("contract.network.atc_method_stub", return_value=atc_stub)
 
-        mocker.patch("contract.network.decode_address", return_value=b"decoded")
-
         # amount > 0 and expires_at in the future → True
         future_timestamp = int(time.time()) + 5000
-        packed = struct.pack(">QQ", 100, future_timestamp)
+        packed = struct.pack(">QQ", 15_000_000_000, future_timestamp)
         encoded = base64.b64encode(packed)
 
         client.application_box_by_name.return_value = {"value": encoded}
 
-        returned = can_user_claim(network, user_address)
+        returned = claimable_amount_for_address(user_address)
 
-        assert returned is True
+        assert returned == 15_000
 
-    def test_contract_network_can_user_claim_returns_false_when_box_missing(
+    def test_contract_network_claimable_amount_for_address_claimable(self, mocker):
+        network = "mainnet"
+        user_address = "2EVGZ4BGOSL3J64UYDE2BUGTNTBZZZLI54VUQQNZZLYCDODLY33UGXNSIU"
+
+        env = {
+            "algod_token_mainnet": "token",
+            "algod_address_mainnet": "address",
+            "rewards_token_decimals": 2,
+        }
+        mocker.patch("contract.network.environment_variables", return_value=env)
+
+        client = mocker.MagicMock()
+        mocker.patch("contract.network.AlgodClient", return_value=client)
+
+        atc_stub = {"app_id": 111}
+        mocker.patch("contract.network.atc_method_stub", return_value=atc_stub)
+
+        # amount > 0 and expires_at in the future → True
+        future_timestamp = int(time.time()) + 5000
+        packed = struct.pack(">QQ", 10_000, future_timestamp)
+        encoded = base64.b64encode(packed)
+
+        client.application_box_by_name.return_value = {"value": encoded}
+
+        returned = claimable_amount_for_address(user_address, network)
+
+        assert returned == 100
+
+    def test_contract_network_claimable_amount_for_address_returns_false_for_no_box(
         self, mocker
     ):
         network = "testnet"
-        user_address = "USER123"
+        user_address = "2EVGZ4BGOSL3J64UYDE2BUGTNTBZZZLI54VUQQNZZLYCDODLY33UGXNSIU"
 
         env = {
             "algod_token_testnet": "token",
@@ -309,19 +338,40 @@ class TestContractNetworkPublicFunctions:
         client = mocker.MagicMock()
         mocker.patch("contract.network.AlgodClient", return_value=client)
         mocker.patch("contract.network.atc_method_stub", return_value={"app_id": 222})
-        mocker.patch("contract.network.decode_address", return_value=b"decoded")
 
-        client.application_box_by_name.return_value = {"value": None}
+        client.application_box_by_name.side_effect = AlgodHTTPError("box not found")
 
-        returned = can_user_claim(network, user_address)
+        returned = claimable_amount_for_address(user_address, network)
 
         assert returned is False
 
-    def test_contract_network_can_user_claim_returns_false_when_amount_zero(
+    def test_contract_network_claimable_amount_for_address_returns_false_when_box_missing(
         self, mocker
     ):
         network = "testnet"
-        user_address = "USER0"
+        user_address = "2EVGZ4BGOSL3J64UYDE2BUGTNTBZZZLI54VUQQNZZLYCDODLY33UGXNSIU"
+
+        env = {
+            "algod_token_testnet": "token",
+            "algod_address_testnet": "address",
+        }
+        mocker.patch("contract.network.environment_variables", return_value=env)
+
+        client = mocker.MagicMock()
+        mocker.patch("contract.network.AlgodClient", return_value=client)
+        mocker.patch("contract.network.atc_method_stub", return_value={"app_id": 222})
+
+        client.application_box_by_name.return_value = {"value": None}
+
+        returned = claimable_amount_for_address(user_address, network)
+
+        assert returned is False
+
+    def test_contract_network_claimable_amount_for_address_returns_false_when_amount_zero(
+        self, mocker
+    ):
+        network = "testnet"
+        user_address = "2EVGZ4BGOSL3J64UYDE2BUGTNTBZZZLI54VUQQNZZLYCDODLY33UGXNSIU"
 
         env = {
             "algod_token_testnet": "token",
@@ -332,7 +382,6 @@ class TestContractNetworkPublicFunctions:
         client = mocker.MagicMock()
         mocker.patch("contract.network.AlgodClient", return_value=client)
         mocker.patch("contract.network.atc_method_stub", return_value={"app_id": 333})
-        mocker.patch("contract.network.decode_address", return_value=b"decoded")
 
         # amount = 0 → returns False
         future_timestamp = int(time.time()) + 100
@@ -341,13 +390,15 @@ class TestContractNetworkPublicFunctions:
 
         client.application_box_by_name.return_value = {"value": encoded}
 
-        returned = can_user_claim(network, user_address)
+        returned = claimable_amount_for_address(user_address, network)
 
         assert returned is False
 
-    def test_contract_network_can_user_claim_raises_when_expired(self, mocker):
+    def test_contract_network_claimable_amount_for_address_raises_when_expired(
+        self, mocker
+    ):
         network = "mainnet"
-        user_address = "USEREXPIRED"
+        user_address = "2EVGZ4BGOSL3J64UYDE2BUGTNTBZZZLI54VUQQNZZLYCDODLY33UGXNSIU"
 
         env = {
             "algod_token_mainnet": "token",
@@ -358,7 +409,6 @@ class TestContractNetworkPublicFunctions:
         client = mocker.MagicMock()
         mocker.patch("contract.network.AlgodClient", return_value=client)
         mocker.patch("contract.network.atc_method_stub", return_value={"app_id": 444})
-        mocker.patch("contract.network.decode_address", return_value=b"decoded")
 
         # amount > 0 but expired → raises ValueError
         past_timestamp = int(time.time()) - 999
@@ -368,7 +418,7 @@ class TestContractNetworkPublicFunctions:
         client.application_box_by_name.return_value = {"value": encoded}
 
         with pytest.raises(ValueError, match="claim period has ended"):
-            can_user_claim(network, user_address)
+            claimable_amount_for_address(user_address, network)
 
     # # create_app
     def test_contract_network_create_app_calls_wait_and_returns_app_id(self, mocker):

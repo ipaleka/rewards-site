@@ -147,26 +147,6 @@ describe("ActiveNetwork", () => {
       expect(networkSpan.textContent).toBe("mainnet");
     });
 
-    it('should add "disabled" class to the active network button', () => {
-      const subscribeCallback = mockManager.subscribe.mock.calls[0][0];
-      subscribeCallback({ activeNetwork: NetworkId.TESTNET });
-
-      expect(testnetButton.classList.contains("disabled")).toBe(true);
-      expect(mainnetButton.classList.contains("disabled")).toBe(false);
-    });
-
-    it('should remove "disabled" class from inactive network buttons', () => {
-      // Initially set testnet as active
-      const subscribeCallback = mockManager.subscribe.mock.calls[0][0];
-      subscribeCallback({ activeNetwork: NetworkId.TESTNET });
-
-      // Then change to mainnet
-      subscribeCallback({ activeNetwork: NetworkId.MAINNET });
-
-      expect(testnetButton.classList.contains("disabled")).toBe(false);
-      expect(mainnetButton.classList.contains("disabled")).toBe(true);
-    });
-
     it('should display "none" if activeNetwork is null', () => {
       const subscribeCallback = mockManager.subscribe.mock.calls[0][0];
       subscribeCallback({ activeNetwork: null });

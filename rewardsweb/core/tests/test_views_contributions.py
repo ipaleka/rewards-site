@@ -106,7 +106,7 @@ class TestDbContributionEditView:
 
         success_url = view.get_success_url()
 
-        expected_url = reverse("contribution-detail", kwargs={"pk": contribution.pk})
+        expected_url = reverse("contribution_detail", kwargs={"pk": contribution.pk})
         assert success_url == expected_url
         mocked_log_action.assert_called_once()
 
@@ -639,7 +639,7 @@ class TestContributionInvalidateViewDb:
         assert "successfully" in messages[0].message
 
         # Check redirect
-        expected_url = reverse("contribution-detail", kwargs={"pk": contribution.pk})
+        expected_url = reverse("contribution_detail", kwargs={"pk": contribution.pk})
         assert response.url == expected_url
 
         mocked_log_action.assert_called_once_with(
@@ -763,7 +763,7 @@ class TestContributionInvalidateViewDb:
     ):
         """Test view works with different type parameters."""
         url = reverse(
-            "contribution-invalidate",
+            "contribution_invalidate",
             kwargs={"pk": contribution.pk, "reaction": reaction},
         )
 
@@ -794,7 +794,7 @@ class TestContributionInvalidateViewDb:
         content = response.content.decode()
         assert 'name="comment"' in content
         assert "textarea" in content
-        assert "Set as duplicate" in content
+        assert "Confirm as Duplicate" in content
 
     def test_contributioninvalidateview_original_comment_in_context_message_success(
         self, client, superuser, invalidate_url, mock_message_from_url
@@ -812,7 +812,7 @@ class TestContributionInvalidateViewDb:
     ):
         """Test that original comment is empty when message_from_url fails."""
         url = reverse(
-            "contribution-invalidate",
+            "contribution_invalidate",
             kwargs={"pk": contribution.pk, "reaction": "duplicate"},
         )
 
@@ -1315,12 +1315,27 @@ class TestCycleListView:
 class TestDbCycleListView:
     """Testing class for :class:`core.views.CycleListView` with database."""
 
+    def test_cyclelistview_get_context_data(self, rf):
+        request = rf.get("/cycles/")
+
+        # Create test cycles
+        Cycle.objects.create(start="2023-01-01", end="2023-01-31")
+        Cycle.objects.create(start="2023-02-01", end="2023-02-28")
+
+        view = CycleListView()
+        view.setup(request)
+
+        view.object_list = view.get_queryset()
+        context = view.get_context_data()
+
+        assert context["total_cycles"] == 2
+
     def test_cyclelistview_get_queryset(self, rf):
         request = rf.get("/cycles/")
 
         # Create test cycles
-        cycle1 = Cycle.objects.create(start="2023-01-01", end="2023-01-31")
-        cycle2 = Cycle.objects.create(start="2023-02-01", end="2023-02-28")
+        cycle1 = Cycle.objects.create(start="2023-01-02", end="2023-01-31")
+        cycle2 = Cycle.objects.create(start="2023-02-02", end="2023-02-28")
 
         view = CycleListView()
         view.setup(request)
@@ -1345,36 +1360,30 @@ class TestCycleDetailView:
 
     # # get_queryset
     @pytest.mark.django_db
-    def test_cycledetailview_get_queryset_uses_prefetch_related(self, mocker):
-        # Mock the dependencies
-        mocked_queryset = mocker.patch("core.views.DetailView.get_queryset")
-        mocked_prefetch = mocker.patch("core.views.Prefetch")
-        mocked_contribution_objects = mocker.patch("core.views.Contribution.objects")
+    def test_cycledetailview_get_queryset_integration(self):
+        """Integration test to verify the actual queryset behavior."""
+        # Create test data
+        cycle = Cycle.objects.create(start="2025-01-01")
+        contributor = Contributor.objects.create(name="test_contributor")
+        platform = SocialPlatform.objects.create(name="GitHub")
+        reward_type = RewardType.objects.create(label="BUG", name="Bug Fix")
+        reward = Reward.objects.create(type=reward_type, level=1, amount=1000)
+
+        # Create contributions
+        Contribution.objects.create(
+            cycle=cycle, contributor=contributor, platform=platform, reward=reward
+        )
 
         view = CycleDetailView()
-        returned = view.get_queryset()
+        queryset = view.get_queryset()
 
-        # Verify the final return value
-        assert returned == mocked_queryset.return_value.prefetch_related.return_value
+        # Verify annotations are present
+        cycle_from_queryset = queryset.first()
+        assert hasattr(cycle_from_queryset, "contributions_count")
+        assert hasattr(cycle_from_queryset, "total_rewards_amount")
 
-        # Verify Prefetch was called with correct parameters
-        mocked_prefetch.assert_called_once_with(
-            "contribution_set",
-            queryset=mocker.ANY,  # We'll check the queryset separately
-        )
-
-        # Verify prefetch_related was called with our Prefetch object
-        mocked_queryset.return_value.prefetch_related.assert_called_once_with(
-            mocked_prefetch.return_value
-        )
-
-        # Verify the Contribution queryset uses select_related and order_by
-        mocked_contribution_objects.select_related.assert_called_once_with(
-            "contributor", "reward__type", "platform"
-        )
-        mocked_contribution_objects.select_related.return_value.order_by.assert_called_once_with(
-            "-id"
-        )
+        # Verify prefetch is configured
+        assert hasattr(queryset, "_prefetch_related_lookups")
 
     @pytest.mark.django_db
     def test_cycledetailview_get_queryset_integration(self):
@@ -1406,11 +1415,10 @@ class TestCycleDetailView:
         # Verify prefetch_related is applied
         assert hasattr(queryset, "_prefetch_related_lookups")
 
-        # When we access the contributions, they should be in reverse ID order
-        contributions = list(cycle_from_queryset.contribution_set.all())
-
-        # Should be in reverse ID order: newest/largest ID first
-        assert contributions == [contribution3, contribution2, contribution1]
+        # Test 1: Prefetched data should be in reverse order
+        assert hasattr(cycle_from_queryset, "prefetched_contributions")
+        prefetched_contributions = cycle_from_queryset.prefetched_contributions
+        assert prefetched_contributions == [contribution3, contribution2, contribution1]
 
 
 @pytest.mark.django_db

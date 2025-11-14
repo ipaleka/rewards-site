@@ -2,64 +2,155 @@
 {% load i18n static allauth account %}
 
 {% block head_title %}
-  {% trans "Sign Up" %}
+  Sign Up - ASA Stats Rewards
 {% endblock head_title %}
 
+{% block page_title %}Create Your Account{% endblock %}
+
 {% block inner_content %}
+<div class="space-y-8 fade-in">
+  <!-- Header -->
+  <div class="text-center mb-8">
+    <p class="text-lg text-base-content/70">
+      Join ASA Stats Rewards and start earning for your contributions
+    </p>
+  </div>
 
-<div class="card bg-base-100 shadow-xl mt-10 border border-base-300">
-  <div class="card-body space-y-6">
+  <div class="grid grid-cols-1 xl:grid-cols-2 gap-8 max-w-6xl mx-auto">
+    <!-- Left Column - Algorand Wallet -->
+    <div class="space-y-6">
+      <!-- Algorand Wallet Signup -->
+      <div class="bg-base-100 p-6 rounded-xl border-2 border-base-300">
+        <div class="flex items-center gap-2 mb-4">
+          <i class="fas fa-wallet text-primary text-xl"></i>
+          <h2 class="text-xl font-bold">Algorand Wallet Signup</h2>
+        </div>
+        <p class="text-base-content/70 mb-4">
+          Create your account securely with your Algorand wallet for passwordless authentication
+        </p>
+        {% include "account/snippets/algorand_connect.html" with method="Signup" %}
+      </div>
 
-    <h2 class="text-2xl font-bold text-center">
-      {% trans "Create Account" %}
-    </h2>
-
-    <!-- ✅ Wallet signup button (same logic as login) -->
-    <div class="mt-2">
-      {% include "account/snippets/algorand_connect.html" with method="Signup" %}
-    </div>
-
-    {% if not SOCIALACCOUNT_ONLY %}
-      <p class="text-sm text-base-content/70 text-center">
-        {% blocktranslate %}
-          Already have an account?
-          <a href="{{ login_url }}" class="link link-accent" hx-boost="false" hx-disable="true">Sign in</a>
-        {% endblocktranslate %}
-      </p>
-
-      {% url 'account_signup' as action_url %}
-      {% element form form=form method="post" action=action_url class="space-y-4" tags="entrance,signup" %}
-        {% slot body %}
-          {% csrf_token %}
-          {% for field in form %}
-            {% include "account/elements/field.html" %}
-          {% endfor %}
-          {% if form.non_field_errors %}
-            <div class="alert alert-error shadow-lg">
-              <span>{{ form.non_field_errors }}</span>
-            </div>
-          {% endif %}
-          {{ redirect_field }}
-        {% endslot %}
-        {% slot actions %}
-          <button type="submit"
-                  class="btn btn-success w-full"
-                  tags="prominent,signup">
-            {% trans "Sign Up" %}
-          </button>
-        {% endslot %}
-      {% endelement %}
-    {% endif %}
-
-    {% if SOCIALACCOUNT_ENABLED %}
-      <div class="divider">OR</div>
-
-      <div class="w-full">
+      <!-- Social Signup -->
+      {% if SOCIALACCOUNT_ENABLED %}
+      <div class="bg-base-100 p-6 rounded-xl border-2 border-base-300">
+        <div class="flex items-center gap-2 mb-4">
+          <i class="fas fa-share-alt text-info text-xl"></i>
+          <h2 class="text-xl font-bold">Social Signup</h2>
+        </div>
+        <p class="text-base-content/70 mb-4 text-sm">
+          Create your account quickly with your social media accounts
+        </p>
         {% include "socialaccount/snippets/providers_list.html" %}
       </div>
-    {% endif %}
+      {% endif %}
+    </div>
 
+    <!-- Right Column - Traditional Signup -->
+    <div class="space-y-6">
+      <!-- Traditional Signup -->
+      {% if not SOCIALACCOUNT_ONLY %}
+      <div class="bg-base-100 p-6 rounded-xl border-2 border-base-300">
+        <div class="flex items-center gap-2 mb-4">
+          <i class="fas fa-envelope text-secondary text-xl"></i>
+          <h2 class="text-xl font-bold">Email & Password</h2>
+        </div>
+
+        <p class="text-base-content/70 mb-4 text-sm">
+          {% blocktranslate %}
+            Already have an account?
+            <a href="{{ login_url }}" class="link link-accent font-semibold" hx-boost="false" hx-disable="true">Sign in here</a>.
+          {% endblocktranslate %}
+        </p>
+
+        {% url 'account_signup' as action_url %}
+        {% element form form=form method="post" action=action_url class="space-y-4" tags="entrance,signup" %}
+          {% slot body %}
+            {% csrf_token %}
+            {% for field in form %}
+              <div class="form-control">
+                <label class="label">
+                  <span class="label-text font-semibold">{{ field.label }}</span>
+                  {% if field.field.required %}
+                    <span class="label-text-alt text-error">*</span>
+                  {% endif %}
+                </label>
+                <div class="bg-base-200 p-1 rounded-lg border border-base-300">
+                  {{ field }}
+                </div>
+                {% if field.help_text %}
+                  <label class="label">
+                    <span class="label-text-alt text-base-content/60">{{ field.help_text }}</span>
+                  </label>
+                {% endif %}
+                {% if field.errors %}
+                <div class="text-error text-sm mt-2 flex items-center gap-2">
+                  <i class="fas fa-exclamation-circle"></i>
+                  {{ field.errors }}
+                </div>
+                {% endif %}
+              </div>
+            {% endfor %}
+            {% if form.non_field_errors %}
+              <div class="alert alert-error">
+                <i class="fas fa-exclamation-triangle mr-2"></i>
+                {{ form.non_field_errors }}
+              </div>
+            {% endif %}
+            {{ redirect_field }}
+          {% endslot %}
+          {% slot actions %}
+            <button type="submit"
+                    class="btn btn-success w-full mt-4"
+                    tags="prominent,signup">
+              <i class="fas fa-user-plus mr-2"></i>
+              {% trans "Create Account" %}
+            </button>
+          {% endslot %}
+        {% endelement %}
+      </div>
+      {% endif %}
+
+      <!-- Benefits -->
+      <div class="bg-base-100 p-6 rounded-xl border-2 border-base-300">
+        <div class="flex items-center gap-2 mb-4">
+          <i class="fas fa-gift text-warning text-xl"></i>
+          <h2 class="text-xl font-bold">Why Join?</h2>
+        </div>
+        <div class="space-y-3 text-sm">
+          <div class="flex items-start gap-2">
+            <i class="fas fa-check text-success mt-1"></i>
+            <span>Earn rewards for your contributions</span>
+          </div>
+          <div class="flex items-start gap-2">
+            <i class="fas fa-check text-success mt-1"></i>
+            <span>Track your progress and earnings</span>
+          </div>
+          <div class="flex items-start gap-2">
+            <i class="fas fa-check text-success mt-1"></i>
+            <span>Connect with other contributors</span>
+          </div>
+          <div class="flex items-start gap-2">
+            <i class="fas fa-check text-success mt-1"></i>
+            <span>Secure, encrypted account protection</span>
+          </div>
+        </div>
+      </div>
+
+      <!-- Help Links -->
+      <div class="bg-base-100 p-4 rounded-xl border-2 border-base-300">
+        <div class="flex flex-col sm:flex-row gap-3 justify-center">
+          <a href="{% url 'account_login' %}" class="btn btn-ghost btn-sm">
+            <i class="fas fa-sign-in-alt mr-2"></i>
+            Already have an account?
+          </a>
+          <a href="{% url 'index' %}" class="btn btn-ghost btn-sm">
+            <i class="fas fa-home mr-2"></i>
+            Back to Home
+          </a>
+        </div>
+      </div>
+    </div>
   </div>
 </div>
-
 {% endblock inner_content %}

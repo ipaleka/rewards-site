@@ -1,44 +1,64 @@
-{% extends "base_generic.html" %}{% load partials %}
+{% extends "base_generic.html" %}
+{% load partials %}
+
+{% block title %}
+  <title>Issue #{{ issue.number }} - ASA Stats Rewards</title>
+{% endblock %}
 
 {% partialdef labels_form_partial %}
-<form method="post"
-    hx-post="{{ request.path }}"
-    hx-target="#labels-form-container"
-    hx-swap="innerHTML transition:true"
-    hx-vals='{"blocking": "true"}'
-    class="space-y-4">
-
-{% csrf_token %}
-
-  <!-- Labels -->
-  <div class="flex flex-wrap gap-4">
-    {% for checkbox in labels_form.labels %}
-    <label class="label cursor-pointer gap-2">
-      {{ checkbox.tag }}
-      <span class="label-text">{{ checkbox.choice_label }}</span>
-    </label>
-    {% endfor %}
+<div class="stat-card bg-base-200">
+  <div class="flex items-center gap-2 mb-4">
+    <i class="fas fa-tags text-primary"></i>
+    <h3 class="text-lg font-bold">Manage Labels & Priority</h3>
   </div>
 
-  {{ labels_form.labels.errors }}
+  <form method="post"
+      hx-post="{{ request.path }}"
+      hx-target="#labels-form-container"
+      hx-swap="innerHTML transition:true"
+      hx-vals='{"blocking": "true"}'
+      class="space-y-6">
 
-  <!-- Priority -->
-  <div class="pt-2 border-t border-base-300 flex flex-wrap gap-4">
-    {% for radio in labels_form.priority %}
-    <label class="label cursor-pointer gap-2">
-      {{ radio.tag }}
-      <span class="label-text">{{ radio.choice_label }}</span>
-    </label>
-    {% endfor %}
-  </div>
+  {% csrf_token %}
 
-  {{ labels_form.priority.errors }}
+    <!-- Labels -->
+    <div>
+      <label class="label">
+        <span class="label-text font-semibold text-lg">Labels</span>
+      </label>
+      <div class="grid grid-cols-2 sm:grid-cols-3 md:grid-cols-4 gap-3 bg-base-100 p-4 rounded-lg border-2 border-base-300">
+        {% for checkbox in labels_form.labels %}
+        <label class="flex items-center space-x-3 cursor-pointer p-3 rounded-lg bg-base-200 hover:bg-base-300 border border-base-300 transition-all duration-200">
+          {{ checkbox.tag }}
+          <span class="label-text font-medium text-sm">{{ checkbox.choice_label }}</span>
+        </label>
+        {% endfor %}
+      </div>
+      {{ labels_form.labels.errors }}
+    </div>
 
-  <button type="submit" name="submit_labels" class="btn btn-success btn-sm">
-      Set labels
-  </button>
+    <!-- Priority -->
+    <div class="pt-4 border-t border-base-300">
+      <label class="label">
+        <span class="label-text font-semibold text-lg">Priority</span>
+      </label>
+      <div class="flex flex-wrap gap-4 bg-base-100 p-4 rounded-lg border-2 border-base-300">
+        {% for radio in labels_form.priority %}
+        <label class="flex items-center space-x-3 cursor-pointer p-4 rounded-lg bg-base-200 hover:bg-base-300 border-2 border-base-300 transition-all duration-200 flex-1 min-w-[120px] justify-center">
+          {{ radio.tag }}
+          <span class="label-text font-semibold text-base">{{ radio.choice_label }}</span>
+        </label>
+        {% endfor %}
+      </div>
+      {{ labels_form.priority.errors }}
+    </div>
 
-</form>
+    <button type="submit" name="submit_labels" class="btn btn-success w-full">
+      <i class="fas fa-save mr-2"></i>
+      Update Labels
+    </button>
+  </form>
+</div>
 
 {% if toast_message %}
 <div id="toast-container" hx-swap-oob="afterbegin">
@@ -47,17 +67,18 @@
   </div>
 </div>
 {% endif %}
-
 {% endpartialdef labels_form_partial %}
 
 {% partialdef issue_labels_partial %}
 <div id="labels-display-container" hx-swap-oob="outerHTML">
-  <div class="mb-4">
-    <div class="flex flex-wrap gap-1">
+  <div class="flex items-center gap-2 mb-4">
+    <i class="fas fa-tags text-secondary"></i>
+    <span class="font-semibold text-lg">Labels:</span>
+    <div class="flex flex-wrap gap-2">
       {% for label in issue_labels %}
-        <span class="badge badge-outline badge-sm">{{ label }}</span>
+        <span class="badge badge-outline badge-lg">{{ label }}</span>
       {% empty %}
-        <span class="opacity-60 text-sm">No labels</span>
+        <span class="text-base-content/60 text-sm">No labels assigned</span>
       {% endfor %}
     </div>
   </div>
@@ -67,24 +88,43 @@
 {% partialdef close_modal_partial %}
 <dialog id="{{ modal_id }}" class="modal">
   <div class="modal-box">
-    <h3 class="font-bold text-lg">{{ action_label }}</h3>
-    <p class="py-4">This will close the issue as <strong>{{ action_value }}</strong>.</p>
+    <div class="flex items-center gap-2 mb-4">
+      <i class="fas fa-{% if action_value == 'addressed' %}check-circle text-success{% else %}times-circle text-warning{% endif %} text-xl"></i>
+      <h3 class="font-bold text-lg">{{ action_label }}</h3>
+    </div>
+    
+    <p class="py-4">
+      This will close the issue as <strong class="{% if action_value == 'addressed' %}text-success{% else %}text-warning{% endif %}">{{ action_value }}</strong>.
+      {% if action_value == 'addressed' %}
+        The issue will be marked as successfully resolved.
+      {% else %}
+        The issue will be marked as won't be fixed.
+      {% endif %}
+    </p>
 
     <form method="post"
-          action="{% url 'issue-detail' issue.pk %}"
+          action="{% url 'issue_detail' issue.pk %}"
           onsubmit="document.getElementById('{{ modal_id }}').close()"
           class="space-y-4">
 
         {% csrf_token %}
         <input type="hidden" name="close_action" value="{{ action_value }}">
 
-        <textarea name="close_comment"
-                  class="textarea textarea-bordered w-full h-24 mb-4"
-                  placeholder="Comment (optional)..."></textarea>
+        <div class="form-control">
+          <label class="label">
+            <span class="label-text font-semibold">Closing Comment (Optional)</span>
+          </label>
+          <textarea name="close_comment"
+                    class="textarea textarea-bordered w-full h-32"
+                    placeholder="Add a comment explaining why this issue is being closed..."></textarea>
+        </div>
 
         <div class="modal-action">
-            <button type="button" class="btn" onclick="document.getElementById('{{ modal_id }}').close()">Cancel</button>
-            <button type="submit" name="submit_close" class="btn {{ btn_class }}">{{ action_label }}</button>
+            <button type="button" class="btn btn-outline" onclick="document.getElementById('{{ modal_id }}').close()">Cancel</button>
+            <button type="submit" name="submit_close" class="btn {{ btn_class }}">
+              <i class="fas fa-{% if action_value == 'addressed' %}check{% else %}times{% endif %}-circle mr-2"></i>
+              {{ action_label }}
+            </button>
         </div>
     </form>
   </div>
@@ -97,159 +137,299 @@
 
 {% partialdef message_toast %}
 <div class="toast toast-top toast-end z-[9999] pr-6 pointer-events-none">
-
   <div class="alert alert-{{ message.tags|yesno:"error,success" }} shadow-lg pointer-events-auto">
-
     {% if message.tags == "error" %}
-      <svg xmlns="http://www.w3.org/2000/svg"
-           class="stroke-current shrink-0 h-6 w-6"
-           fill="none"
-           viewBox="0 0 24 24">
-        <path stroke-linecap="round"
-              stroke-linejoin="round"
-              stroke-width="2"
-              d="M10 14l2-2m0 0l2-2m-2 2l-2-2m2 2l2 2m7-2a9 9 0 11-18 0 9 9 0 0118 0z" />
-      </svg>
+      <i class="fas fa-exclamation-triangle mr-2"></i>
     {% else %}
-      <svg xmlns="http://www.w3.org/2000/svg"
-           class="stroke-current shrink-0 h-6 w-6"
-           fill="none"
-           viewBox="0 0 24 24">
-        <path stroke-linecap="round"
-              stroke-linejoin="round"
-              stroke-width="2"
-              d="M9 12l2 2 4-4m6 2a9 9 0 11-18 0 9 9 0 0118 0z" />
-      </svg>
+      <i class="fas fa-check-circle mr-2"></i>
     {% endif %}
-
     <span>{{ message }}</span>
   </div>
-
 </div>
 {% endpartialdef message_toast %}
 
+{% block page_title %}GitHub issue #{{ issue.number }}{% endblock %}
+
 {% block content %}
-<div class="max-w-4xl mx-auto">
-  <h1 class="text-3xl font-bold mb-6">
-      GitHub Issue #{{ issue.number }}
-  </h1>
-
-  <div class="pt-4 border-t border-base-300">
-    <div class="flex flex-wrap gap-2">
-      <a href="{{ issue_html_url }}" target="_blank" class="btn btn-soft btn-sm">View on GitHub</a>
-
-    <!-- Close Issue Buttons - Only for superusers and if GitHub issue is open -->
-    {% if user.is_superuser and github_issue and issue_state == 'open' %}
-      <button class="btn btn-soft btn-success btn-sm"
-              hx-get="{% url 'issue-modal' issue.pk %}?action=addressed"
-              hx-target="#modal-container"
-              hx-swap="innerHTML transition:true">
-        Close as addressed
-      </button>
-
-      <button class="btn btn-soft btn-warning btn-sm"
-              hx-get="{% url 'issue-modal' issue.pk %}?action=wontfix"
-              hx-target="#modal-container"
-              hx-swap="innerHTML transition:true">
-        Close as wontfix
-      </button>
-    {% endif %}
+<div class="space-y-6 fade-in">
+  <!-- Page Header -->
+  <div class="flex flex-col sm:flex-row justify-between items-start sm:items-center gap-4">
+    <div>
+      <p class="mt-2 text-lg text-base-content/70">
+        Issue details and management
+      </p>
+    </div>
+    <div class="badge {% if issue_state == 'open' %}badge-success{% else %}badge-error{% endif %} badge-lg">
+      <i class="fas fa-{% if issue_state == 'open' %}circle{% else %}check-circle{% endif %} mr-1"></i>
+      {{ issue_state|title }}
     </div>
   </div>
 
-  <!-- Local Issue Information -->
-  <div class="card bg-base-100 shadow-md">
-    <div class="card-body">
-      <div class="space-y-3">
-        <p><strong>Number:</strong> {{ issue.number }}</p>
-        <p><strong>Status:</strong> {{ issue.status }}</p>
-        <!-- Add any other local issue fields you have -->
-        <p><strong>Created at:</strong> {{ issue.created_at }}</p>
-        <p><strong>Updated at:</strong> {{ issue.updated_at }}</p>      
+  <div class="grid grid-cols-1 lg:grid-cols-3 gap-6">
+    <!-- Main Content -->
+    <div class="lg:col-span-2 space-y-6">
+      <!-- Action Buttons -->
+      <div class="stat-card">
+        <div class="flex flex-col sm:flex-row gap-3">
+          <a href="{{ issue_html_url }}" target="_blank" class="btn btn-outline flex-1">
+            <i class="fab fa-github mr-2"></i>
+            View on GitHub
+          </a>
 
-        {% for contribution in issue.contribution_set.all reversed %}
-        <div class="flex items-center gap-2">
-          <span class="font-bold">Contribution:</span>
-          <a class="link link-accent" href="{{ contribution.get_absolute_url }}">{{ contribution }}</a>
+          <!-- Close Issue Buttons - Only for superusers and if GitHub issue is open -->
+          {% if user.is_superuser and github_issue and issue_state == 'open' %}
+            <button class="btn btn-success flex-1"
+                    hx-get="{% url 'issue_modal' issue.pk %}?action=addressed"
+                    hx-target="#modal-container"
+                    hx-swap="innerHTML transition:true">
+              <i class="fas fa-check-circle mr-2"></i>
+              Close as addressed
+            </button>
+
+            <button class="btn btn-warning flex-1"
+                    hx-get="{% url 'issue_modal' issue.pk %}?action=wontfix"
+                    hx-target="#modal-container"
+                    hx-swap="innerHTML transition:true">
+              <i class="fas fa-times-circle mr-2"></i>
+              Close as wontfix
+            </button>
+          {% endif %}
         </div>
-        {% endfor %}
-
       </div>
-    </div>
-  </div>
 
-  <!-- GitHub Issue Section - Only shown if github_issue or github_error exists -->
-  {% if github_issue or github_error %}
-  <div class="card bg-base-100 shadow-md mb-6">
-    <div class="card-body">
-      {% if github_error %}
-        <div class="alert alert-error">
-          <svg xmlns="http://www.w3.org/2000/svg" class="stroke-current shrink-0 h-6 w-6" fill="none" viewBox="0 0 24 24">
-            <path stroke-linecap="round" stroke-linejoin="round" stroke-width="2" d="M10 14l2-2m0 0l2-2m-2 2l-2-2m2 2l2 2m7-2a9 9 0 11-18 0 9 9 0 0118 0z" />
-          </svg>
-          <span>Error fetching GitHub issue: {{ github_error }}</span>
+      <!-- Local Issue Information -->
+      <div class="stat-card">
+        <div class="flex items-center gap-2 mb-6">
+          <i class="fas fa-info-circle text-primary"></i>
+          <h2 class="text-xl font-bold">Local Issue Information</h2>
         </div>
-      {% elif github_issue %}
 
-        <!-- Add Labels Form - Only for superusers and if GitHub issue is open -->
-        {% if user.is_superuser and issue_state == 'open' and labels_form %}
-        <div id="labels-form-container" class="mb-6 p-4 bg-base-200 rounded-lg">
-            {% partial labels_form_partial %}
-        </div>
-        {% endif %}
+        <div class="grid grid-cols-1 md:grid-cols-2 gap-6">
+          <div class="space-y-4">
+            <div class="flex flex-col">
+              <span class="text-sm font-semibold text-base-content/70 mb-1">Issue Number</span>
+              <span class="font-semibold text-lg">#{{ issue.number }}</span>
+            </div>
 
-        <!-- Issue Header -->
-        <div class="flex justify-between items-start mb-4">
-          <div>
-            <h2 class="text-2xl font-bold flex items-center gap-2">
-              {{ issue_title }}
-              <span class="badge badge-{% if issue_state == 'open' %}success{% else %}error{% endif %} badge-sm">
-                {{ issue_state|title }}
+            <div class="flex flex-col">
+              <span class="text-sm font-semibold text-base-content/70 mb-1">Status</span>
+              <span class="badge {% if issue.status == 'open' %}badge-success{% else %}badge-error{% endif %}">
+                {{ issue.status|title }}
               </span>
-            </h2>
-            <p class="text-sm text-base-content/70 mt-1">
-              #{{ issue.number }} opened on {{ issue_created_at|date:"M j, Y" }}
-              {% if issue_updated_at and issue_updated_at != issue_created_at %}
-                • updated on {{ issue_updated_at|date:"M j, Y" }}
-              {% endif %}
-            </p>
+            </div>
+          </div>
+
+          <div class="space-y-4">
+            <div class="flex flex-col">
+              <span class="text-sm font-semibold text-base-content/70 mb-1">Created</span>
+              <span class="font-semibold">{{ issue.created_at }}</span>
+            </div>
+
+            <div class="flex flex-col">
+              <span class="text-sm font-semibold text-base-content/70 mb-1">Updated</span>
+              <span class="font-semibold">{{ issue.updated_at }}</span>
+            </div>
           </div>
         </div>
 
-        <!-- Labels -->
-        {% if issue_labels %}
-          {% partial issue_labels_partial %}
-        {% endif %}
-
-        <!-- Assignees -->
-        {% if issue_assignees %}
-        <div class="mb-4">
-          <p class="text-sm font-medium mb-1">Assignees:</p>
-          <div class="flex flex-wrap gap-2">
-            {% for assignee in issue_assignees %}
-            <span class="badge badge-primary badge-sm">{{ assignee }}</span>
+        <!-- Linked Contributions -->
+        {% if issue.contribution_set.all %}
+        <div class="mt-6 pt-6 border-t border-base-300">
+          <h3 class="font-semibold text-lg mb-4">Linked Contributions</h3>
+          <div class="space-y-3">
+            {% for contribution in issue.contribution_set.all reversed %}
+            <div class="flex items-center justify-between p-3 bg-base-200 rounded-lg hover:bg-base-300 transition-colors">
+              <div class="flex items-center gap-3">
+                <i class="fas fa-code-branch text-primary"></i>
+                <a class="link link-accent font-semibold hover:no-underline" href="{{ contribution.get_absolute_url }}">
+                  {{ contribution }}
+                </a>
+              </div>
+              <div class="text-sm text-base-content/70">
+                {{ contribution.contributor }}
+              </div>
+            </div>
             {% endfor %}
           </div>
         </div>
         {% endif %}
+      </div>
 
-        <!-- Issue Body -->
-        <div class="mt-6 pt-6">
-          <h3 class="text-lg font-semibold mb-3">Description</h3>
-          <div class="prose prose-sm max-w-none bg-base-200 rounded-lg p-4">
-            {{ issue_body|linebreaks|urlize }}
-          </div>
+      <!-- GitHub Issue Section -->
+      {% if github_issue or github_error %}
+      <div class="stat-card">
+        <div class="flex items-center gap-2 mb-6">
+          <i class="fab fa-github text-base-content"></i>
+          <h2 class="text-xl font-bold">GitHub Issue Details</h2>
         </div>
+
+        {% if github_error %}
+          <div class="alert alert-error shadow-lg">
+            <i class="fas fa-exclamation-triangle mr-2"></i>
+            <span>Error fetching GitHub issue: {{ github_error }}</span>
+          </div>
+        {% elif github_issue %}
+
+          <!-- Add Labels Form - Only for superusers and if GitHub issue is open -->
+          {% if user.is_superuser and issue_state == 'open' and labels_form %}
+          <div id="labels-form-container">
+              {% partial labels_form_partial %}
+          </div>
+          {% endif %}
+
+          <!-- Issue Header -->
+          <div class="mb-6">
+            <h2 class="text-2xl font-bold mb-2">{{ issue_title }}</h2>
+            <div class="flex flex-wrap items-center gap-4 text-sm text-base-content/70">
+              <span class="badge badge-{% if issue_state == 'open' %}success{% else %}error{% endif %}">
+                {{ issue_state|title }}
+              </span>
+              <span>Opened on {{ issue_created_at|date:"M j, Y" }}</span>
+              {% if issue_updated_at and issue_updated_at != issue_created_at %}
+                <span>• Updated on {{ issue_updated_at|date:"M j, Y" }}</span>
+              {% endif %}
+            </div>
+          </div>
+
+          <!-- Labels -->
+          {% if issue_labels %}
+            {% partial issue_labels_partial %}
+          {% endif %}
+
+          <!-- Assignees -->
+          {% if issue_assignees %}
+          <div class="mb-6">
+            <div class="flex items-center gap-2 mb-3">
+              <i class="fas fa-user-check text-info"></i>
+              <span class="font-semibold text-lg">Assignees</span>
+            </div>
+            <div class="flex flex-wrap gap-2">
+              {% for assignee in issue_assignees %}
+              <span class="badge badge-primary badge-lg">{{ assignee }}</span>
+              {% endfor %}
+            </div>
+          </div>
+          {% endif %}
+
+          <!-- Issue Body -->
+          <div class="mt-6">
+            <div class="flex items-center gap-2 mb-4">
+              <i class="fas fa-align-left text-accent"></i>
+              <h3 class="text-lg font-semibold">Description</h3>
+            </div>
+            <div class="bg-base-200 rounded-xl p-6 border-2 border-base-300">
+              <div class="prose prose-sm max-w-none text-base-content/80">
+                {{ issue_body|linebreaks|urlize }}
+              </div>
+            </div>
+          </div>
+        {% endif %}
+      </div>
       {% endif %}
     </div>
+
+    <!-- Sidebar -->
+    <div class="space-y-6">
+      <!-- Quick Stats -->
+      <div class="stat-card">
+        <div class="flex items-center gap-2 mb-4">
+          <i class="fas fa-chart-bar text-info"></i>
+          <h2 class="text-xl font-bold">Issue Stats</h2>
+        </div>
+
+        <div class="space-y-4">
+          <div class="flex justify-between items-center">
+            <span class="text-base-content/70">Status</span>
+            <span class="badge {% if issue_state == 'open' %}badge-success{% else %}badge-error{% endif %}">
+              {{ issue_state|title }}
+            </span>
+          </div>
+          
+          <div class="flex justify-between items-center">
+            <span class="text-base-content/70">Linked Contributions</span>
+            <span class="font-semibold text-primary">{{ issue.contribution_set.all|length }}</span>
+          </div>
+          
+          <div class="flex justify-between items-center">
+            <span class="text-base-content/70">Labels</span>
+            <span class="font-semibold text-secondary">{{ issue_labels|length }}</span>
+          </div>
+          
+          <div class="flex justify-between items-center">
+            <span class="text-base-content/70">Assignees</span>
+            <span class="font-semibold text-accent">{{ issue_assignees|length }}</span>
+          </div>
+        </div>
+      </div>
+
+      <!-- Quick Actions -->
+      <div class="stat-card">
+        <div class="flex items-center gap-2 mb-4">
+          <i class="fas fa-rocket text-accent"></i>
+          <h2 class="text-xl font-bold">Quick Actions</h2>
+        </div>
+
+        <div class="space-y-3">
+          <a href="{% url 'index' %}" class="btn btn-outline justify-start w-full">
+            <i class="fas fa-arrow-left mr-2"></i>
+            Back to Home
+          </a>
+          <a href="{% url 'issues' %}" class="btn btn-outline justify-start w-full">
+            <i class="fas fa-list mr-2"></i>
+            All Issues
+          </a>
+          <a href="{% url 'contributors' %}" class="btn btn-outline justify-start w-full">
+            <i class="fas fa-users mr-2"></i>
+            Contributors
+          </a>
+          <a href="{% url 'cycles' %}" class="btn btn-outline justify-start w-full">
+            <i class="fas fa-sync-alt mr-2"></i>
+            View Cycles
+          </a>
+        </div>
+      </div>
+
+      <!-- GitHub Info -->
+      <div class="stat-card">
+        <div class="flex items-center gap-2 mb-4">
+          <i class="fab fa-github text-base-content"></i>
+          <h2 class="text-xl font-bold">GitHub Info</h2>
+        </div>
+
+        <div class="space-y-3 text-sm">
+          <div class="flex items-start gap-2">
+            <i class="fas fa-hashtag text-info mt-1"></i>
+            <div>
+              <span class="font-semibold">Issue Number:</span>
+              <p class="text-base-content/70">#{{ issue.number }}</p>
+            </div>
+          </div>
+          
+          <div class="flex items-start gap-2">
+            <i class="fas fa-calendar text-success mt-1"></i>
+            <div>
+              <span class="font-semibold">Created:</span>
+              <p class="text-base-content/70">{{ issue_created_at|date:"M j, Y" }}</p>
+            </div>
+          </div>
+          
+          <div class="flex items-start gap-2">
+            <i class="fas fa-sync-alt text-warning mt-1"></i>
+            <div>
+              <span class="font-semibold">Last Updated:</span>
+              <p class="text-base-content/70">{{ issue_updated_at|date:"M j, Y" }}</p>
+            </div>
+          </div>
+        </div>
+      </div>
+    </div>
   </div>
-  {% endif %}
-
-  <!-- Messages -->
-  {% for message in messages %}
-    {% partial message_toast %}
-  {% endfor %}
-
 </div>
+
+<!-- Messages -->
+{% for message in messages %}
+  {% partial message_toast %}
+{% endfor %}
+
 <div id="modal-container"></div>
 {% endblock %}

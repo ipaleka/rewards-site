@@ -1,37 +1,159 @@
 {% extends "account/base_entrance.html" %}
 {% load i18n %}
 
-{% block head_title %}{% trans "Authentication Error" %}{% endblock %}
+{% block head_title %}
+  {% trans "Authentication Error - ASA Stats Rewards" %}
+{% endblock %}
+
+{% block page_title %}Authentication Failed{% endblock %}
 
 {% block inner_content %}
-<div class="card bg-base-100 shadow-xl border border-base-300">
-  <div class="card-body space-y-4">
-
-    <h2 class="text-2xl font-bold text-center text-error flex items-center justify-center gap-3">
-
-    {% if provider.id == "discord" %}
-        <i class="fa-brands fa-discord text-2xl"></i>
-    {% elif provider.id == "google" %}
-        <i class="fa-brands fa-google text-2xl"></i>
-    {% elif provider.id == "github" %}
-        <i class="fa-brands fa-github text-2xl"></i>
-    {% elif provider.id == "reddit" %}
-        <i class="fa-brands fa-reddit text-2xl"></i>
-    {% elif provider.id == "twitter_oauth2" %}
-        <i class="fa-brands fa-x-twitter text-2xl"></i>
-    {% endif %}
-
-    {% trans "Authentication Failed" %}
-    </h2>
-
-    <p class="text-center text-base-content/70">
-      {% trans "There was a problem signing you in." %}
+<div class="space-y-6 fade-in">
+  <!-- Page Header -->
+  <div class="text-center">
+    <div class="p-4 rounded-lg bg-error/10 text-error inline-block mb-4">
+      <i class="fas fa-exclamation-triangle text-3xl"></i>
+    </div>
+    <p class="text-lg text-base-content/70">
+      There was a problem with your social authentication
     </p>
+  </div>
 
-    <a href="{% url 'account_login' %}" class="btn btn-primary w-full">
-      {% trans "Try Again" %}
-    </a>
+  <div class="grid grid-cols-1 lg:grid-cols-3 gap-6 max-w-4xl mx-auto">
+    <!-- Main Content -->
+    <div class="lg:col-span-2 space-y-6">
+      <!-- Error Details -->
+      <div class="bg-base-100 p-6 rounded-xl border-2 border-base-300">
+        <div class="flex items-center gap-2 mb-4">
+          {% if provider.id == "discord" %}
+            <i class="fab fa-discord text-[#5865F2] text-2xl"></i>
+          {% elif provider.id == "google" %}
+            <i class="fab fa-google text-[#4285F4] text-2xl"></i>
+          {% elif provider.id == "github" %}
+            <i class="fab fa-github text-base-content text-2xl"></i>
+          {% elif provider.id == "reddit" %}
+            <i class="fab fa-reddit text-[#FF5700] text-2xl"></i>
+          {% elif provider.id == "twitter_oauth2" %}
+            <i class="fab fa-x-twitter text-base-content text-2xl"></i>
+          {% endif %}
+          <h2 class="text-xl font-bold">
+            {% trans "Authentication with" %} {{ provider.name }} {% trans "Failed" %}
+          </h2>
+        </div>
 
+        <div class="alert alert-error shadow-lg mb-4">
+          <i class="fas fa-exclamation-circle"></i>
+          <span>{% trans "There was a problem signing you in with your social account." %}</span>
+        </div>
+
+        <p class="text-base-content/70 mb-6">
+          {% trans "This could be due to temporary issues with the provider, account permissions, or network connectivity." %}
+        </p>
+
+        <div class="flex flex-col sm:flex-row gap-3">
+          <a href="{% url 'account_login' %}" class="btn btn-primary flex-1">
+            <i class="fas fa-redo mr-2"></i>
+            {% trans "Try Again" %}
+          </a>
+          <a href="{% url 'index' %}" class="btn btn-outline flex-1">
+            <i class="fas fa-home mr-2"></i>
+            {% trans "Back to Home" %}
+          </a>
+        </div>
+      </div>
+
+      <!-- Troubleshooting Tips -->
+      <div class="bg-base-100 p-6 rounded-xl border-2 border-base-300">
+        <div class="flex items-center gap-2 mb-4">
+          <i class="fas fa-lightbulb text-warning text-xl"></i>
+          <h2 class="text-xl font-bold">Troubleshooting Tips</h2>
+        </div>
+        
+        <div class="space-y-3 text-sm">
+          <div class="flex items-start gap-2">
+            <i class="fas fa-check text-success mt-1"></i>
+            <span>Ensure you're logged into your {{ provider.name }} account</span>
+          </div>
+          <div class="flex items-start gap-2">
+            <i class="fas fa-check text-success mt-1"></i>
+            <span>Check your internet connection</span>
+          </div>
+          <div class="flex items-start gap-2">
+            <i class="fas fa-check text-success mt-1"></i>
+            <span>Try using a different authentication method</span>
+          </div>
+          <div class="flex items-start gap-2">
+            <i class="fas fa-check text-success mt-1"></i>
+            <span>Clear your browser cache and cookies if issues persist</span>
+          </div>
+        </div>
+      </div>
+    </div>
+
+    <!-- Sidebar -->
+    <div class="space-y-6">
+      <!-- Quick Actions -->
+      <div class="bg-base-100 p-6 rounded-xl border-2 border-base-300">
+        <div class="flex items-center gap-2 mb-4">
+          <i class="fas fa-rocket text-accent"></i>
+          <h2 class="text-xl font-bold">Quick Actions</h2>
+        </div>
+
+        <div class="space-y-3">
+          <a href="{% url 'account_login' %}" class="btn btn-outline justify-start w-full">
+            <i class="fas fa-sign-in-alt mr-2"></i>
+            Back to Login
+          </a>
+          <a href="{% url 'account_signup' %}" class="btn btn-outline justify-start w-full">
+            <i class="fas fa-user-plus mr-2"></i>
+            Create Account
+          </a>
+          <a href="{% url 'socialaccount_connections' %}" class="btn btn-outline justify-start w-full">
+            <i class="fas fa-share-alt mr-2"></i>
+            Manage Connections
+          </a>
+        </div>
+      </div>
+
+      <!-- Support Info -->
+      <div class="bg-base-100 p-6 rounded-xl border-2 border-base-300 bg-info/5 border-info/20">
+        <div class="flex items-start gap-3">
+          <i class="fas fa-life-ring text-info text-xl mt-1"></i>
+          <div>
+            <h3 class="font-semibold text-info mb-2">Need Help?</h3>
+            <p class="text-base-content/80 text-sm">
+              If you continue experiencing issues, try using email authentication or contact support for assistance.
+            </p>
+          </div>
+        </div>
+      </div>
+
+      <!-- Alternative Methods -->
+      <div class="bg-base-100 p-6 rounded-xl border-2 border-base-300">
+        <div class="flex items-center gap-2 mb-4">
+          <i class="fas fa-key text-success"></i>
+          <h2 class="text-xl font-bold">Other Options</h2>
+        </div>
+
+        <div class="space-y-3 text-sm">
+          <div class="flex items-start gap-2">
+            <i class="fas fa-envelope text-primary mt-1"></i>
+            <div>
+              <span class="font-semibold">Email & Password</span>
+              <p class="text-base-content/70">Use traditional email authentication</p>
+            </div>
+          </div>
+          
+          <div class="flex items-start gap-2">
+            <i class="fas fa-wallet text-secondary mt-1"></i>
+            <div>
+              <span class="font-semibold">Algorand Wallet</span>
+              <p class="text-base-content/70">Secure wallet-based login</p>
+            </div>
+          </div>
+        </div>
+      </div>
+    </div>
   </div>
 </div>
 {% endblock %}

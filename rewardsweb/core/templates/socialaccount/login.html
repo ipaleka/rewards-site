@@ -1,50 +1,217 @@
 {% extends "account/base_entrance.html" %}
 {% load i18n %}
 
-{% block head_title %}{% trans "Social Login" %}{% endblock %}
+{% block head_title %}
+  {% trans "Social Login - ASA Stats Rewards" %}
+{% endblock %}
+
+{% block page_title %}Continue with {{ provider_name }}{% endblock %}
 
 {% block inner_content %}
+<div class="space-y-6 fade-in">
+  <!-- Page Header -->
+  <div class="flex flex-col sm:flex-row justify-between items-start sm:items-center gap-4">
+    <div>
+      <p class="mt-2 text-lg text-base-content/70">
+        Connect your social media account to ASA Stats Rewards
+      </p>
+    </div>
+    <div class="badge badge-primary badge-lg">
+      {% if provider.id == "discord" %}
+        <i class="fab fa-discord mr-1"></i>
+      {% elif provider.id == "google" %}
+        <i class="fab fa-google mr-1"></i>
+      {% elif provider.id == "github" %}
+        <i class="fab fa-github mr-1"></i>
+      {% elif provider.id == "reddit" %}
+        <i class="fab fa-reddit mr-1"></i>
+      {% elif provider.id == "twitter_oauth2" %}
+        <i class="fab fa-x-twitter mr-1"></i>
+      {% endif %}
+      {{ provider.name }}
+    </div>
+  </div>
 
-<div class="card bg-base-100 shadow-xl border border-base-300">
-  <div class="card-body space-y-6">
+  <div class="grid grid-cols-1 lg:grid-cols-3 gap-6">
+    <!-- Main Content -->
+    <div class="lg:col-span-2">
+      <div class="stat-card">
+        <div class="flex items-center gap-2 mb-6">
+          {% if provider.id == "discord" %}
+            <i class="fab fa-discord text-[#5865F2] text-2xl"></i>
+          {% elif provider.id == "google" %}
+            <i class="fab fa-google text-[#4285F4] text-2xl"></i>
+          {% elif provider.id == "github" %}
+            <i class="fab fa-github text-base-content text-2xl"></i>
+          {% elif provider.id == "reddit" %}
+            <i class="fab fa-reddit text-[#FF5700] text-2xl"></i>
+          {% elif provider.id == "twitter_oauth2" %}
+            <i class="fab fa-x-twitter text-base-content text-2xl"></i>
+          {% endif %}
+          <h2 class="text-xl font-bold">
+            {% blocktrans with provider_name=provider.name %}
+              Sign in with {{ provider_name }}
+            {% endblocktrans %}
+          </h2>
+        </div>
 
-    <h2 class="text-2xl font-bold text-center flex items-center justify-center gap-3">
+        <!-- Info Card -->
+        <div class="bg-base-200 p-6 rounded-xl border-2 border-base-300 mb-6">
+          <div class="flex items-start gap-3">
+            <i class="fas fa-info-circle text-info text-xl mt-1"></i>
+            <div>
+              <h3 class="font-semibold text-info mb-2">About This Connection</h3>
+              <p class="text-base-content/80">
+                {% blocktrans with provider_name=provider.name site_name=site.name %}
+                  You are about to sign in using your {{ provider_name }} account on {{ site_name }}.
+                  This will create a secure connection between your accounts.
+                {% endblocktrans %}
+              </p>
+            </div>
+          </div>
+        </div>
 
-    {% if provider.id == "discord" %}
-        <i class="fa-brands fa-discord text-2xl"></i>
-    {% elif provider.id == "google" %}
-        <i class="fa-brands fa-google text-2xl"></i>
-    {% elif provider.id == "github" %}
-        <i class="fa-brands fa-github text-2xl"></i>
-    {% elif provider.id == "reddit" %}
-        <i class="fa-brands fa-reddit text-2xl"></i>
-    {% elif provider.id == "twitter_oauth2" %}
-        <i class="fa-brands fa-x-twitter text-2xl"></i>
-    {% endif %}
+        <!-- Login Form -->
+        <form method="post" class="space-y-6">
+          {% csrf_token %}
 
-    {% blocktrans with provider_name=provider.name %}
-        Continue with {{ provider_name }}
-    {% endblocktrans %}
-    </h2>
+          {% if form.non_field_errors %}
+            <div class="alert alert-error shadow-lg">
+              <i class="fas fa-exclamation-triangle mr-2"></i>
+              {{ form.non_field_errors }}
+            </div>
+          {% endif %}
 
+          {% for field in form %}
+            <div class="form-control">
+              <label class="label">
+                <span class="label-text font-semibold">{{ field.label }}</span>
+              </label>
+              <div class="bg-base-200 p-1 rounded-lg border-2 border-base-300">
+                {{ field }}
+              </div>
+              {% if field.help_text %}
+                <label class="label">
+                  <span class="label-text-alt text-base-content/60">{{ field.help_text }}</span>
+                </label>
+              {% endif %}
+              {% if field.errors %}
+                <div class="text-error text-sm mt-2 flex items-center gap-2">
+                  <i class="fas fa-exclamation-circle"></i>
+                  {{ field.errors }}
+                </div>
+              {% endif %}
+            </div>
+          {% endfor %}
 
-    <p class="text-center text-base-content/70">
-      {% blocktrans with provider_name=provider.name site_name=site.name %}
-        You are about to sign in using your {{ provider_name }} account on {{ site_name }}.
-      {% endblocktrans %}
-    </p>
+          <button type="submit" class="btn btn-primary w-full mt-4">
+            <i class="fas fa-share-alt mr-2"></i>
+            {% trans "Continue with" %} {{ provider.name }}
+          </button>
+        </form>
+      </div>
+    </div>
 
-    <form method="post" class="space-y-4">
-      {% csrf_token %}
+    <!-- Sidebar -->
+    <div class="space-y-6">
+      <!-- Provider Info -->
+      <div class="stat-card">
+        <div class="flex items-center gap-2 mb-4">
+          <i class="fas fa-info-circle text-info"></i>
+          <h2 class="text-xl font-bold">Provider Information</h2>
+        </div>
+        
+        <div class="space-y-3 text-sm">
+          <div class="flex items-start gap-2">
+            <i class="fas fa-shield-alt text-success mt-1"></i>
+            <div>
+              <span class="font-semibold">Secure Connection</span>
+              <p class="text-base-content/70">Uses OAuth 2.0 for secure authentication</p>
+            </div>
+          </div>
+          
+          <div class="flex items-start gap-2">
+            <i class="fas fa-user-check text-primary mt-1"></i>
+            <div>
+              <span class="font-semibold">Single Sign-On</span>
+              <p class="text-base-content/70">Quick login without creating new passwords</p>
+            </div>
+          </div>
+          
+          <div class="flex items-start gap-2">
+            <i class="fas fa-sync-alt text-warning mt-1"></i>
+            <div>
+              <span class="font-semibold">Easy Access</span>
+              <p class="text-base-content/70">Connect once, sign in easily anytime</p>
+            </div>
+          </div>
+        </div>
+      </div>
 
-      {{ form.as_p }}
+      <!-- Quick Actions -->
+      <div class="stat-card">
+        <div class="flex items-center gap-2 mb-4">
+          <i class="fas fa-rocket text-accent"></i>
+          <h2 class="text-xl font-bold">Quick Actions</h2>
+        </div>
 
-      <button type="submit" class="btn btn-primary w-full">
-        {% trans "Continue" %}
-      </button>
-    </form>
+        <div class="space-y-3">
+          <a href="{% url 'account_login' %}" class="btn btn-outline justify-start w-full">
+            <i class="fas fa-arrow-left mr-2"></i>
+            Back to Login
+          </a>
+          <a href="{% url 'index' %}" class="btn btn-outline justify-start w-full">
+            <i class="fas fa-home mr-2"></i>
+            Back to Home
+          </a>
+          <a href="{% url 'socialaccount_connections' %}" class="btn btn-outline justify-start w-full">
+            <i class="fas fa-share-alt mr-2"></i>
+            Manage Connections
+          </a>
+        </div>
+      </div>
 
+      <!-- Privacy Notice -->
+      <div class="stat-card bg-info/5 border-info/20">
+        <div class="flex items-start gap-3">
+          <i class="fas fa-lock text-info text-xl mt-1"></i>
+          <div>
+            <h3 class="font-semibold text-info mb-2">Privacy & Security</h3>
+            <p class="text-base-content/80 text-sm">
+              We only access basic profile information needed for authentication. 
+              Your data is protected and never shared with third parties.
+            </p>
+          </div>
+        </div>
+      </div>
+
+      <!-- Benefits -->
+      <div class="stat-card">
+        <div class="flex items-center gap-2 mb-4">
+          <i class="fas fa-star text-warning"></i>
+          <h2 class="text-xl font-bold">Benefits</h2>
+        </div>
+
+        <div class="space-y-3 text-sm">
+          <div class="flex items-start gap-2">
+            <i class="fas fa-check text-success mt-1"></i>
+            <span>No password to remember</span>
+          </div>
+          <div class="flex items-start gap-2">
+            <i class="fas fa-check text-success mt-1"></i>
+            <span>Quick one-click login</span>
+          </div>
+          <div class="flex items-start gap-2">
+            <i class="fas fa-check text-success mt-1"></i>
+            <span>Enhanced security</span>
+          </div>
+          <div class="flex items-start gap-2">
+            <i class="fas fa-check text-success mt-1"></i>
+            <span>Easy account recovery</span>
+          </div>
+        </div>
+      </div>
+    </div>
   </div>
 </div>
-
 {% endblock %}

@@ -1,98 +1,219 @@
 {% extends "base_generic.html" %}
 {% load partials %}
 
+{% block title %}
+  <title>Contributors - ASA Stats Rewards</title>
+{% endblock %}
+
+{% block page_title %}ASA Stats Contributors{% endblock %}
+
 {% block content %}
-<div class="max-w-4xl mx-auto">
-  <h1 class="text-3xl font-bold mb-6">ASA Stats Contributors</h1>
+<div class="space-y-6 fade-in">
+  <!-- Page Header -->
+  <div class="flex flex-col sm:flex-row justify-between items-start sm:items-center gap-4">
+    <div>
+      <p class="mt-2 text-lg text-base-content/70">
+        Browse and search all contributors in the system
+      </p>
+    </div>
+    <div class="badge badge-primary badge-lg">
+      <i class="fas fa-users mr-1"></i>
+      {{ page_obj.paginator.count }} Contributors
+    </div>
+  </div>
 
-  <!-- ✅ HTMX Search -->
-  <form method="get"
-        hx-get="."
-        hx-target="#results-container"
-        hx-select="#results-container > *"
-        hx-swap="innerHTML transition:true"
-        hx-push-url="true"
-        hx-trigger="input changed delay:400ms"
-        class="flex gap-2 items-center">
+  <!-- Search Card -->
+  <div class="stat-card">
+    <div class="flex items-center gap-2 mb-4">
+      <i class="fas fa-search text-primary"></i>
+      <h2 class="text-xl font-bold">Search Contributors</h2>
+    </div>
 
-      <div class="relative flex-1">
-          <input type="text"
-                name="q"
-                value="{{ search_query }}"
-                placeholder="Search contributors..."
-                class="input input-bordered w-full pr-10">
+    <!-- ✅ HTMX Search -->
+    <form method="get"
+          hx-get="."
+          hx-target="#results-container"
+          hx-select="#results-container > *"
+          hx-swap="innerHTML transition:true"
+          hx-push-url="true"
+          hx-trigger="input changed delay:400ms"
+          class="flex flex-col sm:flex-row gap-4 items-start sm:items-end">
 
-          <!-- Loading spinner -->
-          <span class="loading loading-spinner loading-sm absolute right-3 top-1/2 -translate-y-1/2 opacity-0"
-                id="search-spinner"
-                hx-indicator>
-          </span>
-      </div>
+        <div class="flex-1 w-full">
+          <label class="label">
+            <span class="label-text font-semibold">Search by name or handle</span>
+          </label>
+          <div class="relative">
+            <input type="text"
+                  name="q"
+                  value="{{ search_query }}"
+                  placeholder="Enter contributor name, GitHub username, or other handles..."
+                  class="input input-bordered w-full pr-10 text-base">
 
-      <button type="submit" class="btn btn-primary">Search</button>
+            <!-- Loading spinner -->
+            <span class="loading loading-spinner loading-sm absolute right-3 top-1/2 -translate-y-1/2 opacity-0"
+                  id="search-spinner"
+                  hx-indicator>
+            </span>
+          </div>
+        </div>
 
-      {% if search_query %}
-        <a href="." class="btn btn-ghost">Clear</a>
-      {% endif %}
-  </form>
+        <div class="flex gap-2 w-full sm:w-auto">
+          <button type="submit" class="btn btn-primary flex-1 sm:flex-none">
+            <i class="fas fa-search mr-2"></i>
+            Search
+          </button>
 
-  <div id="results-container" class="mt-6">
+          {% if search_query %}
+            <a href="." class="btn btn-outline flex-1 sm:flex-none">
+              <i class="fas fa-times mr-2"></i>
+              Clear
+            </a>
+          {% endif %}
+        </div>
+    </form>
+  </div>
+
+  <div id="results-container">
     {% partial results_partial %}
   </div>
 </div>
 {% endblock %}
 
-
 {% partialdef results_partial %}
   <!-- Search Results Info -->
   {% if search_query and contributor_list %}
-    <div class="alert alert-info mb-4">
-      <span>Found {{ page_obj.paginator.count }} contributor(s) for "{{ search_query }}"</span>
+    <div class="stat-card bg-info/5 border-info/20">
+      <div class="flex items-center gap-3">
+        <i class="fas fa-info-circle text-info text-xl"></i>
+        <div>
+          <h3 class="font-semibold text-info">Search Results</h3>
+          <p class="text-base-content/80">
+            Found {{ page_obj.paginator.count }} contributor(s) for "<strong>{{ search_query }}</strong>"
+          </p>
+        </div>
+      </div>
     </div>
   {% endif %}
 
   <!-- Contributors List -->
-  <div class="card bg-base-100 shadow-md">
-    <div class="card-body">
-      {% if contributor_list %}
-        <div class="space-y-3">
-          {% for contributor in contributor_list %}
-          <div class="flex items-center">
-            <a class="link link-accent text-lg" href="{{ contributor.get_absolute_url }}">
-              {{ contributor.info }}
-            </a>
-          </div>
-          {% endfor %}
-        </div>
-      {% else %}
+  <div class="stat-card">
+    <div class="flex items-center gap-2 mb-6">
+      <i class="fas fa-list text-primary"></i>
+      <h2 class="text-xl font-bold">
         {% if search_query %}
-          <div class="text-center py-8">
-            <p class="text-base-content/70 mb-4">No contributors found matching "{{ search_query }}"</p>
-            <a href="." class="btn btn-outline">View all contributors</a>
-          </div>
+          Search Results
         {% else %}
-          <p class="text-base-content/70 text-center py-8">There are no contributors in database.</p>
+          All Contributors
         {% endif %}
-      {% endif %}
+      </h2>
     </div>
+
+    {% if contributor_list %}
+      <div class="space-y-4">
+        {% for contributor in contributor_list %}
+        <div class="flex items-center justify-between p-4 bg-base-200 rounded-lg hover:bg-base-300 transition-colors group">
+          <div class="flex items-center gap-4">
+            <div class="p-3 rounded-lg bg-primary/10 text-primary">
+              <i class="fas fa-user"></i>
+            </div>
+            <div>
+              <a class="link link-accent text-xl font-semibold hover:no-underline" href="{{ contributor.get_absolute_url }}">
+                {{ contributor.info }}
+              </a>
+              {% if contributor.prefetched_handles %}
+              <div class="flex items-center gap-3 mt-1">
+                {% for handle in contributor.prefetched_handles|slice:":3" %}
+                <span class="badge badge-outline badge-sm">
+                  <i class="fab fa-{{ handle.platform.name|lower }} mr-1"></i>
+                  {{ handle.handle }}
+                </span>
+                {% endfor %}
+                {% if contributor.prefetched_handles|length > 3 %}
+                <span class="badge badge-ghost badge-sm">
+                  +{{ contributor.prefetched_handles|length|add:"-3" }} more
+                </span>
+                {% endif %}
+              </div>
+              {% endif %}
+            </div>
+          </div>
+          <div class="flex items-center gap-4">
+            {% with rewards=contributor.total_rewards %}
+            {% if rewards %}
+            <div class="text-right">
+              <div class="text-sm font-semibold text-base-content/70">Total Rewards</div>
+              <div class="text-success font-bold">{{ rewards|floatformat:"g" }}</div>
+            </div>
+            {% endif %}
+            {% endwith %}
+            <i class="fas fa-chevron-right text-base-content/30 group-hover:text-base-content/60 transition-colors"></i>
+          </div>
+        </div>
+        {% endfor %}
+      </div>
+    {% else %}
+      {% if search_query %}
+      <div class="text-center py-12">
+        <i class="fas fa-search text-4xl text-base-content/30 mb-4"></i>
+        <h3 class="text-xl font-semibold mb-2">No Contributors Found</h3>
+        <p class="text-base-content/70 max-w-md mx-auto mb-6">
+          No contributors found matching "<strong>{{ search_query }}</strong>". 
+          Try adjusting your search terms or browse all contributors.
+        </p>
+        <a href="." class="btn btn-primary">
+          <i class="fas fa-users mr-2"></i>
+          View All Contributors
+        </a>
+      </div>
+      {% else %}
+      <div class="text-center py-12">
+        <i class="fas fa-users text-4xl text-base-content/30 mb-4"></i>
+        <h3 class="text-xl font-semibold mb-2">No Contributors Yet</h3>
+        <p class="text-base-content/70 max-w-md mx-auto mb-6">
+          There are no contributors registered in the database yet. 
+          Contributors will appear here once they start making contributions.
+        </p>
+        <a href="{% url 'index' %}" class="btn btn-primary">
+          <i class="fas fa-home mr-2"></i>
+          Back to Home
+        </a>
+      </div>
+      {% endif %}
+    {% endif %}
   </div>
 
   <!-- ✅ Pagination stays HTMX-aware -->
   {% if is_paginated %}
-    <div class="mt-6 flex justify-center gap-2">
-      {% if page_obj.has_previous %}
-        <a hx-get="?page={{ page_obj.previous_page_number }}{% if search_query %}&q={{ search_query }}{% endif %}"
-           hx-target="#results-container"
-           hx-swap="innerHTML transition:true"
-           class="btn btn-soft btn-sm">Prev</a>
-      {% endif %}
+    <div class="stat-card">
+      <div class="flex flex-col sm:flex-row justify-between items-center gap-4">
+        <div class="text-sm text-base-content/70">
+          Page {{ page_obj.number }} of {{ page_obj.paginator.num_pages }}
+          • {{ page_obj.paginator.count }} total contributors
+        </div>
+        
+        <div class="flex gap-2">
+          {% if page_obj.has_previous %}
+            <a hx-get="?page={{ page_obj.previous_page_number }}{% if search_query %}&q={{ search_query }}{% endif %}"
+               hx-target="#results-container"
+               hx-swap="innerHTML transition:true"
+               class="btn btn-outline btn-sm">
+              <i class="fas fa-chevron-left mr-1"></i>
+              Previous
+            </a>
+          {% endif %}
 
-      {% if page_obj.has_next %}
-        <a hx-get="?page={{ page_obj.next_page_number }}{% if search_query %}&q={{ search_query }}{% endif %}"
-           hx-target="#results-container"
-           hx-swap="innerHTML transition:true"
-           class="btn btn-soft btn-sm">Next</a>
-      {% endif %}
+          {% if page_obj.has_next %}
+            <a hx-get="?page={{ page_obj.next_page_number }}{% if search_query %}&q={{ search_query }}{% endif %}"
+               hx-target="#results-container"
+               hx-swap="innerHTML transition:true"
+               class="btn btn-outline btn-sm">
+              Next
+              <i class="fas fa-chevron-right ml-1"></i>
+            </a>
+          {% endif %}
+        </div>
+      </div>
     </div>
   {% endif %}
 {% endpartialdef %}

@@ -2,49 +2,64 @@
 {% load partials %}
 {% load static %}
 
-{% partialdef reclaim_allocations_table_partial %}
-<div class="space-y-4 p-4 rounded-lg bg-base-200 mt-4">
+{% block title %}
+  <title>Reclaim Allocations - ASA Stats Rewards</title>
+{% endblock %}
 
-  <h4 class="font-semibold text-lg">Reclaimable allocations</h4>
+{% partialdef reclaim_allocations_table_partial %}
+<div class="stat-card">
+  <div class="flex items-center gap-2 mb-4">
+    <i class="fas fa-recycle text-warning"></i>
+    <h3 class="text-xl font-bold">Reclaimable Allocations</h3>
+  </div>
 
   <div class="overflow-x-auto">
-    <table class="table w-full">
+    <table class="data-table">
       <thead>
-        <tr><th></th><th>Address</th></tr>
+        <tr>
+          <th class="bg-base-200"></th>
+          <th class="bg-base-200">Address</th>
+        </tr>
       </thead>
       <tbody>
         {% for address in addresses %}
-        <tr>
-          <td class="py-2 px-2">
+        <tr class="hover:bg-base-200 transition-colors">
+          <td class="py-3">
             {% if use_admin_account %}
             <form method="post"
                   hx-post="{% url 'reclaim_allocations' %}"
                   hx-vals='{"blocking": "true"}'
                   hx-trigger="click"
-                  hx-swap="none">
+                  hx-swap="none"
+                  class="inline">
               {% csrf_token %}
               <input type="hidden" name="address" value="{{ address }}">
               <button type="submit"
-                      class="btn btn-soft btn-warning btn-sm"
+                      class="btn btn-warning btn-sm"
                       hx-disable>
+                <i class="fas fa-recycle mr-2"></i>
                 Reclaim
               </button>
             </form>
             {% else %}
               <button type="button"
-                      class="btn btn-soft btn-warning btn-sm reclaim-button"
+                      class="btn btn-warning btn-sm reclaim-button"
                       data-address="{{ address }}"
                       id="reclaim-button-{{ forloop.counter }}">
+                <i class="fas fa-recycle mr-2"></i>
                 Reclaim
               </button>
             {% endif %}
           </td>
-          <td class="py-2 px-2">{{ address }}</td>
+          <td class="py-3 font-mono text-sm">{{ address }}</td>
         </tr>
         {% empty %}
         <tr>
-          <td colspan="2" class="py-4 text-center text-success">
-            ✅ No reclaimable allocations found!
+          <td colspan="2" class="py-8 text-center">
+            <div class="flex flex-col items-center justify-center text-success">
+              <i class="fas fa-check-circle text-3xl mb-2"></i>
+              <span class="font-semibold">No reclaimable allocations found!</span>
+            </div>
           </td>
         </tr>
         {% endfor %}
@@ -52,26 +67,50 @@
     </table>
   </div>
 
+  <div class="flex gap-3 mt-6 pt-4 border-t border-base-300">
+    <a href="{% url 'index' %}" class="btn btn-outline">
+      <i class="fas fa-arrow-left mr-2"></i>
+      Back to Home
+    </a>
+  </div>
 </div>
 {% endpartialdef reclaim_allocations_table_partial %}
 
-{% block head_title %}
-  Reclaim allocations
-{% endblock head_title %}
+{% block page_title %}Reclaim Allocations{% endblock %}
 
 {% block content %}
+<div class="space-y-6 fade-in">
+  <!-- Page Header -->
+  <div class="flex flex-col sm:flex-row justify-between items-start sm:items-center gap-4">
+    <div>
+      <p class="mt-2 text-lg text-base-content/70">
+        Superuser administration panel
+      </p>
+    </div>
+    <div class="badge badge-warning badge-lg">
+      <i class="fas fa-shield-alt mr-1"></i>
+      Superuser Only
+    </div>
+  </div>
 
-<div class="container mx-auto px-4 py-8">
-  <h1 class="text-3xl font-bold mb-6">Reclaim allocations (superuser only)</h1>
+  <!-- Info Card -->
+  <div class="stat-card bg-info/5 border-info/20">
+    <div class="flex items-start gap-3">
+      <i class="fas fa-info-circle text-info text-xl mt-1"></i>
+      <div>
+        <h3 class="font-semibold text-info mb-2">About This Page</h3>
+        <p class="text-base-content/80">
+          This action will reclaim allocations from the smart contract.
+        </p>
+      </div>
+    </div>
+  </div>
 
+  <!-- Reclaimable Allocations Table -->
   <div id="reclaim-allocations-container">
     {% csrf_token %}
     {% partial reclaim_allocations_table_partial %}
   </div>
 
-  <p class="mt-4 text-sm text-base-content/70">
-    This page allows a superuser to reclaim allocations from the smart contract.
-  </p>
 </div>
-
-{% endblock %}
+{% endblock content %}

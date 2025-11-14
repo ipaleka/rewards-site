@@ -67,7 +67,6 @@ export class App {
       )
 
       if (!hasWalletElements) {
-        console.log('Skipping wallet initialization - no wallet elements found')
         return
       }
 

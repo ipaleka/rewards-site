@@ -1,4 +1,4 @@
-import { NetworkId, WalletManager } from '@txnlab/use-wallet'
+import { NetworkId, WalletManager } from "@txnlab/use-wallet";
 
 /**
  * ActiveNetwork class manages network selection and display in the UI.
@@ -14,15 +14,15 @@ import { NetworkId, WalletManager } from '@txnlab/use-wallet'
  * ```
  */
 export class ActiveNetwork {
-  private element: HTMLElement | null = null
-  private unsubscribe: (() => void) | null = null
+  private element: HTMLElement | null = null;
+  private unsubscribe: (() => void) | null = null;
 
   /**
    * Creates an instance of ActiveNetwork.
    *
    * @param manager - The WalletManager instance for wallet and network operations
    */
-  constructor(private manager: WalletManager) { }
+  constructor(private manager: WalletManager) {}
 
   /**
    * Binds the ActiveNetwork instance to a DOM element.
@@ -34,12 +34,12 @@ export class ActiveNetwork {
    * @throws {Error} If the element is null or invalid
    */
   bind(element: HTMLElement) {
-    this.element = element
+    this.element = element;
     this.unsubscribe = this.manager.subscribe((state) => {
-      this.render(state.activeNetwork)
-    })
-    this.element.addEventListener('click', this.handleClick)
-    this.render(this.manager.activeNetwork)
+      this.render(state.activeNetwork);
+    });
+    this.element.addEventListener("click", this.handleClick);
+    this.render(this.manager.activeNetwork);
   }
 
   /**
@@ -52,27 +52,27 @@ export class ActiveNetwork {
    * @private
    */
   private handleClick = async (e: Event) => {
-    const btn = e.target as HTMLElement
-    const network = btn.dataset.network as NetworkId
+    const btn = e.target as HTMLElement;
+    const network = btn.dataset.network as NetworkId;
 
-    if (!network) return
+    if (!network) return;
 
-    this.manager.setActiveNetwork(network)
+    this.manager.setActiveNetwork(network);
 
     try {
-      const csrfToken = this.getCsrfToken()
-      await fetch('/api/wallet/active-network/', {
-        method: 'POST',
+      const csrfToken = this.getCsrfToken();
+      await fetch("/api/wallet/active-network/", {
+        method: "POST",
         headers: {
-          'Content-Type': 'application/json',
-          'X-CSRFToken': csrfToken
+          "Content-Type": "application/json",
+          "X-CSRFToken": csrfToken,
         },
-        body: JSON.stringify({ network })
-      })
+        body: JSON.stringify({ network }),
+      });
     } catch (error) {
-      console.error('Error setting active network:', error)
+      console.error("Error setting active network:", error);
     }
-  }
+  };
 
   /**
    * Renders the current active network state in the UI.
@@ -84,21 +84,21 @@ export class ActiveNetwork {
    * @private
    */
   private render(activeNetwork: string | null) {
-    if (!this.element) return
+    if (!this.element) return;
 
-    const networkSpan = this.element.querySelector('span')
+    const networkSpan = this.element.querySelector("#network-name");
     if (networkSpan) {
-      networkSpan.textContent = activeNetwork || 'none'
+      networkSpan.textContent = activeNetwork || "none";
     }
 
-    const buttons = this.element.querySelectorAll('button')
+    const buttons = this.element.querySelectorAll("button");
     buttons.forEach((btn) => {
       if (btn.dataset.network === activeNetwork) {
-        btn.classList.add('disabled')
+        btn.classList.add("disabled");
       } else {
-        btn.classList.remove('disabled')
+        btn.classList.remove("disabled");
       }
-    })
+    });
   }
 
   /**
@@ -108,8 +108,10 @@ export class ActiveNetwork {
    * @private
    */
   private getCsrfToken(): string {
-    const csrfCookie = document.cookie.split(';').find(c => c.trim().startsWith('csrftoken='))
-    return csrfCookie ? csrfCookie.split('=')[1] : ''
+    const csrfCookie = document.cookie
+      .split(";")
+      .find((c) => c.trim().startsWith("csrftoken="));
+    return csrfCookie ? csrfCookie.split("=")[1] : "";
   }
 
   /**
@@ -120,11 +122,11 @@ export class ActiveNetwork {
    */
   destroy() {
     if (this.unsubscribe) {
-      this.unsubscribe()
-      this.unsubscribe = null // Prevent multiple calls
+      this.unsubscribe();
+      this.unsubscribe = null; // Prevent multiple calls
     }
     if (this.element) {
-      this.element.removeEventListener('click', this.handleClick)
+      this.element.removeEventListener("click", this.handleClick);
       // Don't nullify element as it might be needed for other cleanup
     }
   }

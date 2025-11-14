@@ -9,7 +9,7 @@ from django.conf import settings
 from django.contrib import messages
 from django.contrib.auth.decorators import login_required, user_passes_test
 from django.contrib.auth.models import User
-from django.db.models import Prefetch, Q, Sum
+from django.db.models import Count, Prefetch, Q, Sum
 from django.db.models.functions import Lower
 from django.forms import ValidationError
 from django.http import Http404, HttpResponse, HttpResponseRedirect
@@ -191,7 +191,7 @@ class ContributionEditView(UpdateView):
             "contribution_edited", Contribution.objects.get(id=self.object.pk).info()
         )
         messages.success(self.request, "Contribution updated successfully!")
-        return reverse_lazy("contribution-detail", kwargs={"pk": self.object.pk})
+        return reverse_lazy("contribution_detail", kwargs={"pk": self.object.pk})
 
 
 @method_decorator(user_passes_test(lambda user: user.is_superuser), name="dispatch")
@@ -292,13 +292,11 @@ class ContributionInvalidateView(UpdateView):
             return f"Failed to set contribution as {reaction}. All operations failed."
 
         failed_ops_str = " and ".join(failed_operations)
-        return (
-            f"Failed to add {failed_ops_str}. Contribution was not set as {reaction}."
-        )
+        return f"Failed to add {failed_ops_str}. Contribution was not confirmed as {reaction}."
 
     def _get_success_message(self, comment, reaction):
         """Generate appropriate success message."""
-        actions = [f"set as {reaction}"]
+        actions = [f"Confirmed as {reaction}"]
         if comment:
             actions.append("reply sent")
         actions.append("reaction added")
@@ -308,7 +306,7 @@ class ContributionInvalidateView(UpdateView):
 
     def get_success_url(self):
         """Return URL to redirect after successful update."""
-        return reverse_lazy("contribution-detail", kwargs={"pk": self.object.pk})
+        return reverse_lazy("contribution_detail", kwargs={"pk": self.object.pk})
 
 
 class ContributorListView(ListView):
@@ -334,18 +332,40 @@ class ContributorListView(ListView):
         # Get search query from GET parameters
         search_query = self.request.GET.get("q")
         if search_query:
-            # Search in contributor names and handle handles
-            return queryset.filter(
-                Q(name__icontains=search_query)
-                | Q(handle__handle__icontains=search_query)
-            ).distinct()
+            # For search results, we can't use the complex prefetch
+            return (
+                queryset.filter(
+                    Q(name__icontains=search_query)
+                    | Q(handle__handle__icontains=search_query)
+                )
+                .distinct()
+                .prefetch_related(
+                    Prefetch(
+                        "handle_set",
+                        queryset=Handle.objects.select_related("platform").order_by(
+                            Lower("handle")
+                        ),
+                        to_attr="prefetched_handles",
+                    )
+                )
+            )
 
+        # For non-search queries, use full prefetching
         return queryset.prefetch_related(
             Prefetch(
                 "handle_set",
-                queryset=Handle.objects.order_by(Lower("handle")),
+                queryset=Handle.objects.select_related("platform").order_by(
+                    Lower("handle")
+                ),
                 to_attr="prefetched_handles",
-            )
+            ),
+            Prefetch(
+                "contribution_set",
+                queryset=Contribution.objects.select_related(
+                    "cycle", "reward", "reward__type", "issue"
+                ).order_by("cycle__start", "created_at"),
+                to_attr="prefetched_contributions",
+            ),
         )
 
     def render_to_response(self, context, **response_kwargs):
@@ -386,6 +406,29 @@ class ContributorDetailView(DetailView):
 
     model = Contributor
 
+    def get_queryset(self):
+        """Prefetch all related data to avoid N+1 queries.
+
+        :return: QuerySet of this cycle's contributions ordered by ID in reverse
+        :rtype: :class:`django.db.models.QuerySet`
+        """
+        return Contributor.objects.prefetch_related(
+            Prefetch(
+                "handle_set",
+                queryset=Handle.objects.select_related("platform").order_by(
+                    Lower("handle")
+                ),
+                to_attr="prefetched_handles",
+            ),
+            Prefetch(
+                "contribution_set",
+                queryset=Contribution.objects.select_related(
+                    "cycle", "reward", "reward__type", "issue"
+                ).order_by("cycle__start", "created_at"),
+                to_attr="prefetched_contributions",
+            ),
+        )
+
 
 class CycleListView(ListView):
     """View for displaying a paginated list of all cycles in reverse order.
@@ -399,13 +442,32 @@ class CycleListView(ListView):
     model = Cycle
     paginate_by = 10
 
+    def get_context_data(self, *args, **kwargs):
+        """Add total cycles count context data to template.
+
+        :param kwargs: Additional keyword arguments
+        :return: dict
+        """
+        context = super().get_context_data(*args, **kwargs)
+        context["total_cycles"] = self.object_list.count()
+        return context
+
     def get_queryset(self):
-        """Return queryset of all cycles in reverse chronological order.
+        """Return prefetch data of all cycles in reverse chronological order.
+
+        Annotate with counts and totals to avoid any additional queries
 
         :return: QuerySet of cycles in reverse order
         :rtype: :class:`django.db.models.QuerySet`
         """
-        return Cycle.objects.all().reverse()
+        return Cycle.objects.annotate(
+            contributions_count=Count("contribution"),
+            total_rewards_amount=Sum(
+                "contribution__reward__amount",
+                filter=Q(contribution__issue__status__isnull=True)
+                | ~Q(contribution__issue__status=IssueStatus.WONTFIX),
+            ),
+        ).order_by("-id")
 
 
 class CycleDetailView(DetailView):
@@ -418,7 +480,7 @@ class CycleDetailView(DetailView):
     model = Cycle
 
     def get_queryset(self):
-        """Optimize queryset to reduce database queries.
+        """Optimize queryset with annotations to avoid additional queries.
 
         :return: QuerySet of this cycle's contributions ordered by ID in reverse
         :rtype: :class:`django.db.models.QuerySet`
@@ -426,12 +488,23 @@ class CycleDetailView(DetailView):
         return (
             super()
             .get_queryset()
+            .annotate(
+                # Count all contributions
+                contributions_count=Count("contribution"),
+                # Sum rewards, excluding WONTFIX issues
+                total_rewards_amount=Sum(
+                    "contribution__reward__amount",
+                    filter=Q(contribution__issue__status__isnull=True)
+                    | ~Q(contribution__issue__status=IssueStatus.WONTFIX),
+                ),
+            )
             .prefetch_related(
                 Prefetch(
                     "contribution_set",
                     queryset=Contribution.objects.select_related(
-                        "contributor", "reward__type", "platform"
+                        "contributor", "reward", "reward__type", "platform", "issue"
                     ).order_by("-id"),
+                    to_attr="prefetched_contributions",
                 )
             )
         )
@@ -448,6 +521,26 @@ class IssueListView(ListView):
 
     model = Issue
     paginate_by = 20
+
+    def get_context_data(self, *args, **kwargs):
+        """Add open issues' context data to template.
+
+        :param kwargs: Additional keyword arguments
+        :return: dict
+        """
+        context = super().get_context_data(*args, **kwargs)
+
+        total_contributions = Issue.objects.filter(
+            status=IssueStatus.CREATED
+        ).aggregate(total=Count("contribution"))["total"]
+        context["total_contributions"] = total_contributions
+
+        latest_issue = (
+            Issue.objects.filter(status=IssueStatus.CREATED).order_by("-id").first()
+        )
+        context["latest_issue"] = latest_issue
+
+        return context
 
     def get_queryset(self):
         """Return open issues queryset in reverse order with prefetched contributions.
@@ -542,7 +635,7 @@ class IssueDetailView(DetailView):
         # Only superusers can submit forms
         if not request.user.is_superuser:
             messages.error(request, "You don't have permission to perform this action.")
-            return redirect("issue-detail", pk=self.get_object().pk)
+            return redirect("issue_detail", pk=self.get_object().pk)
 
         issue = self.get_object()
 
@@ -557,7 +650,7 @@ class IssueDetailView(DetailView):
 
         else:
             messages.error(request, "Invalid form submission.")
-            return redirect("issue-detail", pk=issue.pk)
+            return redirect("issue_detail", pk=issue.pk)
 
     def _handle_labels_submission(self, request, issue):
         """Handle the labels form submission."""
@@ -593,7 +686,7 @@ class IssueDetailView(DetailView):
                 request, form, issue, result["current_labels"]
             )
 
-        return redirect("issue-detail", pk=issue.pk)
+        return redirect("issue_detail", pk=issue.pk)
 
     def _handle_close_submission(self, request, issue):
         """Handle the close issue submission."""
@@ -602,7 +695,7 @@ class IssueDetailView(DetailView):
 
         if action not in ["addressed", "wontfix"]:
             messages.error(request, "Invalid close action.")
-            return redirect("issue-detail", pk=issue.pk)
+            return redirect("issue_detail", pk=issue.pk)
 
         try:
             # Get current labels from GitHub
@@ -611,14 +704,14 @@ class IssueDetailView(DetailView):
                 messages.error(
                     request, f"Failed to fetch GitHub issue: {issue_data.get('error')}"
                 )
-                return redirect("issue-detail", pk=issue.pk)
+                return redirect("issue_detail", pk=issue.pk)
 
             # Check if issue is still open
             if issue_data["issue"]["state"] != "open":
                 messages.error(
                     request, "Cannot close an issue that is already closed on GitHub."
                 )
-                return redirect("issue-detail", pk=issue.pk)
+                return redirect("issue_detail", pk=issue.pk)
 
             current_labels = issue_data["issue"]["labels"]
 
@@ -675,7 +768,7 @@ class IssueDetailView(DetailView):
         except Exception as e:
             messages.error(request, f"Error closing issue: {str(e)}")
 
-        return redirect("issue-detail", pk=issue.pk)
+        return redirect("issue_detail", pk=issue.pk)
 
     def _labels_response_from_hx_request(self, request, form, issue, labels):
         """Prepare HTML response for labels sections fro mprovided data."""
@@ -802,7 +895,7 @@ class CreateIssueView(FormView):
 
         :return: str
         """
-        return reverse_lazy("contribution-detail", args=[self.contribution_id])
+        return reverse_lazy("contribution_detail", args=[self.contribution_id])
 
     def get_initial(self):
         """Set initial form data from contribution.
@@ -1045,3 +1138,27 @@ class SignupView(AllauthSignupView):
             "active_network", "testnet"
         )
         return context
+
+
+class UnconfirmedContributionsView(ListView):
+    """View for displaying unconfirmed contribution links.
+
+    :ivar model: Model class for contributions
+    :type model: :class:`core.models.Contribution`
+    :ivar paginate_by: Number of items per page
+    :type paginate_by: int
+    :ivar template_name: HTML template for the page
+    :type template_name: str
+    """
+
+    model = Contribution
+    paginate_by = 20
+    template_name = "unconfirmed_contributions.html"
+
+    def get_queryset(self):
+        """Return queryset of unconfirmed contributions in reverse order.
+
+        :return: QuerySet of unconfirmed contributions
+        :rtype: :class:`django.db.models.QuerySet`
+        """
+        return Contribution.objects.filter(confirmed=False).reverse()

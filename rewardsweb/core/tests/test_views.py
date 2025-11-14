@@ -21,6 +21,7 @@ from core.views import (
     ProfileEditView,
     ProfileUpdate,
     SignupView,
+    UnconfirmedContributionsView,
 )
 
 user_model = get_user_model()
@@ -476,3 +477,57 @@ class TestSignupView(BaseUserCreatedView):
         context = view.get_context_data()
 
         assert context["active_network"] == "mainnet"
+
+
+class UnconfirmedContributionsPageTest(TestCase):
+    """Testing class for :class:`core.views.UnconfirmedContributionsView`."""
+
+    def test_unconfirmedcontributions_page_renders_unconfirmedcontributions_template(
+        self,
+    ):
+        response = self.client.get(reverse("unconfirmed_contributions"))
+
+        self.assertEqual(response.status_code, 200)
+        self.assertTemplateUsed(response, "unconfirmed_contributions.html")
+
+
+class TestUnconfirmedContributionsView:
+    """Testing class for :class:`core.views.UnconfirmedContributionsView`."""
+
+    def test_unconfirmedcontributionsview_is_subclass_of_listview(self):
+        assert issubclass(UnconfirmedContributionsView, ListView)
+
+    def test_unconfirmedcontributionsview_model(self):
+        view = UnconfirmedContributionsView()
+        assert view.model == Contribution
+
+    def test_unconfirmedcontributionsview_paginate_by(self):
+        view = UnconfirmedContributionsView()
+        assert view.paginate_by == 20
+
+    def test_unconfirmedcontributionsview_template_name(self):
+        view = UnconfirmedContributionsView()
+        assert view.template_name == "unconfirmed_contributions.html"
+
+
+@pytest.mark.django_db
+class TestDbUnconfirmedContributionsView:
+    """Testing class for :class:`core.views.UnconfirmedContributionsView` with database."""
+
+    def test_unconfirmedcontributionsview_get_queryset(self, contribution):
+        # Create a confirmed contribution that should not appear
+        Contribution.objects.create(
+            contributor=contribution.contributor,
+            cycle=contribution.cycle,
+            platform=contribution.platform,
+            reward=contribution.reward,
+            percentage=100.0,
+            confirmed=True,
+        )
+
+        view = UnconfirmedContributionsView()
+        queryset = view.get_queryset()
+
+        # Should only include unconfirmed contributions
+        assert queryset.filter(confirmed=True).count() == 0
+        assert queryset.filter(confirmed=False).count() == 1

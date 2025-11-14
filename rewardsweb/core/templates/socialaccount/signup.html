@@ -1,43 +1,221 @@
 {% extends "account/base_entrance.html" %}
 {% load i18n allauth account %}
 
-{% block head_title %}{% trans "Social Signup" %}{% endblock %}
+{% block head_title %}
+  {% trans "Complete Signup - ASA Stats Rewards" %}
+{% endblock %}
+
+{% block page_title %}Complete Your {{ provider_name }} Signup{% endblock %}
 
 {% block inner_content %}
+<div class="space-y-6 fade-in">
+  <!-- Page Header -->
+  <div class="flex flex-col sm:flex-row justify-between items-start sm:items-center gap-4">
+    <div>
+      <p class="mt-2 text-lg text-base-content/70">
+        Finalize your account creation with additional details
+      </p>
+    </div>
+    <div class="badge badge-primary badge-lg">
+      {% if account.get_provider.id == "discord" %}
+        <i class="fab fa-discord mr-1"></i>
+      {% elif account.get_provider.id == "google" %}
+        <i class="fab fa-google mr-1"></i>
+      {% elif account.get_provider.id == "github" %}
+        <i class="fab fa-github mr-1"></i>
+      {% elif account.get_provider.id == "reddit" %}
+        <i class="fab fa-reddit mr-1"></i>
+      {% elif account.get_provider.id == "twitter_oauth2" %}
+        <i class="fab fa-x-twitter mr-1"></i>
+      {% endif %}
+      Complete Signup
+    </div>
+  </div>
 
-<div class="card bg-base-100 shadow-xl border border-base-300">
-  <div class="card-body space-y-6">
+  <div class="grid grid-cols-1 lg:grid-cols-3 gap-6">
+    <!-- Main Content -->
+    <div class="lg:col-span-2">
+      <div class="stat-card">
+        <div class="flex items-center gap-2 mb-6">
+          {% if account.get_provider.id == "discord" %}
+            <i class="fab fa-discord text-[#5865F2] text-2xl"></i>
+          {% elif account.get_provider.id == "google" %}
+            <i class="fab fa-google text-[#4285F4] text-2xl"></i>
+          {% elif account.get_provider.id == "github" %}
+            <i class="fab fa-github text-base-content text-2xl"></i>
+          {% elif account.get_provider.id == "reddit" %}
+            <i class="fab fa-reddit text-[#FF5700] text-2xl"></i>
+          {% elif account.get_provider.id == "twitter_oauth2" %}
+            <i class="fab fa-x-twitter text-base-content text-2xl"></i>
+          {% endif %}
+          <h2 class="text-xl font-bold">
+            {% blocktrans with provider_name=account.get_provider.name %}
+              Finalize Your {{ provider_name }} Account
+            {% endblocktrans %}
+          </h2>
+        </div>
 
-    <h2 class="text-2xl font-bold text-center flex items-center justify-center gap-3">
+        <!-- Info Card -->
+        <div class="bg-base-200 p-6 rounded-xl border-2 border-base-300 mb-6">
+          <div class="flex items-start gap-3">
+            <i class="fas fa-user-plus text-success text-xl mt-1"></i>
+            <div>
+              <h3 class="font-semibold text-success mb-2">Almost There!</h3>
+              <p class="text-base-content/80">
+                {% blocktrans with provider_name=account.get_provider.name %}
+                  You're connecting your {{ provider_name }} account. 
+                  Please provide the following information to complete your registration 
+                  and start using ASA Stats Rewards.
+                {% endblocktrans %}
+              </p>
+            </div>
+          </div>
+        </div>
 
-    {% if account.get_provider.id == "discord" %}
-        <i class="fa-brands fa-discord text-2xl"></i>
-    {% elif account.get_provider.id == "google" %}
-        <i class="fa-brands fa-google text-2xl"></i>
-    {% elif account.get_provider.id == "github" %}
-        <i class="fa-brands fa-github text-2xl"></i>
-    {% elif account.get_provider.id == "reddit" %}
-        <i class="fa-brands fa-reddit text-2xl"></i>
-    {% elif account.get_provider.id == "twitter_oauth2" %}
-        <i class="fa-brands fa-x-twitter text-2xl"></i>
-    {% endif %}
+        <!-- Signup Form -->
+        <form method="post" class="space-y-6">
+          {% csrf_token %}
 
-    {% blocktrans with provider_name=account.get_provider.name %}
-        Complete your {{ provider_name }} signup
-    {% endblocktrans %}
-    </h2>
+          {% if form.non_field_errors %}
+            <div class="alert alert-error shadow-lg">
+              <i class="fas fa-exclamation-triangle mr-2"></i>
+              {{ form.non_field_errors }}
+            </div>
+          {% endif %}
 
-    <form method="post" class="space-y-4">
-      {% csrf_token %}
-      {% for field in form %}
-        {% include "account/elements/field.html" %}
-      {% endfor %}
-      <button type="submit" class="btn btn-primary w-full">
-        {% trans "Complete Signup" %}
-      </button>
-    </form>
+          {% for field in form %}
+            <div class="form-control">
+              <label class="label">
+                <span class="label-text font-semibold">{{ field.label }}</span>
+                {% if field.field.required %}
+                  <span class="label-text-alt text-error">*</span>
+                {% endif %}
+              </label>
+              <div class="bg-base-200 p-1 rounded-lg border-2 border-base-300">
+                {{ field }}
+              </div>
+              {% if field.help_text %}
+                <label class="label">
+                  <span class="label-text-alt text-base-content/60">{{ field.help_text }}</span>
+                </label>
+              {% endif %}
+              {% if field.errors %}
+                <div class="text-error text-sm mt-2 flex items-center gap-2">
+                  <i class="fas fa-exclamation-circle"></i>
+                  {{ field.errors }}
+                </div>
+              {% endif %}
+            </div>
+          {% endfor %}
 
+          <button type="submit" class="btn btn-success w-full mt-4">
+            <i class="fas fa-check-circle mr-2"></i>
+            {% trans "Complete Signup" %}
+          </button>
+        </form>
+      </div>
+    </div>
+
+    <!-- Sidebar -->
+    <div class="space-y-6">
+      <!-- Account Info -->
+      <div class="stat-card">
+        <div class="flex items-center gap-2 mb-4">
+          <i class="fas fa-info-circle text-info"></i>
+          <h2 class="text-xl font-bold">Account Information</h2>
+        </div>
+        
+        <div class="space-y-3 text-sm">
+          <div class="flex items-start gap-2">
+            <i class="fas fa-share-alt text-primary mt-1"></i>
+            <div>
+              <span class="font-semibold">Connected with:</span>
+              <p class="text-base-content/70">{{ account.get_provider.name }}</p>
+            </div>
+          </div>
+          
+          <div class="flex items-start gap-2">
+            <i class="fas fa-user-check text-success mt-1"></i>
+            <div>
+              <span class="font-semibold">Status:</span>
+              <p class="text-base-content/70">Finalizing registration</p>
+            </div>
+          </div>
+          
+          <div class="flex items-start gap-2">
+            <i class="fas fa-rocket text-warning mt-1"></i>
+            <div>
+              <span class="font-semibold">Next Step:</span>
+              <p class="text-base-content/70">Complete form and start exploring</p>
+            </div>
+          </div>
+        </div>
+      </div>
+
+      <!-- Quick Actions -->
+      <div class="stat-card">
+        <div class="flex items-center gap-2 mb-4">
+          <i class="fas fa-rocket text-accent"></i>
+          <h2 class="text-xl font-bold">Quick Actions</h2>
+        </div>
+
+        <div class="space-y-3">
+          <a href="{% url 'account_login' %}" class="btn btn-outline justify-start w-full">
+            <i class="fas fa-arrow-left mr-2"></i>
+            Back to Login
+          </a>
+          <a href="{% url 'index' %}" class="btn btn-outline justify-start w-full">
+            <i class="fas fa-home mr-2"></i>
+            Back to Home
+          </a>
+          <a href="{% url 'account_signup' %}" class="btn btn-outline justify-start w-full">
+            <i class="fas fa-user-plus mr-2"></i>
+            Different Signup Method
+          </a>
+        </div>
+      </div>
+
+      <!-- Benefits -->
+      <div class="stat-card">
+        <div class="flex items-center gap-2 mb-4">
+          <i class="fas fa-gift text-warning"></i>
+          <h2 class="text-xl font-bold">What's Next?</h2>
+        </div>
+
+        <div class="space-y-3 text-sm">
+          <div class="flex items-start gap-2">
+            <i class="fas fa-check text-success mt-1"></i>
+            <span>Access your home</span>
+          </div>
+          <div class="flex items-start gap-2">
+            <i class="fas fa-check text-success mt-1"></i>
+            <span>Track your rewards and contributions</span>
+          </div>
+          <div class="flex items-start gap-2">
+            <i class="fas fa-check text-success mt-1"></i>
+            <span>Connect with other contributors</span>
+          </div>
+          <div class="flex items-start gap-2">
+            <i class="fas fa-check text-success mt-1"></i>
+            <span>Start earning ASA Stats rewards</span>
+          </div>
+        </div>
+      </div>
+
+      <!-- Security Notice -->
+      <div class="stat-card bg-info/5 border-info/20">
+        <div class="flex items-start gap-3">
+          <i class="fas fa-shield-alt text-info text-xl mt-1"></i>
+          <div>
+            <h3 class="font-semibold text-info mb-2">Secure Registration</h3>
+            <p class="text-base-content/80 text-sm">
+              Your account information is protected and secure. 
+              We only store essential details needed for your rewards account.
+            </p>
+          </div>
+        </div>
+      </div>
+    </div>
   </div>
 </div>
-
 {% endblock %}

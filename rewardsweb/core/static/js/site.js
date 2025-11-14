@@ -1,51 +1,91 @@
+/******************************************************************************
+ *
+ *  Toast Notifications & Django Messages
+ *
+ *****************************************************************************/
+
 /**
- * Toast Notifications (DaisyUI)
+ * Displays a toast notification using DaisyUI alert classes.
+ * @param {'success' | 'error' | 'info' | 'warning'} type - The type of toast (determines the color).
+ * @param {string} text - The message to display in the toast.
  */
 function showToast(type, text) {
   const toastContainer = document.getElementById("toast-container");
   if (!toastContainer) return;
-  const toast = document.createElement("div");
 
-  toast.className = `alert alert-${
-    type === "error" ? "error" : "success"
-  } shadow-lg`;
+  const toast = document.createElement("div");
+  toast.className = `alert alert-${type} shadow-lg`;
   toast.innerHTML = `<span>${text}</span>`;
 
   toastContainer.appendChild(toast);
   setTimeout(() => toast.remove(), 4500);
 }
 
-// function showDjangoMessages(messages) {
-//     if (!messages?.length) return;
-//     messages.forEach(({ tag, text }) => showToast(tag, text));
-// }
+/**
+ * Finds and displays Django messages as toast notifications upon page load.
+ * The messages are embedded in the HTML with data attributes.
+ */
+function processDjangoMessages() {
+  const messageContainer = document.getElementById("django-messages");
+  if (messageContainer) {
+    const messages = messageContainer.querySelectorAll("[data-message]");
+    messages.forEach((element) => {
+      const type = element.getAttribute("data-message-type") || "info";
+      const text = element.getAttribute("data-message");
+      showToast(type, text);
+    });
+    messageContainer.remove(); // Clean up the container after processing
+  }
+}
+
+/******************************************************************************
+ *
+ *  Modal Management
+ *
+ *****************************************************************************/
 
 /**
- * Modal Close Helpers
+ * Closes any active modal by clearing the contents of the modal container.
  */
 function closeModal() {
   const modalContainer = document.getElementById("modal-container");
-  if (modalContainer) modalContainer.innerHTML = "";
+  if (modalContainer) {
+    modalContainer.innerHTML = "";
+  }
 }
 
+/******************************************************************************
+ *
+ *  HTMX Progress Bar
+ *
+ *****************************************************************************/
 
 var progressInterval = null;
 var htmxRequestBlocking = false;
 
 /**
- * Determine if HTMX request should be blocking
+ * Determines if an HTMX request should be "blocking," meaning it disables
+ * pointer events during the request to prevent user interaction.
+ * @param {HTMLElement} el - The element triggering the HTMX request.
+ * @param {object} requestConfig - The configuration object for the request.
+ * @returns {boolean} - True if the request should be blocking.
  */
 function isBlockingRequest(el, requestConfig) {
   return (
     el?.getAttribute("hx-vals")?.includes('"blocking": "true"') ||
     el?.dataset.blocking === "true" ||
-    requestConfig?.boosted === true // <--- links / boosted navigation are blocking
+    requestConfig?.boosted === true // Boosted navigation links are blocking
   );
 }
 
+/**
+ * Starts the HTMX progress bar animation.
+ * @param {boolean} blocking - If true, disables pointer events on the body.
+ */
 function startProgressBar(blocking = false) {
   const bar = document.getElementById("htmx-progress-bar");
   if (!bar) return;
+
   bar.classList.remove("hidden");
   bar.style.width = "0%";
 
@@ -60,6 +100,10 @@ function startProgressBar(blocking = false) {
   }, 200);
 }
 
+/**
+ * Completes and hides the HTMX progress bar.
+ * @param {boolean} blocking - If true, re-enables pointer events on the body.
+ */
 function finishProgressBar(blocking = false) {
   const bar = document.getElementById("htmx-progress-bar");
   if (!bar) return;
@@ -77,88 +121,39 @@ function finishProgressBar(blocking = false) {
   }, 300);
 }
 
-/**
- * Request started — progress bar
- */
-document.body.addEventListener("htmx:configRequest", (event) => {
-  htmxRequestBlocking = isBlockingRequest(
-    event.detail.elt,
-    event.detail.requestConfig
-  );
-  startProgressBar(htmxRequestBlocking);
-});
+/******************************************************************************
+ *
+ *  UI Initializers & Event Handlers
+ *
+ *****************************************************************************/
 
 /**
- * DOM updated — stop progress, fade animation, autofocus, toast
- */
-document.body.addEventListener("htmx:afterSwap", (event) => {
-  finishProgressBar(htmxRequestBlocking);
-
-  // fade-in animation
-  event.target.classList.add("fade-in");
-  setTimeout(() => event.target.classList.remove("fade-in"), 300);
-
-  // autofocus
-  const firstInput = event.target.querySelector(
-    "input:not([type=hidden]), textarea, select"
-  );
-  if (firstInput) setTimeout(() => firstInput.focus(), 30);
-
-  // toast notifications
-  if (event.target.dataset.toastMessage) {
-    showToast(
-      event.target.dataset.toastType || "success",
-      event.target.dataset.toastMessage
-    );
-  }
-});
-
-/************************************************************
- *  Auto-open modals after HTMX swap
- ************************************************************/
-document.body.addEventListener("htmx:afterSwap", function (evt) {
-  // Look for any dialog elements in the swapped content
-  const dialogs = evt.detail.target.querySelectorAll("dialog");
-  dialogs.forEach((dialog) => {
-    if (!dialog.open) {
-      console.log("Auto-opening modal:", dialog.id);
-      dialog.showModal();
-    }
-  });
-  // Also check if the target itself is a dialog
-  if (evt.detail.target.tagName === "DIALOG" && !evt.detail.target.open) {
-    console.log("Auto-opening dialog target:", evt.detail.target.id);
-    evt.detail.target.showModal();
-  }
-});
-
-
-/**
- * Simple Network Button Toggle
+ * Sets up the toggle functionality for the active network buttons.
  */
 function processActiveNetwork() {
-  const networkContainer = document.getElementById('active-network');
-  
-  if (networkContainer) {
-    const [button1, button2] = networkContainer.querySelectorAll('button[data-network]');
-    
-    networkContainer.addEventListener('click', function(e) {
-      const clicked = e.target.closest('button[data-network]');
-      if (!clicked) return;
-      
-      const other = clicked === button1 ? button2 : button1;
-      
-      clicked.disabled = true;
-      clicked.classList.add('btn-disabled');
-      
-      other.disabled = false;
-      other.classList.remove('btn-disabled');
-    });
-  }
+  const networkContainer = document.getElementById("active-network");
+  if (!networkContainer) return;
+
+  const [button1, button2] =
+    networkContainer.querySelectorAll("button[data-network]");
+
+  networkContainer.addEventListener("click", function (e) {
+    const clicked = e.target.closest("button[data-network]");
+    if (!clicked) return;
+
+    const other = clicked === button1 ? button2 : button1;
+
+    clicked.disabled = true;
+    clicked.classList.add("btn-disabled");
+
+    other.disabled = false;
+    other.classList.remove("btn-disabled");
+  });
 }
 
 /**
- * DaisyUI Theme Persistence (localStorage)
+ * Manages DaisyUI theme persistence in localStorage.
+ * It loads the saved theme on init and saves the theme on change.
  */
 function processDaisyUITheme() {
   const savedTheme = localStorage.getItem("theme");
@@ -169,11 +164,9 @@ function processDaisyUITheme() {
     if (selected) selected.checked = true;
   }
 
-  // Add listeners (with duplicate prevention)
   document.querySelectorAll("input[name='theme-dropdown']").forEach((input) => {
     if (input.dataset.listener !== "true") {
       input.dataset.listener = "true";
-
       input.addEventListener("change", () => {
         const theme = input.value;
         document.documentElement.setAttribute("data-theme", theme);
@@ -183,56 +176,95 @@ function processDaisyUITheme() {
   });
 }
 
-function processDjangoMessages() {
-  const messageContainer = document.getElementById("django-messages");
-  if (messageContainer) {
-    const messages = messageContainer.querySelectorAll("[data-message]");
-    messages.forEach((element) => {
-      const type = element.getAttribute("data-message-type") || "info";
-      const text = element.getAttribute("data-message");
-      showToast(type, text);
-    });
-    // Remove the container after processing
-    messageContainer.remove();
-  }
-}
+/******************************************************************************
+ *
+ *  Global Event Listeners
+ *
+ *****************************************************************************/
 
-// Theme toggle functionality
+/**
+ * Initializes UI components when the DOM is fully loaded.
+ */
 document.addEventListener("DOMContentLoaded", function () {
-  processActiveNetwork()
+  processActiveNetwork();
   processDaisyUITheme();
   processDjangoMessages();
-
-  document.querySelectorAll(".toast").forEach((toast) => {
-    setTimeout(() => {
-      toast.classList.add("opacity-0", "transition", "duration-300");
-      setTimeout(() => toast.remove(), 300);
-    }, 4500);
-  });
-
-  
-  
 });
 
 /**
- * Error case — always stop blocking
+ * HTMX listener: Fired before a request is sent.
+ * Starts the progress bar.
+ */
+document.body.addEventListener("htmx:configRequest", (event) => {
+  htmxRequestBlocking = isBlockingRequest(
+    event.detail.elt,
+    event.detail.requestConfig
+  );
+  startProgressBar(htmxRequestBlocking);
+});
+
+/**
+ * HTMX listener: Fired after new content is swapped into the DOM.
+ * Handles post-swap UI updates like animations, focus, toasts, and modals.
+ */
+document.body.addEventListener("htmx:afterSwap", (event) => {
+  finishProgressBar(htmxRequestBlocking);
+
+  // Fade-in animation for the new content
+  event.target.classList.add("fade-in");
+  setTimeout(() => event.target.classList.remove("fade-in"), 300);
+
+  // Autofocus on the first input in the new content
+  const firstInput = event.target.querySelector(
+    "input:not([type=hidden]), textarea, select"
+  );
+  if (firstInput) setTimeout(() => firstInput.focus(), 30);
+
+  // Show toast notifications if specified in the response
+  if (event.target.dataset.toastMessage) {
+    showToast(
+      event.target.dataset.toastType || "success",
+      event.target.dataset.toastMessage
+    );
+  }
+
+  // Auto-open any dialogs in the swapped content
+  const dialogs = event.target.querySelectorAll("dialog");
+  dialogs.forEach((dialog) => {
+    if (!dialog.open) dialog.showModal();
+  });
+  if (event.target.tagName === "DIALOG" && !event.target.open) {
+    event.target.showModal();
+  }
+
+  // Re-apply theme logic if theme-related elements were swapped
+  processDaisyUITheme();
+});
+
+/**
+ * HTMX listener: Fired on a request error.
+ * Ensures the progress bar and blocking state are always reset.
  */
 document.body.addEventListener("htmx:error", () => {
   finishProgressBar(htmxRequestBlocking);
 });
 
-document.body.addEventListener("htmx:afterSwap", processDaisyUITheme);
+/******************************************************************************
+ *
+ *  Module Exports (for testing)
+ *
+ *****************************************************************************/
 
 /* istanbul ignore next */
 if (typeof exports !== "undefined") {
   module.exports = {
     showToast,
-    processActiveNetwork,
-    processDaisyUITheme,
     processDjangoMessages,
     closeModal,
     isBlockingRequest,
     startProgressBar,
     finishProgressBar,
+    processActiveNetwork,
+    processDaisyUITheme,
   };
 }

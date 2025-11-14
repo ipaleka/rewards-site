@@ -269,11 +269,12 @@ class TestContractNetworkPublicFunctions:
     def test_contract_network_claimable_amount_for_address_claimable_default_network(
         self, mocker
     ):
-        user_address = "USER123"
+        user_address = "2EVGZ4BGOSL3J64UYDE2BUGTNTBZZZLI54VUQQNZZLYCDODLY33UGXNSIU"
 
         env = {
             f"algod_token_{ACTIVE_NETWORK}": "token",
             f"algod_address_{ACTIVE_NETWORK}": "address",
+            "rewards_token_decimals": 6,
         }
         mocker.patch("contract.network.environment_variables", return_value=env)
 
@@ -283,26 +284,25 @@ class TestContractNetworkPublicFunctions:
         atc_stub = {"app_id": 111}
         mocker.patch("contract.network.atc_method_stub", return_value=atc_stub)
 
-        mocker.patch("contract.network.decode_address", return_value=b"decoded")
-
         # amount > 0 and expires_at in the future → True
         future_timestamp = int(time.time()) + 5000
-        packed = struct.pack(">QQ", 150, future_timestamp)
+        packed = struct.pack(">QQ", 15_000_000_000, future_timestamp)
         encoded = base64.b64encode(packed)
 
         client.application_box_by_name.return_value = {"value": encoded}
 
         returned = claimable_amount_for_address(user_address)
 
-        assert returned == 150
+        assert returned == 15_000
 
     def test_contract_network_claimable_amount_for_address_claimable(self, mocker):
         network = "mainnet"
-        user_address = "USER123"
+        user_address = "2EVGZ4BGOSL3J64UYDE2BUGTNTBZZZLI54VUQQNZZLYCDODLY33UGXNSIU"
 
         env = {
             "algod_token_mainnet": "token",
             "algod_address_mainnet": "address",
+            "rewards_token_decimals": 2,
         }
         mocker.patch("contract.network.environment_variables", return_value=env)
 
@@ -312,11 +312,9 @@ class TestContractNetworkPublicFunctions:
         atc_stub = {"app_id": 111}
         mocker.patch("contract.network.atc_method_stub", return_value=atc_stub)
 
-        mocker.patch("contract.network.decode_address", return_value=b"decoded")
-
         # amount > 0 and expires_at in the future → True
         future_timestamp = int(time.time()) + 5000
-        packed = struct.pack(">QQ", 100, future_timestamp)
+        packed = struct.pack(">QQ", 10_000, future_timestamp)
         encoded = base64.b64encode(packed)
 
         client.application_box_by_name.return_value = {"value": encoded}
@@ -325,9 +323,11 @@ class TestContractNetworkPublicFunctions:
 
         assert returned == 100
 
-    def test_contract_network_claimable_amount_for_address_returns_false_for_no_box(self, mocker):
+    def test_contract_network_claimable_amount_for_address_returns_false_for_no_box(
+        self, mocker
+    ):
         network = "testnet"
-        user_address = "USER123"
+        user_address = "2EVGZ4BGOSL3J64UYDE2BUGTNTBZZZLI54VUQQNZZLYCDODLY33UGXNSIU"
 
         env = {
             "algod_token_testnet": "token",
@@ -338,7 +338,6 @@ class TestContractNetworkPublicFunctions:
         client = mocker.MagicMock()
         mocker.patch("contract.network.AlgodClient", return_value=client)
         mocker.patch("contract.network.atc_method_stub", return_value={"app_id": 222})
-        mocker.patch("contract.network.decode_address", return_value=b"decoded")
 
         client.application_box_by_name.side_effect = AlgodHTTPError("box not found")
 
@@ -350,7 +349,7 @@ class TestContractNetworkPublicFunctions:
         self, mocker
     ):
         network = "testnet"
-        user_address = "USER123"
+        user_address = "2EVGZ4BGOSL3J64UYDE2BUGTNTBZZZLI54VUQQNZZLYCDODLY33UGXNSIU"
 
         env = {
             "algod_token_testnet": "token",
@@ -361,7 +360,6 @@ class TestContractNetworkPublicFunctions:
         client = mocker.MagicMock()
         mocker.patch("contract.network.AlgodClient", return_value=client)
         mocker.patch("contract.network.atc_method_stub", return_value={"app_id": 222})
-        mocker.patch("contract.network.decode_address", return_value=b"decoded")
 
         client.application_box_by_name.return_value = {"value": None}
 
@@ -373,7 +371,7 @@ class TestContractNetworkPublicFunctions:
         self, mocker
     ):
         network = "testnet"
-        user_address = "USER0"
+        user_address = "2EVGZ4BGOSL3J64UYDE2BUGTNTBZZZLI54VUQQNZZLYCDODLY33UGXNSIU"
 
         env = {
             "algod_token_testnet": "token",
@@ -384,7 +382,6 @@ class TestContractNetworkPublicFunctions:
         client = mocker.MagicMock()
         mocker.patch("contract.network.AlgodClient", return_value=client)
         mocker.patch("contract.network.atc_method_stub", return_value={"app_id": 333})
-        mocker.patch("contract.network.decode_address", return_value=b"decoded")
 
         # amount = 0 → returns False
         future_timestamp = int(time.time()) + 100
@@ -397,9 +394,11 @@ class TestContractNetworkPublicFunctions:
 
         assert returned is False
 
-    def test_contract_network_claimable_amount_for_address_raises_when_expired(self, mocker):
+    def test_contract_network_claimable_amount_for_address_raises_when_expired(
+        self, mocker
+    ):
         network = "mainnet"
-        user_address = "USEREXPIRED"
+        user_address = "2EVGZ4BGOSL3J64UYDE2BUGTNTBZZZLI54VUQQNZZLYCDODLY33UGXNSIU"
 
         env = {
             "algod_token_mainnet": "token",
@@ -410,7 +409,6 @@ class TestContractNetworkPublicFunctions:
         client = mocker.MagicMock()
         mocker.patch("contract.network.AlgodClient", return_value=client)
         mocker.patch("contract.network.atc_method_stub", return_value={"app_id": 444})
-        mocker.patch("contract.network.decode_address", return_value=b"decoded")
 
         # amount > 0 but expired → raises ValueError
         past_timestamp = int(time.time()) - 999

@@ -219,7 +219,7 @@ def claimable_amount_for_address(user_address, network=ACTIVE_NETWORK):
     )
     atc_stub = atc_method_stub(client, network)
     app_id = atc_stub.get("app_id")
-    box_name = decode_address(user_address)
+    box_name = box_name_from_address(user_address)
     try:
         value = client.application_box_by_name(app_id, box_name).get("value")
         if value is None:
@@ -233,7 +233,7 @@ def claimable_amount_for_address(user_address, network=ACTIVE_NETWORK):
         if expires_at < int(time.time()):
             raise ValueError("User's claim period has ended")
 
-        return amount
+        return int(amount / 10 ** int(env.get("rewards_token_decimals")))
 
     return False
 

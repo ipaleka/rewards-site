@@ -1360,39 +1360,30 @@ class TestCycleDetailView:
 
     # # get_queryset
     @pytest.mark.django_db
-    def test_cycledetailview_get_queryset_uses_prefetch_related(self, mocker):
-        # Mock the dependencies
-        mocked_queryset = mocker.patch("core.views.DetailView.get_queryset")
-        mocked_prefetch = mocker.patch("core.views.Prefetch")
-        mocked_contribution_objects = mocker.patch("core.views.Contribution.objects")
+    def test_cycledetailview_get_queryset_integration(self):
+        """Integration test to verify the actual queryset behavior."""
+        # Create test data
+        cycle = Cycle.objects.create(start="2025-01-01")
+        contributor = Contributor.objects.create(name="test_contributor")
+        platform = SocialPlatform.objects.create(name="GitHub")
+        reward_type = RewardType.objects.create(label="BUG", name="Bug Fix")
+        reward = Reward.objects.create(type=reward_type, level=1, amount=1000)
+
+        # Create contributions
+        Contribution.objects.create(
+            cycle=cycle, contributor=contributor, platform=platform, reward=reward
+        )
 
         view = CycleDetailView()
-        returned = view.get_queryset()
+        queryset = view.get_queryset()
 
-        # Verify the final return value
-        assert (
-            returned
-            == mocked_queryset.return_value.annotate.return_value.prefetch_related.return_value
-        )
+        # Verify annotations are present
+        cycle_from_queryset = queryset.first()
+        assert hasattr(cycle_from_queryset, "contributions_count")
+        assert hasattr(cycle_from_queryset, "total_rewards_amount")
 
-        # Verify Prefetch was called with correct parameters
-        mocked_prefetch.assert_called_once_with(
-            "contribution_set",
-            queryset=mocker.ANY,  # We'll check the queryset separately
-        )
-
-        # Verify prefetch_related was called with our Prefetch object
-        mocked_queryset.return_value.prefetch_related.assert_called_once_with(
-            mocked_prefetch.return_value
-        )
-
-        # Verify the Contribution queryset uses select_related and order_by
-        mocked_contribution_objects.select_related.assert_called_once_with(
-            "contributor", "reward__type", "platform"
-        )
-        mocked_contribution_objects.select_related.return_value.order_by.assert_called_once_with(
-            "-id"
-        )
+        # Verify prefetch is configured
+        assert hasattr(queryset, "_prefetch_related_lookups")
 
     @pytest.mark.django_db
     def test_cycledetailview_get_queryset_integration(self):

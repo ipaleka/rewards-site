@@ -269,13 +269,11 @@
     </div>
 
     {% if messages %}
-    <script>
-    document.addEventListener("DOMContentLoaded", () => {
+    <div id="django-messages" style="display: none;">
       {% for message in messages %}
-      showToast("{{ message.tags }}", "{{ message|escapejs }}");
+      <div data-message-type="{{ message.tags }}" data-message="{{ message|escapejs }}"></div>
       {% endfor %}
-    });
-    </script>
+    </div>
     {% endif %}
 
     <div id="toast-container" class="toast toast-end z-50"></div>

@@ -5,6 +5,7 @@ import struct
 import time
 
 import pytest
+from algosdk.error import AlgodHTTPError
 from algosdk.logic import get_application_address
 
 from contract.network import (
@@ -265,13 +266,14 @@ class TestContractNetworkPrivateFunctions:
 class TestContractNetworkPublicFunctions:
     """Testing class for :py:mod:`contract.network` public functions."""
 
-    def test_contract_network_can_user_claim_returns_true_when_claimable(self, mocker):
-        network = "testnet"
+    def test_contract_network_can_user_claim_returns_true_when_claimable_default_network(
+        self, mocker
+    ):
         user_address = "USER123"
 
         env = {
-            "algod_token_testnet": "token",
-            "algod_address_testnet": "address",
+            f"algod_token_{ACTIVE_NETWORK}": "token",
+            f"algod_address_{ACTIVE_NETWORK}": "address",
         }
         mocker.patch("contract.network.environment_variables", return_value=env)
 
@@ -290,9 +292,59 @@ class TestContractNetworkPublicFunctions:
 
         client.application_box_by_name.return_value = {"value": encoded}
 
-        returned = can_user_claim(network, user_address)
+        returned = can_user_claim(user_address)
 
         assert returned is True
+
+    def test_contract_network_can_user_claim_returns_true_when_claimable(self, mocker):
+        network = "mainnet"
+        user_address = "USER123"
+
+        env = {
+            "algod_token_mainnet": "token",
+            "algod_address_mainnet": "address",
+        }
+        mocker.patch("contract.network.environment_variables", return_value=env)
+
+        client = mocker.MagicMock()
+        mocker.patch("contract.network.AlgodClient", return_value=client)
+
+        atc_stub = {"app_id": 111}
+        mocker.patch("contract.network.atc_method_stub", return_value=atc_stub)
+
+        mocker.patch("contract.network.decode_address", return_value=b"decoded")
+
+        # amount > 0 and expires_at in the future → True
+        future_timestamp = int(time.time()) + 5000
+        packed = struct.pack(">QQ", 100, future_timestamp)
+        encoded = base64.b64encode(packed)
+
+        client.application_box_by_name.return_value = {"value": encoded}
+
+        returned = can_user_claim(user_address, network)
+
+        assert returned is True
+
+    def test_contract_network_can_user_claim_returns_false_for_no_box(self, mocker):
+        network = "testnet"
+        user_address = "USER123"
+
+        env = {
+            "algod_token_testnet": "token",
+            "algod_address_testnet": "address",
+        }
+        mocker.patch("contract.network.environment_variables", return_value=env)
+
+        client = mocker.MagicMock()
+        mocker.patch("contract.network.AlgodClient", return_value=client)
+        mocker.patch("contract.network.atc_method_stub", return_value={"app_id": 222})
+        mocker.patch("contract.network.decode_address", return_value=b"decoded")
+
+        client.application_box_by_name.side_effect = AlgodHTTPError("box not found")
+
+        returned = can_user_claim(user_address, network)
+
+        assert returned is False
 
     def test_contract_network_can_user_claim_returns_false_when_box_missing(
         self, mocker
@@ -313,7 +365,7 @@ class TestContractNetworkPublicFunctions:
 
         client.application_box_by_name.return_value = {"value": None}
 
-        returned = can_user_claim(network, user_address)
+        returned = can_user_claim(user_address, network)
 
         assert returned is False
 
@@ -341,7 +393,7 @@ class TestContractNetworkPublicFunctions:
 
         client.application_box_by_name.return_value = {"value": encoded}
 
-        returned = can_user_claim(network, user_address)
+        returned = can_user_claim(user_address, network)
 
         assert returned is False
 
@@ -368,7 +420,7 @@ class TestContractNetworkPublicFunctions:
         client.application_box_by_name.return_value = {"value": encoded}
 
         with pytest.raises(ValueError, match="claim period has ended"):
-            can_user_claim(network, user_address)
+            can_user_claim(user_address, network)
 
     # # create_app
     def test_contract_network_create_app_calls_wait_and_returns_app_id(self, mocker):

@@ -13,20 +13,15 @@ It provides a preview for all historic and latest contributions, hot tasks, cont
 
 ### Environment variables
 
-Environment variables shouldn't reside in repository, so `.env` file with the following content has to be created in the `rewards-site/rewardsweb` directory:
+Environment variables shouldn't reside in repository, so `.env` files has to be created based on `.env-example`:
 
-```
-SECRET_KEY=mysecretkey
-DATABASE_NAME=rewards_db
-DATABASE_USER=rewards_user
-DATABASE_PASSWORD=mypassword
-GITHUB_BOT_CLIENT_ID=111111111
-GITHUB_BOT_PRIVATE_KEY_FILENAME=rewards-bot.private-key.pem
-GITHUB_BOT_INSTALLATION_ID=111111111
-INITIAL_SUPERUSERS=username1,username2
-INITIAL_SUPERUSER_ADDRESSES=SUPERUSER1ADDRESS,SUPERUSER2ADDRESS
-INITIAL_SUPERUSER_PASSWORDS=password1,password2
-```
+- Website's variables are placed in `rewardsweb/.env`.
+- Discord bot's variables are placed in `rewardsweb/rewardsbot/.env`.
+- Rewards smart contract's variables are placed in `rewardsweb/rewards/.env`.
+- Please check `deploy/.env-example` for deployment variables.
+
+> [!NOTE]
+> If ADMIN_*_MNEMONIC variable is not set in `rewardsweb/rewards/.env`, then the system will treat the logged-in superuser as the admin. You will then need to assign the admin's public address to that superuser.
 
 ## Goals
 

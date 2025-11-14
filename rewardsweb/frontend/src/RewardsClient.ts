@@ -44,7 +44,7 @@ export class RewardsClient {
     // Hardcoded App IDs for different networks
     this.rewardsAppIds = {
       [NetworkId.MAINNET]: 0, // TODO: Replace with your Mainnet App ID
-      [NetworkId.TESTNET]: 749540906, // TODO: Replace with your Testnet App ID
+      [NetworkId.TESTNET]: 749648274, // TODO: Replace with your Testnet App ID
     }
   }
 

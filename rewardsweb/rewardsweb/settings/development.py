@@ -47,3 +47,5 @@ LOGGING = {
         }
     },
 }
+
+GITHUB_REPO_NAME = "test"  # "rewards-site"

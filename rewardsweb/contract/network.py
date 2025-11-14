@@ -11,6 +11,7 @@ from algosdk.atomic_transaction_composer import (
     TransactionWithSigner,
 )
 from algosdk.encoding import decode_address
+from algosdk.error import AlgodHTTPError
 from algosdk.logic import get_application_address
 from algosdk.transaction import AssetTransferTxn, PaymentTxn
 from algosdk.v2client.algod import AlgodClient
@@ -186,13 +187,13 @@ def _reclaim_allocation(network, user_address):
 
 
 # # PUBLIC
-def can_user_claim(network, user_address):
+def can_user_claim(user_address, network=ACTIVE_NETWORK):
     """Check if the provided address can claim their allocation.
 
-    :param network: network to deploy to (e.g., "testnet")
-    :type network: str
     :param user_address: The address of the user to check for claimability
     :type user_address: str
+    :param network: network to deploy to (e.g., "testnet")
+    :type network: str
     :var env: environment variables collection
     :type env: dict
     :var client: Algorand Node client instance
@@ -219,10 +220,14 @@ def can_user_claim(network, user_address):
     atc_stub = atc_method_stub(client, network)
     app_id = atc_stub.get("app_id")
     box_name = decode_address(user_address)
-    value = client.application_box_by_name(app_id, box_name).get("value")
-    if value is None:
-        return False
+    try:
+        value = client.application_box_by_name(app_id, box_name).get("value")
+        if value is None:
+            return False
 
+    except AlgodHTTPError:
+        return False
+   
     amount, expires_at = struct.unpack(">QQ", base64.b64decode(value))
     if amount:
         if expires_at < int(time.time()):

@@ -309,31 +309,6 @@ export class RewardsClient {
   }
 
   /**
-   * Fetches the claimable status for an address from the backend API.
-   *
-   * @param address - The address to check claimable status for
-   * @returns Object indicating whether rewards are claimable
-   * @throws {Error} When the API request fails
-   */
-  public async fetchClaimableStatus(address: string): Promise<{ claimable: boolean }> {
-    try {
-      const response = await fetch('/api/wallet/claim-allocation/', {
-        method: 'POST',
-        headers: this.getHeaders(),
-        body: JSON.stringify({ address })
-      })
-      if (!response.ok) {
-        throw new Error(`HTTP error! status: ${response.status}`)
-      }
-      const data = await response.json()
-      return data
-    } catch (error) {
-      console.error('[RewardsClient] Error fetching claimable status:', error)
-      throw error
-    }
-  }
-
-  /**
    * Notifies the backend about successful claim transaction
    * @param address - The address that claimed rewards
    * @param txID - The transaction ID from the claim operation

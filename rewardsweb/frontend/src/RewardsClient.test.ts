@@ -199,23 +199,6 @@ describe("RewardsClient", () => {
       global.fetch = jest.fn();
     });
 
-    it("should fetch claimable status", async () => {
-      (fetch as jest.Mock).mockResolvedValue({
-        ok: true,
-        json: () => Promise.resolve({ claimable: true }),
-      });
-
-      const result = await rewardsClient.fetchClaimableStatus(TEST_ADDRESS_1);
-      expect(result).toEqual({ claimable: true });
-      expect(fetch).toHaveBeenCalledWith(
-        "/api/wallet/claim-allocation/",
-        expect.objectContaining({
-          method: "POST",
-          body: JSON.stringify({ address: TEST_ADDRESS_1 }),
-        })
-      );
-    });
-
     it("should fetch add allocations data", async () => {
       const data = { addresses: [TEST_ADDRESS_2], amounts: [100] };
       (fetch as jest.Mock).mockResolvedValue({
@@ -250,13 +233,6 @@ describe("RewardsClient", () => {
           body: JSON.stringify({ address: TEST_ADDRESS_1 }),
         })
       );
-    });
-
-    it("should handle API errors", async () => {
-      (fetch as jest.Mock).mockResolvedValue({ ok: false, status: 404 });
-      await expect(
-        rewardsClient.fetchClaimableStatus(TEST_ADDRESS_1)
-      ).rejects.toThrow("HTTP error! status: 404");
     });
 
     it("should notify allocations successful", async () => {
@@ -443,39 +419,6 @@ describe("RewardsClient", () => {
 
         expect(consoleErrorSpy).toHaveBeenCalledWith(
           "[RewardsClient] Error claiming allocation:",
-          error
-        );
-
-        consoleErrorSpy.mockRestore();
-      });
-    });
-
-    describe("fetchClaimableStatus", () => {
-      it("should throw error when HTTP response is not ok", async () => {
-        (fetch as jest.Mock).mockResolvedValue({
-          ok: false,
-          status: 500,
-        });
-
-        await expect(
-          rewardsClient.fetchClaimableStatus("test-address")
-        ).rejects.toThrow("HTTP error! status: 500");
-      });
-
-      it("should log error when fetch fails", async () => {
-        const consoleErrorSpy = jest
-          .spyOn(console, "error")
-          .mockImplementation();
-        const error = new Error("Network error");
-
-        (fetch as jest.Mock).mockRejectedValueOnce(error);
-
-        await expect(
-          rewardsClient.fetchClaimableStatus("test-address")
-        ).rejects.toThrow("Network error");
-
-        expect(consoleErrorSpy).toHaveBeenCalledWith(
-          "[RewardsClient] Error fetching claimable status:",
           error
         );
 

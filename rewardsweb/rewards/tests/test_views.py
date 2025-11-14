@@ -40,7 +40,9 @@ class TestRewardsClaimViews:
     @pytest.mark.django_db
     def test_claimview_context_amount_functionality(self, rf, user, mocker):
         amount = 1000
-        mocked_fetch = mocker.patch("rewards.views.claimable_amount_for_address", return_value=amount)
+        mocked_fetch = mocker.patch(
+            "rewards.views.claimable_amount_for_address", return_value=amount
+        )
         request = rf.get(reverse("claim"))
         request.user = user
         contributor = Contributor("contributor")
@@ -100,7 +102,9 @@ class TestRewardsClaimViews:
     def test_claimview_context_amount_0_for_valid_contributor_address(
         self, rf, user, mocker
     ):
-        mocked_fetch = mocker.patch("rewards.views.claimable_amount_for_address", return_value=0)
+        mocked_fetch = mocker.patch(
+            "rewards.views.claimable_amount_for_address", return_value=0
+        )
         request = rf.get(reverse("claim"))
         request.user = user
         contributor = Contributor("contributor")

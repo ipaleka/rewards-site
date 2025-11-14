@@ -22,7 +22,6 @@ from walletauth.views import (
     ActiveNetworkAPIView,
     AddAllocationsAPIView,
     AllocationsSuccessfulAPIView,
-    ClaimAllocationAPIView,
     ClaimSuccessfulAPIView,
     ReclaimAllocationsAPIView,
     ReclaimSuccessfulAPIView,
@@ -1168,89 +1167,6 @@ class TestAllocationsSuccessfulAPIView:
         call_args = mock_added_allocations.call_args[0]
         assert call_args[1] == ["ADDR1", "ADDR2"]  # addresses
         assert call_args[2] is None  # txIDs should be None
-
-
-class TestClaimAllocationAPIView:
-    """Test suite for ClaimAllocationAPIView."""
-
-    @pytest.fixture
-    def view(self):
-        return ClaimAllocationAPIView().as_view()
-
-    @pytest.fixture
-    def rf(self):
-        return APIRequestFactory()
-
-    @pytest.fixture
-    def valid_address(self):
-        return "2EVGZ4BGOSL3J64UYDE2BUGTNTBZZZLI54VUQQNZZLYCDODLY33UGXNSIU"
-
-    def test_walletauth_claimallocationapiview_is_subclass_of_view(self):
-        assert issubclass(ClaimAllocationAPIView, View)
-
-    @pytest.mark.django_db
-    def test_walletauth_claimallocationapiview_valid_request(
-        self, view, rf, valid_address, mocker
-    ):
-        """Test successful claimable status check for valid address."""
-        mocked_address = mocker.patch(
-            "walletauth.views.is_valid_address", return_value=True
-        )
-        mocked_claim = mocker.patch(
-            "walletauth.views.claimable_amount_for_address", return_value=100
-        )
-        data = {"address": valid_address}
-        request = rf.post("/claim-allocations/", data=data, format="json")
-        response = view(request)
-
-        assert response.status_code == 200
-        response_data = response.data
-        assert response_data["claimable"] is True
-        mocked_address.assert_called_once_with(valid_address)
-        mocked_claim.assert_called_once_with(valid_address)
-
-    @pytest.mark.django_db
-    def test_walletauth_claimallocationapiview_fallback_to_json_body(
-        self, valid_address, mocker
-    ):
-        """Test fallback JSON parsing when using plain RequestFactory."""
-        mocked_address = mocker.patch(
-            "walletauth.views.is_valid_address", return_value=True
-        )
-        mocked_claim = mocker.patch(
-            "walletauth.views.claimable_amount_for_address", return_value=200
-        )
-
-        rf = RequestFactory()
-        json_body = (
-            '{"address": "2EVGZ4BGOSL3J64UYDE2BUGTNTBZZZLI54VUQQNZZLYCDODLY33UGXNSIU"}'
-        )
-
-        request = rf.post(
-            "/claim-allocation/", data=json_body, content_type="application/json"
-        )
-
-        response = ClaimAllocationAPIView().post(request)
-
-        assert response.status_code == 200
-        response_data = response.data
-        assert response_data["claimable"] is True
-        mocked_address.assert_called_once_with(valid_address)
-        mocked_claim.assert_called_once_with(valid_address)
-
-    def test_walletauth_claimallocationapiview_invalid_json(self, view, rf):
-        """Test handling of invalid JSON."""
-        request = rf.post("/claim-allocations/", data="invalid json", format="json")
-        response = view(request)
-        assert response.status_code == 400
-        assert response.data == {"error": "Invalid JSON"}
-
-    def test_walletauth_claimallocationapiview_missing_address(self, view, rf):
-        """Test handling of missing address."""
-        request = rf.post("/claim-allocations/", data={}, format="json")
-        response = view(request)
-        assert response.status_code == 400
-        assert "Invalid or missing address" in response.data["error"]
 
 
 class TestClaimSuccessfulAPIView:

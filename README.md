@@ -43,6 +43,6 @@ Environment variables shouldn't reside in repository, so `.env` files has to be 
 - [x] Create methods for CRUD operations
 - [x] Implement authentication by connecting a wallet
 - [x] Create deploy workflow
-- [ ] Create smart contract for rewards allocation and claiming
-- [ ] Develop UI for rewards allocation and claiming
+- [x] Create smart contract for rewards allocation and claiming
+- [x] Develop UI for rewards allocation and claiming
 - [ ] Setup a server and deploy the application

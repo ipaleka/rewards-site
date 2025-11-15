@@ -31,5 +31,8 @@
     "@txnlab/use-wallet": "^4.3.1",
     "algosdk": "^3.5.2",
     "lute-connect": "^1.6.3"
+  },
+  "overrides": {
+    "js-yaml": "^4.1.1"
   }
 }

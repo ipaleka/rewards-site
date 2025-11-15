@@ -15,7 +15,10 @@ function showToast(type, text) {
 
   const toast = document.createElement("div");
   toast.className = `alert alert-${type} shadow-lg`;
-  toast.innerHTML = `<span>${text}</span>`;
+
+  const span = document.createElement("span");
+  span.textContent = text;
+  toast.appendChild(span);
 
   toastContainer.appendChild(toast);
   setTimeout(() => toast.remove(), 4500);

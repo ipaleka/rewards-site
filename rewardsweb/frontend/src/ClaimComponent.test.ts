@@ -8,7 +8,7 @@ jest.mock("./RewardsClient", () => {
     RewardsClient: jest.fn().mockImplementation(() => {
       return {
         claimRewards: jest.fn(),
-        userClaimed: jest.fn(),
+        notifyClaimSuccessful: jest.fn(),
       };
     }),
   };
@@ -133,11 +133,11 @@ describe("ClaimComponent", () => {
     consoleSpy.mockRestore();
   });
 
-  it("should call userClaimed after successful claim transaction", async () => {
+  it("should call notifyClaimSuccessful after successful claim transaction", async () => {
     (mockRewardsClient.claimRewards as jest.Mock).mockResolvedValue(
       "test-tx-id"
     );
-    (mockRewardsClient.userClaimed as jest.Mock).mockResolvedValue({
+    (mockRewardsClient.notifyClaimSuccessful as jest.Mock).mockResolvedValue({
       success: true,
     });
 
@@ -149,13 +149,13 @@ describe("ClaimComponent", () => {
     ) as HTMLButtonElement;
     await button.click();
 
-    expect(mockRewardsClient.userClaimed).toHaveBeenCalledWith(
+    expect(mockRewardsClient.notifyClaimSuccessful).toHaveBeenCalledWith(
       "test-address",
       "test-tx-id"
     );
   });
 
-  it("should handle userClaimed API failure gracefully", async () => {
+  it("should handle notifyClaimSuccessful API failure gracefully", async () => {
     // Set up console spy BEFORE component initialization and click
     const consoleErrorSpy = jest
       .spyOn(console, "error")
@@ -164,7 +164,7 @@ describe("ClaimComponent", () => {
     (mockRewardsClient.claimRewards as jest.Mock).mockResolvedValue(
       "test-tx-id"
     );
-    (mockRewardsClient.userClaimed as jest.Mock).mockRejectedValue(
+    (mockRewardsClient.notifyClaimSuccessful as jest.Mock).mockRejectedValue(
       new Error("API unavailable")
     );
 
@@ -181,7 +181,7 @@ describe("ClaimComponent", () => {
     // Wait for any microtasks to complete
     await new Promise(process.nextTick);
 
-    expect(mockRewardsClient.userClaimed).toHaveBeenCalledWith(
+    expect(mockRewardsClient.notifyClaimSuccessful).toHaveBeenCalledWith(
       "test-address",
       "test-tx-id"
     );
@@ -193,7 +193,7 @@ describe("ClaimComponent", () => {
     consoleErrorSpy.mockRestore();
   });
 
-  it("should not call userClaimed if no active account after claim", async () => {
+  it("should not call notifyClaimSuccessful if no active account after claim", async () => {
     (mockRewardsClient.claimRewards as jest.Mock).mockResolvedValue(
       "test-tx-id"
     );
@@ -201,7 +201,7 @@ describe("ClaimComponent", () => {
     claimComponent = new ClaimComponent(mockRewardsClient, mockWalletManager);
     claimComponent.bind(container);
 
-    // Simulate wallet disconnecting after claim but before userClaimed call
+    // Simulate wallet disconnecting after claim but before notifyClaimSuccessful call
     mockWalletManager.activeAccount = null;
 
     const button = container.querySelector(
@@ -209,7 +209,7 @@ describe("ClaimComponent", () => {
     ) as HTMLButtonElement;
     await button.click();
 
-    expect(mockRewardsClient.userClaimed).not.toHaveBeenCalled();
+    expect(mockRewardsClient.notifyClaimSuccessful).not.toHaveBeenCalled();
   });
 
   it("should reload page after successful claim", async () => {
@@ -224,7 +224,7 @@ describe("ClaimComponent", () => {
     (mockRewardsClient.claimRewards as jest.Mock).mockResolvedValue(
       "test-tx-id"
     );
-    (mockRewardsClient.userClaimed as jest.Mock).mockResolvedValue({
+    (mockRewardsClient.notifyClaimSuccessful as jest.Mock).mockResolvedValue({
       success: true,
     });
 
@@ -354,7 +354,7 @@ describe("ClaimComponent Integration", () => {
     jest.clearAllMocks();
   });
 
-  it("should handle claim failure without calling userClaimed or reload", async () => {
+  it("should handle claim failure without calling notifyClaimSuccessful or reload", async () => {
     const reloadSpy = jest.spyOn(window.location, "reload");
     const claimError = new Error("Insufficient balance");
     (mockRewardsClient.claimRewards as jest.Mock).mockRejectedValue(claimError);
@@ -368,7 +368,7 @@ describe("ClaimComponent Integration", () => {
     await button.click();
 
     expect(mockRewardsClient.claimRewards).toHaveBeenCalledTimes(1);
-    expect(mockRewardsClient.userClaimed).not.toHaveBeenCalled();
+    expect(mockRewardsClient.notifyClaimSuccessful).not.toHaveBeenCalled();
     expect(reloadSpy).not.toHaveBeenCalled();
     expect(alertSpy).toHaveBeenCalledWith("Claim failed: Insufficient balance");
   });

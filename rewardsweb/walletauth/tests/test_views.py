@@ -1198,7 +1198,7 @@ class TestClaimSuccessfulAPIView:
         )
         mocked_claim = mocker.patch("walletauth.views.claim_successful_for_address")
         txid = "txid"
-        data = {"address": valid_address, "txIDs": txid}
+        data = {"address": valid_address, "txID": txid}
         request = rf.post("/claim-successful/", data=data, format="json")
         response = view(request)
 
@@ -1219,7 +1219,7 @@ class TestClaimSuccessfulAPIView:
         mocked_claim = mocker.patch("walletauth.views.claim_successful_for_address")
         rf = RequestFactory()
         txid = "txid"
-        json_body = f'{{"address": "{valid_address}", "txIDs": "{txid}"}}'
+        json_body = f'{{"address": "{valid_address}", "txID": "{txid}"}}'
 
         request = rf.post(
             "/claim-successful/", data=json_body, content_type="application/json"
@@ -1371,7 +1371,7 @@ class TestReclaimSuccessfulAPIView:
             "walletauth.views.reclaimed_allocation_for_address"
         )
 
-        data = {"address": "TEST_ADDRESS", "txIDs": "TX123456"}
+        data = {"address": "TEST_ADDRESS", "txID": "TX123456"}
         request = rf.post("/reclaim-successful/", data=data, format="json")
 
         # Force authentication for admin user
@@ -1384,7 +1384,7 @@ class TestReclaimSuccessfulAPIView:
         mock_reclaimed_allocation.assert_called_once()
         call_args = mock_reclaimed_allocation.call_args[0]
         assert call_args[1] == "TEST_ADDRESS"  # address
-        assert call_args[2] == "TX123456"  # txIDs
+        assert call_args[2] == "TX123456"  # txID
 
     @pytest.mark.django_db
     def test_walletauth_reclaimsuccessfulapiview_fallback_to_json_body_admin(
@@ -1396,7 +1396,7 @@ class TestReclaimSuccessfulAPIView:
         )
 
         rf = RequestFactory()
-        json_body = '{"address": "TEST_ADDRESS", "txIDs": "TX123456"}'
+        json_body = '{"address": "TEST_ADDRESS", "txID": "TX123456"}'
 
         request = rf.post(
             "/reclaim-successful/", data=json_body, content_type="application/json"
@@ -1410,14 +1410,14 @@ class TestReclaimSuccessfulAPIView:
         mock_reclaimed_allocation.assert_called_once()
         call_args = mock_reclaimed_allocation.call_args[0]
         assert call_args[1] == "TEST_ADDRESS"  # address
-        assert call_args[2] == "TX123456"  # txIDs
+        assert call_args[2] == "TX123456"  # txID
 
     @pytest.mark.django_db
     def test_walletauth_reclaimsuccessfulapiview_regular_user_permission_denied(
         self, view, rf, regular_user
     ):
         """Test that regular users cannot access this endpoint."""
-        data = {"address": "TEST_ADDRESS", "txIDs": "TX123456"}
+        data = {"address": "TEST_ADDRESS", "txID": "TX123456"}
         request = rf.post("/reclaim-successful/", data=data, format="json")
         request.user = regular_user
 
@@ -1428,7 +1428,7 @@ class TestReclaimSuccessfulAPIView:
     @pytest.mark.django_db
     def test_walletauth_reclaimsuccessfulapiview_unauthenticated_user(self, view, rf):
         """Test that unauthenticated users cannot access this endpoint."""
-        data = {"address": "TEST_ADDRESS", "txIDs": "TX123456"}
+        data = {"address": "TEST_ADDRESS", "txID": "TX123456"}
         request = rf.post("/reclaim-successful/", data=data, format="json")
         request.user = AnonymousUser()
 
@@ -1454,7 +1454,7 @@ class TestReclaimSuccessfulAPIView:
         self, view, rf, admin_user
     ):
         """Test handling of missing address."""
-        data = {"txIDs": "TX123456"}  # Missing address
+        data = {"txID": "TX123456"}  # Missing address
         request = rf.post("/reclaim-successful/", data=data, format="json")
         request.user = admin_user
 
@@ -1468,7 +1468,7 @@ class TestReclaimSuccessfulAPIView:
         self, view, rf, admin_user
     ):
         """Test handling of empty address string."""
-        data = {"address": "", "txIDs": "TX123456"}
+        data = {"address": "", "txID": "TX123456"}
         request = rf.post("/reclaim-successful/", data=data, format="json")
         request.user = admin_user
 
@@ -1478,17 +1478,17 @@ class TestReclaimSuccessfulAPIView:
         assert response.data == {"error": "Missing address"}
 
     @pytest.mark.django_db
-    def test_walletauth_reclaimsuccessfulapiview_missing_txids(
+    def test_walletauth_reclaimsuccessfulapiview_missing_txid(
         self, view, rf, admin_user, mocker
     ):
-        """Test processing when txIDs are missing (should still work)."""
+        """Test processing when txID is missing."""
         mock_reclaimed_allocation = mocker.patch(
             "walletauth.views.reclaimed_allocation_for_address"
         )
 
         data = {
             "address": "TEST_ADDRESS"
-            # Missing txIDs
+            # Missing txID
         }
         request = rf.post("/reclaim-successful/", data=data, format="json")
         request.user = admin_user
@@ -1497,34 +1497,8 @@ class TestReclaimSuccessfulAPIView:
 
         assert response.status_code == 200
         assert response.data == {"success": True}
-        # Should pass None for txIDs when not provided
+        # Should pass None for txID when not provided
         mock_reclaimed_allocation.assert_called_once()
         call_args = mock_reclaimed_allocation.call_args[0]
         assert call_args[1] == "TEST_ADDRESS"  # address
-        assert call_args[2] is None  # txIDs should be None
-
-    @pytest.mark.django_db
-    def test_walletauth_reclaimsuccessfulapiview_multiple_txids_as_list(
-        self, view, rf, admin_user, mocker
-    ):
-        """Test that txIDs can be passed as a list (should work with single string)."""
-        mock_reclaimed_allocation = mocker.patch(
-            "walletauth.views.reclaimed_allocation_for_address"
-        )
-
-        data = {
-            "address": "TEST_ADDRESS",
-            "txIDs": ["TX1", "TX2"],  # List instead of single string
-        }
-        request = rf.post("/reclaim-successful/", data=data, format="json")
-        request.user = admin_user
-
-        response = view(request)
-
-        assert response.status_code == 200
-        assert response.data == {"success": True}
-        # The function should receive the list as-is
-        mock_reclaimed_allocation.assert_called_once()
-        call_args = mock_reclaimed_allocation.call_args[0]
-        assert call_args[1] == "TEST_ADDRESS"  # address
-        assert call_args[2] == ["TX1", "TX2"]  # txIDs as list
+        assert call_args[2] is None  # txID should be None

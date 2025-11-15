@@ -365,7 +365,7 @@ class ClaimSuccessfulAPIView(APIView):
                 data = json.loads(request.body.decode())
 
             address = data.get("address")
-            txid = data.get("txIDs")
+            txid = data.get("txID")
 
         except Exception:
             return Response({"error": "Invalid JSON"}, status=400)
@@ -421,7 +421,7 @@ class ReclaimSuccessfulAPIView(APIView):
 
         Expected JSON:
             - address (str)
-            - txIDs (str)
+            - txID (str)
 
         :param request: HTTP request object
         :return: JSON response with:
@@ -434,7 +434,7 @@ class ReclaimSuccessfulAPIView(APIView):
                 data = json.loads(request.body.decode())
 
             address = data.get("address")
-            txid = data.get("txIDs")
+            txid = data.get("txID")
 
         except Exception:
             return Response({"error": "Invalid JSON"}, status=400)

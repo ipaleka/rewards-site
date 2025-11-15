@@ -186,18 +186,24 @@
         <i class="fas fa-sync-alt mr-2"></i>
         View Cycles
       </a>
-      <a href="{% url 'contributors' %}" class="btn btn-secondary">
+      <a href="{% url 'contributors' %}" class="btn btn-primary">
         <i class="fas fa-users mr-2"></i>
         Browse Contributors
       </a>
-      <a href="{% url 'issues' %}" class="btn btn-accent">
+      <a href="{% url 'issues' %}" class="btn btn-{% if user.is_superuser %}warning{% else %}primary{% endif %}">
         <i class="fas fa-tasks mr-2"></i>
         {% if user.is_superuser %}Manage{% else %}View{% endif %} Issues
       </a>
+      {% if user.is_superuser %}
+      <a href="{% url 'admin:index' %}" class="btn btn-warning" target="_blank" rel="noopener">
+        <i class="fas fa-shield-alt mr-2"></i>
+        Admin Dashboard
+      </a>
+      {% endif %}
       {% if not user.is_authenticated %}
       <a href="{% url 'account_login' %}" class="btn btn-outline" hx-boost="false" hx-disable="true">
         <i class="fas fa-sign-in-alt mr-2"></i>
-        Login to Contribute
+        Login
       </a>
       {% endif %}
     </div>

@@ -44,7 +44,7 @@ export class RewardsClient {
     // Hardcoded App IDs for different networks
     this.rewardsAppIds = {
       [NetworkId.MAINNET]: 0, // TODO: Replace with your Mainnet App ID
-      [NetworkId.TESTNET]: 749648274, // TODO: Replace with your Testnet App ID
+      [NetworkId.TESTNET]: 749694756, // TODO: Replace with your Testnet App ID
     };
   }
 
@@ -366,32 +366,6 @@ export class RewardsClient {
   }
 
   /**
-   * Notifies the backend about successful claim transaction
-   * @param address - The address that claimed rewards
-   * @param txID - The transaction ID from the claim operation
-   */
-  public async userClaimed(
-    address: string,
-    txID: string
-  ): Promise<{ success: boolean }> {
-    try {
-      const response = await fetch("/api/wallet/claim-successful/", {
-        method: "POST",
-        headers: this.getHeaders(),
-        body: JSON.stringify({ address, txID }),
-      });
-      if (!response.ok) {
-        throw new Error(`HTTP error! status: ${response.status}`);
-      }
-      const data = await response.json();
-      return data;
-    } catch (error) {
-      console.error("[RewardsClient] Error sending user claimed:", error);
-      throw error;
-    }
-  }
-
-  /**
    * Notifies the backend about successful add allocations transactions
    * @param addresses - Array of public addresses
    * @param txIDs - The transaction IDs from the add alolocations operation
@@ -421,13 +395,39 @@ export class RewardsClient {
   }
 
   /**
+   * Notifies the backend about successful claim transaction
+   * @param address - The address that claimed rewards
+   * @param txID - The transaction ID from the claim operation
+   */
+  public async notifyClaimSuccessful(
+    address: string,
+    txID: string
+  ): Promise<{ success: boolean }> {
+    try {
+      const response = await fetch("/api/wallet/claim-successful/", {
+        method: "POST",
+        headers: this.getHeaders(),
+        body: JSON.stringify({ address, txID }),
+      });
+      if (!response.ok) {
+        throw new Error(`HTTP error! status: ${response.status}`);
+      }
+      const data = await response.json();
+      return data;
+    } catch (error) {
+      console.error("[RewardsClient] Error sending user claimed:", error);
+      throw error;
+    }
+  }
+
+  /**
    * Notifies the backend about successful reclaim allocation transactions
    * @param address - The address that was reclaimed from
-   * @param txIDs - The transaction IDs from the reclaim operation
+   * @param txID - The transaction ID from the reclaim operation
    */
   async notifyReclaimSuccessful(
     address: string,
-    txIDs: string[]
+    txID: string
   ): Promise<void> {
     const csrfToken = this.getCsrfToken();
     if (!csrfToken) {
@@ -442,7 +442,7 @@ export class RewardsClient {
       },
       body: JSON.stringify({
         address: address,
-        txIDs: txIDs,
+        txID: txID,
       }),
     });
 

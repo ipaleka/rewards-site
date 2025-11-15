@@ -60,8 +60,8 @@ export class ClaimComponent {
         const activeAddress = this.walletManager.activeAccount?.address;
         console.log("[DEBUG] Active address:", activeAddress);
         if (activeAddress) {
-          await this.rewardsClient.userClaimed(activeAddress, txID);
-          console.log("[DEBUG] userClaimed completed");
+          await this.rewardsClient.notifyClaimSuccessful(activeAddress, txID);
+          console.log("[DEBUG] notifyClaimSuccessful completed");
         }
       } catch (notificationError) {
         console.error("Backend notification failed:", notificationError);

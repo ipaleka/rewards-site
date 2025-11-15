@@ -107,7 +107,7 @@ export class ReclaimAllocationsComponent {
 
       // Step 2: Notify backend (fail silently)
       try {
-        await this.rewardsClient.notifyReclaimSuccessful(address, [txID])
+        await this.rewardsClient.notifyReclaimSuccessful(address, txID)
       } catch (notificationError) {
         console.error('Backend notification failed:', notificationError)
         // Silently continue - the blockchain transaction succeeded

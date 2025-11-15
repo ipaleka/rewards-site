@@ -2,7 +2,7 @@
 <html lang="en" data-theme="light">
   <head>
     {% block title %}
-      <title>ASA Stats rewards web</title>
+      <title>ASA Stats Rewards website</title>
     {% endblock %}
     {% load static %}
     <meta charset="utf-8" />
@@ -51,34 +51,16 @@
               </div>
               <ul tabindex="0" class="dropdown-content z-[1] p-2 shadow-2xl bg-base-300 rounded-box w-52">
                 <li>
-                  <input type="radio" name="theme-dropdown" class="theme-controller btn btn-sm btn-block btn-justify content-start" aria-label="Default" value="default"/>
-                </li>
-                <li>
                   <input type="radio" name="theme-dropdown" class="theme-controller btn btn-sm btn-block btn-justify content-start" aria-label="Light" value="light"/>
                 </li>
                 <li>
                   <input type="radio" name="theme-dropdown" class="theme-controller btn btn-sm btn-block btn-justify content-start" aria-label="Dark" value="dark"/>
                 </li>
                 <li>
-                  <input type="radio" name="theme-dropdown" class="theme-controller btn btn-sm btn-block btn-justify content-start" aria-label="Cupcake" value="cupcake"/>
-                </li>
-                <li>
-                  <input type="radio" name="theme-dropdown" class="theme-controller btn btn-sm btn-block btn-justify content-start" aria-label="Corporate" value="corporate"/>
-                </li>
-                <li>
-                  <input type="radio" name="theme-dropdown" class="theme-controller btn btn-sm btn-block btn-justify content-start" aria-label="Cyberpunk" value="cyberpunk"/>
-                </li>
-                <li>
                   <input type="radio" name="theme-dropdown" class="theme-controller btn btn-sm btn-block btn-justify content-start" aria-label="Abyss" value="abyss"/>
                 </li>
                 <li>
-                  <input type="radio" name="theme-dropdown" class="theme-controller btn btn-sm btn-block btn-justify content-start" aria-label="Nord" value="nord"/>
-                </li>
-                <li>
-                  <input type="radio" name="theme-dropdown" class="theme-controller btn btn-sm btn-block btn-justify content-start" aria-label="Synthwave" value="synthwave"/>
-                </li>
-                <li>
-                  <input type="radio" name="theme-dropdown" class="theme-controller btn btn-sm btn-block btn-justify content-start" aria-label="Wireframe" value="wireframe"/>
+                  <input type="radio" name="theme-dropdown" class="theme-controller btn btn-sm btn-block btn-justify content-start" aria-label="Bumblebee" value="bumblebee"/>
                 </li>
                 <li>
                   <input type="radio" name="theme-dropdown" class="theme-controller btn btn-sm btn-block btn-justify content-start" aria-label="Caramellate" value="caramellate"/>
@@ -87,19 +69,34 @@
                   <input type="radio" name="theme-dropdown" class="theme-controller btn btn-sm btn-block btn-justify content-start" aria-label="Cmyk" value="cmyk"/>
                 </li>
                 <li>
-                  <input type="radio" name="theme-dropdown" class="theme-controller btn btn-sm btn-block btn-justify content-start" aria-label="Lofi" value="lofi"/>
+                  <input type="radio" name="theme-dropdown" class="theme-controller btn btn-sm btn-block btn-justify content-start" aria-label="Coffee" value="coffee"/>
+                </li>
+                <li>
+                  <input type="radio" name="theme-dropdown" class="theme-controller btn btn-sm btn-block btn-justify content-start" aria-label="Corporate" value="corporate"/>
+                </li>
+                <li>
+                  <input type="radio" name="theme-dropdown" class="theme-controller btn btn-sm btn-block btn-justify content-start" aria-label="Cupcake" value="cupcake"/>
+                </li>
+                <li>
+                  <input type="radio" name="theme-dropdown" class="theme-controller btn btn-sm btn-block btn-justify content-start" aria-label="Cyberpunk" value="cyberpunk"/>
                 </li>
                 <li>
                   <input type="radio" name="theme-dropdown" class="theme-controller btn btn-sm btn-block btn-justify content-start" aria-label="Fantasy" value="fantasy"/>
                 </li>
                 <li>
-                  <input type="radio" name="theme-dropdown" class="theme-controller btn btn-sm btn-block btn-justify content-start" aria-label="Coffee" value="coffee"/>
+                  <input type="radio" name="theme-dropdown" class="theme-controller btn btn-sm btn-block btn-justify content-start" aria-label="Lofi" value="lofi"/>
+                </li>
+                <li>
+                  <input type="radio" name="theme-dropdown" class="theme-controller btn btn-sm btn-block btn-justify content-start" aria-label="Nord" value="nord"/>
                 </li>
                 <li>
                   <input type="radio" name="theme-dropdown" class="theme-controller btn btn-sm btn-block btn-justify content-start" aria-label="Pastel" value="pastel"/>
                 </li>
                 <li>
-                  <input type="radio" name="theme-dropdown" class="theme-controller btn btn-sm btn-block btn-justify content-start" aria-label="Bumblebee" value="bumblebee"/>
+                  <input type="radio" name="theme-dropdown" class="theme-controller btn btn-sm btn-block btn-justify content-start" aria-label="Synthwave" value="synthwave"/>
+                </li>
+                <li>
+                  <input type="radio" name="theme-dropdown" class="theme-controller btn btn-sm btn-block btn-justify content-start" aria-label="Wireframe" value="wireframe"/>
                 </li>
               </ul>
             </div>
@@ -216,13 +213,13 @@
               </a>
             </li>
             <li>
-              <a href="{% url 'add_allocations' %}" class="{% if request.resolver_match.url_name == 'add_allocations' %}active{% endif %}">
+              <a href="{% url 'add_allocations' %}" hx-boost="false" class="{% if request.resolver_match.url_name == 'add_allocations' %}active{% endif %}">
                 <i class="fas fa-plus-circle w-5"></i>
                 Add Allocations
               </a>
             </li>
             <li>
-              <a href="{% url 'reclaim_allocations' %}" class="{% if request.resolver_match.url_name == 'reclaim_allocations' %}active{% endif %}">
+              <a href="{% url 'reclaim_allocations' %}" hx-boost="false" class="{% if request.resolver_match.url_name == 'reclaim_allocations' %}active{% endif %}">
                 <i class="fas fa-recycle w-5"></i>
                 Reclaim Allocations
               </a>

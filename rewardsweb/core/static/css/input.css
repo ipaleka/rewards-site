@@ -1,6 +1,6 @@
 @import "tailwindcss" source(none);
 @plugin "./daisyui" {
-  themes: light --default, dark --prefersdark, cupcake, corporate, coffee, cyberpunk, abyss, nord, synthwave, wireframe, caramellate, cmyk, lofi, fantasy, pastel, bumblebee;
+  themes: light --default, dark --prefersdark, abyss, bumblebee, caramellate, cmyk, coffee, corporate, cupcake, cyberpunk, fantasy, lofi, nord, pastel, synthwave, wireframe;
 }
 @source "../../templates";
 

@@ -325,9 +325,9 @@ When no active account or app ID not configured
 
 ***
 
-### userClaimed()
+### notifyClaimSuccessful()
 
-> **userClaimed**(`address`): `Promise`\<\{ `success`: `boolean`; \}\>
+> **notifyClaimSuccessful**(`address`): `Promise`\<\{ `success`: `boolean`; \}\>
 
 Defined in: [src/RewardsClient.ts:271](https://github.com/ipaleka/rewards-site/blob/main/rewardsweb/frontend/src/RewardsClient.ts#L271)
 

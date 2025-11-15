@@ -261,14 +261,14 @@ describe("RewardsClient", () => {
       });
 
       const address = TEST_ADDRESS_2;
-      const txIDs = ["tx1"];
-      await rewardsClient.notifyReclaimSuccessful(address, txIDs);
+      const txID = "tx1";
+      await rewardsClient.notifyReclaimSuccessful(address, txID);
 
       expect(fetch).toHaveBeenCalledWith(
         "/api/wallet/reclaim-successful/",
         expect.objectContaining({
           method: "POST",
-          body: JSON.stringify({ address, txIDs }),
+          body: JSON.stringify({ address, txID }),
         })
       );
     });
@@ -576,7 +576,7 @@ describe("RewardsClient", () => {
   });
 });
 
-describe('RewardsClient userClaimed method', () => {
+describe('RewardsClient notifyClaimSuccessful method', () => {
   let mockManager: jest.Mocked<WalletManager>;
   let rewardsClient: RewardsClient;
 
@@ -628,8 +628,8 @@ describe('RewardsClient userClaimed method', () => {
     rewardsClient = new RewardsClient(mockManager);
   });
 
-  describe('successful userClaimed calls', () => {
-    it('should call userClaimed API endpoint with correct parameters', async () => {
+  describe('successful notifyClaimSuccessful calls', () => {
+    it('should call notifyClaimSuccessful API endpoint with correct parameters', async () => {
       const address = TEST_ADDRESS_2;
       const mockResponse = { success: true };
 
@@ -638,7 +638,7 @@ describe('RewardsClient userClaimed method', () => {
         json: () => Promise.resolve(mockResponse),
       });
 
-      const result = await rewardsClient.userClaimed(address);
+      const result = await rewardsClient.notifyClaimSuccessful(address);
 
       expect(result).toEqual(mockResponse);
       expect(fetch).toHaveBeenCalledWith(
@@ -654,7 +654,7 @@ describe('RewardsClient userClaimed method', () => {
       );
     });
 
-    it('should handle successful userClaimed response', async () => {
+    it('should handle successful notifyClaimSuccessful response', async () => {
       const address = 'test-address-123';
       const expectedResponse = { success: true };
 
@@ -663,7 +663,7 @@ describe('RewardsClient userClaimed method', () => {
         json: () => Promise.resolve(expectedResponse),
       });
 
-      const result = await rewardsClient.userClaimed(address);
+      const result = await rewardsClient.notifyClaimSuccessful(address);
 
       expect(result).toBe(expectedResponse);
     });
@@ -680,7 +680,7 @@ describe('RewardsClient userClaimed method', () => {
         json: () => Promise.resolve({ success: true }),
       });
 
-      await rewardsClient.userClaimed('test-address');
+      await rewardsClient.notifyClaimSuccessful('test-address');
 
       expect(fetch).toHaveBeenCalledWith(
         '/api/wallet/claim-successful/',
@@ -710,7 +710,7 @@ describe('RewardsClient userClaimed method', () => {
         json: () => Promise.resolve({ success: true }),
       });
 
-      await rewardsClient.userClaimed('test-address');
+      await rewardsClient.notifyClaimSuccessful('test-address');
 
       expect(fetch).toHaveBeenCalledWith(
         '/api/wallet/claim-successful/',
@@ -725,7 +725,7 @@ describe('RewardsClient userClaimed method', () => {
     });
   });
 
-  describe('userClaimed error handling', () => {
+  describe('notifyClaimSuccessful error handling', () => {
     it('should throw error when HTTP response is not ok', async () => {
       const address = 'test-address';
 
@@ -734,7 +734,7 @@ describe('RewardsClient userClaimed method', () => {
         status: 500,
       });
 
-      await expect(rewardsClient.userClaimed(address)).rejects.toThrow('HTTP error! status: 500');
+      await expect(rewardsClient.notifyClaimSuccessful(address)).rejects.toThrow('HTTP error! status: 500');
     });
 
     it('should throw error when HTTP response is 400', async () => {
@@ -745,7 +745,7 @@ describe('RewardsClient userClaimed method', () => {
         status: 400,
       });
 
-      await expect(rewardsClient.userClaimed(address)).rejects.toThrow('HTTP error! status: 400');
+      await expect(rewardsClient.notifyClaimSuccessful(address)).rejects.toThrow('HTTP error! status: 400');
     });
 
     it('should throw error when HTTP response is 403', async () => {
@@ -756,7 +756,7 @@ describe('RewardsClient userClaimed method', () => {
         status: 403,
       });
 
-      await expect(rewardsClient.userClaimed(address)).rejects.toThrow('HTTP error! status: 403');
+      await expect(rewardsClient.notifyClaimSuccessful(address)).rejects.toThrow('HTTP error! status: 403');
     });
 
     it('should throw error when HTTP response is 404', async () => {
@@ -767,7 +767,7 @@ describe('RewardsClient userClaimed method', () => {
         status: 404,
       });
 
-      await expect(rewardsClient.userClaimed(address)).rejects.toThrow('HTTP error! status: 404');
+      await expect(rewardsClient.notifyClaimSuccessful(address)).rejects.toThrow('HTTP error! status: 404');
     });
 
     it('should log error when fetch fails', async () => {
@@ -777,7 +777,7 @@ describe('RewardsClient userClaimed method', () => {
 
       (fetch as jest.Mock).mockRejectedValue(error);
 
-      await expect(rewardsClient.userClaimed(address)).rejects.toThrow('Network connection failed');
+      await expect(rewardsClient.notifyClaimSuccessful(address)).rejects.toThrow('Network connection failed');
 
       expect(consoleErrorSpy).toHaveBeenCalledWith(
         '[RewardsClient] Error sending user claimed:',
@@ -1028,7 +1028,7 @@ describe('RewardsClient userClaimed method', () => {
           json: () => Promise.resolve({ success: true }),
         });
 
-        await rewardsClient.userClaimed(TEST_ADDRESS_2);
+        await rewardsClient.notifyClaimSuccessful(TEST_ADDRESS_2);
 
         expect(fetch).toHaveBeenCalledWith(
           '/api/wallet/claim-successful/',
@@ -1059,7 +1059,7 @@ describe('RewardsClient userClaimed method', () => {
           json: () => Promise.resolve({ success: true }),
         });
 
-        await rewardsClient.userClaimed(TEST_ADDRESS_2);
+        await rewardsClient.notifyClaimSuccessful(TEST_ADDRESS_2);
 
         expect(fetch).toHaveBeenCalledWith(
           '/api/wallet/claim-successful/',
@@ -1091,7 +1091,7 @@ describe('RewardsClient userClaimed method', () => {
         });
 
         // Should not throw for regular API calls, only for notifyReclaimSuccessful
-        await expect(rewardsClient.userClaimed(TEST_ADDRESS_2)).resolves.toEqual({ success: true });
+        await expect(rewardsClient.notifyClaimSuccessful(TEST_ADDRESS_2)).resolves.toEqual({ success: true });
 
         expect(fetch).toHaveBeenCalledWith(
           '/api/wallet/claim-successful/',

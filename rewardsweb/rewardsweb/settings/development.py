@@ -1,5 +1,7 @@
 """Django settings module used in development."""
 
+import os
+
 from .base import *
 
 # SECURITY WARNING: don't run with debug turned on in production!
@@ -47,5 +49,9 @@ LOGGING = {
         }
     },
 }
+
+LIVE_TEST_SERVER_ADDRESS = get_env_variable(
+    "DJANGO_LIVE_TEST_SERVER_ADDRESS", "0.0.0.0:8081"
+)
 
 GITHUB_REPO_NAME = "test"  # "rewards-site"

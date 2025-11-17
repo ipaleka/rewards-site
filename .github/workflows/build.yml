@@ -65,7 +65,7 @@ jobs:
             sleep 2
           done
 
-      - name: Run tests with coverage
+      - name: Run unit tests with coverage
         env:
           DJANGO_SETTINGS_MODULE: rewardsweb.settings.development
           DATABASE_URL: postgresql://postgres:postgres@localhost:5432/rewards_db
@@ -83,6 +83,21 @@ jobs:
           directory: rewardsweb
           flags: main-project
           name: main-coverage
+
+      - name: Install system dependencies
+        run: |
+          sudo apt-get update
+          sudo apt-get install -y \
+            google-chrome-stable \
+            xvfb
+
+      - name: Run Django tests (including Selenium)
+        env:
+          DJANGO_LIVE_TEST_SERVER_ADDRESS: 0.0.0.0:8081-8091
+        run: |
+          cd rewardsweb        
+          # Run tests using xvfb so Selenium can use a virtual display if needed
+          xvfb-run -a python -m pytest functional_tests/ --no-cov
 
   frontend:
     runs-on: ubuntu-latest
@@ -127,7 +142,7 @@ jobs:
           cd rewardsweb/core
           npm run test:coverage
 
-      - name: Upload corer app's coverage to Codecov
+      - name: Upload core app's coverage to Codecov
         uses: codecov/codecov-action@v5
         with:
           token: ${{ secrets.CODECOV_TOKEN }}

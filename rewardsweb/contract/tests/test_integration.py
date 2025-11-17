@@ -9,13 +9,13 @@ import pytest
 from algokit_utils import (
     AlgoAmount,
     AlgorandClient,
+    AppClientMethodCallParams,
     Arc56Contract,
     AssetTransferParams,
     LogicError,
     PaymentParams,
     SendParams,
     SigningAccount,
-    AppClientMethodCallParams,
 )
 from algokit_utils.applications import AppClient, AppClientParams
 from algosdk.atomic_transaction_composer import (

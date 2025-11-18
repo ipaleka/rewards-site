@@ -30,6 +30,16 @@ urlpatterns = [
         views.ContributionInvalidateView.as_view(),
         name="contribution_invalidate",
     ),
+    path(
+        "contribution/add/",
+        views.ContributionCreateView.as_view(),
+        name="contribution_add",
+    ),
+    path(
+        "contribution/add/<int:issue_number>/",
+        views.ContributionCreateView.as_view(),
+        name="contribution_add_from_issue",
+    ),
     path("issues/", views.IssueListView.as_view(), name="issues"),
     path(
         "create-issue/<int:contribution_id>",

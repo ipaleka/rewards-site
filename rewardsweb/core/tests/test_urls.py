@@ -65,6 +65,18 @@ class TestCoreUrls:
         assert url.lookup_str == "core.views.ContributionInvalidateView"
         assert url.name == "contribution_invalidate"
 
+    def test_core_urls_contribution_add(self):
+        url = self._url_from_pattern("contribution/add/")
+        assert isinstance(url, URLPattern)
+        assert url.lookup_str == "core.views.ContributionCreateView"
+        assert url.name == "contribution_add"
+
+    def test_core_urls_contribution_add_from_issue(self):
+        url = self._url_from_pattern("contribution/add/<int:issue_number>/")
+        assert isinstance(url, URLPattern)
+        assert url.lookup_str == "core.views.ContributionCreateView"
+        assert url.name == "contribution_add_from_issue"
+
     def test_core_urls_issues(self):
         url = self._url_from_pattern("issues/")
         assert isinstance(url, URLPattern)
@@ -96,4 +108,4 @@ class TestCoreUrls:
         assert url.name == "unconfirmed_contributions"
 
     def test_core_urls_patterns_count(self):
-        assert len(urls.urlpatterns) == 14
+        assert len(urls.urlpatterns) == 16

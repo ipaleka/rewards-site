@@ -253,6 +253,16 @@
           </div>
         </div>
         {% endif %}
+
+        <!-- Action Button -->
+        <div class="mt-6">
+          <a href="{% url 'contribution_add_from_issue' issue.number %}"
+            class="btn btn-primary w-full md:w-auto gap-2">
+            <i class="fas fa-plus"></i>
+            Add Contribution
+          </a>
+        </div>
+
       </div>
 
       <!-- GitHub Issue Section -->

@@ -1,12 +1,14 @@
 """Module containing code dealing with core app's forms."""
 
 from django.contrib.auth.models import User
+from django.core.exceptions import ObjectDoesNotExist
 from django.forms import (
     CharField,
     CheckboxSelectMultiple,
     ChoiceField,
     DecimalField,
     Form,
+    HiddenInput,
     IntegerField,
     ModelChoiceField,
     MultipleChoiceField,
@@ -19,7 +21,15 @@ from django.forms import (
 )
 from django.forms.models import ModelForm, inlineformset_factory
 
-from core.models import Contribution, IssueStatus, Profile, Reward
+from core.models import (
+    Contribution,
+    Contributor,
+    Cycle,
+    IssueStatus,
+    Profile,
+    Reward,
+    SocialPlatform,
+)
 from utils.constants.core import (
     ISSUE_CREATION_LABEL_CHOICES,
     ISSUE_PRIORITY_CHOICES,
@@ -115,6 +125,103 @@ class ContributionInvalidateForm(ModelForm):
     class Meta:
         model = Contribution
         fields = ["comment"]
+
+
+class ContributionCreateForm(ModelForm):
+    """Model form class for adding new contribution.
+
+    :var ContributionCreateForm.contributor: contribution's contributor instance
+    :type ContributionCreateForm.contributor: :class:`django.forms.ModelChoiceField`
+    :var ContributionCreateForm.cycle: contribution's cycle instance
+    :type ContributionCreateForm.cycle: :class:`django.forms.ModelChoiceField`
+    :var ContributionCreateForm.platform: contribution's social platform instance
+    :type ContributionCreateForm.platform: :class:`django.forms.ModelChoiceField`
+    :var ContributionCreateForm.reward: reward type for the contribution
+    :type ContributionCreateForm.reward: :class:`django.forms.ModelChoiceField`
+    :var ContributionCreateForm.percentage: percentage value for the contribution
+    :type ContributionCreateForm.percentage: :class:`django.forms.DecimalField`
+    :var ContributionCreateForm.comment: optional comment for the contribution
+    :type ContributionCreateForm.comment: :class:`django.forms.CharField`
+    :var ContributionCreateForm.issue_number: GitHub issue number
+    :type ContributionCreateForm.issue_number: :class:`django.forms.IntegerField`
+    :var ContributionCreateForm.issue_status: Status for newly created issue
+    :type ContributionCreateForm.issue_status: :class:`django.forms.ChoiceField`
+    """
+
+    contributor = ModelChoiceField(
+        queryset=Contributor.objects.all(),
+        widget=Select(attrs={"class": "select select-bordered w-full"}),
+    )
+    cycle = ModelChoiceField(
+        queryset=Cycle.objects.all(),
+        widget=Select(attrs={"class": "select select-bordered w-full"}),
+    )
+    platform = ModelChoiceField(
+        queryset=SocialPlatform.objects.all(),
+        widget=Select(attrs={"class": "select select-bordered w-full"}),
+    )
+    reward = ModelChoiceField(
+        queryset=Reward.objects.filter(active=True),
+        empty_label="Select a reward type",
+        widget=Select(attrs={"class": "select select-bordered w-full"}),
+    )
+    percentage = DecimalField(
+        max_digits=5,
+        decimal_places=2,
+        initial=1,
+        widget=NumberInput(
+            attrs={"class": TEXTINPUT_CLASS, "step": "0.01", "min": "0", "max": "100"}
+        ),
+    )
+    comment = CharField(
+        required=False,
+        widget=TextInput(attrs={"class": TEXTINPUT_CLASS}),
+    )
+
+    # Only shown if Issue is NOT pre-set
+    issue_number = IntegerField(
+        required=False,
+        min_value=1,
+        widget=NumberInput(
+            attrs={
+                "class": TEXTINPUT_CLASS,
+                "placeholder": "GitHub issue number (optional)",
+            }
+        ),
+    )
+    issue_status = ChoiceField(
+        choices=IssueStatus.choices,
+        widget=RadioSelect(),
+        required=False,
+        initial=IssueStatus.CREATED,
+    )
+
+    class Meta:
+        model = Contribution
+        fields = [
+            "contributor",
+            "cycle",
+            "platform",
+            "reward",
+            "percentage",
+            "comment",
+        ]
+
+    def __init__(self, *args, **kwargs):
+        self.preselected_issue = kwargs.pop("preselected_issue", None)
+        super().__init__(*args, **kwargs)
+
+        # Default cycle = most recent Cycle (latest start date)
+        try:
+            latest_cycle = Cycle.objects.latest("start")
+            self.fields["cycle"].initial = latest_cycle
+        except ObjectDoesNotExist:
+            pass  # no cycles exist yet
+
+        # Hide issue fields if issue preselected
+        if self.preselected_issue:
+            self.fields["issue_number"].widget = HiddenInput()
+            self.fields["issue_status"].widget = HiddenInput()
 
 
 class CreateIssueForm(Form):

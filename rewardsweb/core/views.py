@@ -18,11 +18,18 @@ from django.template.loader import render_to_string
 from django.urls import reverse_lazy
 from django.utils.decorators import method_decorator
 from django.views import View
-from django.views.generic import DetailView, FormView, ListView, UpdateView
+from django.views.generic import (
+    CreateView,
+    DetailView,
+    FormView,
+    ListView,
+    UpdateView,
+)
 from django.views.generic.detail import SingleObjectMixin
 
 from contract.network import process_allocations_for_contributions
 from core.forms import (
+    ContributionCreateForm,
     ContributionEditForm,
     ContributionInvalidateForm,
     CreateIssueForm,
@@ -307,6 +314,68 @@ class ContributionInvalidateView(UpdateView):
     def get_success_url(self):
         """Return URL to redirect after successful update."""
         return reverse_lazy("contribution_detail", kwargs={"pk": self.object.pk})
+
+
+@method_decorator(user_passes_test(lambda user: user.is_superuser), name="dispatch")
+class ContributionCreateView(CreateView):
+    """View for adding contributions (superusers only).
+
+    :ivar model: Model class for contributions
+    :type model: :class:`core.models.Contribution`
+    :ivar form_class: Form class for editing contributions
+    :type form_class: :class:`core.forms.ContributionEditForm`
+    :ivar template_name: HTML template for the edit form
+    :type template_name: str
+    """
+
+    model = Contribution
+    form_class = ContributionCreateForm
+    template_name = "core/contribution_create.html"
+
+    def dispatch(self, request, *args, **kwargs):
+        """Check if an issue_number was supplied in the URL."""
+        self.url_issue_number = kwargs.get("issue_number")
+        return super().dispatch(request, *args, **kwargs)
+
+    def get_form_kwargs(self):
+        kwargs = super().get_form_kwargs()
+
+        # If adding from an existing issue page
+        if self.url_issue_number:
+            try:
+                issue = Issue.objects.get(number=self.url_issue_number)
+            except Issue.DoesNotExist:
+                messages.error(self.request, "Issue does not exist.")
+                return kwargs
+
+            kwargs["preselected_issue"] = issue
+
+        return kwargs
+
+    def form_valid(self, form):
+        """Save a new contribution and attach issue if pre-set Issue context exists."""
+        form.instance.issue = (
+            Issue.objects.get(number=self.url_issue_number)
+            if self.url_issue_number
+            else None
+        )
+        self.request.user.profile.log_action(
+            "contribution_created", f"Contribution created: {form.instance.id}"
+        )
+        return super().form_valid(form)
+
+    def get_success_url(self):
+        """
+        Redirect to Issue detail if this contribution was added
+        from an issue context, otherwise go to the contribution detail.
+        """
+
+        # Case 1 — contribution is linked to an Issue
+        if self.object.issue:
+            return reverse_lazy("issue_detail", args=[self.object.issue.id])
+
+        # Case 2 — normal creation
+        return reverse_lazy("contribution_detail", args=[self.object.pk])
 
 
 class ContributorListView(ListView):

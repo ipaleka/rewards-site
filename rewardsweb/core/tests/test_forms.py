@@ -9,6 +9,7 @@ from django.forms import (
     ChoiceField,
     DecimalField,
     Form,
+    HiddenInput,
     IntegerField,
     ModelChoiceField,
     ModelForm,
@@ -22,6 +23,7 @@ from django.forms import (
 )
 
 from core.forms import (
+    ContributionCreateForm,
     ContributionEditForm,
     ContributionInvalidateForm,
     CreateIssueForm,
@@ -30,7 +32,7 @@ from core.forms import (
     ProfileFormSet,
     UpdateUserForm,
 )
-from core.models import Contribution, IssueStatus, Profile
+from core.models import Contribution, Cycle, IssueStatus, Profile
 from utils.constants.ui import MISSING_OPTION_TEXT
 
 
@@ -154,6 +156,108 @@ class TestContributionInvalidateForm:
     def test_contributioninvalidateform_meta_fields(self):
         form = ContributionInvalidateForm()
         assert form._meta.fields == ["comment"]
+
+
+class TestContributionCreateForm:
+    """Tests for ContributionCreateForm."""
+
+    def test_contributioncreateform_is_modelform(self):
+        assert issubclass(ContributionCreateForm, ModelForm)
+
+    @pytest.mark.django_db
+    def test_form_fields_exist(self):
+        form = ContributionCreateForm()
+        fields = form.base_fields
+
+        assert "contributor" in fields
+        assert "cycle" in fields
+        assert "platform" in fields
+        assert "reward" in fields
+        assert "percentage" in fields
+        assert "comment" in fields
+        assert "issue_number" in fields
+        assert "issue_status" in fields
+
+    @pytest.mark.django_db
+    def test_contributor_field(self):
+        form = ContributionCreateForm()
+        assert isinstance(form.base_fields["contributor"], ModelChoiceField)
+        assert isinstance(form.base_fields["contributor"].widget, Select)
+
+    @pytest.mark.django_db
+    def test_cycle_field(self):
+        form = ContributionCreateForm()
+        assert isinstance(form.base_fields["cycle"], ModelChoiceField)
+        assert isinstance(form.base_fields["cycle"].widget, Select)
+
+    @pytest.mark.django_db
+    def test_platform_field(self):
+        form = ContributionCreateForm()
+        assert isinstance(form.base_fields["platform"], ModelChoiceField)
+        assert isinstance(form.base_fields["platform"].widget, Select)
+
+    @pytest.mark.django_db
+    def test_reward_field(self):
+        form = ContributionCreateForm()
+        reward_field = form.base_fields["reward"]
+        assert isinstance(reward_field, ModelChoiceField)
+        assert reward_field.empty_label == "Select a reward type"
+        assert isinstance(reward_field.widget, Select)
+
+    @pytest.mark.django_db
+    def test_percentage_field(self):
+        form = ContributionCreateForm()
+        percentage_field = form.base_fields["percentage"]
+
+        assert isinstance(percentage_field, DecimalField)
+        assert percentage_field.max_digits == 5
+        assert percentage_field.decimal_places == 2
+        assert isinstance(percentage_field.widget, NumberInput)
+
+    @pytest.mark.django_db
+    def test_comment_field(self):
+        form = ContributionCreateForm()
+        comment_field = form.base_fields["comment"]
+
+        assert isinstance(comment_field, CharField)
+        assert not comment_field.required
+        assert isinstance(comment_field.widget, TextInput)
+
+    @pytest.mark.django_db
+    def test_issue_number_field(self):
+        form = ContributionCreateForm()
+        issue_number = form.base_fields["issue_number"]
+
+        assert isinstance(issue_number, IntegerField)
+        assert not issue_number.required
+        assert issue_number.min_value == 1
+        assert isinstance(issue_number.widget, NumberInput)
+
+    @pytest.mark.django_db
+    def test_issue_status_field(self):
+        form = ContributionCreateForm()
+        issue_status = form.base_fields["issue_status"]
+
+        assert isinstance(issue_status, ChoiceField)
+        assert issue_status.choices == IssueStatus.choices
+        assert issue_status.initial == IssueStatus.CREATED  # per your view design
+        assert isinstance(issue_status.widget, RadioSelect)
+
+    @pytest.mark.django_db
+    def test_preselected_issue_hides_issue_fields(self, issue):
+        form = ContributionCreateForm(preselected_issue=issue)
+
+        assert isinstance(form.fields["issue_number"].widget, HiddenInput)
+        assert isinstance(form.fields["issue_status"].widget, HiddenInput)
+
+    @pytest.mark.django_db
+    def test_default_cycle_is_latest(self):
+        """Ensure the default cycle is maximum start date."""
+        Cycle.objects.create(start="2024-06-01")
+        new_cycle = Cycle.objects.create(start="2024-12-01")
+
+        form = ContributionCreateForm()
+        assert form.fields["cycle"].initial == new_cycle
 
 
 class TestCreateIssueForm:

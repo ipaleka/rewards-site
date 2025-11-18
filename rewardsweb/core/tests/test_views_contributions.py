@@ -5,7 +5,7 @@ from django.contrib.auth import get_user_model
 from django.contrib.messages import get_messages
 from django.contrib.messages.storage.fallback import FallbackStorage
 from django.urls import reverse
-from django.views.generic import DetailView, ListView, UpdateView
+from django.views.generic import CreateView, DetailView, ListView, UpdateView
 
 from core.forms import ContributionEditForm, ContributionInvalidateForm
 from core.models import (
@@ -20,6 +20,7 @@ from core.models import (
     SocialPlatform,
 )
 from core.views import (
+    ContributionCreateView,
     ContributionDetailView,
     ContributionEditView,
     ContributionInvalidateView,
@@ -862,6 +863,204 @@ class TestContributionInvalidateViewDb:
         assert "duplicate" in message_text
 
 
+class TestContributionCreateViewBasics:
+    """Simple class-based view tests."""
+
+    def test_contributioncreateview_is_subclass_of_createView(self):
+        assert issubclass(ContributionCreateView, CreateView)
+
+    def test_contributioncreateview_model_is_contribution(self):
+        view = ContributionCreateView()
+        assert view.model == Contribution
+
+    def test_contributioncreateview_template_name(self):
+        view = ContributionCreateView()
+        assert view.template_name == "core/contribution_create.html"
+
+
+@pytest.mark.django_db
+class TestDbContributionCreateView:
+    """Full DB tests for ContributionCreateView."""
+
+    def _setup_messages(self, request):
+        setattr(request, "session", "session")
+        storage = FallbackStorage(request)
+        setattr(request, "_messages", storage)
+        return request
+
+    def test_contributioncreateview_requires_superuser(self, rf, regular_user):
+        request = rf.get("/contribution/add/")
+        request.user = regular_user
+
+        response = ContributionCreateView.as_view()(request)
+
+        assert response.status_code == 302  # redirect to login
+
+    def test_contributioncreateview_superuser_access(self, rf, superuser):
+        request = rf.get("/contribution/add/")
+        request.user = superuser
+
+        response = ContributionCreateView.as_view()(request)
+
+        assert response.status_code == 200
+
+    def test_contributioncreateview_form_valid_creates_contribution_without_issue(
+        self, rf, superuser, contributor, social_platform, reward, cycle
+    ):
+        request = rf.post(
+            "/contribution/add/",
+            {
+                "contributor": contributor.id,
+                "cycle": cycle.id,
+                "platform": social_platform.id,
+                "reward": reward.id,
+                "percentage": "50.00",
+                "comment": "Hello world",
+            },
+        )
+
+        request.user = superuser
+        request = self._setup_messages(request)
+
+        response = ContributionCreateView.as_view()(request)
+
+        # Should redirect
+        assert response.status_code == 302
+
+        new_obj = Contribution.objects.latest("id")
+        assert new_obj.issue is None
+
+    def test_contributioncreateview_form_valid_attaches_preselected_issue(
+        self, rf, superuser, contributor, social_platform, reward, cycle, issue
+    ):
+        url = f"/contribution/add/issue/{issue.number}/"
+        request = rf.post(
+            url,
+            {
+                "contributor": contributor.id,
+                "cycle": cycle.id,
+                "platform": social_platform.id,
+                "reward": reward.id,
+                "percentage": "12.34",
+                "comment": "Linked to issue",
+            },
+        )
+
+        request.user = superuser
+        request = self._setup_messages(request)
+
+        response = ContributionCreateView.as_view()(request, issue_number=issue.number)
+
+        assert response.status_code == 302
+
+        contribution = Contribution.objects.latest("id")
+        assert contribution.issue == issue
+
+    def test_contributioncreateview_redirects_to_issue_detail_when_preselected_issue(
+        self, rf, superuser, contributor, social_platform, reward, cycle, issue
+    ):
+        request = rf.post(
+            f"/contribution/add/issue/{issue.number}/",
+            {
+                "contributor": contributor.id,
+                "cycle": cycle.id,
+                "platform": social_platform.id,
+                "reward": reward.id,
+                "percentage": "10",
+                "comment": "",
+            },
+        )
+
+        request.user = superuser
+        request = self._setup_messages(request)
+
+        response = ContributionCreateView.as_view()(request, issue_number=issue.number)
+
+        expected_url = reverse("issue_detail", args=[issue.id])
+        assert response.status_code == 302
+        assert response.url == expected_url
+
+    def test_contributioncreateview_redirects_to_contribution_detail_when_no_issue(
+        self, rf, superuser, contributor, social_platform, reward, cycle
+    ):
+        request = rf.post(
+            "/contribution/add/",
+            {
+                "contributor": contributor.id,
+                "cycle": cycle.id,
+                "platform": social_platform.id,
+                "reward": reward.id,
+                "percentage": "10",
+                "comment": "",
+            },
+        )
+
+        request.user = superuser
+        request = self._setup_messages(request)
+
+        response = ContributionCreateView.as_view()(request)
+
+        new_contribution = Contribution.objects.latest("id")
+        expected_url = reverse("contribution_detail", args=[new_contribution.pk])
+
+        assert response.status_code == 302
+        assert response.url == expected_url
+
+    def test_contributioncreateview_preselected_issue_must_exist(self, rf, superuser):
+        request = rf.post(
+            "/contribution/add/issue/9999/",
+            {
+                "contributor": 1,
+                "cycle": 1,
+                "platform": 1,
+                "reward": 1,
+                "percentage": "10",
+            },
+        )
+        request.user = superuser
+        request = self._setup_messages(request)
+
+        response = ContributionCreateView.as_view()(request, issue_number=9999)
+
+        assert response.status_code == 200  # form invalid
+        assert "form" in response.context_data
+        assert response.context_data["form"].errors  # shows error
+
+    def test_contributioncreateview_form_valid_with_nonexistent_issue_number(
+        self, rf, superuser, contributor, social_platform, reward, cycle
+    ):
+        """
+        If the user enters an issue_number manually, but no such Issue exists,
+        ContributionCreateView should IGNORE IT and still create a normal contribution
+        with issue=None (because issue creation/validation is disabled).
+        """
+        request = rf.post(
+            "/contribution/add/9999",
+            {
+                "contributor": contributor.id,
+                "cycle": cycle.id,
+                "platform": social_platform.id,
+                "reward": reward.id,
+                "percentage": "33.33",
+                "comment": "Trying an invalid issue number",
+            },
+        )
+
+        request.user = superuser
+        request = self._setup_messages(request)
+
+        response = ContributionCreateView.as_view()(request)
+
+        # Should redirect successfully
+        assert response.status_code == 302
+
+        # Retrieve created contribution
+        new_contribution = Contribution.objects.latest("id")
+
+        # No issue should be attached
+        assert new_contribution.issue is None
+
+
 class TestContributorListView:
     """Testing class for :class:`core.views.ContributorListView`."""
 
@@ -1386,7 +1585,7 @@ class TestCycleDetailView:
         assert hasattr(queryset, "_prefetch_related_lookups")
 
     @pytest.mark.django_db
-    def test_cycledetailview_get_queryset_integration(self):
+    def test_cycledetailview_get_queryset_integration2(self):
         """Integration test to verify the actual queryset behavior with reverse ordering."""
         # Create test data
         cycle = Cycle.objects.create(start="2025-09-08")

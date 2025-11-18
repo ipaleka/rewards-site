@@ -337,6 +337,25 @@ class ContributionCreateView(CreateView):
         self.url_issue_number = kwargs.get("issue_number")
         return super().dispatch(request, *args, **kwargs)
 
+    def get_form(self, form_class=None):
+        """Filters contributors by serch query inputed by the user."""
+
+        form = super().get_form(form_class)
+
+        # Read q from GET or POST
+        search_query = self.request.GET.get("q") or self.request.POST.get("q")
+
+        queryset = Contributor.objects.all()
+
+        if search_query:
+            queryset = queryset.filter(
+                Q(name__icontains=search_query)
+                | Q(handle__handle__icontains=search_query)
+            ).distinct()
+
+        form.fields["contributor"].queryset = queryset
+        return form
+
     def get_form_kwargs(self):
         kwargs = super().get_form_kwargs()
 

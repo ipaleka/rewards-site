@@ -1060,6 +1060,133 @@ class TestDbContributionCreateView:
         # No issue should be attached
         assert new_contribution.issue is None
 
+    # # get form
+    def _setup_messages(self, request):
+        setattr(request, "session", "session")
+        storage = FallbackStorage(request)
+        setattr(request, "_messages", storage)
+        return request
+
+    @pytest.fixture
+    def contributors_with_handles(self):
+        """Creates contributors + handles for testing search."""
+        platform = SocialPlatform.objects.create(name="GitHub")
+        c1 = Contributor.objects.create(name="Alice Wonderland")
+        c2 = Contributor.objects.create(name="Bob Builder")
+        c3 = Contributor.objects.create(name="Charlie Alpha")
+
+        Handle.objects.create(contributor=c1, platform=platform, handle="alice123")
+        Handle.objects.create(contributor=c2, platform=platform, handle="bobdev")
+        Handle.objects.create(contributor=c3, platform=platform, handle="alphacharlie")
+
+        return c1, c2, c3
+
+    def test_contributioncreateview_get_form_no_search_query_returns_all_contributors(
+        self, rf, superuser, contributors_with_handles
+    ):
+        request = rf.get("/contribution/add/")  # no ?q parameter
+        request.user = superuser
+
+        view = ContributionCreateView()
+        view.setup(request)
+        view.request = request
+        view.url_issue_number = None
+
+        form = view.get_form()
+
+        # Should contain ALL contributors
+        qs = form.fields["contributor"].queryset
+        assert qs.count() == len(contributors_with_handles)
+
+    def test_contributioncreateview_get_form_with_search_query_filters_by_name(
+        self, rf, superuser, contributors_with_handles
+    ):
+        request = rf.get("/contribution/add/?q=ali")  # matches Alice
+        request.user = superuser
+
+        view = ContributionCreateView()
+        view.setup(request)
+        view.request = request
+        view.url_issue_number = None
+
+        form = view.get_form()
+        qs = form.fields["contributor"].queryset
+
+        assert qs.count() == 1
+        assert qs.first().name.startswith("Alice")
+
+    def test_contributioncreateview_get_form_with_search_query_filters_by_handle(
+        self, rf, superuser, contributors_with_handles
+    ):
+        request = rf.get("/contribution/add/?q=dev")  # matches bobdev
+        request.user = superuser
+
+        view = ContributionCreateView()
+        view.setup(request)
+        view.request = request
+        view.url_issue_number = None
+
+        form = view.get_form()
+        qs = form.fields["contributor"].queryset
+
+        assert qs.count() == 1
+        assert qs.first().name == "Bob Builder"
+
+    def test_contributioncreateview_get_form_reads_search_query_from_post(
+        self, rf, superuser, contributors_with_handles
+    ):
+        request = rf.post("/contribution/add/", data={"q": "alpha"})
+        request.user = superuser
+
+        view = ContributionCreateView()
+        view.setup(request)
+        view.request = request
+        view.url_issue_number = None
+
+        form = view.get_form()
+        qs = form.fields["contributor"].queryset
+
+        assert qs.count() == 1
+        assert qs.first().name == "Charlie Alpha"
+
+    def test_contributioncreateview_get_form_search_is_case_insensitive(
+        self, rf, superuser, contributors_with_handles
+    ):
+        request = rf.get("/contribution/add/?q=ALICE")
+        request.user = superuser
+
+        view = ContributionCreateView()
+        view.setup(request)
+        view.request = request
+        view.url_issue_number = None
+
+        form = view.get_form()
+        qs = form.fields["contributor"].queryset
+
+        assert qs.count() == 1
+        assert qs.first().name == "Alice Wonderland"
+
+    def test_contributioncreateview_get_form_distinct_removes_duplicates(
+        self, rf, superuser, contributors_with_handles
+    ):
+        # Add second handle for same contributor → search should return only 1 result
+        platform = SocialPlatform.objects.first()
+        c1 = contributors_with_handles[0]
+        Handle.objects.create(contributor=c1, platform=platform, handle="aliceXYZ")
+
+        request = rf.get("/contribution/add/?q=alice")
+        request.user = superuser
+
+        view = ContributionCreateView()
+        view.setup(request)
+        view.request = request
+        view.url_issue_number = None
+
+        form = view.get_form()
+        qs = form.fields["contributor"].queryset
+
+        assert qs.count() == 1  # distinct removes duplicates
+
 
 class TestContributorListView:
     """Testing class for :class:`core.views.ContributorListView`."""

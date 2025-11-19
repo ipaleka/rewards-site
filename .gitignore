@@ -7,18 +7,17 @@ __pycache__
 .scannerwork
 docs/_build
 db.sqlite3
-*.log
 .coverage
 coverage.xml
 rewardsweb/.env
 rewardsweb/.env.testing
 rewardsweb/.env.production
 rewardsweb/.env.ci
-rewardsweb/*.log
 rewardsweb/fixtures/*.csv
 rewardsweb/fixtures/*.xlsx
 rewardsweb/fixtures/*.pkl
 rewardsweb/fixtures/*.pem
+rewardsweb/fixtures/*.db
 rewardsweb/.coverage
 rewardsweb/core/static/css/tailwindcss
 rewardsweb/core/coverage
@@ -28,5 +27,6 @@ rewardsweb/rewardsbot/*.log
 rewardsweb/frontend/coverage
 rewardsweb/contract/.env
 rewardsweb/contract/coverage.xml
+rewardsweb/logs/*.log
 deploy/.env.*
 deploy/.ansible/

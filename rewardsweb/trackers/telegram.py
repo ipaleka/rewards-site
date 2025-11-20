@@ -12,11 +12,11 @@ from trackers.base import BaseMentionTracker
 class TelegramTracker(BaseMentionTracker):
     """Tracker for Telegram mentions in specified groups/channels."""
 
-    def __init__(self, callback_function, telegram_config, chat_list):
+    def __init__(self, parse_message_callback, telegram_config, chat_list):
         """Initialize Telegram tracker.
 
-        :var callback_function: function to call when mention is found
-        :type callback_function: callable
+        :var parse_message_callback: function to call when mention is found
+        :type parse_message_callback: callable
         :var telegram_config: configuration dictionary for Telegram API
         :type telegram_config: dict
         :var chat_list: list of chat usernames or IDs to monitor
@@ -28,7 +28,7 @@ class TelegramTracker(BaseMentionTracker):
         :var tracked_chats: list of chats being monitored
         :type tracked_chats: list
         """
-        super().__init__("telegram", callback_function)
+        super().__init__("telegram", parse_message_callback)
 
         self.client = TelegramClient(
             session=telegram_config.get("session_name", "telegram_tracker"),
@@ -74,19 +74,32 @@ class TelegramTracker(BaseMentionTracker):
         :return: standardized mention data
         :rtype: dict
         """
+
+        # sender = await message.get_sender()   # fetch full user object
+
+        # if sender:
+        #     username = sender.username        # may be None if user has no @username
+        #     display_name = sender.first_name
+        #     user_id = sender.id
+
+        #     print("ID:", user_id)
+        #     print("Username:", username)
+        #     print("Name:", display_name)
+
+
         chat = message.chat
         chat_title = getattr(chat, "title", "Private Chat")
         chat_username = getattr(chat, "username", f"chat_id_{chat.id}")
-
+        url = (
+            f"https://t.me/{chat_username}/{message.id}"
+            if chat_username
+            else f"chat_{chat.id}_msg_{message.id}"
+        )
         data = {
             "suggester": message.sender_id,
-            "suggestion_url": (
-                f"https://t.me/{chat_username}/{message.id}"
-                if chat_username
-                else f"chat_{chat.id}_msg_{message.id}"
-            ),
-            "contribution_url": "",
-            "contributor": "",
+            "suggestion_url": url,
+            "contribution_url": url,
+            "contributor": message.sender_id,
             "type": "message",
             "telegram_chat": chat_title,
             "chat_username": chat_username,
@@ -109,6 +122,28 @@ class TelegramTracker(BaseMentionTracker):
             data["contributor"] = (
                 message.reply_to_msg_id
             )  # Would need additional lookup for username
+
+        # if message.reply_to_msg_id:
+        #     # Fetch the message being replied to
+        #     replied = await client.get_messages(message.chat_id, ids=message.reply_to_msg_id)
+
+        #     if replied:
+        #         replied_chat = replied.chat
+        #         replied_chat_username = getattr(replied_chat, "username", None)
+
+        #         if replied_chat_username:
+        #             contribution_url = f"https://t.me/{replied_chat_username}/{replied.id}"
+        #         else:
+        #             contribution_url = f"chat_{replied_chat.id}_msg_{replied.id}"
+
+        #         data["contribution_url"] = contribution_url
+        #         data["contributor"] = replied.sender_id   # ID, not username
+                
+        #         # If you want the username of the *user* who wrote the original message:
+        #         sender = await replied.get_sender()
+        #         sender_username = sender.username if sender else None
+        #         data["contributor_username"] = sender_username`
+
 
         return data
 
@@ -237,7 +272,10 @@ class TelegramTracker(BaseMentionTracker):
                 iteration += 1
 
                 self.logger.info(
-                    f"Telegram poll #{iteration} at {datetime.now().strftime('%Y-%m-%d %H:%M:%S')}"
+                    (
+                        f"Telegram poll #{iteration} at "
+                        f"{datetime.now().strftime('%Y-%m-%d %H:%M:%S')}"
+                    )
                 )
 
                 mentions_found = self.check_mentions()

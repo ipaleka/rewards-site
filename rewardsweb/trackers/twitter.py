@@ -11,11 +11,11 @@ from trackers.base import BaseMentionTracker
 class TwitterTracker(BaseMentionTracker):
     """Tracker for Twitter mentions of the bot account."""
 
-    def __init__(self, callback_function, twitter_config):
+    def __init__(self, parse_message_callback, twitter_config):
         """Initialize Twitter tracker.
 
-        :var callback_function: function to call when mention is found
-        :type callback_function: callable
+        :var parse_message_callback: function to call when mention is found
+        :type parse_message_callback: callable
         :var twitter_config: configuration dictionary for Twitter API
         :type twitter_config: dict
         :var client: authenticated Twitter client
@@ -25,7 +25,7 @@ class TwitterTracker(BaseMentionTracker):
         :var bot_user_id: ID of the bot user
         :type bot_user_id: str
         """
-        super().__init__("twitter", callback_function)
+        super().__init__("twitter", parse_message_callback)
 
         self.client = tweepy.Client(
             bearer_token=twitter_config["bearer_token"],
@@ -44,7 +44,7 @@ class TwitterTracker(BaseMentionTracker):
             "initialized", f"Tracking mentions for user ID: {self.bot_user_id}"
         )
 
-    def extract_mention_data(self, tweet):
+    def extract_mention_data(self, tweet, user_map):
         """Extract standardized data from Twitter mention.
 
         :var tweet: Twitter tweet object
@@ -54,11 +54,33 @@ class TwitterTracker(BaseMentionTracker):
         :return: standardized mention data
         :rtype: dict
         """
+        contributor, contribution_url = "", ""
+        if tweet.referenced_tweets:
+            for ref in tweet.referenced_tweets:
+                if ref.type == "replied_to":
+                    original_tweet = self.client.get_tweet(
+                        ref.id,
+                        tweet_fields=["created_at", "author_id", "text"],
+                        expansions=["author_id"],
+                    )
+                    contribution_url = (
+                        f"https://twitter.com/i/web/status/{original_tweet.id}"
+                    )
+
+                    tweet_data = original_tweet.data
+                    users = original_tweet.includes["users"]
+                    original_user_map = {u.id: u for u in users}
+                    author = original_user_map.get(tweet_data.author_id)
+                    contributor = author.username if author else ""
+                    break
+
+        suggester = user_map.get(tweet.author_id)
+        suggestion_url = f"https://twitter.com/i/web/status/{tweet.id}"
         data = {
-            "suggester": tweet.author_id,  # We'll resolve username later if needed
-            "suggestion_url": f"https://twitter.com/i/web/status/{tweet.id}",
-            "contribution_url": "",
-            "contributor": "",
+            "suggester": suggester,
+            "suggestion_url": suggestion_url,
+            "contribution_url": contribution_url or suggestion_url,
+            "contributor": contributor or suggester,
             "type": "tweet",
             "content_preview": tweet.text[:200] if hasattr(tweet, "text") else "",
             "timestamp": (
@@ -67,17 +89,7 @@ class TwitterTracker(BaseMentionTracker):
                 else datetime.now().isoformat()
             ),
             "item_id": tweet.id,
-            "tweet_author": tweet.author_id,
         }
-
-        # If it's a reply, get the parent tweet info
-        if hasattr(tweet, "conversation_id") and tweet.conversation_id != tweet.id:
-            data["contribution_url"] = (
-                f"https://twitter.com/i/web/status/{tweet.conversation_id}"
-            )
-            data["contributor"] = (
-                tweet.conversation_id
-            )  # Would need additional lookup for username
 
         return data
 
@@ -101,7 +113,13 @@ class TwitterTracker(BaseMentionTracker):
             # Get recent mentions
             mentions = self.client.get_users_mentions(
                 self.bot_user_id,
-                tweet_fields=["created_at", "conversation_id", "author_id", "text"],
+                tweet_fields=[
+                    "created_at",
+                    "conversation_id",
+                    "author_id",
+                    "text",
+                    "referenced_tweets",
+                ],
                 expansions=["author_id"],
                 max_results=20,
             )
@@ -109,7 +127,10 @@ class TwitterTracker(BaseMentionTracker):
             if mentions.data:
                 for tweet in mentions.data:
                     if not self.is_processed(tweet.id):
-                        data = self.extract_mention_data(tweet)
+                        user_map = {
+                            u.id: u.username for u in mentions.includes["users"]
+                        }
+                        data = self.extract_mention_data(tweet, user_map)
                         if self.process_mention(tweet.id, data):
                             mention_count += 1
 
@@ -145,7 +166,10 @@ class TwitterTracker(BaseMentionTracker):
                 iteration += 1
 
                 self.logger.info(
-                    f"Twitter poll #{iteration} at {datetime.now().strftime('%Y-%m-%d %H:%M:%S')}"
+                    (
+                        f"Twitter poll #{iteration} at "
+                        f"{datetime.now().strftime('%Y-%m-%d %H:%M:%S')}"
+                    )
                 )
 
                 mentions_found = self.check_mentions()

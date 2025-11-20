@@ -11,11 +11,11 @@ from trackers.base import BaseMentionTracker
 class RedditTracker(BaseMentionTracker):
     """Tracker for Reddit mentions across specified subreddits."""
 
-    def __init__(self, callback_function, subreddits_to_track, reddit_config):
+    def __init__(self, parse_message_callback, subreddits_to_track, reddit_config):
         """Initialize Reddit tracker.
 
-        :var callback_function: function to call when mention is found
-        :type callback_function: callable
+        :var parse_message_callback: function to call when mention is found
+        :type parse_message_callback: callable
         :var subreddits_to_track: list of subreddit names to monitor
         :type subreddits_to_track: list
         :var reddit_config: configuration dictionary for Reddit API
@@ -27,7 +27,7 @@ class RedditTracker(BaseMentionTracker):
         :var tracked_subreddits: list of subreddits being monitored
         :type tracked_subreddits: list
         """
-        super().__init__("reddit", callback_function)
+        super().__init__("reddit", parse_message_callback)
 
         self.reddit = praw.Reddit(
             client_id=reddit_config["client_id"],
@@ -77,26 +77,18 @@ class RedditTracker(BaseMentionTracker):
         :return: standardized mention data
         :rtype: dict
         """
+        parent = comment.parent()
         data = {
             "suggester": comment.author.name if comment.author else "[deleted]",
             "suggestion_url": f"https://reddit.com{comment.permalink}",
-            "contribution_url": "",
-            "contributor": "",
+            "contribution_url": f"https://reddit.com{parent.permalink}",
+            "contributor": parent.author.name if parent.author else "[deleted]",
             "type": "comment",
             "subreddit": comment.subreddit.display_name,
             "content_preview": comment.body[:200] if comment.body else "",
             "timestamp": datetime.fromtimestamp(comment.created_utc).isoformat(),
             "item_id": comment.id,
         }
-
-        parent = comment.parent()
-        if isinstance(parent, praw.models.Comment):
-            data["contribution_url"] = f"https://reddit.com{parent.permalink}"
-            data["contributor"] = parent.author.name if parent.author else "[deleted]"
-        else:
-            data["contribution_url"] = f"https://reddit.com{parent.permalink}"
-            data["contributor"] = parent.author.name if parent.author else "[deleted]"
-
         return data
 
     def _extract_submission_data(self, submission):
@@ -207,7 +199,8 @@ class RedditTracker(BaseMentionTracker):
                 iteration += 1
 
                 self.logger.info(
-                    f"Reddit poll #{iteration} at {datetime.now().strftime('%Y-%m-%d %H:%M:%S')}"
+                    f"Reddit poll #{iteration} at "
+                    f"{datetime.now().strftime('%Y-%m-%d %H:%M:%S')}"
                 )
 
                 mentions_found = self.check_mentions()

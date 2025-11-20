@@ -62,6 +62,7 @@ class MessageParser:
             level = int(match.group(2))
             remaining_message = message.replace(match.group(0), "", 1).strip()
             return parsed_type, level, remaining_message
+
         return None, None, message
 
     def _parse_explicit_level(self, message):
@@ -79,6 +80,7 @@ class MessageParser:
             level = int(level_match.group(2))
             remaining_message = message.replace(level_match.group(0), "", 1).strip()
             return level, remaining_message
+
         return None, message
 
     def _parse_explicit_type(self, message):
@@ -95,6 +97,7 @@ class MessageParser:
                 parsed_type = self.alias_to_code_map[alias]
                 remaining_message = message.replace(type_match.group(0), "", 1).strip()
                 return parsed_type, remaining_message
+
         return None, message
 
     def _parse_title(self, message):
@@ -110,8 +113,10 @@ class MessageParser:
         )
         if title_match:
             title = title_match.group(2).strip()
+
         else:
             title = message.strip()
+
         return " ".join(title.split())
 
     def parse(self, message, arg):
@@ -124,7 +129,7 @@ class MessageParser:
         :return: A dictionary containing the parsed type, level, and title.
         :rtype: dict
         """
-        result = {"type": None, "level": 1, "title": ""}
+        result = {"type": None, "level": 1, "comment": ""}
 
         work_message = self._clean_message(message, arg)
 
@@ -142,7 +147,7 @@ class MessageParser:
             if explicit_type:
                 result["type"] = explicit_type
 
-        result["title"] = self._parse_title(work_message)
+        result["comment"] = self._parse_title(work_message)
 
         if result["type"] is None:
             result["type"] = "F"

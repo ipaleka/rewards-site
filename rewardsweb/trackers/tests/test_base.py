@@ -22,7 +22,7 @@ class TestBaseMentionTracker:
         instance = BaseMentionTracker("test_platform", callback)
 
         assert instance.platform_name == "test_platform"
-        assert instance.callback_function == callback
+        assert instance.parse_message_callback == callback
         mock_setup_logging.assert_called_once()
         mock_setup_database.assert_called_once()
 

@@ -3,7 +3,9 @@
 from unittest.mock import AsyncMock, patch
 
 import pytest
+from adrf.views import APIView
 from rest_framework import status
+from rest_framework.permissions import BasePermission
 from rest_framework.response import Response
 
 from api.views import (
@@ -14,10 +16,55 @@ from api.views import (
     CurrentCyclePlainView,
     CycleAggregatedView,
     CyclePlainView,
+    LocalhostAPIView,
+    IsLocalhostPermission,
     aggregated_cycle_response,
     contributions_response,
 )
 from core.models import Contributor, Cycle, Reward, RewardType, SocialPlatform
+
+
+class TestIsLocalhostPermission:
+    """Testing class for :class:`api.permissions.IsLocalhostPermission`."""
+
+    # # IsLocalhostPermission
+    def test_api_permissions_islocalhostpermission_issubclass_of_basepermission(self):
+        assert issubclass(IsLocalhostPermission, BasePermission)
+
+    @pytest.mark.parametrize(
+        "meta",
+        [
+            {"REMOTE_ADDR": "127.0.0.1"},
+            {"REMOTE_ADDR": "localhost"},
+            {"REMOTE_ADDR": "::1"},
+        ],
+    )
+    def test_api_permissions_islocalhostpermission_has_permission_for_true(
+        self, meta, mocker
+    ):
+        request = mocker.MagicMock()
+        request.META = meta
+        permission = IsLocalhostPermission()
+        assert permission.has_permission(request, mocker.MagicMock()) is True
+
+    @pytest.mark.parametrize(
+        "meta",
+        [
+            {},
+            {"REMOTE_ADDR1": "127.0.0.1"},
+            {"REMOTE_ADDR": "localhost1"},
+            {"REMOTE_ADDR": "192.168.0.1"},
+            {"REMOTE_ADDR": "192.168.1.1"},
+            {"REMOTE_ADDR": "192.168.1.100"},
+        ],
+    )
+    def test_api_permissions_islocalhostpermission_has_permission_for_false(
+        self, meta, mocker
+    ):
+        request = mocker.MagicMock()
+        request.META = meta
+        permission = IsLocalhostPermission()
+        assert permission.has_permission(request, mocker.MagicMock()) is False
 
 
 class TestApiViewsHelpers:
@@ -86,8 +133,22 @@ class TestApiViewsHelpers:
         assert response.status_code == status.HTTP_200_OK
 
 
+class TestLocalhostAPIView:
+    """Testing class for :py:class:`api.views.LocalhostAPIView`."""
+
+    # # IsLocalhostPermission
+    def test_api_views_localhostview_is_subclass_of_apiview(self):
+        assert issubclass(LocalhostAPIView, APIView)
+
+    def test_api_views_localhostview_permission_classes(self):
+        assert LocalhostAPIView.permission_classes == [IsLocalhostPermission]
+
+
 class TestApiViewsCycleAggregatedView:
     """Testing class for :py:class:`api.views.CycleAggregatedView`."""
+
+    def test_api_views_cycleaggregatedview_is_subclass_of_localhostapiview(self):
+        assert issubclass(CycleAggregatedView, LocalhostAPIView)
 
     @pytest.mark.asyncio
     async def test_api_views_cycle_aggregated_view_get_existing_cycle(self, mocker):
@@ -140,6 +201,9 @@ class TestApiViewsCycleAggregatedView:
 class TestApiViewsCurrentCycleAggregatedView:
     """Testing class for :py:class:`api.views.CurrentCycleAggregatedView`."""
 
+    def test_api_views_currentcycleaggregatedview_is_subclass_of_localhostapiview(self):
+        assert issubclass(CurrentCycleAggregatedView, LocalhostAPIView)
+
     @pytest.mark.asyncio
     async def test_api_views_current_cycle_aggregated_view_get(self, mocker):
         view = CurrentCycleAggregatedView()
@@ -166,6 +230,9 @@ class TestApiViewsCurrentCycleAggregatedView:
 
 class TestApiViewsCyclePlainView:
     """Testing class for :py:class:`api.views.CyclePlainView`."""
+
+    def test_api_views_cycleplainview_is_subclass_of_localhostapiview(self):
+        assert issubclass(CyclePlainView, LocalhostAPIView)
 
     @pytest.mark.asyncio
     async def test_api_views_cycle_plain_view_get_existing_cycle(self, mocker):
@@ -212,6 +279,9 @@ class TestApiViewsCyclePlainView:
 class TestApiViewsCurrentCyclePlainView:
     """Testing class for :py:class:`api.views.CurrentCyclePlainView`."""
 
+    def test_api_views_currentcycleplainview_is_subclass_of_localhostapiview(self):
+        assert issubclass(CurrentCyclePlainView, LocalhostAPIView)
+
     @pytest.mark.asyncio
     async def test_api_views_current_cycle_plain_view_get(self, mocker):
         view = CurrentCyclePlainView()
@@ -238,6 +308,9 @@ class TestApiViewsCurrentCyclePlainView:
 
 class TestApiViewsContributionsView:
     """Testing class for :py:class:`api.views.ContributionsView`."""
+
+    def test_api_views_contributionsview_is_subclass_of_localhostapiview(self):
+        assert issubclass(ContributionsView, LocalhostAPIView)
 
     @pytest.mark.asyncio
     async def test_api_views_contributions_view_get_with_username(self, mocker):
@@ -310,6 +383,9 @@ class TestApiViewsContributionsView:
 class TestApiViewsContributionsTailView:
     """Testing class for :py:class:`api.views.ContributionsTailView`."""
 
+    def test_api_views_contributionstailview_is_subclass_of_localhostapiview(self):
+        assert issubclass(ContributionsTailView, LocalhostAPIView)
+
     @pytest.mark.asyncio
     async def test_api_views_contributions_tail_view_get(self, mocker):
         view = ContributionsTailView()
@@ -345,6 +421,9 @@ class TestApiViewsContributionsTailView:
 
 class TestApiViewsAddContributionView:
     """Testing class for :py:class:`api.views.AddContributionView`."""
+
+    def test_api_views_addcontributionview_is_subclass_of_localhostapiview(self):
+        assert issubclass(AddContributionView, LocalhostAPIView)
 
     @pytest.mark.asyncio
     async def test_api_views_add_contribution_view_post_success(self, mocker):
@@ -674,15 +753,6 @@ class TestApiViewsAddContributionView:
                                         mock_reward_objects.filter.assert_called_once_with(
                                             type=mock_reward_type, level=1, active=True
                                         )
-
-
-# api/tests/test_views.py
-
-
-class TestApiViewsAddContributionView:
-    """Testing class for :py:class:`api.views.AddContributionView`."""
-
-    # ... (previous tests remain the same)
 
     @pytest.mark.asyncio
     async def test_api_views_add_contribution_view_post_serializer_invalid(

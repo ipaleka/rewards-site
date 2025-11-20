@@ -93,6 +93,7 @@ def get_env_variable(name, default=None):
     """
     try:
         return os.environ[name]
+
     except KeyError:
         if default is None:
             raise ImproperlyConfigured(

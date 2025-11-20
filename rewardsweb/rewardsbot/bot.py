@@ -19,7 +19,7 @@ logging.basicConfig(
     format="%(asctime)s - %(name)s - %(levelname)s - %(message)s",
     handlers=[
         logging.StreamHandler(sys.stdout),
-        logging.FileHandler("bot.log", encoding="utf-8", mode="a"),
+        logging.FileHandler("logs/bot.log", encoding="utf-8", mode="a"),
     ],
 )
 logger = logging.getLogger("discord.bot")

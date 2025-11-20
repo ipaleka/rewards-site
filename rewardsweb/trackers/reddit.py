@@ -1,0 +1,233 @@
+"""Module containing class for tracking mentions on Reddit."""
+
+import time
+from datetime import datetime
+
+import praw
+
+from trackers.base import BaseMentionTracker
+
+
+class RedditTracker(BaseMentionTracker):
+    """Tracker for Reddit mentions across specified subreddits."""
+
+    def __init__(self, callback_function, subreddits_to_track, reddit_config):
+        """Initialize Reddit tracker.
+
+        :var callback_function: function to call when mention is found
+        :type callback_function: callable
+        :var subreddits_to_track: list of subreddit names to monitor
+        :type subreddits_to_track: list
+        :var reddit_config: configuration dictionary for Reddit API
+        :type reddit_config: dict
+        :var reddit: authenticated Reddit instance
+        :type reddit: :class:`praw.Reddit`
+        :var bot_username: username of the bot account
+        :type bot_username: str
+        :var tracked_subreddits: list of subreddits being monitored
+        :type tracked_subreddits: list
+        """
+        super().__init__("reddit", callback_function)
+
+        self.reddit = praw.Reddit(
+            client_id=reddit_config["client_id"],
+            client_secret=reddit_config["client_secret"],
+            user_agent=reddit_config["user_agent"],
+            username=reddit_config.get("username"),
+            password=reddit_config.get("password"),
+        )
+
+        self.bot_username = (
+            self.reddit.user.me().name.lower()
+            if reddit_config.get("username")
+            else None
+        )
+        self.tracked_subreddits = subreddits_to_track
+
+        self.logger.info(
+            f"Reddit tracker initialized for {len(subreddits_to_track)} subreddits"
+        )
+        self.log_action(
+            "initialized", f"Tracking {len(subreddits_to_track)} subreddits"
+        )
+
+    def extract_mention_data(self, item):
+        """Extract standardized data from Reddit item.
+
+        :var item: Reddit comment or submission
+        :type item: :class:`praw.models.Comment` or :class:`praw.models.Submission`
+        :return: standardized mention data dictionary
+        :rtype: dict
+        """
+        if isinstance(item, praw.models.Comment):
+            return self._extract_comment_data(item)
+
+        else:
+            return self._extract_submission_data(item)
+
+    def _extract_comment_data(self, comment):
+        """Extract data from Reddit comment.
+
+        :var comment: Reddit comment object
+        :type comment: :class:`praw.models.Comment`
+        :var data: extracted data dictionary
+        :type data: dict
+        :var parent: parent of the comment (comment or submission)
+        :type parent: :class:`praw.models.Comment` or :class:`praw.models.Submission`
+        :return: standardized mention data
+        :rtype: dict
+        """
+        data = {
+            "suggester": comment.author.name if comment.author else "[deleted]",
+            "suggestion_url": f"https://reddit.com{comment.permalink}",
+            "contribution_url": "",
+            "contributor": "",
+            "type": "comment",
+            "subreddit": comment.subreddit.display_name,
+            "content_preview": comment.body[:200] if comment.body else "",
+            "timestamp": datetime.fromtimestamp(comment.created_utc).isoformat(),
+            "item_id": comment.id,
+        }
+
+        parent = comment.parent()
+        if isinstance(parent, praw.models.Comment):
+            data["contribution_url"] = f"https://reddit.com{parent.permalink}"
+            data["contributor"] = parent.author.name if parent.author else "[deleted]"
+        else:
+            data["contribution_url"] = f"https://reddit.com{parent.permalink}"
+            data["contributor"] = parent.author.name if parent.author else "[deleted]"
+
+        return data
+
+    def _extract_submission_data(self, submission):
+        """Extract data from Reddit submission.
+
+        :var submission: Reddit submission object
+        :type submission: :class:`praw.models.Submission`
+        :var data: extracted data dictionary
+        :type data: dict
+        :return: standardized mention data
+        :rtype: dict
+        """
+        data = {
+            "suggester": submission.author.name if submission.author else "[deleted]",
+            "suggestion_url": f"https://reddit.com{submission.permalink}",
+            "contribution_url": f"https://reddit.com{submission.permalink}",
+            "contributor": submission.author.name if submission.author else "[deleted]",
+            "type": "submission",
+            "subreddit": submission.subreddit.display_name,
+            "content_preview": submission.title,
+            "timestamp": datetime.fromtimestamp(submission.created_utc).isoformat(),
+            "item_id": submission.id,
+        }
+        return data
+
+    def check_mentions(self):
+        """Check for new mentions across all tracked subreddits.
+
+        :var mention_count: number of new mentions found
+        :type mention_count: int
+        :var subreddit_name: name of current subreddit being checked
+        :type subreddit_name: str
+        :var subreddit: Reddit subreddit object
+        :type subreddit: :class:`praw.models.Subreddit`
+        :var comment: comment from subreddit
+        :type comment: :class:`praw.models.Comment`
+        :var submission: submission from subreddit
+        :type submission: :class:`praw.models.Submission`
+        :var data: extracted mention data
+        :type data: dict
+        :return: number of new mentions processed
+        :rtype: int
+        """
+        mention_count = 0
+
+        for subreddit_name in self.tracked_subreddits:
+            try:
+                self.logger.debug(f"Checking r/{subreddit_name}")
+                subreddit = self.reddit.subreddit(subreddit_name)
+
+                # Check comments for username mentions
+                for comment in subreddit.comments(limit=25):
+                    if (
+                        self.bot_username
+                        and f"u/{self.bot_username}" in comment.body.lower()
+                        and not self.is_processed(comment.id)
+                    ):
+
+                        data = self.extract_mention_data(comment)
+                        if self.process_mention(comment.id, data):
+                            mention_count += 1
+
+                # Check submissions for username mentions
+                for submission in subreddit.new(limit=10):
+                    if (
+                        self.bot_username
+                        and f"u/{self.bot_username}" in submission.title.lower()
+                        and not self.is_processed(submission.id)
+                    ):
+
+                        data = self.extract_mention_data(submission)
+                        if self.process_mention(submission.id, data):
+                            mention_count += 1
+
+                # Small delay between subreddit checks
+                time.sleep(1)
+
+            except Exception as e:
+                self.logger.error(f"Error checking r/{subreddit_name}: {e}")
+                self.log_action(
+                    "subreddit_check_error",
+                    f"Subreddit: {subreddit_name}, Error: {str(e)}",
+                )
+
+        return mention_count
+
+    def run(self, poll_interval_minutes=30, max_iterations=None):
+        """Main run method for Reddit tracker.
+
+        :var poll_interval_minutes: how often to check for mentions
+        :type poll_interval_minutes: int
+        :var max_iterations: maximum number of polls before stopping (None for infinite)
+        :type max_iterations: int or None
+        :var iteration: current iteration count
+        :type iteration: int
+        :var mentions_found: number of mentions found in current poll
+        :type mentions_found: int
+        """
+        self.logger.info(
+            f"Starting Reddit tracker with {poll_interval_minutes} minute intervals"
+        )
+        self.log_action("started", f"Poll interval: {poll_interval_minutes} minutes")
+
+        iteration = 0
+
+        try:
+            while max_iterations is None or iteration < max_iterations:
+                iteration += 1
+
+                self.logger.info(
+                    f"Reddit poll #{iteration} at {datetime.now().strftime('%Y-%m-%d %H:%M:%S')}"
+                )
+
+                mentions_found = self.check_mentions()
+
+                if mentions_found > 0:
+                    self.logger.info(f"Found {mentions_found} new mentions")
+
+                self.logger.info(
+                    f"Reddit tracker sleeping for {poll_interval_minutes} minutes"
+                )
+                time.sleep(poll_interval_minutes * 60)
+
+        except KeyboardInterrupt:
+            self.logger.info("Reddit tracker stopped by user")
+            self.log_action("stopped", "User interrupt")
+
+        except Exception as e:
+            self.logger.error(f"Reddit tracker error: {e}")
+            self.log_action("error", f"Tracker error: {str(e)}")
+            raise
+
+        finally:
+            self.cleanup()

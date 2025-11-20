@@ -45,4 +45,5 @@ Environment variables shouldn't reside in repository, so `.env` files has to be 
 - [x] Create deploy workflow
 - [x] Create smart contract for rewards allocation and claiming
 - [x] Develop UI for rewards allocation and claiming
+- [ ] Create trackers and related parsers for messages with mentions on social media (X and reddit)
 - [ ] Setup a server and deploy the application

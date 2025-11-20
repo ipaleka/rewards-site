@@ -25,6 +25,7 @@ from utils.issues import (
 class TestUtilsIssuesGitHubApp:
     """Testing class for :py:mod:`utils.issues.GitHubApp` class."""
 
+    # # jwt_token
     def test_utils_issues_githubapp_jwt_token_no_env_vars(self, mocker):
         mocked_get_env_variable = mocker.patch(
             "utils.issues.get_env_variable", return_value=""
@@ -69,6 +70,7 @@ class TestUtilsIssuesGitHubApp:
         )
         mock_jwt.encode.assert_called_once()
 
+    # # installation_token
     def test_utils_issues_githubapp_installation_token_no_id(self, mocker):
         mocked_get_env_variable = mocker.patch(
             "utils.issues.get_env_variable", return_value=""
@@ -111,6 +113,7 @@ class TestUtilsIssuesGitHubApp:
         assert instance.installation_token() == "test_token"
         mocked_requests.assert_called_once()
 
+    # # client
     def test_utils_issues_githubapp_client_no_token(self, mocker):
         mock_installation_token = mocker.patch.object(
             GitHubApp, "installation_token", return_value=None

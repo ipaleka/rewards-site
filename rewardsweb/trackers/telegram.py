@@ -10,25 +10,27 @@ from trackers.base import BaseMentionTracker
 
 
 class TelegramTracker(BaseMentionTracker):
-    """Tracker for Telegram mentions in specified groups/channels."""
+    """Tracker for Telegram mentions in specified groups/channels.
 
-    def __init__(self, callback_function, telegram_config, chat_list):
+    :param TelegramTracker.client: Telegram client instance
+    :type TelegramTracker.client: :class:`telethon.TelegramClient` or None
+    :param TelegramTracker.bot_username: username of the bot account
+    :type TelegramTracker.bot_username: str
+    :param TelegramTracker.tracked_chats: list of chats being monitored
+    :type TelegramTracker.tracked_chats: list
+    """
+
+    def __init__(self, parse_message_callback, telegram_config, chat_list):
         """Initialize Telegram tracker.
 
-        :var callback_function: function to call when mention is found
-        :type callback_function: callable
-        :var telegram_config: configuration dictionary for Telegram API
+        :param parse_message_callback: function to call when mention is found
+        :type parse_message_callback: callable
+        :param telegram_config: configuration dictionary for Telegram API
         :type telegram_config: dict
-        :var chat_list: list of chat usernames or IDs to monitor
+        :param chat_list: list of chat usernames or IDs to monitor
         :type chat_list: list
-        :var client: Telegram client instance
-        :type client: :class:`telethon.TelegramClient` or None
-        :var bot_username: username of the bot account
-        :type bot_username: str
-        :var tracked_chats: list of chats being monitored
-        :type tracked_chats: list
         """
-        super().__init__("telegram", callback_function)
+        super().__init__("telegram", parse_message_callback)
 
         self.client = TelegramClient(
             session=telegram_config.get("session_name", "telegram_tracker"),
@@ -45,7 +47,7 @@ class TelegramTracker(BaseMentionTracker):
     async def _get_chat_entity(self, chat_identifier):
         """Get chat entity from identifier.
 
-        :var chat_identifier: username or ID of the chat
+        :param chat_identifier: username or ID of the chat
         :type chat_identifier: str or int
         :var entity: Telegram chat entity
         :type entity: :class:`telethon.tl.types.Channel` or :class:`telethon.tl.types.Chat`
@@ -60,36 +62,136 @@ class TelegramTracker(BaseMentionTracker):
             self.logger.error(f"Error getting chat entity for {chat_identifier}: {e}")
             return None
 
-    def extract_mention_data(self, message):
+    async def _get_sender_info(self, message):
+        """Get sender information from message.
+
+        :param message: Telegram message object
+        :type message: :class:`telethon.tl.types.Message`
+        :var sender: Telegram user object representing the message sender
+        :type sender: :class:`telethon.tl.types.User` or None
+        :return: dictionary with sender information
+        :rtype: dict
+        """
+        try:
+            sender = await message.get_sender()
+            # when condition isn't met
+            if sender:
+                return {
+                    "user_id": sender.id,
+                    "username": sender.username,
+                    "display_name": getattr(sender, "first_name", "")
+                    or getattr(sender, "title", ""),
+                }
+        except Exception as e:
+            self.logger.debug(f"Error getting sender info: {e}")
+
+        return {"user_id": message.sender_id, "username": None, "display_name": None}
+
+    async def _get_replied_message_info(self, message):
+        """Get information about the message being replied to.
+
+        :param message: Telegram message object with reply
+        :type message: :class:`telethon.tl.types.Message`
+        :var replied_message: the message that this message replies to
+        :type replied_message: :class:`telethon.tl.types.Message` or None
+        :var replied_sender: sender information of the replied message
+        :type replied_sender: dict
+        :return: dictionary with replied message information
+        :rtype: dict
+        """
+        if not message.reply_to_msg_id:
+            return None
+
+        try:
+            replied_message = await self.client.get_messages(
+                message.chat_id, ids=message.reply_to_msg_id
+            )
+
+            # when condition isn't met
+            if replied_message:
+                replied_sender = await self._get_sender_info(replied_message)
+                return {"message_id": replied_message.id, "sender_info": replied_sender}
+        except Exception as e:
+            self.logger.debug(f"Error getting replied message info: {e}")
+
+        return None
+
+    def _generate_message_url(self, chat, message_id):
+        """Generate URL for a message.
+
+        :param chat: Telegram chat object
+        :type chat: :class:`telethon.tl.types.Chat` or :class:`telethon.tl.types.Channel`
+        :param message_id: ID of the message
+        :type message_id: int
+        :var chat_username: username of the chat/channel
+        :type chat_username: str or None
+        :return: URL for the message
+        :rtype: str
+        """
+        chat_username = getattr(chat, "username", None)
+        if chat_username:
+            return f"https://t.me/{chat_username}/{message_id}"
+        else:
+            return f"chat_{chat.id}_msg_{message_id}"
+
+    async def extract_mention_data(self, message):
         """Extract standardized data from Telegram message.
 
-        :var message: Telegram message object
+        :param message: Telegram message object
         :type message: :class:`telethon.tl.types.Message`
-        :var data: extracted data dictionary
-        :type data: dict
         :var chat: chat where message was sent
         :type chat: :class:`telethon.tl.types.Chat` or :class:`telethon.tl.types.Channel`
-        :var reply_to_msg: message that this message replies to
-        :type reply_to_msg: :class:`telethon.tl.types.Message` or None
+        :var chat_title: title of the chat/channel
+        :type chat_title: str
+        :var sender_info: information about the message sender
+        :type sender_info: dict
+        :var suggestion_url: URL for the current message
+        :type suggestion_url: str
+        :var replied_info: information about replied message if applicable
+        :type replied_info: dict or None
+        :var contribution_url: URL for the contribution (replied message or current message)
+        :type contribution_url: str
+        :var contributor_info: information about the contributor
+        :type contributor_info: dict
+        :var data: extracted mention data dictionary
+        :type data: dict
         :return: standardized mention data
         :rtype: dict
         """
         chat = message.chat
         chat_title = getattr(chat, "title", "Private Chat")
-        chat_username = getattr(chat, "username", f"chat_id_{chat.id}")
+
+        # Get sender information
+        sender_info = await self._get_sender_info(message)
+
+        # Generate URLs
+        suggestion_url = self._generate_message_url(chat, message.id)
+
+        # Get replied message information if this is a reply
+        replied_info = await self._get_replied_message_info(message)
+
+        if replied_info:
+            contribution_url = self._generate_message_url(
+                chat, replied_info["message_id"]
+            )
+            contributor_info = replied_info["sender_info"]
+        else:
+            contribution_url = suggestion_url
+            contributor_info = sender_info
 
         data = {
-            "suggester": message.sender_id,
-            "suggestion_url": (
-                f"https://t.me/{chat_username}/{message.id}"
-                if chat_username
-                else f"chat_{chat.id}_msg_{message.id}"
-            ),
-            "contribution_url": "",
-            "contributor": "",
+            "suggester": sender_info["user_id"],
+            "suggester_username": sender_info["username"],
+            "suggester_display_name": sender_info["display_name"],
+            "suggestion_url": suggestion_url,
+            "contribution_url": contribution_url,
+            "contributor": contributor_info["user_id"],
+            "contributor_username": contributor_info["username"],
+            "contributor_display_name": contributor_info["display_name"],
             "type": "message",
             "telegram_chat": chat_title,
-            "chat_username": chat_username,
+            "chat_id": chat.id,
+            "chat_username": getattr(chat, "username", None),
             "content_preview": message.text[:200] if message.text else "",
             "timestamp": (
                 message.date.isoformat()
@@ -99,23 +201,12 @@ class TelegramTracker(BaseMentionTracker):
             "item_id": f"telegram_{chat.id}_{message.id}",
         }
 
-        # If it's a reply, get the parent message info
-        if message.reply_to_msg_id:
-            data["contribution_url"] = (
-                f"https://t.me/{chat_username}/{message.reply_to_msg_id}"
-                if chat_username
-                else f"chat_{chat.id}_msg_{message.reply_to_msg_id}"
-            )
-            data["contributor"] = (
-                message.reply_to_msg_id
-            )  # Would need additional lookup for username
-
         return data
 
     async def _check_chat_mentions(self, chat_identifier):
         """Check for mentions in a specific chat.
 
-        :var chat_identifier: username or ID of the chat to check
+        :param chat_identifier: username or ID of the chat to check
         :type chat_identifier: str or int
         :var mention_count: number of mentions found in this chat
         :type mention_count: int
@@ -146,7 +237,7 @@ class TelegramTracker(BaseMentionTracker):
                     and not self.is_processed(f"telegram_{chat.id}_{message.id}")
                 ):
 
-                    data = self.extract_mention_data(message)
+                    data = await self.extract_mention_data(message)
                     if self.process_mention(f"telegram_{chat.id}_{message.id}", data):
                         mention_count += 1
 
@@ -212,9 +303,9 @@ class TelegramTracker(BaseMentionTracker):
     def run(self, poll_interval_minutes=30, max_iterations=None):
         """Main run method for Telegram tracker.
 
-        :var poll_interval_minutes: how often to check for mentions
+        :param poll_interval_minutes: how often to check for mentions
         :type poll_interval_minutes: int
-        :var max_iterations: maximum number of polls before stopping (None for infinite)
+        :param max_iterations: maximum number of polls before stopping (None for infinite)
         :type max_iterations: int or None
         :var iteration: current iteration count
         :type iteration: int
@@ -237,7 +328,10 @@ class TelegramTracker(BaseMentionTracker):
                 iteration += 1
 
                 self.logger.info(
-                    f"Telegram poll #{iteration} at {datetime.now().strftime('%Y-%m-%d %H:%M:%S')}"
+                    (
+                        f"Telegram poll #{iteration} at "
+                        f"{datetime.now().strftime('%Y-%m-%d %H:%M:%S')}"
+                    )
                 )
 
                 mentions_found = self.check_mentions()

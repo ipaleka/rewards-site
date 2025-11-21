@@ -5,6 +5,7 @@ from asgiref.sync import sync_to_async
 from django.db import transaction
 from django.shortcuts import get_object_or_404
 from rest_framework import status
+from rest_framework.permissions import BasePermission
 from rest_framework.response import Response
 
 from api.serializers import (
@@ -23,6 +24,26 @@ from core.models import (
 )
 from utils.constants.core import CONTRIBUTIONS_TAIL_SIZE
 from utils.helpers import humanize_contributions
+
+
+class IsLocalhostPermission(BasePermission):
+    """Allow access only to requests from localhost."""
+
+    def has_permission(self, request, view):
+        """Allow only localhost to access API endpoint.
+
+        :param request: HTTP request object
+        :type request: :class:`rest_framework.request.Request`
+        :return: Boolean
+        """
+        remote_addr = request.META.get("REMOTE_ADDR")
+        # # You might also want to check HTTP_X_FORWARDED_FOR if behind proxy
+        # x_forwarded_for = request.META.get('HTTP_X_FORWARDED_FOR')
+        # if x_forwarded_for:
+        #     # X-Forwarded-For can contain multiple IPs, the first is original client
+        #     remote_addr = x_forwarded_for.split(',')[0].strip()
+
+        return remote_addr in ["127.0.0.1", "localhost", "::1"]
 
 
 # # HELPERS
@@ -69,7 +90,13 @@ async def contributions_response(contributions):
     return Response(serializer.data)
 
 
-class CycleAggregatedView(APIView):
+class LocalhostAPIView(APIView):
+    """Base APIView that restricts access to localhost by default."""
+
+    permission_classes = [IsLocalhostPermission]
+
+
+class CycleAggregatedView(LocalhostAPIView):
     """API view to retrieve aggregated data for a specific cycle.
 
     :var cycle_id: URL parameter specifying the cycle identifier
@@ -90,7 +117,7 @@ class CycleAggregatedView(APIView):
         return await aggregated_cycle_response(cycle)
 
 
-class CurrentCycleAggregatedView(APIView):
+class CurrentCycleAggregatedView(LocalhostAPIView):
     """API view to retrieve aggregated data for the current cycle."""
 
     async def get(self, request):
@@ -105,7 +132,7 @@ class CurrentCycleAggregatedView(APIView):
         return await aggregated_cycle_response(cycle)
 
 
-class CyclePlainView(APIView):
+class CyclePlainView(LocalhostAPIView):
     """API view to retrieve plain cycle data for a specific cycle.
 
     :var cycle_id: URL parameter specifying the cycle identifier
@@ -132,7 +159,7 @@ class CyclePlainView(APIView):
         return Response(serializer.data)
 
 
-class CurrentCyclePlainView(APIView):
+class CurrentCyclePlainView(LocalhostAPIView):
     """API view to retrieve plain cycle data for the current cycle."""
 
     async def get(self, request):
@@ -149,7 +176,7 @@ class CurrentCyclePlainView(APIView):
         return Response(serializer.data)
 
 
-class ContributionsView(APIView):
+class ContributionsView(LocalhostAPIView):
     """API view to retrieve contributions with optional contributor filtering."""
 
     async def get(self, request):
@@ -181,7 +208,7 @@ class ContributionsView(APIView):
         return await contributions_response(queryset)
 
 
-class ContributionsTailView(APIView):
+class ContributionsTailView(LocalhostAPIView):
     """API view to retrieve the most recent contributions (tail)."""
 
     async def get(self, request):
@@ -196,7 +223,7 @@ class ContributionsTailView(APIView):
         return await contributions_response(queryset)
 
 
-class AddContributionView(APIView):
+class AddContributionView(LocalhostAPIView):
     """API view to add new contributions."""
 
     async def post(self, request):

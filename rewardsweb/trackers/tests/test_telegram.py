@@ -29,14 +29,32 @@ class TestTrackersTelegram:
         assert instance.tracked_chats == telegram_chats
 
     # extract_mention_data
-    def test_trackers_telegramtracker_extract_mention_data_with_reply(
+    @pytest.mark.asyncio
+    async def test_trackers_telegramtracker_extract_mention_data_with_reply(
         self, mocker, telegram_config, telegram_chats
     ):
         # Mock the parent init to avoid API calls
         mocker.patch.object(TelegramTracker, "__init__", return_value=None)
         instance = TelegramTracker(lambda x: None, telegram_config, telegram_chats)
-        TelegramTracker.__init__(
-            instance, lambda x: None, telegram_config, telegram_chats
+
+        # Mock the async methods
+        mock_sender_info = {
+            "user_id": 12345,
+            "username": "testuser",
+            "display_name": "Test User",
+        }
+        mocker.patch.object(instance, "_get_sender_info", return_value=mock_sender_info)
+
+        mock_replied_info = {
+            "message_id": 99,
+            "sender_info": {
+                "user_id": 54321,
+                "username": "replieduser",
+                "display_name": "Replied User",
+            },
+        }
+        mocker.patch.object(
+            instance, "_get_replied_message_info", return_value=mock_replied_info
         )
 
         mock_message = mocker.MagicMock()
@@ -51,26 +69,35 @@ class TestTrackersTelegram:
         mock_chat.username = "testgroup"
         mock_message.chat = mock_chat
 
-        result = instance.extract_mention_data(mock_message)
+        result = await instance.extract_mention_data(mock_message)
 
         assert result["suggester"] == 12345
+        assert result["suggester_username"] == "testuser"
         assert result["suggestion_url"] == "https://t.me/testgroup/100"
         assert result["contribution_url"] == "https://t.me/testgroup/99"
-        assert result["contributor"] == 99
+        assert result["contributor"] == 54321
+        assert result["contributor_username"] == "replieduser"
         assert result["type"] == "message"
         assert result["telegram_chat"] == "Test Group"
         assert result["chat_username"] == "testgroup"
         assert result["content_preview"] == "Hello @test_bot!"
 
-    def test_trackers_telegramtracker_extract_mention_data_no_reply(
+    @pytest.mark.asyncio
+    async def test_trackers_telegramtracker_extract_mention_data_no_reply(
         self, mocker, telegram_config, telegram_chats
     ):
         # Mock the parent init to avoid API calls
         mocker.patch.object(TelegramTracker, "__init__", return_value=None)
         instance = TelegramTracker(lambda x: None, telegram_config, telegram_chats)
-        TelegramTracker.__init__(
-            instance, lambda x: None, telegram_config, telegram_chats
-        )
+
+        # Mock the async methods
+        mock_sender_info = {
+            "user_id": 12345,
+            "username": "testuser",
+            "display_name": "Test User",
+        }
+        mocker.patch.object(instance, "_get_sender_info", return_value=mock_sender_info)
+        mocker.patch.object(instance, "_get_replied_message_info", return_value=None)
 
         mock_message = mocker.MagicMock()
         mock_message.sender_id = 12345
@@ -84,11 +111,12 @@ class TestTrackersTelegram:
         mock_chat.username = None  # No username
         mock_message.chat = mock_chat
 
-        result = instance.extract_mention_data(mock_message)
+        result = await instance.extract_mention_data(mock_message)
 
         assert result["suggestion_url"] == "chat_67890_msg_100"
-        assert result["contribution_url"] == ""
-        assert result["contributor"] == ""
+        assert result["contribution_url"] == "chat_67890_msg_100"
+        assert result["contributor"] == 12345
+        assert result["contributor_username"] == "testuser"
 
     # check_mentions
     def test_trackers_telegramtracker_check_mentions_no_client(
@@ -195,7 +223,8 @@ class TestTrackersTelegram:
         assert result is None
         instance.logger.error.assert_called_once()
 
-    def test_trackers_telegramtracker_check_chat_mentions_no_chat(
+    @pytest.mark.asyncio
+    async def test_trackers_telegramtracker_check_chat_mentions_no_chat(
         self, mocker, telegram_config, telegram_chats
     ):
         """Test _check_chat_mentions when chat entity is None."""
@@ -207,11 +236,12 @@ class TestTrackersTelegram:
         mocker.patch.object(instance, "_get_chat_entity", return_value=None)
 
         # Test when chat is not found
-        result = asyncio.run(instance._check_chat_mentions("nonexistent_chat"))
+        result = await instance._check_chat_mentions("nonexistent_chat")
 
         assert result == 0
 
-    def test_trackers_telegramtracker_check_chat_mentions_success(
+    @pytest.mark.asyncio
+    async def test_trackers_telegramtracker_check_chat_mentions_success(
         self, mocker, telegram_config, telegram_chats
     ):
         """Test _check_chat_mentions successful message processing."""
@@ -233,18 +263,24 @@ class TestTrackersTelegram:
 
         instance.client.iter_messages = mock_iter_messages
 
+        # Mock the async extract_mention_data method
+        mock_extract_data = mocker.patch.object(
+            instance, "extract_mention_data", return_value={}
+        )
         mock_process_mention = mocker.patch.object(
             instance, "process_mention", return_value=True
         )
         mocker.patch.object(instance, "is_processed", return_value=False)
 
         # Test successful message processing
-        result = asyncio.run(instance._check_chat_mentions("test_chat"))
+        result = await instance._check_chat_mentions("test_chat")
 
         assert result == 1
         mock_process_mention.assert_called_once()
+        mock_extract_data.assert_called_once()
 
-    def test_trackers_telegramtracker_check_chat_mentions_exception(
+    @pytest.mark.asyncio
+    async def test_trackers_telegramtracker_check_chat_mentions_exception(
         self, mocker, telegram_config, telegram_chats
     ):
         """Test _check_chat_mentions exception handling."""
@@ -263,7 +299,7 @@ class TestTrackersTelegram:
         instance.client.iter_messages = mock_iter_messages_error
 
         # Test exception handling
-        result = asyncio.run(instance._check_chat_mentions("problem_chat"))
+        result = await instance._check_chat_mentions("problem_chat")
 
         assert result == 0
         instance.logger.error.assert_called_once()
@@ -330,7 +366,8 @@ class TestTrackersTelegram:
         instance.logger.error.assert_called_with("Telegram tracker error: Test error")
         mock_log_action.assert_called_with("error", "Tracker error: Test error")
 
-    def test_trackers_telegramtracker_check_chat_mentions_condition_not_met(
+    @pytest.mark.asyncio
+    async def test_trackers_telegramtracker_check_chat_mentions_condition_not_met(
         self, mocker, telegram_config, telegram_chats
     ):
         """Test _check_chat_mentions when mention condition is not met."""
@@ -356,7 +393,7 @@ class TestTrackersTelegram:
         mock_process_mention = mocker.patch.object(instance, "process_mention")
         mock_is_processed = mocker.patch.object(instance, "is_processed")
 
-        result = asyncio.run(instance._check_chat_mentions("test_chat"))
+        result = await instance._check_chat_mentions("test_chat")
 
         # Should return 0 because condition not met
         assert result == 0
@@ -364,7 +401,8 @@ class TestTrackersTelegram:
         # is_processed should not be called when bot username not in message
         mock_is_processed.assert_not_called()
 
-    def test_trackers_telegramtracker_check_chat_mentions_already_processed(
+    @pytest.mark.asyncio
+    async def test_trackers_telegramtracker_check_chat_mentions_already_processed(
         self, mocker, telegram_config, telegram_chats
     ):
         """Test _check_chat_mentions when message is already processed."""
@@ -392,14 +430,15 @@ class TestTrackersTelegram:
             instance, "is_processed", return_value=True
         )
 
-        result = asyncio.run(instance._check_chat_mentions("test_chat"))
+        result = await instance._check_chat_mentions("test_chat")
 
         # Should return 0 because already processed
         assert result == 0
         mock_is_processed.assert_called_once_with("telegram_456_123")
         mock_process_mention.assert_not_called()
 
-    def test_trackers_telegramtracker_check_chat_mentions_process_mention_false(
+    @pytest.mark.asyncio
+    async def test_trackers_telegramtracker_check_chat_mentions_process_mention_false(
         self, mocker, telegram_config, telegram_chats
     ):
         """Test _check_chat_mentions when process_mention returns False."""
@@ -427,7 +466,7 @@ class TestTrackersTelegram:
         )
         mocker.patch.object(instance, "is_processed", return_value=False)
 
-        result = asyncio.run(instance._check_chat_mentions("test_chat"))
+        result = await instance._check_chat_mentions("test_chat")
 
         # Should return 0 because process_mention returned False
         assert result == 0
@@ -702,3 +741,200 @@ class TestTrackersTelegram:
 
         # Cleanup should not be called when client is None
         mock_cleanup.assert_called_once_with()
+
+    @pytest.mark.asyncio
+    async def test_trackers_telegramtracker_get_sender_info_success(
+        self, mocker, telegram_config, telegram_chats
+    ):
+        """Test _get_sender_info successful retrieval."""
+        # Mock TelegramClient
+        mocker.patch("trackers.telegram.TelegramClient")
+        instance = TelegramTracker(lambda x: None, telegram_config, telegram_chats)
+
+        mock_message = mocker.MagicMock()
+        mock_sender = mocker.MagicMock()
+        mock_sender.id = 12345
+        mock_sender.username = "testuser"
+        mock_sender.first_name = "Test User"
+
+        # Mock the async method
+        mock_message.get_sender = mocker.AsyncMock(return_value=mock_sender)
+
+        result = await instance._get_sender_info(mock_message)
+
+        assert result["user_id"] == 12345
+        assert result["username"] == "testuser"
+        assert result["display_name"] == "Test User"
+
+    @pytest.mark.asyncio
+    async def test_trackers_telegramtracker_get_sender_info_exception(
+        self, mocker, telegram_config, telegram_chats
+    ):
+        """Test _get_sender_info exception handling."""
+        # Mock TelegramClient
+        mocker.patch("trackers.telegram.TelegramClient")
+        instance = TelegramTracker(lambda x: None, telegram_config, telegram_chats)
+
+        mock_message = mocker.MagicMock()
+        mock_message.sender_id = 12345
+
+        # Mock the async method to raise exception
+        mock_message.get_sender = mocker.AsyncMock(side_effect=Exception("API error"))
+
+        result = await instance._get_sender_info(mock_message)
+
+        # Should return fallback info
+        assert result["user_id"] == 12345
+        assert result["username"] is None
+        assert result["display_name"] is None
+
+    @pytest.mark.asyncio
+    async def test_trackers_telegramtracker_get_sender_info_no_sender(
+        self, mocker, telegram_config, telegram_chats
+    ):
+        """Test _get_sender_info when get_sender returns None."""
+        # Mock TelegramClient
+        mocker.patch("trackers.telegram.TelegramClient")
+        instance = TelegramTracker(lambda x: None, telegram_config, telegram_chats)
+
+        mock_message = mocker.MagicMock()
+        mock_message.sender_id = 12345
+
+        # Mock the async method to return None
+        mock_message.get_sender = mocker.AsyncMock(return_value=None)
+
+        result = await instance._get_sender_info(mock_message)
+
+        # Should return fallback info when sender is None
+        assert result["user_id"] == 12345
+        assert result["username"] is None
+        assert result["display_name"] is None
+
+    @pytest.mark.asyncio
+    async def test_trackers_telegramtracker_get_replied_message_info_success(
+        self, mocker, telegram_config, telegram_chats
+    ):
+        """Test _get_replied_message_info successful retrieval."""
+        # Mock TelegramClient
+        mocker.patch("trackers.telegram.TelegramClient")
+        instance = TelegramTracker(lambda x: None, telegram_config, telegram_chats)
+
+        mock_message = mocker.MagicMock()
+        mock_message.reply_to_msg_id = 99
+        mock_message.chat_id = 123
+
+        mock_replied_message = mocker.MagicMock()
+        mock_replied_message.id = 99
+
+        # Mock get_messages
+        instance.client.get_messages = mocker.AsyncMock(
+            return_value=mock_replied_message
+        )
+
+        # Mock _get_sender_info for the replied message
+        mock_sender_info = {
+            "user_id": 54321,
+            "username": "replieduser",
+            "display_name": "Replied User",
+        }
+        mocker.patch.object(instance, "_get_sender_info", return_value=mock_sender_info)
+
+        result = await instance._get_replied_message_info(mock_message)
+
+        assert result["message_id"] == 99
+        assert result["sender_info"] == mock_sender_info
+        instance.client.get_messages.assert_called_once_with(123, ids=99)
+
+    @pytest.mark.asyncio
+    async def test_trackers_telegramtracker_get_replied_message_info_no_reply(
+        self, mocker, telegram_config, telegram_chats
+    ):
+        """Test _get_replied_message_info when no reply exists."""
+        # Mock TelegramClient
+        mocker.patch("trackers.telegram.TelegramClient")
+        instance = TelegramTracker(lambda x: None, telegram_config, telegram_chats)
+
+        mock_message = mocker.MagicMock()
+        mock_message.reply_to_msg_id = None
+
+        result = await instance._get_replied_message_info(mock_message)
+
+        assert result is None
+
+    @pytest.mark.asyncio
+    async def test_trackers_telegramtracker_get_replied_message_info_no_replied_message(
+        self, mocker, telegram_config, telegram_chats
+    ):
+        """Test _get_replied_message_info when get_messages returns None."""
+        # Mock TelegramClient
+        mocker.patch("trackers.telegram.TelegramClient")
+        instance = TelegramTracker(lambda x: None, telegram_config, telegram_chats)
+
+        mock_message = mocker.MagicMock()
+        mock_message.reply_to_msg_id = 99
+        mock_message.chat_id = 123
+
+        # Mock get_messages to return None (message not found)
+        instance.client.get_messages = mocker.AsyncMock(return_value=None)
+
+        result = await instance._get_replied_message_info(mock_message)
+
+        # Should return None when replied message is not found
+        assert result is None
+        instance.client.get_messages.assert_called_once_with(123, ids=99)
+
+    @pytest.mark.asyncio
+    async def test_trackers_telegramtracker_get_replied_message_info_exception(
+        self, mocker, telegram_config, telegram_chats
+    ):
+        """Test _get_replied_message_info exception handling."""
+        # Mock TelegramClient
+        mocker.patch("trackers.telegram.TelegramClient")
+        instance = TelegramTracker(lambda x: None, telegram_config, telegram_chats)
+
+        mock_message = mocker.MagicMock()
+        mock_message.reply_to_msg_id = 99
+        mock_message.chat_id = 123
+
+        # Mock get_messages to raise exception
+        instance.client.get_messages = mocker.AsyncMock(
+            side_effect=Exception("Message not found")
+        )
+
+        result = await instance._get_replied_message_info(mock_message)
+
+        # Should return None on exception
+        assert result is None
+        instance.client.get_messages.assert_called_once_with(123, ids=99)
+
+    def test_trackers_telegramtracker_generate_message_url_with_username(
+        self, mocker, telegram_config, telegram_chats
+    ):
+        """Test _generate_message_url with chat username."""
+        # Mock TelegramClient
+        mocker.patch("trackers.telegram.TelegramClient")
+        instance = TelegramTracker(lambda x: None, telegram_config, telegram_chats)
+
+        mock_chat = mocker.MagicMock()
+        mock_chat.id = 12345
+        mock_chat.username = "testchat"
+
+        result = instance._generate_message_url(mock_chat, 100)
+
+        assert result == "https://t.me/testchat/100"
+
+    def test_trackers_telegramtracker_generate_message_url_no_username(
+        self, mocker, telegram_config, telegram_chats
+    ):
+        """Test _generate_message_url without chat username."""
+        # Mock TelegramClient
+        mocker.patch("trackers.telegram.TelegramClient")
+        instance = TelegramTracker(lambda x: None, telegram_config, telegram_chats)
+
+        mock_chat = mocker.MagicMock()
+        mock_chat.id = 12345
+        mock_chat.username = None
+
+        result = instance._generate_message_url(mock_chat, 100)
+
+        assert result == "chat_12345_msg_100"

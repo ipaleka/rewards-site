@@ -350,22 +350,6 @@ def _reward_amount_legacy(reward):
     return round(round(reward, 2) * 1_000_000) if not pd.isna(reward) else 0
 
 
-def _social_platforms():
-    """Return list of social platforms with their prefixes.
-
-    :return: List of tuples (platform_name, prefix)
-    :rtype: list
-    """
-    return [
-        ("Discord", ""),
-        ("Twitter", "@"),
-        ("Reddit", "u/"),
-        ("GitHub", "g@"),
-        ("Telegram", "t@"),
-        ("Forum", "f@"),
-    ]
-
-
 def import_from_csv(contributions_path, legacy_contributions_path):
     """Import contributions from CSV files to database.
 
@@ -382,7 +366,8 @@ def import_from_csv(contributions_path, legacy_contributions_path):
 
     # # PLATFORMS
     SocialPlatform.objects.bulk_create(
-        SocialPlatform(name=name, prefix=prefix) for name, prefix in _social_platforms()
+        SocialPlatform(name=name, prefix=prefix)
+        for name, prefix in social_platform_prefixes()
     )
     print("Social platforms created: ", len(SocialPlatform.objects.all()))
 
@@ -447,3 +432,19 @@ def import_from_csv(contributions_path, legacy_contributions_path):
     _create_superusers()
 
     return False
+
+
+def social_platform_prefixes():
+    """Return list of social platforms with their prefixes.
+
+    :return: List of tuples (platform_name, prefix)
+    :rtype: list
+    """
+    return [
+        ("Discord", ""),
+        ("Twitter", "@"),
+        ("Reddit", "u/"),
+        ("GitHub", "g@"),
+        ("Telegram", "t@"),
+        ("Forum", "f@"),
+    ]

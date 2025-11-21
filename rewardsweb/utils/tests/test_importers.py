@@ -25,8 +25,8 @@ from utils.importers import (
     _parse_label_and_name_from_reward_type_legacy,
     _reward_amount,
     _reward_amount_legacy,
-    _social_platforms,
     import_from_csv,
+    social_platform_prefixes,
 )
 
 
@@ -1404,20 +1404,6 @@ class TestUtilsImportersHelperFunctions:
 
         assert result == 0
 
-    # # _social_platforms
-    def test_utils_importers_social_platforms(self):
-        result = _social_platforms()
-
-        expected = [
-            ("Discord", ""),
-            ("Twitter", "@"),
-            ("Reddit", "u/"),
-            ("GitHub", "g@"),
-            ("Telegram", "t@"),
-            ("Forum", "f@"),
-        ]
-        assert result == expected
-
 
 class TestUtilsImportersPublicFunctions:
     """Testing class for :py:mod:`utils.importers` main functions."""
@@ -1454,7 +1440,7 @@ class TestUtilsImportersPublicFunctions:
 
         # Mock all dependencies with proper return values
         mocker.patch(
-            "utils.importers._social_platforms",
+            "utils.importers.social_platform_prefixes",
             return_value=[("Discord", ""), ("GitHub", "g@")],
         )
         mocker.patch("utils.importers.SocialPlatform.objects.bulk_create")
@@ -1536,7 +1522,7 @@ class TestUtilsImportersPublicFunctions:
 
         # Mock all dependencies with proper return values
         mocker.patch(
-            "utils.importers._social_platforms",
+            "utils.importers.social_platform_prefixes",
             return_value=[("Discord", ""), ("GitHub", "g@")],
         )
         mocker.patch("utils.importers.SocialPlatform.objects.bulk_create")
@@ -1641,7 +1627,7 @@ class TestUtilsImportersPublicFunctions:
         # Mock social platforms data
         mock_platforms_data = [("Discord", ""), ("GitHub", "g@"), ("Twitter", "t@")]
         mocker.patch(
-            "utils.importers._social_platforms",
+            "utils.importers.social_platform_prefixes",
             return_value=mock_platforms_data,
         )
 
@@ -1714,7 +1700,7 @@ class TestUtilsImportersPublicFunctions:
 
         # Mock platforms
         mocker.patch(
-            "utils.importers._social_platforms",
+            "utils.importers.social_platform_prefixes",
             return_value=[("Discord", ""), ("GitHub", "g@")],
         )
         mocker.patch("utils.importers.SocialPlatform.objects.bulk_create")
@@ -1797,7 +1783,7 @@ class TestUtilsImportersPublicFunctions:
         )
 
         # Mock basic dependencies
-        mocker.patch("utils.importers._social_platforms")
+        mocker.patch("utils.importers.social_platform_prefixes")
         mocker.patch("utils.importers.SocialPlatform.objects.bulk_create")
         mocker.patch("utils.importers._parse_addresses", return_value=[])
         mocker.patch("utils.importers.Contributor.objects.bulk_create")
@@ -1882,7 +1868,7 @@ class TestUtilsImportersPublicFunctions:
         )
 
         # Mock basic dependencies
-        mocker.patch("utils.importers._social_platforms")
+        mocker.patch("utils.importers.social_platform_prefixes")
         mocker.patch("utils.importers.SocialPlatform.objects.bulk_create")
         mocker.patch("utils.importers._parse_addresses", return_value=[])
         mocker.patch("utils.importers.Contributor.objects.bulk_create")
@@ -1961,7 +1947,7 @@ class TestUtilsImportersPublicFunctions:
         )
 
         # Mock basic dependencies
-        mocker.patch("utils.importers._social_platforms")
+        mocker.patch("utils.importers.social_platform_prefixes")
         mocker.patch("utils.importers.SocialPlatform.objects.bulk_create")
         mocker.patch("utils.importers._parse_addresses", return_value=[])
         mocker.patch("utils.importers.Contributor.objects.bulk_create")
@@ -2043,7 +2029,7 @@ class TestUtilsImportersPublicFunctions:
         )
 
         # Mock all dependencies minimally
-        mocker.patch("utils.importers._social_platforms")
+        mocker.patch("utils.importers.social_platform_prefixes")
         mocker.patch("utils.importers.SocialPlatform.objects.bulk_create")
         mocker.patch("utils.importers._parse_addresses", return_value=[])
         mocker.patch("utils.importers.Contributor.objects.bulk_create")
@@ -2106,7 +2092,7 @@ class TestUtilsImportersPublicFunctions:
         mocker.patch("utils.importers._dataframe_from_csv", return_value=empty_df)
 
         # Mock basic dependencies
-        mocker.patch("utils.importers._social_platforms")
+        mocker.patch("utils.importers.social_platform_prefixes")
         mocker.patch("utils.importers.SocialPlatform.objects.bulk_create")
         mocker.patch("utils.importers._parse_addresses", return_value=[])
         mocker.patch("utils.importers.Contributor.objects.bulk_create")
@@ -2140,7 +2126,7 @@ class TestUtilsImportersPublicFunctions:
         mocker.patch("utils.importers._dataframe_from_csv", return_value=None)
 
         # Mock basic dependencies
-        mocker.patch("utils.importers._social_platforms")
+        mocker.patch("utils.importers.social_platform_prefixes")
         mocker.patch("utils.importers.SocialPlatform.objects.bulk_create")
         mocker.patch("utils.importers._parse_addresses", return_value=[])
         mocker.patch("utils.importers.Contributor.objects.bulk_create")
@@ -2177,7 +2163,7 @@ class TestUtilsImportersPublicFunctions:
         mocker.patch("utils.importers._parse_addresses", return_value=[])
 
         # Mock basic dependencies
-        mocker.patch("utils.importers._social_platforms")
+        mocker.patch("utils.importers.social_platform_prefixes")
         mocker.patch("utils.importers.SocialPlatform.objects.bulk_create")
         mocker.patch("utils.importers.Contributor.objects.bulk_create")
         mocker.patch("utils.importers.Handle.objects.from_address_and_full_handle")
@@ -2208,3 +2194,17 @@ class TestUtilsImportersPublicFunctions:
         assert result is False
         # Contributor.objects.bulk_create should be called with empty generator
         # (though it won't create anything)
+
+    # # social_platform_prefixes
+    def test_utils_importers_social_platforms(self):
+        result = social_platform_prefixes()
+
+        expected = [
+            ("Discord", ""),
+            ("Twitter", "@"),
+            ("Reddit", "u/"),
+            ("GitHub", "g@"),
+            ("Telegram", "t@"),
+            ("Forum", "f@"),
+        ]
+        assert result == expected

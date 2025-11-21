@@ -4,26 +4,32 @@ import json
 import logging
 import os
 import sqlite3
-from datetime import datetime
+
+import requests
+
+from utils.helpers import get_env_variable
+from utils.importers import social_platform_prefixes
 
 
 class BaseMentionTracker:
-    """Base class for all social media mention trackers."""
+    """Base class for all social media mention trackers.
 
-    def __init__(self, platform_name, callback_function):
+    :var BaseMentionTracker.logger: logger instance for this platform
+    :type BaseMentionTracker.logger: :class:`logging.Logger`
+    :var BaseMentionTracker.conn: database connection
+    :type BaseMentionTracker.conn: :class:`sqlite3.Connection`
+    """
+
+    def __init__(self, platform_name, parse_message_callback):
         """Initialize base tracker.
 
-        :var platform_name: name of the social media platform
+        :param platform_name: name of the social media platform
         :type platform_name: str
-        :var callback_function: function to call when mention is found
-        :type callback_function: callable
-        :var logger: logger instance for this platform
-        :type logger: :class:`logging.Logger`
-        :var conn: database connection
-        :type conn: :class:`sqlite3.Connection`
+        :param parse_message_callback: function to call when mention is found
+        :type parse_message_callback: callable
         """
         self.platform_name = platform_name
-        self.callback_function = callback_function
+        self.parse_message_callback = parse_message_callback
         self.setup_logging()
         self.setup_database()
 
@@ -68,6 +74,8 @@ class BaseMentionTracker:
     def setup_logging(self):
         """Setup common logging configuration.
 
+        :var logs_dir: logs directory name
+        :type logs_dir: str
         :var log_filename: filename for the log file
         :type log_filename: str
         """
@@ -96,7 +104,7 @@ class BaseMentionTracker:
     def is_processed(self, item_id):
         """Check if item has been processed.
 
-        :var item_id: unique identifier for the social media item
+        :param item_id: unique identifier for the social media item
         :type item_id: str
         :var cursor: database cursor
         :type cursor: :class:`sqlite3.Cursor`
@@ -113,9 +121,9 @@ class BaseMentionTracker:
     def mark_processed(self, item_id, data):
         """Mark item as processed in database.
 
-        :var item_id: unique identifier for the social media item
+        :param item_id: unique identifier for the social media item
         :type item_id: str
-        :var data: mention data dictionary
+        :param data: mention data dictionary
         :type data: dict
         :var cursor: database cursor
         :type cursor: :class:`sqlite3.Cursor`
@@ -140,10 +148,14 @@ class BaseMentionTracker:
     def process_mention(self, item_id, data):
         """Common mention processing logic.
 
-        :var item_id: unique identifier for the social media item
+        :param item_id: unique identifier for the social media item
         :type item_id: str
-        :var data: mention data dictionary
+        :param data: mention data dictionary
         :type data: dict
+        :var parsed_message: parsed message result
+        :type parsed_message: dict
+        :var contribution_data: formatted contribution data
+        :type contribution_data: dict
         :return: True if mention was processed, False otherwise
         :rtype: bool
         """
@@ -151,14 +163,9 @@ class BaseMentionTracker:
             if self.is_processed(item_id):
                 return False
 
-            # Add platform-specific metadata
-            data["platform"] = self.platform_name
-            data["processed_at"] = datetime.now().isoformat()
-
-            # Call the user's callback function
-            self.callback_function(data)
-
-            # Mark as processed
+            parsed_message = self.parse_message_callback(data)
+            contribution_data = self.prepare_contribution_data(parsed_message, data)
+            self.post_new_contribution(contribution_data)
             self.mark_processed(item_id, data)
 
             self.logger.info(
@@ -179,9 +186,9 @@ class BaseMentionTracker:
     def log_action(self, action, details=""):
         """Log platform actions to database.
 
-        :var action: description of the action performed
+        :param action: description of the action performed
         :type action: str
-        :var details: additional details about the action
+        :param details: additional details about the action
         :type details: str
         :var cursor: database cursor
         :type cursor: :class:`sqlite3.Cursor`
@@ -192,6 +199,75 @@ class BaseMentionTracker:
             (self.platform_name, action, details),
         )
         self.conn.commit()
+
+    def prepare_contribution_data(self, parsed_message, message_data):
+        """Prepare contribution data for POST request from provided arguments.
+
+        :param parsed_message: parsed message result
+        :type parsed_message: dict
+        :param message_data: original message data
+        :type message_data: dict
+        :var platform: social media provider name
+        :type platform: str
+        :var prefix: internal username prefix for the platform
+        :type prefix: str
+        :var username: contributor's username/handle in the platform
+        :type username: str
+        :return: dict
+        """
+        platform = self.platform_name.capitalize()
+        prefix = next(
+            prefix for name, prefix in social_platform_prefixes() if name == platform
+        )
+        username = message_data.get("contributor")
+
+        return {
+            **parsed_message,
+            "username": f"{prefix}{username}",
+            "url": message_data.get("contribution_url"),
+            "platform": platform,
+        }
+
+    def post_new_contribution(self, contribution_data):
+        """Send add contribution POST request to the Request API.
+
+        :param contribution_data: formatted contribution data
+        :type contribution_data: dict
+        :var base_url: Rewards API base endpoints URL
+        :type base_url: str
+        :var base_url: Rewards API base endpoints URL
+        :type base_url: str
+        :var response: requests' response instance
+        :type response: :class:`requests.Response`
+        :return: response data from Rewards API
+        :rtype: dict
+        """
+        base_url = get_env_variable("REWARDS_API_BASE_URL", "http://127.0.0.1:8000/api")
+        try:
+            response = requests.post(
+                f"{base_url}/addcontribution",
+                json=contribution_data,
+                headers={"Content-Type": "application/json"},
+                timeout=30,
+            )
+            response.raise_for_status()  # Raises an HTTPError for bad responses
+            return response.json()
+
+        except requests.exceptions.ConnectionError:
+            raise Exception(
+                "Cannot connect to the API server. Make sure it's running on localhost."
+            )
+
+        except requests.exceptions.HTTPError as e:
+            raise Exception(
+                f"API returned error: {e.response.status_code} - {e.response.text}"
+            )
+
+        except requests.exceptions.Timeout:
+            raise Exception("API request timed out.")
+
+        except requests.exceptions.RequestException as e:
+            raise Exception(f"API request failed: {e}")
 
     def cleanup(self):
         """Cleanup resources.

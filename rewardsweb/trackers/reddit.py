@@ -9,25 +9,27 @@ from trackers.base import BaseMentionTracker
 
 
 class RedditTracker(BaseMentionTracker):
-    """Tracker for Reddit mentions across specified subreddits."""
+    """Tracker for Reddit mentions across specified subreddits.
 
-    def __init__(self, callback_function, subreddits_to_track, reddit_config):
+    :var RedditTracker.reddit: authenticated Reddit instance
+    :type RedditTracker.reddit: :class:`praw.Reddit`
+    :var RedditTracker.bot_username: username of the bot account
+    :type RedditTracker.bot_username: str
+    :var RedditTracker.tracked_subreddits: list of subreddits being monitored
+    :type RedditTracker.tracked_subreddits: list
+    """
+
+    def __init__(self, parse_message_callback, subreddits_to_track, reddit_config):
         """Initialize Reddit tracker.
 
-        :var callback_function: function to call when mention is found
-        :type callback_function: callable
-        :var subreddits_to_track: list of subreddit names to monitor
+        :param parse_message_callback: function to call when mention is found
+        :type parse_message_callback: callable
+        :param subreddits_to_track: list of subreddit names to monitor
         :type subreddits_to_track: list
-        :var reddit_config: configuration dictionary for Reddit API
+        :param reddit_config: configuration dictionary for Reddit API
         :type reddit_config: dict
-        :var reddit: authenticated Reddit instance
-        :type reddit: :class:`praw.Reddit`
-        :var bot_username: username of the bot account
-        :type bot_username: str
-        :var tracked_subreddits: list of subreddits being monitored
-        :type tracked_subreddits: list
         """
-        super().__init__("reddit", callback_function)
+        super().__init__("reddit", parse_message_callback)
 
         self.reddit = praw.Reddit(
             client_id=reddit_config["client_id"],
@@ -54,7 +56,7 @@ class RedditTracker(BaseMentionTracker):
     def extract_mention_data(self, item):
         """Extract standardized data from Reddit item.
 
-        :var item: Reddit comment or submission
+        :param item: Reddit comment or submission
         :type item: :class:`praw.models.Comment` or :class:`praw.models.Submission`
         :return: standardized mention data dictionary
         :rtype: dict
@@ -68,7 +70,7 @@ class RedditTracker(BaseMentionTracker):
     def _extract_comment_data(self, comment):
         """Extract data from Reddit comment.
 
-        :var comment: Reddit comment object
+        :param comment: Reddit comment object
         :type comment: :class:`praw.models.Comment`
         :var data: extracted data dictionary
         :type data: dict
@@ -77,32 +79,24 @@ class RedditTracker(BaseMentionTracker):
         :return: standardized mention data
         :rtype: dict
         """
+        parent = comment.parent()
         data = {
             "suggester": comment.author.name if comment.author else "[deleted]",
             "suggestion_url": f"https://reddit.com{comment.permalink}",
-            "contribution_url": "",
-            "contributor": "",
+            "contribution_url": f"https://reddit.com{parent.permalink}",
+            "contributor": parent.author.name if parent.author else "[deleted]",
             "type": "comment",
             "subreddit": comment.subreddit.display_name,
             "content_preview": comment.body[:200] if comment.body else "",
             "timestamp": datetime.fromtimestamp(comment.created_utc).isoformat(),
             "item_id": comment.id,
         }
-
-        parent = comment.parent()
-        if isinstance(parent, praw.models.Comment):
-            data["contribution_url"] = f"https://reddit.com{parent.permalink}"
-            data["contributor"] = parent.author.name if parent.author else "[deleted]"
-        else:
-            data["contribution_url"] = f"https://reddit.com{parent.permalink}"
-            data["contributor"] = parent.author.name if parent.author else "[deleted]"
-
         return data
 
     def _extract_submission_data(self, submission):
         """Extract data from Reddit submission.
 
-        :var submission: Reddit submission object
+        :param submission: Reddit submission object
         :type submission: :class:`praw.models.Submission`
         :var data: extracted data dictionary
         :type data: dict
@@ -186,9 +180,9 @@ class RedditTracker(BaseMentionTracker):
     def run(self, poll_interval_minutes=30, max_iterations=None):
         """Main run method for Reddit tracker.
 
-        :var poll_interval_minutes: how often to check for mentions
+        :param poll_interval_minutes: how often to check for mentions
         :type poll_interval_minutes: int
-        :var max_iterations: maximum number of polls before stopping (None for infinite)
+        :param max_iterations: maximum number of polls before stopping (None for infinite)
         :type max_iterations: int or None
         :var iteration: current iteration count
         :type iteration: int
@@ -207,7 +201,8 @@ class RedditTracker(BaseMentionTracker):
                 iteration += 1
 
                 self.logger.info(
-                    f"Reddit poll #{iteration} at {datetime.now().strftime('%Y-%m-%d %H:%M:%S')}"
+                    f"Reddit poll #{iteration} at "
+                    f"{datetime.now().strftime('%Y-%m-%d %H:%M:%S')}"
                 )
 
                 mentions_found = self.check_mentions()

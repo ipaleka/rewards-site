@@ -2,7 +2,6 @@
 
 from utils.helpers import get_env_variable
 
-
 PLATFORM_CONTEXT_FIELDS = {
     "reddit": "subreddit",
     "twitter": "tweet_author",
@@ -11,19 +10,58 @@ PLATFORM_CONTEXT_FIELDS = {
 }
 
 
-def reddit_config():
-    """Get Reddit configuration from environment variables.
+def discord_config():
+    """Return Discord configuration from environment variables.
 
-    :var client_id: Reddit application client ID
-    :type client_id: str
-    :var client_secret: Reddit application client secret
-    :type client_secret: str
-    :var user_agent: User agent string for Reddit API
-    :type user_agent: str
-    :var username: Reddit bot username
-    :type username: str
-    :var password: Reddit bot password
-    :type password: str
+    :var excluded_channels_str: comma separated list of excluded channels
+    :type excluded_channels_str: str
+    :var excluded_channels: formatted collection of excluded channel IDs
+    :type excluded_channels: list
+    :var included_channels_str: comma separated list of included channels
+    :type included_channels_str: str
+    :var included_channels: formatted collection of included channel IDs
+    :type included_channels: list
+    :return: Discord configuration dictionary
+    :rtype: dict
+    """
+    excluded_channels_str = get_env_variable("TRACKER_DISCORD_EXCLUDED_CHANNELS", "")
+    excluded_channels = [
+        int(channel.strip())
+        for channel in excluded_channels_str.split(",")
+        if channel.strip()
+    ]
+    included_channels_str = get_env_variable("TRACKER_DISCORD_INCLUDED_CHANNELS", "")
+    included_channels = [
+        int(channel.strip())
+        for channel in included_channels_str.split(",")
+        if channel.strip()
+    ]
+
+    return {
+        "bot_user_id": get_env_variable("TRACKER_DISCORD_BOT_ID", ""),
+        "token": get_env_variable("TRACKER_DISCORD_BOT_TOKEN", ""),
+        "auto_discover_channels": True,
+        "excluded_channel_types": ["voice", "stage", "category"],
+        "excluded_channels": excluded_channels,
+        "included_channels": included_channels,
+    }
+
+
+def discord_guilds():
+    """Return list of Discord guilds/channels to track from environment variable.
+
+    :var guilds_str: comma-separated list of guilds from environment
+    :type guilds_str: str
+    :return: list of discord guild IDs
+    :rtype: list
+    """
+    guilds_str = get_env_variable("TRACKER_DISCORD_GUILDS", "")
+    return [int(guild.strip()) for guild in guilds_str.split(",") if guild.strip()]
+
+
+def reddit_config():
+    """Return Reddit configuration from environment variables.
+
     :return: Reddit configuration dictionary
     :rtype: dict
     """
@@ -38,19 +76,21 @@ def reddit_config():
     }
 
 
-def twitter_config():
-    """Get Twitter configuration from environment variables.
+def reddit_subreddits():
+    """Return list of subreddits to track from environment variable.
 
-    :var bearer_token: Twitter API bearer token
-    :type bearer_token: str
-    :var consumer_key: Twitter API consumer key
-    :type consumer_key: str
-    :var consumer_secret: Twitter API consumer secret
-    :type consumer_secret: str
-    :var access_token: Twitter API access token
-    :type access_token: str
-    :var access_token_secret: Twitter API access token secret
-    :type access_token_secret: str
+    :var subreddits_str: comma-separated list of subreddits from environment
+    :type subreddits_str: str
+    :return: list of subreddit names
+    :rtype: list
+    """
+    subreddits_str = get_env_variable("TRACKER_REDDIT_SUBREDDITS", "")
+    return [sub.strip() for sub in subreddits_str.split(",") if sub.strip()]
+
+
+def twitter_config():
+    """Return Twitter configuration from environment variables.
+
     :return: Twitter configuration dictionary
     :rtype: dict
     """
@@ -65,17 +105,21 @@ def twitter_config():
     }
 
 
-def telegram_config():
-    """Get Telegram configuration from environment variables.
+def telegram_chats():
+    """Return list of Telegram chats to track from environment variable.
 
-    :var api_id: Telegram API ID
-    :type api_id: str
-    :var api_hash: Telegram API hash
-    :type api_hash: str
-    :var session_name: name for Telegram session file
-    :type session_name: str
-    :var bot_username: Telegram bot username (without @)
-    :type bot_username: str
+    :var chats_str: comma-separated list of chat usernames or IDs from environment
+    :type chats_str: str
+    :return: list of chat identifiers
+    :rtype: list
+    """
+    chats_str = get_env_variable("TRACKER_TELEGRAM_CHATS", "")
+    return [chat.strip() for chat in chats_str.split(",") if chat.strip()]
+
+
+def telegram_config():
+    """Return Telegram configuration from environment variables.
+
     :return: Telegram configuration dictionary
     :rtype: dict
     """
@@ -87,27 +131,3 @@ def telegram_config():
         ),
         "bot_username": get_env_variable("TRACKER_TELEGRAM_BOT_USERNAME", "").lower(),
     }
-
-
-def reddit_subreddits():
-    """Get list of subreddits to track from environment variable.
-
-    :var subreddits_str: comma-separated list of subreddits from environment
-    :type subreddits_str: str
-    :return: list of subreddit names
-    :rtype: list
-    """
-    subreddits_str = get_env_variable("TRACKER_REDDIT_SUBREDDITS", "")
-    return [sub.strip() for sub in subreddits_str.split(",") if sub.strip()]
-
-
-def telegram_chats():
-    """Get list of Telegram chats to track from environment variable.
-
-    :var chats_str: comma-separated list of chat usernames or IDs from environment
-    :type chats_str: str
-    :return: list of chat identifiers
-    :rtype: list
-    """
-    chats_str = get_env_variable("TRACKER_TELEGRAM_CHATS", "")
-    return [chat.strip() for chat in chats_str.split(",") if chat.strip()]

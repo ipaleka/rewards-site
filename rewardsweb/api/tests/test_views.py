@@ -16,8 +16,8 @@ from api.views import (
     CurrentCyclePlainView,
     CycleAggregatedView,
     CyclePlainView,
-    LocalhostAPIView,
     IsLocalhostPermission,
+    LocalhostAPIView,
     aggregated_cycle_response,
     contributions_response,
 )

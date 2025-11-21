@@ -3,6 +3,14 @@
 from utils.helpers import get_env_variable
 
 
+PLATFORM_CONTEXT_FIELDS = {
+    "reddit": "subreddit",
+    "twitter": "tweet_author",
+    "telegram": "telegram_chat",
+    "discord": "discord_channel",
+}
+
+
 def reddit_config():
     """Get Reddit configuration from environment variables.
 

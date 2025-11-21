@@ -1,6 +1,7 @@
 """Testing module for :py:mod:`trackers.config` module."""
 
 from trackers.config import (
+    PLATFORM_CONTEXT_FIELDS,
     reddit_config,
     reddit_subreddits,
     telegram_chats,
@@ -11,6 +12,16 @@ from trackers.config import (
 
 class TestTrackersConfig:
     """Testing class for :py:mod:`trackers.config` module."""
+
+    # PLATFORM_CONTEXT_FIELDS
+    def test_trackers_database_platform_context_fields(self):
+        expected_fields = {
+            "reddit": "subreddit",
+            "twitter": "tweet_author",
+            "telegram": "telegram_chat",
+            "discord": "discord_channel",
+        }
+        assert PLATFORM_CONTEXT_FIELDS == expected_fields
 
     # reddit_config
     def test_trackers_config_reddit_config_success(self, mocker):

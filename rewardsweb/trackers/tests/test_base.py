@@ -1,6 +1,5 @@
 """Testing module for :py:mod:`trackers.base` module."""
 
-import json
 from unittest import mock
 
 import pytest
@@ -9,7 +8,7 @@ import requests
 from trackers.base import BaseMentionTracker
 
 
-class TestBaseMentionTracker:
+class TestTrackersBaseMentionTracker:
     """Testing class for :class:`trackers.base.BaseMentionTracker` class."""
 
     # __init__
@@ -29,22 +28,15 @@ class TestBaseMentionTracker:
 
     # setup_database
     def test_base_basementiontracker_setup_database_success(self, mocker):
-        mock_connect = mocker.patch("sqlite3.connect")
-        mock_conn = mocker.MagicMock()
-        mock_cursor = mocker.MagicMock()
-        mock_conn.cursor.return_value = mock_cursor
-        mock_connect.return_value = mock_conn
+        mock_database_manager = mocker.patch("trackers.base.MentionDatabaseManager")
 
         instance = BaseMentionTracker("test_platform", lambda x: None)
-        mock_connect.reset_mock()
-        mock_conn.reset_mock()
+        mock_database_manager.reset_mock()
 
         instance.setup_database()
 
-        mock_connect.assert_called_once_with("fixtures/social_mentions.db")
-        assert mock_cursor.execute.call_count == 2
-        mock_conn.commit.assert_called_once()
-        assert instance.conn == mock_conn
+        mock_database_manager.assert_called_once()
+        assert instance.db == mock_database_manager.return_value
 
     # setup_logging
     def test_base_basementiontracker_setup_logging_creates_directory(self, mocker):
@@ -85,27 +77,20 @@ class TestBaseMentionTracker:
     # is_processed
     def test_base_basementiontracker_is_processed_true(self, mocker):
         instance = BaseMentionTracker("test_platform", lambda x: None)
-        mock_conn = mocker.MagicMock()
-        mock_cursor = mocker.MagicMock()
-        mock_cursor.fetchone.return_value = [1]
-        mock_conn.cursor.return_value = mock_cursor
-        instance.conn = mock_conn
+        mock_db = mocker.MagicMock()
+        mock_db.is_processed.return_value = True
+        instance.db = mock_db
 
         result = instance.is_processed("test_item_id")
 
         assert result is True
-        mock_cursor.execute.assert_called_once_with(
-            "SELECT 1 FROM processed_mentions WHERE item_id = ? AND platform = ?",
-            ("test_item_id", "test_platform"),
-        )
+        mock_db.is_processed.assert_called_once_with("test_item_id", "test_platform")
 
     def test_base_basementiontracker_is_processed_false(self, mocker):
         instance = BaseMentionTracker("test_platform", lambda x: None)
-        mock_conn = mocker.MagicMock()
-        mock_cursor = mocker.MagicMock()
-        mock_cursor.fetchone.return_value = None
-        mock_conn.cursor.return_value = mock_cursor
-        instance.conn = mock_conn
+        mock_db = mocker.MagicMock()
+        mock_db.is_processed.return_value = False
+        instance.db = mock_db
 
         result = instance.is_processed("test_item_id")
 
@@ -114,36 +99,19 @@ class TestBaseMentionTracker:
     # mark_processed
     def test_base_basementiontracker_mark_processed_success(self, mocker):
         instance = BaseMentionTracker("test_platform", lambda x: None)
-        mock_conn = mocker.MagicMock()
-        mock_cursor = mocker.MagicMock()
-        mock_conn.cursor.return_value = mock_cursor
-        instance.conn = mock_conn
+        mock_db = mocker.MagicMock()
+        instance.db = mock_db
 
         test_data = {
             "suggester": "test_user",
             "subreddit": "test_subreddit",
-            "tweet_author": "test_tweeter",
-            "telegram_chat": "test_chat",
         }
 
         instance.mark_processed("test_item_id", test_data)
 
-        expected_json = json.dumps(test_data)
-        mock_cursor.execute.assert_called_once_with(
-            """INSERT INTO processed_mentions 
-               (item_id, platform, suggester, subreddit, tweet_author, telegram_chat, raw_data) 
-               VALUES (?, ?, ?, ?, ?, ?, ?)""",
-            (
-                "test_item_id",
-                "test_platform",
-                "test_user",
-                "test_subreddit",
-                "test_tweeter",
-                "test_chat",
-                expected_json,
-            ),
+        mock_db.mark_processed.assert_called_once_with(
+            "test_item_id", "test_platform", test_data
         )
-        mock_conn.commit.assert_called_once()
 
     # process_mention
     def test_base_basementiontracker_process_mention_already_processed(self, mocker):
@@ -213,18 +181,14 @@ class TestBaseMentionTracker:
     # log_action
     def test_base_basementiontracker_log_action_success(self, mocker):
         instance = BaseMentionTracker("test_platform", lambda x: None)
-        mock_conn = mocker.MagicMock()
-        mock_cursor = mocker.MagicMock()
-        mock_conn.cursor.return_value = mock_cursor
-        instance.conn = mock_conn
+        mock_db = mocker.MagicMock()
+        instance.db = mock_db
 
         instance.log_action("test_action", "test_details")
 
-        mock_cursor.execute.assert_called_once_with(
-            "INSERT INTO mention_logs (platform, action, details) VALUES (?, ?, ?)",
-            ("test_platform", "test_action", "test_details"),
+        mock_db.log_action.assert_called_once_with(
+            "test_platform", "test_action", "test_details"
         )
-        mock_conn.commit.assert_called_once()
 
     # prepare_contribution_data
     def test_base_basementiontracker_prepare_contribution_data_success(self, mocker):
@@ -413,19 +377,19 @@ class TestBaseMentionTracker:
             instance.run()
 
     # cleanup
-    def test_base_basementiontracker_cleanup_with_connection(self, mocker):
+    def test_base_basementiontracker_cleanup_with_db(self, mocker):
         mocker.patch.object(BaseMentionTracker, "setup_logging")
         mocker.patch.object(BaseMentionTracker, "setup_database")
 
         instance = BaseMentionTracker("test_platform", lambda x: None)
-        mock_conn = mocker.MagicMock()
-        instance.conn = mock_conn
+        mock_db = mocker.MagicMock()
+        instance.db = mock_db
 
         instance.cleanup()
 
-        mock_conn.close.assert_called_once()
+        mock_db.cleanup.assert_called_once()
 
-    def test_base_basementiontracker_cleanup_no_connection(self, mocker):
+    def test_base_basementiontracker_cleanup_no_db(self, mocker):
         mocker.patch.object(BaseMentionTracker, "setup_logging")
         mocker.patch.object(BaseMentionTracker, "setup_database")
         instance = BaseMentionTracker("test_platform", lambda x: None)

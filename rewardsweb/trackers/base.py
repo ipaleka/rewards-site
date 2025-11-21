@@ -1,12 +1,11 @@
 """Module containing base tracker class."""
 
-import json
 import logging
 import os
-import sqlite3
 
 import requests
 
+from trackers.database import MentionDatabaseManager
 from utils.helpers import get_env_variable
 from utils.importers import social_platform_prefixes
 
@@ -16,8 +15,8 @@ class BaseMentionTracker:
 
     :var BaseMentionTracker.logger: logger instance for this platform
     :type BaseMentionTracker.logger: :class:`logging.Logger`
-    :var BaseMentionTracker.conn: database connection
-    :type BaseMentionTracker.conn: :class:`sqlite3.Connection`
+    :var BaseMentionTracker.db: database manager instance
+    :type BaseMentionTracker.db: :class:`trackers.database.MentionDatabaseManager`
     """
 
     def __init__(self, platform_name, parse_message_callback):
@@ -35,41 +34,8 @@ class BaseMentionTracker:
 
     # # setup
     def setup_database(self):
-        """Setup common database schema.
-
-        :var cursor: database cursor
-        :type cursor: :class:`sqlite3.Cursor`
-        """
-        self.conn = sqlite3.connect("fixtures/social_mentions.db")
-        cursor = self.conn.cursor()
-
-        cursor.execute(
-            """
-            CREATE TABLE IF NOT EXISTS processed_mentions (
-                item_id TEXT PRIMARY KEY,
-                platform TEXT NOT NULL,
-                processed_at TIMESTAMP DEFAULT CURRENT_TIMESTAMP,
-                suggester TEXT,
-                subreddit TEXT,
-                tweet_author TEXT,
-                telegram_chat TEXT,
-                raw_data TEXT
-            )
-        """
-        )
-
-        cursor.execute(
-            """
-            CREATE TABLE IF NOT EXISTS mention_logs (
-                id INTEGER PRIMARY KEY AUTOINCREMENT,
-                platform TEXT NOT NULL,
-                timestamp TIMESTAMP DEFAULT CURRENT_TIMESTAMP,
-                action TEXT,
-                details TEXT
-            )
-        """
-        )
-        self.conn.commit()
+        """Setup database manager."""
+        self.db = MentionDatabaseManager()
 
     def setup_logging(self):
         """Setup common logging configuration.
@@ -106,17 +72,10 @@ class BaseMentionTracker:
 
         :param item_id: unique identifier for the social media item
         :type item_id: str
-        :var cursor: database cursor
-        :type cursor: :class:`sqlite3.Cursor`
         :return: True if item has been processed, False otherwise
         :rtype: bool
         """
-        cursor = self.conn.cursor()
-        cursor.execute(
-            "SELECT 1 FROM processed_mentions WHERE item_id = ? AND platform = ?",
-            (item_id, self.platform_name),
-        )
-        return cursor.fetchone() is not None
+        return self.db.is_processed(item_id, self.platform_name)
 
     def mark_processed(self, item_id, data):
         """Mark item as processed in database.
@@ -125,25 +84,8 @@ class BaseMentionTracker:
         :type item_id: str
         :param data: mention data dictionary
         :type data: dict
-        :var cursor: database cursor
-        :type cursor: :class:`sqlite3.Cursor`
         """
-        cursor = self.conn.cursor()
-        cursor.execute(
-            """INSERT INTO processed_mentions 
-               (item_id, platform, suggester, subreddit, tweet_author, telegram_chat, raw_data) 
-               VALUES (?, ?, ?, ?, ?, ?, ?)""",
-            (
-                item_id,
-                self.platform_name,
-                data.get("suggester"),
-                data.get("subreddit"),
-                data.get("tweet_author"),
-                data.get("telegram_chat"),
-                json.dumps(data),
-            ),
-        )
-        self.conn.commit()
+        self.db.mark_processed(item_id, self.platform_name, data)
 
     def process_mention(self, item_id, data):
         """Common mention processing logic.
@@ -190,15 +132,8 @@ class BaseMentionTracker:
         :type action: str
         :param details: additional details about the action
         :type details: str
-        :var cursor: database cursor
-        :type cursor: :class:`sqlite3.Cursor`
         """
-        cursor = self.conn.cursor()
-        cursor.execute(
-            "INSERT INTO mention_logs (platform, action, details) VALUES (?, ?, ?)",
-            (self.platform_name, action, details),
-        )
-        self.conn.commit()
+        self.db.log_action(self.platform_name, action, details)
 
     def prepare_contribution_data(self, parsed_message, message_data):
         """Prepare contribution data for POST request from provided arguments.
@@ -233,8 +168,6 @@ class BaseMentionTracker:
 
         :param contribution_data: formatted contribution data
         :type contribution_data: dict
-        :var base_url: Rewards API base endpoints URL
-        :type base_url: str
         :var base_url: Rewards API base endpoints URL
         :type base_url: str
         :var response: requests' response instance
@@ -274,8 +207,8 @@ class BaseMentionTracker:
 
         Closes database connection if it exists.
         """
-        if hasattr(self, "conn"):
-            self.conn.close()
+        if hasattr(self, "db"):
+            self.db.cleanup()
 
     def run(self, **kwargs):
         """Main run method - to be implemented by subclasses.

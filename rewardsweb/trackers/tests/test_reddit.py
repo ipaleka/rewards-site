@@ -32,9 +32,7 @@ class TestTrackesReddit:
         assert instance.bot_username == "test_bot"
         assert instance.tracked_subreddits == reddit_subreddits
 
-    def test_trackers_reddittracker_init_no_username(
-        self, mocker, reddit_config, reddit_subreddits
-    ):
+    def test_trackers_reddittracker_init_no_username(self, mocker, reddit_subreddits):
         # Mock praw.Reddit to prevent actual API calls
         mocker.patch("trackers.reddit.praw.Reddit")
 
@@ -46,7 +44,7 @@ class TestTrackesReddit:
         }
 
         # Create instance
-        instance = RedditTracker(lambda x: None, reddit_subreddits, test_config)
+        instance = RedditTracker(lambda x: None, test_config, reddit_subreddits)
 
         assert instance.bot_username is None
 

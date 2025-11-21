@@ -2,7 +2,6 @@
 
 from utils.helpers import get_env_variable
 
-
 PLATFORM_CONTEXT_FIELDS = {
     "reddit": "subreddit",
     "twitter": "tweet_author",

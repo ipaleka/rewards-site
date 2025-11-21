@@ -20,7 +20,7 @@ class TestTrackesReddit:
         mock_reddit.return_value.user.me.return_value = mock_user
 
         # Create instance - this will call the real __init__ but with mocked praw.Reddit
-        instance = RedditTracker(lambda x: None, reddit_subreddits, reddit_config)
+        instance = RedditTracker(lambda x: None, reddit_config, reddit_subreddits)
 
         mock_reddit.assert_called_once_with(
             client_id="test_client_id",
@@ -58,7 +58,7 @@ class TestTrackesReddit:
         mocker.patch("trackers.reddit.praw.Reddit")
 
         # Create instance
-        instance = RedditTracker(lambda x: None, reddit_subreddits, reddit_config)
+        instance = RedditTracker(lambda x: None, reddit_config, reddit_subreddits)
 
         mock_comment = mocker.MagicMock(spec=praw.models.Comment)
         mock_author = mocker.MagicMock()
@@ -97,7 +97,7 @@ class TestTrackesReddit:
         mocker.patch("trackers.reddit.praw.Reddit")
 
         # Create instance
-        instance = RedditTracker(lambda x: None, reddit_subreddits, reddit_config)
+        instance = RedditTracker(lambda x: None, reddit_config, reddit_subreddits)
 
         mock_submission = mocker.MagicMock(spec=praw.models.Submission)
         mock_author = mocker.MagicMock()
@@ -133,7 +133,7 @@ class TestTrackesReddit:
         mock_reddit.return_value.user.me.return_value = mock_user
 
         # Create instance
-        instance = RedditTracker(lambda x: None, reddit_subreddits, reddit_config)
+        instance = RedditTracker(lambda x: None, reddit_config, reddit_subreddits)
 
         # Mock only one subreddit to avoid multiple calls
         mock_subreddit = mocker.MagicMock()
@@ -169,7 +169,7 @@ class TestTrackesReddit:
         mock_reddit.return_value.user.me.return_value = mock_user
 
         # Create instance
-        instance = RedditTracker(lambda x: None, reddit_subreddits, reddit_config)
+        instance = RedditTracker(lambda x: None, reddit_config, reddit_subreddits)
 
         mock_subreddit = mocker.MagicMock()
         mock_reddit.return_value.subreddit.return_value = mock_subreddit
@@ -203,7 +203,7 @@ class TestTrackesReddit:
         mock_reddit.return_value.user.me.return_value = mock_user
 
         # Create instance
-        instance = RedditTracker(lambda x: None, reddit_subreddits, reddit_config)
+        instance = RedditTracker(lambda x: None, reddit_config, reddit_subreddits)
 
         mock_subreddit = mocker.MagicMock()
         mock_reddit.return_value.subreddit.return_value = mock_subreddit
@@ -236,7 +236,7 @@ class TestTrackesReddit:
         mock_reddit.return_value.user.me.return_value = mock_user
 
         # Create instance
-        instance = RedditTracker(lambda x: None, reddit_subreddits, reddit_config)
+        instance = RedditTracker(lambda x: None, reddit_config, reddit_subreddits)
 
         mock_reddit.return_value.subreddit.side_effect = Exception("API error")
         mock_log_action = mocker.patch.object(instance, "log_action")
@@ -261,7 +261,7 @@ class TestTrackesReddit:
         mock_reddit.return_value.user.me.return_value = mock_user
 
         # Create instance
-        instance = RedditTracker(lambda x: None, reddit_subreddits, reddit_config)
+        instance = RedditTracker(lambda x: None, reddit_config, reddit_subreddits)
 
         # Mock check_mentions to return an integer, not a MagicMock
         mock_check_mentions = mocker.patch.object(instance, "check_mentions")
@@ -303,7 +303,7 @@ class TestTrackesReddit:
         mock_reddit.return_value.user.me.return_value = mock_user
 
         # Create instance
-        instance = RedditTracker(lambda x: None, reddit_subreddits, reddit_config)
+        instance = RedditTracker(lambda x: None, reddit_config, reddit_subreddits)
 
         # Mock check_mentions to return an integer
         mock_check_mentions = mocker.patch.object(instance, "check_mentions")
@@ -328,7 +328,7 @@ class TestTrackesReddit:
         mock_reddit.return_value.user.me.return_value = mock_user
 
         # Create instance
-        instance = RedditTracker(lambda x: None, reddit_subreddits, reddit_config)
+        instance = RedditTracker(lambda x: None, reddit_config, reddit_subreddits)
 
         mock_check_mentions = mocker.patch.object(instance, "check_mentions")
         mock_check_mentions.side_effect = Exception("Test error")
@@ -350,7 +350,7 @@ class TestTrackesReddit:
         mocker.patch("trackers.reddit.praw.Reddit")
 
         # Create instance
-        instance = RedditTracker(lambda x: None, reddit_subreddits, reddit_config)
+        instance = RedditTracker(lambda x: None, reddit_config, reddit_subreddits)
 
         mock_comment = mocker.MagicMock(spec=praw.models.Comment)
 
@@ -372,7 +372,7 @@ class TestTrackesReddit:
         mocker.patch("trackers.reddit.praw.Reddit")
 
         # Create instance
-        instance = RedditTracker(lambda x: None, reddit_subreddits, reddit_config)
+        instance = RedditTracker(lambda x: None, reddit_config, reddit_subreddits)
 
         mock_comment = mocker.MagicMock(spec=praw.models.Comment)
         mock_author = mocker.MagicMock()
@@ -412,7 +412,7 @@ class TestTrackesReddit:
         mock_reddit.return_value.user.me.return_value = mock_user
 
         # Create instance
-        instance = RedditTracker(lambda x: None, reddit_subreddits, reddit_config)
+        instance = RedditTracker(lambda x: None, reddit_config, reddit_subreddits)
 
         mock_subreddit = mocker.MagicMock()
         mock_reddit.return_value.subreddit.return_value = mock_subreddit
@@ -448,7 +448,7 @@ class TestTrackesReddit:
         mock_reddit.return_value.user.me.return_value = mock_user
 
         # Create instance
-        instance = RedditTracker(lambda x: None, reddit_subreddits, reddit_config)
+        instance = RedditTracker(lambda x: None, reddit_config, reddit_subreddits)
         instance.bot_username = "test_bot"  # Ensure bot_username is set
 
         mock_subreddit = mocker.MagicMock()
@@ -485,7 +485,7 @@ class TestTrackesReddit:
         mock_reddit.return_value.user.me.return_value = mock_user
 
         # Create instance
-        instance = RedditTracker(lambda x: None, reddit_subreddits, reddit_config)
+        instance = RedditTracker(lambda x: None, reddit_config, reddit_subreddits)
 
         mock_subreddit = mocker.MagicMock()
         mock_reddit.return_value.subreddit.return_value = mock_subreddit
@@ -521,7 +521,7 @@ class TestTrackesReddit:
         mock_reddit.return_value.user.me.return_value = mock_user
 
         # Create instance
-        instance = RedditTracker(lambda x: None, reddit_subreddits, reddit_config)
+        instance = RedditTracker(lambda x: None, reddit_config, reddit_subreddits)
 
         # Mock check_mentions to return positive number
         mock_check_mentions = mocker.patch.object(instance, "check_mentions")
@@ -550,7 +550,7 @@ class TestTrackesReddit:
         mock_reddit.return_value.user.me.return_value = mock_user
 
         # Create instance
-        instance = RedditTracker(lambda x: None, reddit_subreddits, reddit_config)
+        instance = RedditTracker(lambda x: None, reddit_config, reddit_subreddits)
 
         mock_subreddit = mocker.MagicMock()
         mock_reddit.return_value.subreddit.return_value = mock_subreddit
@@ -586,7 +586,7 @@ class TestTrackesReddit:
         mock_reddit.return_value.user.me.return_value = mock_user
 
         # Create instance
-        instance = RedditTracker(lambda x: None, reddit_subreddits, reddit_config)
+        instance = RedditTracker(lambda x: None, reddit_config, reddit_subreddits)
 
         mock_subreddit = mocker.MagicMock()
         mock_reddit.return_value.subreddit.return_value = mock_subreddit
@@ -622,7 +622,7 @@ class TestTrackesReddit:
         mock_reddit.return_value.user.me.return_value = mock_user
 
         # Create instance
-        instance = RedditTracker(lambda x: None, reddit_subreddits, reddit_config)
+        instance = RedditTracker(lambda x: None, reddit_config, reddit_subreddits)
 
         mock_subreddit = mocker.MagicMock()
         mock_reddit.return_value.subreddit.return_value = mock_subreddit
@@ -658,7 +658,7 @@ class TestTrackesReddit:
         mock_reddit.return_value.user.me.return_value = mock_user
 
         # Create instance
-        instance = RedditTracker(lambda x: None, reddit_subreddits, reddit_config)
+        instance = RedditTracker(lambda x: None, reddit_config, reddit_subreddits)
 
         mock_subreddit = mocker.MagicMock()
         mock_reddit.return_value.subreddit.return_value = mock_subreddit

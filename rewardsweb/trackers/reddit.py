@@ -19,15 +19,15 @@ class RedditTracker(BaseMentionTracker):
     :type RedditTracker.tracked_subreddits: list
     """
 
-    def __init__(self, parse_message_callback, subreddits_to_track, reddit_config):
+    def __init__(self, parse_message_callback, reddit_config, subreddits_to_track):
         """Initialize Reddit tracker.
 
         :param parse_message_callback: function to call when mention is found
         :type parse_message_callback: callable
-        :param subreddits_to_track: list of subreddit names to monitor
-        :type subreddits_to_track: list
         :param reddit_config: configuration dictionary for Reddit API
         :type reddit_config: dict
+        :param subreddits_to_track: list of subreddit names to monitor
+        :type subreddits_to_track: list
         """
         super().__init__("reddit", parse_message_callback)
 

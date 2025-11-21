@@ -2,6 +2,8 @@
 
 from trackers.config import (
     PLATFORM_CONTEXT_FIELDS,
+    discord_config,
+    discord_guilds,
     reddit_config,
     reddit_subreddits,
     telegram_chats,
@@ -23,8 +25,63 @@ class TestTrackersConfig:
         }
         assert PLATFORM_CONTEXT_FIELDS == expected_fields
 
+    # discord_config
+    def test_trackers_config_discord_config_for_empty_environment_variables(
+        self, mocker
+    ):
+        mocker.patch("trackers.config.get_env_variable", return_value="")
+        result = discord_config()
+
+        expected_config = {
+            "bot_user_id": "",
+            "token": "",
+            "auto_discover_channels": True,
+            "excluded_channel_types": ["voice", "stage", "category"],
+            "excluded_channels": [],
+            "included_channels": [],
+        }
+        assert result == expected_config
+
+    def test_trackers_config_discord_config_functionality(self, mocker):
+        mock_getenv = mocker.patch("trackers.config.get_env_variable")
+        mock_getenv.side_effect = lambda key, default=None: {
+            "TRACKER_DISCORD_EXCLUDED_CHANNELS": "12345,6789",
+            "TRACKER_DISCORD_INCLUDED_CHANNELS": "1234567",
+            "TRACKER_DISCORD_BOT_ID": "bot_id",
+            "TRACKER_DISCORD_BOT_TOKEN": "bot_token",
+        }.get(key, default)
+
+        result = discord_config()
+
+        expected_config = {
+            "bot_user_id": "bot_id",
+            "token": "bot_token",
+            "auto_discover_channels": True,
+            "excluded_channel_types": ["voice", "stage", "category"],
+            "excluded_channels": [12345, 6789],
+            "included_channels": [1234567],
+        }
+        assert result == expected_config
+
+    # discord_guilds
+    def test_trackers_config_discord_guilds_functionality(self, mocker):
+        mock_getenv = mocker.patch("trackers.config.get_env_variable")
+        mock_getenv.return_value = "1, 2, 3"
+
+        result = discord_guilds()
+
+        expected_list = [1, 2, 3]
+        assert result == expected_list
+
+    def test_trackers_config_discord_guilds_empty(self, mocker):
+        mocker.patch("trackers.config.get_env_variable", return_value="")
+
+        result = discord_guilds()
+
+        assert result == []
+
     # reddit_config
-    def test_trackers_config_reddit_config_success(self, mocker):
+    def test_trackers_config_reddit_config_functionality(self, mocker):
         mock_getenv = mocker.patch("trackers.config.get_env_variable")
         mock_getenv.side_effect = lambda key, default=None: {
             "TRACKER_REDDIT_CLIENT_ID": "test_client",
@@ -51,8 +108,25 @@ class TestTrackersConfig:
         assert result["client_id"] == ""
         assert result["client_secret"] == ""
 
+    # reddit_subreddits
+    def test_trackers_config_reddit_subreddits_functionality(self, mocker):
+        mock_getenv = mocker.patch("trackers.config.get_env_variable")
+        mock_getenv.return_value = "python, test, learnprogramming"
+
+        result = reddit_subreddits()
+
+        expected_list = ["python", "test", "learnprogramming"]
+        assert result == expected_list
+
+    def test_trackers_config_reddit_subreddits_empty(self, mocker):
+        mocker.patch("trackers.config.get_env_variable", return_value="")
+
+        result = reddit_subreddits()
+
+        assert result == []
+
     # twitter_config
-    def test_trackers_config_twitter_config_success(self, mocker):
+    def test_trackers_config_twitter_config_functionality(self, mocker):
         mock_getenv = mocker.patch("trackers.config.get_env_variable")
         mock_getenv.side_effect = lambda key, default=None: {
             "TRACKER_TWITTER_BEARER_TOKEN": "test_bearer",
@@ -73,8 +147,25 @@ class TestTrackersConfig:
         }
         assert result == expected_config
 
+    # telegram_chats
+    def test_trackers_config_telegram_chats_functionality(self, mocker):
+        mock_getenv = mocker.patch("trackers.config.get_env_variable")
+        mock_getenv.return_value = "group1, group2, @channel1"
+
+        result = telegram_chats()
+
+        expected_list = ["group1", "group2", "@channel1"]
+        assert result == expected_list
+
+    def test_trackers_config_telegram_chats_empty(self, mocker):
+        mocker.patch("trackers.config.get_env_variable", return_value="")
+
+        result = telegram_chats()
+
+        assert result == []
+
     # telegram_config
-    def test_trackers_config_telegram_config_success(self, mocker):
+    def test_trackers_config_telegram_config_functionality(self, mocker):
         mock_getenv = mocker.patch("trackers.config.get_env_variable")
         mock_getenv.side_effect = lambda key, default=None: {
             "TRACKER_TELEGRAM_API_ID": "test_api_id",
@@ -92,37 +183,3 @@ class TestTrackersConfig:
             "bot_username": "testbot",  # Should be lowercased
         }
         assert result == expected_config
-
-    # reddit_subreddits
-    def test_trackers_config_reddit_subreddits_success(self, mocker):
-        mock_getenv = mocker.patch("trackers.config.get_env_variable")
-        mock_getenv.return_value = "python, test, learnprogramming"
-
-        result = reddit_subreddits()
-
-        expected_list = ["python", "test", "learnprogramming"]
-        assert result == expected_list
-
-    def test_trackers_config_reddit_subreddits_empty(self, mocker):
-        mocker.patch("trackers.config.get_env_variable", return_value="")
-
-        result = reddit_subreddits()
-
-        assert result == []
-
-    # telegram_chats
-    def test_trackers_config_telegram_chats_success(self, mocker):
-        mock_getenv = mocker.patch("trackers.config.get_env_variable")
-        mock_getenv.return_value = "group1, group2, @channel1"
-
-        result = telegram_chats()
-
-        expected_list = ["group1", "group2", "@channel1"]
-        assert result == expected_list
-
-    def test_trackers_config_telegram_chats_empty(self, mocker):
-        mocker.patch("trackers.config.get_env_variable", return_value="")
-
-        result = telegram_chats()
-
-        assert result == []

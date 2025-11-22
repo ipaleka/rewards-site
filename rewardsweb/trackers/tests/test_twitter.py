@@ -2,8 +2,6 @@
 
 from datetime import datetime
 
-import pytest
-
 from trackers.twitter import TwitterTracker
 
 
@@ -453,6 +451,34 @@ class TestTrackersTwitter:
         assert "timestamp" in result  # Should use current timestamp
         assert result["suggester"] == "suggester_user"
 
+    # # run
+    def test_trackers_twittertracker_run_wrapper_calls_base_run(
+        self, mocker, twitter_config
+    ):
+        mock_client = mocker.patch("tweepy.Client")
+        mock_user = mocker.MagicMock()
+        mock_user_data = mocker.MagicMock()
+        mock_user_data.id = "12345"
+        mock_user.data = mock_user_data
+        mock_client.return_value.get_me.return_value = mock_user
+
+        # Patch BaseMentionTracker.run so no real loop runs
+        mocked_base_run = mocker.patch("trackers.twitter.BaseMentionTracker.run")
+
+        # Create instance (MessageParser.parse mocked out)
+        tracker = TwitterTracker(
+            parse_message_callback=lambda x: x, twitter_config=twitter_config
+        )
+
+        # Call the wrapper
+        tracker.run(poll_interval_minutes=10, max_iterations=5)
+
+        # Ensure BaseMentionTracker.run was called once with correct args
+        mocked_base_run.assert_called_once_with(
+            poll_interval_minutes=10,
+            max_iterations=5,
+        )
+
     # check_mentions
     def test_trackers_twittertracker_check_mentions_found(self, mocker, twitter_config):
         mock_client = mocker.patch("tweepy.Client")
@@ -572,73 +598,6 @@ class TestTrackersTwitter:
         )
         mock_log_action.assert_called_with("twitter_check_error", "Error: API error")
 
-    # run method tests (keeping your existing run tests as they are comprehensive)
-    def test_trackers_twittertracker_run_success(self, mocker, twitter_config):
-        mock_client = mocker.patch("tweepy.Client")
-        mock_user = mocker.MagicMock()
-        mock_user_data = mocker.MagicMock()
-        mock_user_data.id = "12345"
-        mock_user.data = mock_user_data
-        mock_client.return_value.get_me.return_value = mock_user
-
-        instance = TwitterTracker(lambda x: None, twitter_config)
-
-        mock_check_mentions = mocker.patch.object(instance, "check_mentions")
-        mock_check_mentions.return_value = 0
-        mocker.patch("time.sleep", side_effect=StopIteration)
-        mock_log_action = mocker.patch.object(instance, "log_action")
-
-        try:
-            instance.run(poll_interval_minutes=0.1, max_iterations=1)
-        except StopIteration:
-            pass
-
-        mock_log_action.assert_any_call("started", "Poll interval: 0.1 minutes")
-
-    def test_trackers_twittertracker_run_keyboard_interrupt(
-        self, mocker, twitter_config
-    ):
-        mock_client = mocker.patch("tweepy.Client")
-        mock_user = mocker.MagicMock()
-        mock_user_data = mocker.MagicMock()
-        mock_user_data.id = "12345"
-        mock_user.data = mock_user_data
-        mock_client.return_value.get_me.return_value = mock_user
-
-        instance = TwitterTracker(lambda x: None, twitter_config)
-        instance.logger = mocker.MagicMock()
-
-        mocker.patch.object(instance, "check_mentions", return_value=0)
-        mocker.patch("time.sleep", side_effect=KeyboardInterrupt)
-        mock_log_action = mocker.patch.object(instance, "log_action")
-
-        instance.run(poll_interval_minutes=15, max_iterations=1)
-
-        instance.logger.info.assert_called_with("Twitter tracker stopped by user")
-        mock_log_action.assert_called_with("stopped", "User interrupt")
-
-    def test_trackers_twittertracker_run_exception(self, mocker, twitter_config):
-        mock_client = mocker.patch("tweepy.Client")
-        mock_user = mocker.MagicMock()
-        mock_user_data = mocker.MagicMock()
-        mock_user_data.id = "12345"
-        mock_user.data = mock_user_data
-        mock_client.return_value.get_me.return_value = mock_user
-
-        instance = TwitterTracker(lambda x: None, twitter_config)
-        instance.logger = mocker.MagicMock()
-
-        mocker.patch.object(
-            instance, "check_mentions", side_effect=Exception("Test error")
-        )
-        mock_log_action = mocker.patch.object(instance, "log_action")
-
-        with pytest.raises(Exception, match="Test error"):
-            instance.run(poll_interval_minutes=15, max_iterations=1)
-
-        instance.logger.error.assert_called_with("Twitter tracker error: Test error")
-        mock_log_action.assert_called_with("error", "Tracker error: Test error")
-
     def test_trackers_twittertracker_check_mentions_already_processed(
         self, mocker, twitter_config
     ):
@@ -723,30 +682,3 @@ class TestTrackersTwitter:
             pass
 
         mock_logger_info.assert_any_call("Found 5 new mentions")
-
-    def test_trackers_twittertracker_run_calls_cleanup(self, mocker, twitter_config):
-        """Test run method calls cleanup in finally block."""
-        mock_client = mocker.patch("tweepy.Client")
-        mock_user = mocker.MagicMock()
-        mock_user_data = mocker.MagicMock()
-        mock_user_data.id = "12345"
-        mock_user.data = mock_user_data
-        mock_client.return_value.get_me.return_value = mock_user
-
-        instance = TwitterTracker(lambda x: None, twitter_config)
-
-        # Mock check_mentions to return 0
-        mock_check_mentions = mocker.patch.object(instance, "check_mentions")
-        mock_check_mentions.return_value = 0
-
-        # Mock cleanup to verify it's called
-        mock_cleanup = mocker.patch.object(instance, "cleanup")
-
-        # Mock sleep to break after first iteration
-        mocker.patch("time.sleep")
-
-        # Run should call cleanup even when interrupted
-        instance.run(poll_interval_minutes=0.1, max_iterations=1)
-
-        # Verify cleanup was called
-        mock_cleanup.assert_called_once()

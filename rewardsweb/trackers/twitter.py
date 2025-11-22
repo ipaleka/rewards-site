@@ -1,6 +1,5 @@
 """Module containing class for tracking mentions on X/Twitter."""
 
-import time
 from datetime import datetime
 
 import tweepy
@@ -254,53 +253,17 @@ class TwitterTracker(BaseMentionTracker):
         return mention_count
 
     def run(self, poll_interval_minutes=15, max_iterations=None):
-        """Main run method for Twitter tracker.
+        """Run Twitter mentions tracker.
+
+        Uses the shared base tracker loop for polling and processing mentions.
 
         :param poll_interval_minutes: how often to check for mentions
-        :type poll_interval_minutes: int
-        :param max_iterations: maximum number of polls before stopping (None for infinite)
+        :type poll_interval_minutes: int or float
+        :param max_iterations: maximum number of polls before stopping
+                            (``None`` for infinite loop)
         :type max_iterations: int or None
-        :var iteration: current iteration count
-        :type iteration: int
-        :var mentions_found: number of mentions found in current poll
-        :type mentions_found: int
         """
-        self.logger.info(
-            f"Starting Twitter tracker with {poll_interval_minutes} minute intervals"
+        super().run(
+            poll_interval_minutes=poll_interval_minutes,
+            max_iterations=max_iterations,
         )
-        self.log_action("started", f"Poll interval: {poll_interval_minutes} minutes")
-
-        iteration = 0
-
-        try:
-            while max_iterations is None or iteration < max_iterations:
-                iteration += 1
-
-                self.logger.info(
-                    (
-                        f"Twitter poll #{iteration} at "
-                        f"{datetime.now().strftime('%Y-%m-%d %H:%M:%S')}"
-                    )
-                )
-
-                mentions_found = self.check_mentions()
-
-                if mentions_found > 0:
-                    self.logger.info(f"Found {mentions_found} new mentions")
-
-                self.logger.info(
-                    f"Twitter tracker sleeping for {poll_interval_minutes} minutes"
-                )
-                time.sleep(poll_interval_minutes * 60)
-
-        except KeyboardInterrupt:
-            self.logger.info("Twitter tracker stopped by user")
-            self.log_action("stopped", "User interrupt")
-
-        except Exception as e:
-            self.logger.error(f"Twitter tracker error: {e}")
-            self.log_action("error", f"Tracker error: {str(e)}")
-            raise
-
-        finally:
-            self.cleanup()

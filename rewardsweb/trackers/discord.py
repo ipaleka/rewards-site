@@ -170,26 +170,28 @@ class DiscordClientWrapper(IDiscordClientWrapper):
         return self._client.guilds
 
 
-class MultiGuildDiscordTracker(BaseMentionTracker):
+class DiscordTracker(BaseMentionTracker):
     """Discord tracker for multiple servers/guilds with automatic channel discovery.
 
-    :param MultiGuildDiscordTracker.client: Discord client wrapper instance
-    :type MultiGuildDiscordTracker.client: :class:`IDiscordClientWrapper`
-    :param MultiGuildDiscordTracker.bot_user_id: user ID of the bot account
-    :type MultiGuildDiscordTracker.bot_user_id: int
-    :param MultiGuildDiscordTracker.tracked_guilds: list of guild IDs to monitor
-    :type MultiGuildDiscordTracker.tracked_guilds: list
-    :param MultiGuildDiscordTracker.auto_discover_channels: whether to auto-discover channels
-    :type MultiGuildDiscordTracker.auto_discover_channels: bool
-    :param MultiGuildDiscordTracker.excluded_channel_types: channel types to exclude
-    :type MultiGuildDiscordTracker.excluded_channel_types: list
+    :param DiscordTracker.client: Discord client wrapper instance
+    :type DiscordTracker.client: :class:`IDiscordClientWrapper`
+    :param DiscordTracker.bot_user_id: user ID of the bot account
+    :type DiscordTracker.bot_user_id: int
+    :param DiscordTracker.token: Discord bot's token
+    :type DiscordTracker.token: str
+    :param DiscordTracker.tracked_guilds: list of guild IDs to monitor
+    :type DiscordTracker.tracked_guilds: list
+    :param DiscordTracker.auto_discover_channels: whether to auto-discover channels
+    :type DiscordTracker.auto_discover_channels: bool
+    :param DiscordTracker.excluded_channel_types: channel types to exclude
+    :type DiscordTracker.excluded_channel_types: list
     """
 
     def __init__(
         self,
         parse_message_callback,
         discord_config,
-        guild_list=None,
+        guilds_collection=None,
         client_wrapper=None,
     ):
         """Initialize multi-guild Discord tracker.
@@ -198,8 +200,8 @@ class MultiGuildDiscordTracker(BaseMentionTracker):
         :type parse_message_callback: callable
         :param discord_config: configuration dictionary for Discord API
         :type discord_config: dict
-        :param guild_list: list of guild IDs to monitor
-        :type guild_list: list
+        :param guilds_collection: list of guild IDs to monitor
+        :type guilds_collection: list
         :param client_wrapper: Discord client wrapper for testing
         :type client_wrapper: :class:`IDiscordClientWrapper` or None
         """
@@ -216,8 +218,9 @@ class MultiGuildDiscordTracker(BaseMentionTracker):
         self.client = client_wrapper or DiscordClientWrapper(intents)
 
         # Configuration
-        self.bot_user_id = discord_config["bot_user_id"]
-        self.tracked_guilds = guild_list or []
+        self.bot_user_id = discord_config.get("bot_user_id", "")
+        self.token = discord_config.get("token", "")
+        self.tracked_guilds = guilds_collection or []
         self.auto_discover_channels = discord_config.get("auto_discover_channels", True)
         self.excluded_channel_types = discord_config.get("excluded_channel_types", [])
         self.manually_excluded_channels = discord_config.get("excluded_channels", [])
@@ -236,10 +239,11 @@ class MultiGuildDiscordTracker(BaseMentionTracker):
         self.channel_discovery_interval = 300
 
         self.logger.info(
-            f"Multi-guild Discord tracker initialized for {len(guild_list) if guild_list else 'all'} guilds"
+            f"Multi-guild Discord tracker initialized for {len(guilds_collection) if guilds_collection else 'all'} guilds"
         )
         self.log_action(
-            "initialized", f"Tracking {len(guild_list) if guild_list else 'all'} guilds"
+            "initialized",
+            f"Tracking {len(guilds_collection) if guilds_collection else 'all'} guilds",
         )
 
         # Set up event handlers
@@ -798,11 +802,13 @@ class MultiGuildDiscordTracker(BaseMentionTracker):
                 total_mentions += result
         return total_mentions
 
-    async def run_continuous(self, token, historical_check_interval=300):
+    async def run_continuous(self, historical_check_interval=300):
         """Run Discord tracker in continuous mode with periodic historical checks.
 
-        :param token: Discord bot token
-        :type token: str
+        Registers signal handlers for graceful shutdown, starts the Discord client
+        and then runs the main loop until the client is closed or an interrupt is
+        received.
+
         :param historical_check_interval: how often to run historical checks (seconds)
         :type historical_check_interval: int
         :var last_historical_check: timestamp of last historical check
@@ -812,26 +818,35 @@ class MultiGuildDiscordTracker(BaseMentionTracker):
         :var mentions_found: number of mentions found in historical check
         :type mentions_found: int
         """
+        # Use base-class helpers for graceful shutdown
+        self._register_signal_handlers()
+
         self.logger.info("Starting multi-guild Discord tracker in continuous mode")
         self.log_action("started", "Continuous multi-guild mode")
 
         try:
-            await self.client.start(token)
+            await self.client.start(self.token)
             await self._run_main_loop(historical_check_interval)
 
         except KeyboardInterrupt:
             self.logger.info("Multi-guild Discord tracker stopped by user")
             self.log_action("stopped", "User interrupt")
+
         except Exception as e:
             self.logger.error(f"Multi-guild Discord tracker error: {e}")
             self.log_action("error", f"Tracker error: {str(e)}")
             raise
+
         finally:
             await self.client.close()
-            self.cleanup()
+            await asyncio.sleep(0)
+            await asyncio.to_thread(self.cleanup)
 
     async def _run_main_loop(self, historical_check_interval):
         """Run the main tracking loop.
+
+        Periodically performs channel discovery and historical checks while the
+        client is running and no graceful shutdown has been requested.
 
         :param historical_check_interval: interval for historical checks
         :type historical_check_interval: int
@@ -845,7 +860,7 @@ class MultiGuildDiscordTracker(BaseMentionTracker):
         last_historical_check = datetime.now()
         last_channel_discovery = datetime.now()
 
-        while not self.client.is_closed():
+        while not self.exit_signal and not self.client.is_closed():
             now = datetime.now()
 
             last_channel_discovery = await self._handle_periodic_tasks(
@@ -856,7 +871,30 @@ class MultiGuildDiscordTracker(BaseMentionTracker):
             )
             last_historical_check = now
 
-            await asyncio.sleep(10)
+            # Sleep in small async chunks so we can react to exit_signal
+            await self._async_interruptible_sleep(10)
+
+    async def _async_interruptible_sleep(self, seconds, step=1):
+        """Async sleep helper that respects exit_signal and client state.
+
+        Sleeps in small chunks so that the loop can exit promptly when
+        :pyattr:`BaseMentionTracker.exit_signal` is set or when the client closes.
+
+        :param seconds: total number of seconds to sleep
+        :type seconds: int
+        :param step: sleep chunk size in seconds
+        :type step: int
+        """
+        elapsed = 0
+        step = max(1, int(step))
+
+        while (
+            elapsed < seconds and not self.exit_signal and not self.client.is_closed()
+        ):
+            remaining = seconds - elapsed
+            sleep_for = min(step, remaining)
+            await asyncio.sleep(sleep_for)
+            elapsed += sleep_for
 
     async def _handle_periodic_tasks(
         self,

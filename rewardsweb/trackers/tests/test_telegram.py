@@ -1,7 +1,6 @@
 """Testing module for :py:mod:`trackers.telegram` module."""
 
 import asyncio
-from unittest import mock
 
 import pytest
 
@@ -223,6 +222,52 @@ class TestTrackersTelegram:
         assert result is None
         instance.logger.error.assert_called_once()
 
+    # # run
+    def test_trackers_telegramtracker_run_no_client(
+        self, mocker, telegram_config, telegram_chats
+    ):
+        """Test run method when client is None."""
+        # Mock TelegramClient
+        mocker.patch("trackers.telegram.TelegramClient")
+        instance = TelegramTracker(lambda x: None, telegram_config, telegram_chats)
+        instance.logger = mocker.MagicMock()
+
+        # Set client to None
+        instance.client = None
+
+        # Mock cleanup to ensure it's not called
+        mock_cleanup = mocker.patch.object(instance, "cleanup")
+
+        # Run should return early
+        instance.run(poll_interval_minutes=30, max_iterations=1)
+
+        # Should log error and return early
+        instance.logger.error.assert_called_with(
+            "Cannot start Telegram tracker - client not available"
+        )
+        # Cleanup should not be called when client is None
+        mock_cleanup.assert_not_called()
+
+    def test_trackers_telegramtracker_run_wrapper_calls_base_run(
+        self, mocker, telegram_config, telegram_chats
+    ):
+        mocker.patch("trackers.telegram.TelegramClient")
+        # Patch BaseMentionTracker.run so no real loop runs
+        mocked_base_run = mocker.patch("trackers.twitter.BaseMentionTracker.run")
+
+        # Create instance (MessageParser.parse mocked out)
+        tracker = TelegramTracker(lambda x: None, telegram_config, telegram_chats)
+
+        # Call the wrapper
+        tracker.run(poll_interval_minutes=10, max_iterations=5)
+
+        # Ensure BaseMentionTracker.run was called once with correct args
+        mocked_base_run.assert_called_once_with(
+            poll_interval_minutes=10,
+            max_iterations=5,
+        )
+
+    # # _check_chat_mentions
     @pytest.mark.asyncio
     async def test_trackers_telegramtracker_check_chat_mentions_no_chat(
         self, mocker, telegram_config, telegram_chats
@@ -303,68 +348,6 @@ class TestTrackersTelegram:
 
         assert result == 0
         instance.logger.error.assert_called_once()
-
-    def test_trackers_telegramtracker_run_success(
-        self, mocker, telegram_config, telegram_chats
-    ):
-        """Test run method successful execution."""
-        # Mock TelegramClient
-        mocker.patch("trackers.telegram.TelegramClient")
-        instance = TelegramTracker(lambda x: None, telegram_config, telegram_chats)
-
-        # Mock check_mentions to return actual integer
-        mocker.patch.object(instance, "check_mentions", return_value=0)
-        mocker.patch("time.sleep", side_effect=StopIteration)
-        mock_log_action = mocker.patch.object(instance, "log_action")
-
-        # Test run method
-        try:
-            instance.run(poll_interval_minutes=0.1, max_iterations=1)
-        except StopIteration:
-            pass
-
-        mock_log_action.assert_any_call("started", "Poll interval: 0.1 minutes")
-
-    def test_trackers_telegramtracker_run_keyboard_interrupt(
-        self, mocker, telegram_config, telegram_chats
-    ):
-        """Test run method KeyboardInterrupt handling."""
-        # Mock TelegramClient
-        mocker.patch("trackers.telegram.TelegramClient")
-        instance = TelegramTracker(lambda x: None, telegram_config, telegram_chats)
-        instance.logger = mocker.MagicMock()
-
-        # Mock check_mentions to return actual integer
-        mocker.patch.object(instance, "check_mentions", return_value=0)
-        mocker.patch("time.sleep", side_effect=KeyboardInterrupt)
-        mock_log_action = mocker.patch.object(instance, "log_action")
-
-        # Test KeyboardInterrupt handling
-        instance.run(poll_interval_minutes=30, max_iterations=1)
-
-        instance.logger.info.assert_called_with("Telegram tracker stopped by user")
-        mock_log_action.assert_called_with("stopped", "User interrupt")
-
-    def test_trackers_telegramtracker_run_exception(
-        self, mocker, telegram_config, telegram_chats
-    ):
-        """Test run method exception handling."""
-        # Mock TelegramClient
-        mocker.patch("trackers.telegram.TelegramClient")
-        instance = TelegramTracker(lambda x: None, telegram_config, telegram_chats)
-        instance.logger = mocker.MagicMock()
-
-        mocker.patch.object(
-            instance, "check_mentions", side_effect=Exception("Test error")
-        )
-        mock_log_action = mocker.patch.object(instance, "log_action")
-
-        # Test exception handling
-        with pytest.raises(Exception, match="Test error"):
-            instance.run(poll_interval_minutes=30, max_iterations=1)
-
-        instance.logger.error.assert_called_with("Telegram tracker error: Test error")
-        mock_log_action.assert_called_with("error", "Tracker error: Test error")
 
     @pytest.mark.asyncio
     async def test_trackers_telegramtracker_check_chat_mentions_condition_not_met(
@@ -673,31 +656,6 @@ class TestTrackersTelegram:
         mock_process_mention.assert_not_called()
         mock_is_processed.assert_not_called()
 
-    def test_trackers_telegramtracker_run_no_client(
-        self, mocker, telegram_config, telegram_chats
-    ):
-        """Test run method when client is None."""
-        # Mock TelegramClient
-        mocker.patch("trackers.telegram.TelegramClient")
-        instance = TelegramTracker(lambda x: None, telegram_config, telegram_chats)
-        instance.logger = mocker.MagicMock()
-
-        # Set client to None
-        instance.client = None
-
-        # Mock cleanup to ensure it's not called
-        mock_cleanup = mocker.patch.object(instance, "cleanup")
-
-        # Run should return early
-        instance.run(poll_interval_minutes=30, max_iterations=1)
-
-        # Should log error and return early
-        instance.logger.error.assert_called_with(
-            "Cannot start Telegram tracker - client not available"
-        )
-        # Cleanup should not be called when client is None
-        mock_cleanup.assert_not_called()
-
     def test_trackers_telegramtracker_run_mentions_found_logging(
         self, mocker, telegram_config, telegram_chats
     ):
@@ -719,28 +677,6 @@ class TestTrackersTelegram:
 
         # Should log that mentions were found
         instance.logger.info.assert_any_call("Found 5 new mentions")
-
-    def test_trackers_telegramtracker_run_calls_cleanup(
-        self, mocker, telegram_config, telegram_chats
-    ):
-        # Mock TelegramClient
-        # Mock TelegramClient
-        mocker.patch("trackers.telegram.TelegramClient")
-        mocker.patch.object(TelegramTracker, "setup_database")
-        mocker.patch.object(TelegramTracker, "log_action")
-        mocker.patch.object(TelegramTracker, "check_mentions", return_value=0)
-
-        instance = TelegramTracker(lambda x: None, telegram_config, telegram_chats)
-        instance.logger = mocker.MagicMock()
-
-        # Mock cleanup to ensure it's not called
-        mock_cleanup = mocker.patch.object(instance, "cleanup")
-
-        with mock.patch("time.sleep"):
-            instance.run(poll_interval_minutes=30, max_iterations=3)
-
-        # Cleanup should not be called when client is None
-        mock_cleanup.assert_called_once_with()
 
     @pytest.mark.asyncio
     async def test_trackers_telegramtracker_get_sender_info_success(

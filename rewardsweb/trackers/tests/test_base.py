@@ -1,5 +1,6 @@
 """Testing module for :py:mod:`trackers.base` module."""
 
+import signal
 from unittest import mock
 
 import pytest
@@ -357,6 +358,79 @@ class TestTrackersBaseMentionTracker:
             timeout=30,
         )
 
+    # _exit_gracefully
+    def test_base_basementiontracker_exit_gracefully_sets_flag_and_logs(self, mocker):
+        """Test that _exit_gracefully sets exit_signal=True and logs the event."""
+
+        mocker.patch.object(BaseMentionTracker, "setup_logging")
+        mocker.patch.object(BaseMentionTracker, "setup_database")
+
+        instance = BaseMentionTracker("test_platform", lambda x: None)
+        instance.logger = mocker.MagicMock()
+        instance.exit_signal = False
+
+        instance._exit_gracefully(signum=15, frame=None)
+
+        assert instance.exit_signal is True
+        instance.logger.info.assert_called_once_with(
+            "test_platform tracker exit signal received (15)"
+        )
+
+    # _register_signal_handlers
+    def test_base_basementiontracker_register_signal_handlers(self, mocker):
+        """Test that _register_signal_handlers binds SIGINT and SIGTERM."""
+
+        mocker.patch.object(BaseMentionTracker, "setup_logging")
+        mocker.patch.object(BaseMentionTracker, "setup_database")
+
+        instance = BaseMentionTracker("test_platform", lambda x: None)
+
+        mock_signal = mocker.patch("signal.signal")
+
+        instance._register_signal_handlers()
+
+        assert mock_signal.call_count == 2
+        mock_signal.assert_any_call(signal.SIGINT, instance._exit_gracefully)
+        mock_signal.assert_any_call(signal.SIGTERM, instance._exit_gracefully)
+
+    # _interruptible_sleep
+    def test_base_basementiontracker_interruptible_sleep_respects_exit_signal(
+        self, mocker
+    ):
+        """Test interruptible sleep exits early when exit_signal is set."""
+
+        mocker.patch.object(BaseMentionTracker, "setup_logging")
+        mocker.patch.object(BaseMentionTracker, "setup_database")
+
+        instance = BaseMentionTracker("test_platform", lambda x: None)
+
+        mock_sleep = mocker.patch("time.sleep")
+
+        # Set exit_signal to True after the first iteration
+        def sleep_side_effect(_):
+            instance.exit_signal = True
+
+        mock_sleep.side_effect = sleep_side_effect
+
+        instance._interruptible_sleep(5)
+
+        # Should call sleep only once because exit_signal becomes True
+        assert mock_sleep.call_count == 1
+
+    def test_base_basementiontracker_interruptible_sleep_normal_exit(self, mocker):
+        """Test interruptible sleep normal exit."""
+
+        mocker.patch.object(BaseMentionTracker, "setup_logging")
+        mocker.patch.object(BaseMentionTracker, "setup_database")
+
+        instance = BaseMentionTracker("test_platform", lambda x: None)
+
+        mock_sleep = mocker.patch("time.sleep")
+        instance._interruptible_sleep(5)
+
+        # Should call sleep only once because exit_signal becomes True
+        assert mock_sleep.call_count == 5
+
     # check_mentions
     def test_base_basementiontracker_check_mentions_not_implemented(self, mocker):
         mocker.patch.object(BaseMentionTracker, "setup_logging")
@@ -367,14 +441,103 @@ class TestTrackersBaseMentionTracker:
             instance.check_mentions()
 
     # run
-    def test_base_basementiontracker_run_not_implemented(self, mocker):
+    def test_base_basementiontracker_run_success(self, mocker):
+        """Test successful run loop with multiple iterations."""
+        # Prevent real setup side effects
         mocker.patch.object(BaseMentionTracker, "setup_logging")
         mocker.patch.object(BaseMentionTracker, "setup_database")
 
         instance = BaseMentionTracker("test_platform", lambda x: None)
+        instance.logger = mocker.MagicMock()
 
-        with pytest.raises(NotImplementedError):
-            instance.run()
+        # Mock helpers
+        mock_register_signals = mocker.patch.object(
+            instance, "_register_signal_handlers"
+        )
+        mock_check_mentions = mocker.patch.object(instance, "check_mentions")
+        mock_check_mentions.return_value = 0  # no mentions found
+        mock_sleep = mocker.patch.object(instance, "_interruptible_sleep")
+        mock_log_action = mocker.patch.object(instance, "log_action")
+        mock_cleanup = mocker.patch.object(instance, "cleanup")
+
+        # Run for exactly 2 iterations
+        instance.run(poll_interval_minutes=0.1, max_iterations=2)
+
+        assert mock_register_signals.call_count == 1
+        assert mock_check_mentions.call_count == 2
+        assert mock_sleep.call_count == 2
+        mock_log_action.assert_any_call("started", "Poll interval: 0.1 minutes")
+        mock_cleanup.assert_called_once()
+
+    def test_base_basementiontracker_run_keyboard_interrupt(self, mocker):
+        """Test run loop handling of KeyboardInterrupt during sleep."""
+        mocker.patch.object(BaseMentionTracker, "setup_logging")
+        mocker.patch.object(BaseMentionTracker, "setup_database")
+
+        instance = BaseMentionTracker("test_platform", lambda x: None)
+        instance.logger = mocker.MagicMock()
+
+        mocker.patch.object(instance, "_register_signal_handlers")
+        mock_check_mentions = mocker.patch.object(instance, "check_mentions")
+        mock_check_mentions.return_value = 0
+
+        mock_sleep = mocker.patch.object(instance, "_interruptible_sleep")
+        mock_sleep.side_effect = KeyboardInterrupt
+
+        mock_log_action = mocker.patch.object(instance, "log_action")
+
+        instance.run(poll_interval_minutes=30, max_iterations=5)
+
+        instance.logger.info.assert_called_with("test_platform tracker stopped by user")
+        mock_log_action.assert_called_with("stopped", "User interrupt")
+
+    def test_base_basementiontracker_run_exception(self, mocker):
+        """Test run loop logging and re-raising unexpected exceptions."""
+        mocker.patch.object(BaseMentionTracker, "setup_logging")
+        mocker.patch.object(BaseMentionTracker, "setup_database")
+
+        instance = BaseMentionTracker("test_platform", lambda x: None)
+        instance.logger = mocker.MagicMock()
+
+        mocker.patch.object(instance, "_register_signal_handlers")
+        mock_check_mentions = mocker.patch.object(instance, "check_mentions")
+        mock_check_mentions.side_effect = Exception("Test error")
+
+        mock_log_action = mocker.patch.object(instance, "log_action")
+        mock_cleanup = mocker.patch.object(instance, "cleanup")
+
+        with pytest.raises(Exception, match="Test error"):
+            instance.run(poll_interval_minutes=30, max_iterations=1)
+
+        instance.logger.error.assert_called_with(
+            "test_platform tracker error: Test error"
+        )
+        mock_log_action.assert_called_with("error", "Tracker error: Test error")
+        mock_cleanup.assert_called_once()
+
+    def test_base_basementiontracker_run_mentions_found_logging(self, mocker):
+        """Test run loop logging when mentions are found."""
+        mocker.patch.object(BaseMentionTracker, "setup_logging")
+        mocker.patch.object(BaseMentionTracker, "setup_database")
+        mocker.patch.object(BaseMentionTracker, "log_action")
+
+        instance = BaseMentionTracker("test_platform", lambda x: None)
+        instance.logger = mocker.MagicMock()
+
+        mocker.patch.object(instance, "_register_signal_handlers")
+        mock_check_mentions = mocker.patch.object(instance, "check_mentions")
+        mock_check_mentions.return_value = 3  # mentions_found > 0
+
+        mock_sleep = mocker.patch.object(instance, "_interruptible_sleep")
+
+        # Run a single iteration
+        instance.run(poll_interval_minutes=0.1, max_iterations=1)
+
+        # Sleep should be called once
+        mock_sleep.assert_called_once()
+
+        # Verify logger.info was called for mentions_found > 0
+        instance.logger.info.assert_any_call("Found 3 new mentions")
 
     # cleanup
     def test_base_basementiontracker_cleanup_with_db(self, mocker):

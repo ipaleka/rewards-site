@@ -8,8 +8,8 @@ import pytest
 
 from trackers.discord import (
     DiscordClientWrapper,
+    DiscordTracker,
     IDiscordClientWrapper,
-    MultiGuildDiscordTracker,
 )
 
 
@@ -411,8 +411,8 @@ class TestDiscordClientWrapper:
         wrapper._client.is_closed.assert_called_once()
 
 
-class TestMultiGuildDiscordTracker:
-    """Testing class for :class:`trackers.discord.MultiGuildDiscordTracker`."""
+class TestDiscordTracker:
+    """Testing class for :class:`trackers.discord.DiscordTracker`."""
 
     # Fixtures
     @pytest.fixture
@@ -428,7 +428,7 @@ class TestMultiGuildDiscordTracker:
         }
 
     @pytest.fixture
-    def guild_list(self):
+    def guilds_collection(self):
         """Provide guild list."""
         return [111111111111111111, 222222222222222222]
 
@@ -477,50 +477,53 @@ class TestMultiGuildDiscordTracker:
         return channel
 
     # Initialization tests
-    def test_trackers_discord_init_with_guild_list(
-        self, discord_config, guild_list, mock_client_wrapper
+    def test_trackers_discord_init_with_guilds_collection(
+        self, discord_config, guilds_collection, mock_client_wrapper
     ):
         """Test initialization with guild list and custom client wrapper."""
-        instance = MultiGuildDiscordTracker(
+        instance = DiscordTracker(
             lambda x: None,
             discord_config,
-            guild_list,
+            guilds_collection,
             client_wrapper=mock_client_wrapper,
         )
 
         assert instance.bot_user_id == 123456789012345678
-        assert instance.tracked_guilds == guild_list
+        assert instance.token == "test_token"
+        assert instance.tracked_guilds == guilds_collection
         assert instance.auto_discover_channels is True
         assert instance.excluded_channel_types == ["voice", "stage"]
         assert instance.client == mock_client_wrapper
 
-    def test_trackers_discord_init_without_guild_list(
+    def test_trackers_discord_init_without_guilds_collection(
         self, discord_config, mock_client_wrapper
     ):
         """Test initialization without guild list."""
-        instance = MultiGuildDiscordTracker(
+        instance = DiscordTracker(
             lambda x: None, discord_config, client_wrapper=mock_client_wrapper
         )
 
         assert instance.tracked_guilds == []
         assert instance.auto_discover_channels is True
 
-    def test_trackers_discord_init_default_client(self, discord_config, guild_list):
+    def test_trackers_discord_init_default_client(
+        self, discord_config, guilds_collection
+    ):
         """Test initialization with default client wrapper."""
-        instance = MultiGuildDiscordTracker(lambda x: None, discord_config, guild_list)
+        instance = DiscordTracker(lambda x: None, discord_config, guilds_collection)
 
         assert instance.client is not None
         assert isinstance(instance.client, DiscordClientWrapper)
 
     # Event handler tests
     def test_trackers_discord_setup_events(
-        self, discord_config, guild_list, mock_client_wrapper
+        self, discord_config, guilds_collection, mock_client_wrapper
     ):
         """Test _setup_events method."""
-        instance = MultiGuildDiscordTracker(
+        instance = DiscordTracker(
             lambda x: None,
             discord_config,
-            guild_list,
+            guilds_collection,
             client_wrapper=mock_client_wrapper,
         )
 
@@ -536,13 +539,13 @@ class TestMultiGuildDiscordTracker:
 
     @pytest.mark.asyncio
     async def test_trackers_discord_on_ready(
-        self, discord_config, guild_list, mock_client_wrapper
+        self, discord_config, guilds_collection, mock_client_wrapper
     ):
         """Test _on_ready event handler."""
-        instance = MultiGuildDiscordTracker(
+        instance = DiscordTracker(
             lambda x: None,
             discord_config,
-            guild_list,
+            guilds_collection,
             client_wrapper=mock_client_wrapper,
         )
 
@@ -588,13 +591,13 @@ class TestMultiGuildDiscordTracker:
 
     @pytest.mark.asyncio
     async def test_trackers_discord_on_message(
-        self, discord_config, guild_list, mock_client_wrapper, mock_message
+        self, discord_config, guilds_collection, mock_client_wrapper, mock_message
     ):
         """Test _on_message event handler."""
-        instance = MultiGuildDiscordTracker(
+        instance = DiscordTracker(
             lambda x: None,
             discord_config,
-            guild_list,
+            guilds_collection,
             client_wrapper=mock_client_wrapper,
         )
 
@@ -607,13 +610,13 @@ class TestMultiGuildDiscordTracker:
 
     @pytest.mark.asyncio
     async def test_trackers_discord_on_guild_join(
-        self, discord_config, guild_list, mock_client_wrapper, mock_guild
+        self, discord_config, guilds_collection, mock_client_wrapper, mock_guild
     ):
         """Test _on_guild_join event handler."""
-        instance = MultiGuildDiscordTracker(
+        instance = DiscordTracker(
             lambda x: None,
             discord_config,
-            guild_list,
+            guilds_collection,
             client_wrapper=mock_client_wrapper,
         )
 
@@ -636,13 +639,13 @@ class TestMultiGuildDiscordTracker:
 
     @pytest.mark.asyncio
     async def test_trackers_discord_on_guild_remove(
-        self, discord_config, guild_list, mock_client_wrapper, mock_guild
+        self, discord_config, guilds_collection, mock_client_wrapper, mock_guild
     ):
         """Test _on_guild_remove event handler."""
-        instance = MultiGuildDiscordTracker(
+        instance = DiscordTracker(
             lambda x: None,
             discord_config,
-            guild_list,
+            guilds_collection,
             client_wrapper=mock_client_wrapper,
         )
 
@@ -668,13 +671,13 @@ class TestMultiGuildDiscordTracker:
 
     # Guild and channel management tests
     def test_trackers_discord_remove_guild_from_tracking(
-        self, discord_config, guild_list, mock_client_wrapper
+        self, discord_config, guilds_collection, mock_client_wrapper
     ):
         """Test _remove_guild_from_tracking method."""
-        instance = MultiGuildDiscordTracker(
+        instance = DiscordTracker(
             lambda x: None,
             discord_config,
-            guild_list,
+            guilds_collection,
             client_wrapper=mock_client_wrapper,
         )
 
@@ -695,13 +698,13 @@ class TestMultiGuildDiscordTracker:
         assert len(instance.all_tracked_channels) == initial_channel_count - 1
 
     def test_trackers_discord_remove_guild_from_tracking_not_present(
-        self, discord_config, guild_list, mock_client_wrapper
+        self, discord_config, guilds_collection, mock_client_wrapper
     ):
         """Test _remove_guild_from_tracking when guild not in tracking."""
-        instance = MultiGuildDiscordTracker(
+        instance = DiscordTracker(
             lambda x: None,
             discord_config,
-            guild_list,
+            guilds_collection,
             client_wrapper=mock_client_wrapper,
         )
 
@@ -722,13 +725,13 @@ class TestMultiGuildDiscordTracker:
     # Update the test that uses the old get_guild pattern
 
     def test_trackers_discord_get_guilds_to_process_specific_guilds(
-        self, discord_config, guild_list, mock_client_wrapper
+        self, discord_config, guilds_collection, mock_client_wrapper
     ):
         """Test _get_guilds_to_process with specific guild list."""
-        instance = MultiGuildDiscordTracker(
+        instance = DiscordTracker(
             lambda x: None,
             discord_config,
-            guild_list,
+            guilds_collection,
             client_wrapper=mock_client_wrapper,
         )
 
@@ -753,7 +756,7 @@ class TestMultiGuildDiscordTracker:
         self, discord_config, mock_client_wrapper
     ):
         """Test _get_guilds_to_process without specific guild list."""
-        instance = MultiGuildDiscordTracker(
+        instance = DiscordTracker(
             lambda x: None, discord_config, client_wrapper=mock_client_wrapper
         )
 
@@ -769,13 +772,13 @@ class TestMultiGuildDiscordTracker:
 
     # Channel trackability tests
     def test_trackers_discord_is_channel_trackable_manually_included(
-        self, discord_config, guild_list, mock_client_wrapper
+        self, discord_config, guilds_collection, mock_client_wrapper
     ):
         """Test _is_channel_trackable with manually included channel."""
-        instance = MultiGuildDiscordTracker(
+        instance = DiscordTracker(
             lambda x: None,
             discord_config,
-            guild_list,
+            guilds_collection,
             client_wrapper=mock_client_wrapper,
         )
 
@@ -788,13 +791,13 @@ class TestMultiGuildDiscordTracker:
         assert result is True
 
     def test_trackers_discord_is_channel_trackable_manually_excluded(
-        self, discord_config, guild_list, mock_client_wrapper
+        self, discord_config, guilds_collection, mock_client_wrapper
     ):
         """Test _is_channel_trackable with manually excluded channel."""
-        instance = MultiGuildDiscordTracker(
+        instance = DiscordTracker(
             lambda x: None,
             discord_config,
-            guild_list,
+            guilds_collection,
             client_wrapper=mock_client_wrapper,
         )
 
@@ -807,13 +810,13 @@ class TestMultiGuildDiscordTracker:
         assert result is False
 
     def test_trackers_discord_is_channel_trackable_excluded_type(
-        self, discord_config, guild_list, mock_client_wrapper
+        self, discord_config, guilds_collection, mock_client_wrapper
     ):
         """Test _is_channel_trackable with excluded channel type."""
-        instance = MultiGuildDiscordTracker(
+        instance = DiscordTracker(
             lambda x: None,
             discord_config,
-            guild_list,
+            guilds_collection,
             client_wrapper=mock_client_wrapper,
         )
 
@@ -827,13 +830,13 @@ class TestMultiGuildDiscordTracker:
         assert result is False
 
     def test_trackers_discord_is_channel_trackable_no_permissions(
-        self, discord_config, guild_list, mock_client_wrapper
+        self, discord_config, guilds_collection, mock_client_wrapper
     ):
         """Test _is_channel_trackable without permissions."""
-        instance = MultiGuildDiscordTracker(
+        instance = DiscordTracker(
             lambda x: None,
             discord_config,
-            guild_list,
+            guilds_collection,
             client_wrapper=mock_client_wrapper,
         )
 
@@ -858,13 +861,13 @@ class TestMultiGuildDiscordTracker:
         mock_channel.permissions_for.assert_called_once_with(mock_bot_member)
 
     def test_trackers_discord_is_channel_trackable_no_bot_member(
-        self, discord_config, guild_list, mock_client_wrapper
+        self, discord_config, guilds_collection, mock_client_wrapper
     ):
         """Test _is_channel_trackable when bot member not found."""
-        instance = MultiGuildDiscordTracker(
+        instance = DiscordTracker(
             lambda x: None,
             discord_config,
-            guild_list,
+            guilds_collection,
             client_wrapper=mock_client_wrapper,
         )
 
@@ -883,13 +886,13 @@ class TestMultiGuildDiscordTracker:
         assert result is False
 
     def test_trackers_discord_is_channel_trackable_permission_exception(
-        self, discord_config, guild_list, mock_client_wrapper
+        self, discord_config, guilds_collection, mock_client_wrapper
     ):
         """Test _is_channel_trackable when permission check raises exception."""
-        instance = MultiGuildDiscordTracker(
+        instance = DiscordTracker(
             lambda x: None,
             discord_config,
-            guild_list,
+            guilds_collection,
             client_wrapper=mock_client_wrapper,
         )
 
@@ -906,13 +909,13 @@ class TestMultiGuildDiscordTracker:
         assert result is False
 
     def test_trackers_discord_is_channel_trackable_no_permission_method(
-        self, discord_config, guild_list, mock_client_wrapper
+        self, discord_config, guilds_collection, mock_client_wrapper
     ):
         """Test _is_channel_trackable with channel that has no permissions_for."""
-        instance = MultiGuildDiscordTracker(
+        instance = DiscordTracker(
             lambda x: None,
             discord_config,
-            guild_list,
+            guilds_collection,
             client_wrapper=mock_client_wrapper,
         )
 
@@ -928,13 +931,13 @@ class TestMultiGuildDiscordTracker:
         assert result is True
 
     def test_trackers_discord_has_channel_permission_success(
-        self, discord_config, guild_list, mock_client_wrapper
+        self, discord_config, guilds_collection, mock_client_wrapper
     ):
         """Test _has_channel_permission with successful permission check."""
-        instance = MultiGuildDiscordTracker(
+        instance = DiscordTracker(
             lambda x: None,
             discord_config,
-            guild_list,
+            guilds_collection,
             client_wrapper=mock_client_wrapper,
         )
 
@@ -957,13 +960,13 @@ class TestMultiGuildDiscordTracker:
 
     # Message processing tests
     def test_trackers_discord_should_process_message_bot_message(
-        self, discord_config, guild_list, mock_client_wrapper, mock_message
+        self, discord_config, guilds_collection, mock_client_wrapper, mock_message
     ):
         """Test _should_process_message with bot message."""
-        instance = MultiGuildDiscordTracker(
+        instance = DiscordTracker(
             lambda x: None,
             discord_config,
-            guild_list,
+            guilds_collection,
             client_wrapper=mock_client_wrapper,
         )
 
@@ -974,13 +977,13 @@ class TestMultiGuildDiscordTracker:
         assert result is False
 
     def test_trackers_discord_should_process_message_direct_message(
-        self, discord_config, guild_list, mock_client_wrapper, mock_message
+        self, discord_config, guilds_collection, mock_client_wrapper, mock_message
     ):
         """Test _should_process_message with direct message."""
-        instance = MultiGuildDiscordTracker(
+        instance = DiscordTracker(
             lambda x: None,
             discord_config,
-            guild_list,
+            guilds_collection,
             client_wrapper=mock_client_wrapper,
         )
 
@@ -991,13 +994,13 @@ class TestMultiGuildDiscordTracker:
         assert result is False
 
     def test_trackers_discord_should_process_message_untracked_guild(
-        self, discord_config, guild_list, mock_client_wrapper, mock_message
+        self, discord_config, guilds_collection, mock_client_wrapper, mock_message
     ):
         """Test _should_process_message from untracked guild."""
-        instance = MultiGuildDiscordTracker(
+        instance = DiscordTracker(
             lambda x: None,
             discord_config,
-            guild_list,
+            guilds_collection,
             client_wrapper=mock_client_wrapper,
         )
 
@@ -1008,13 +1011,13 @@ class TestMultiGuildDiscordTracker:
         assert result is False
 
     def test_trackers_discord_should_process_message_untracked_channel(
-        self, discord_config, guild_list, mock_client_wrapper, mock_message
+        self, discord_config, guilds_collection, mock_client_wrapper, mock_message
     ):
         """Test _should_process_message from untracked channel."""
-        instance = MultiGuildDiscordTracker(
+        instance = DiscordTracker(
             lambda x: None,
             discord_config,
-            guild_list,
+            guilds_collection,
             client_wrapper=mock_client_wrapper,
         )
 
@@ -1025,13 +1028,13 @@ class TestMultiGuildDiscordTracker:
         assert result is False
 
     def test_trackers_discord_should_process_message_no_mention(
-        self, discord_config, guild_list, mock_client_wrapper, mock_message
+        self, discord_config, guilds_collection, mock_client_wrapper, mock_message
     ):
         """Test _should_process_message without bot mention."""
-        instance = MultiGuildDiscordTracker(
+        instance = DiscordTracker(
             lambda x: None,
             discord_config,
-            guild_list,
+            guilds_collection,
             client_wrapper=mock_client_wrapper,
         )
 
@@ -1044,13 +1047,13 @@ class TestMultiGuildDiscordTracker:
         assert result is False
 
     def test_trackers_discord_should_process_message_success(
-        self, discord_config, guild_list, mock_client_wrapper, mock_message
+        self, discord_config, guilds_collection, mock_client_wrapper, mock_message
     ):
         """Test _should_process_message with valid conditions."""
-        instance = MultiGuildDiscordTracker(
+        instance = DiscordTracker(
             lambda x: None,
             discord_config,
-            guild_list,
+            guilds_collection,
             client_wrapper=mock_client_wrapper,
         )
 
@@ -1061,13 +1064,13 @@ class TestMultiGuildDiscordTracker:
         assert result is True
 
     def test_trackers_discord_is_bot_mentioned_user_mention(
-        self, discord_config, guild_list, mock_client_wrapper, mock_message
+        self, discord_config, guilds_collection, mock_client_wrapper, mock_message
     ):
         """Test _is_bot_mentioned with user mention."""
-        instance = MultiGuildDiscordTracker(
+        instance = DiscordTracker(
             lambda x: None,
             discord_config,
-            guild_list,
+            guilds_collection,
             client_wrapper=mock_client_wrapper,
         )
 
@@ -1081,13 +1084,13 @@ class TestMultiGuildDiscordTracker:
         assert result is True
 
     def test_trackers_discord_is_bot_mentioned_string_mention(
-        self, discord_config, guild_list, mock_client_wrapper, mock_message
+        self, discord_config, guilds_collection, mock_client_wrapper, mock_message
     ):
         """Test _is_bot_mentioned with string mention."""
-        instance = MultiGuildDiscordTracker(
+        instance = DiscordTracker(
             lambda x: None,
             discord_config,
-            guild_list,
+            guilds_collection,
             client_wrapper=mock_client_wrapper,
         )
 
@@ -1099,13 +1102,13 @@ class TestMultiGuildDiscordTracker:
         assert result is True
 
     def test_trackers_discord_is_bot_mentioned_no_mention(
-        self, discord_config, guild_list, mock_client_wrapper, mock_message
+        self, discord_config, guilds_collection, mock_client_wrapper, mock_message
     ):
         """Test _is_bot_mentioned without mention."""
-        instance = MultiGuildDiscordTracker(
+        instance = DiscordTracker(
             lambda x: None,
             discord_config,
-            guild_list,
+            guilds_collection,
             client_wrapper=mock_client_wrapper,
         )
 
@@ -1118,13 +1121,13 @@ class TestMultiGuildDiscordTracker:
 
     @pytest.mark.asyncio
     async def test_trackers_discord_handle_new_message_success(
-        self, discord_config, guild_list, mock_client_wrapper, mock_message
+        self, discord_config, guilds_collection, mock_client_wrapper, mock_message
     ):
         """Test _handle_new_message successful processing."""
-        instance = MultiGuildDiscordTracker(
+        instance = DiscordTracker(
             lambda x: None,
             discord_config,
-            guild_list,
+            guilds_collection,
             client_wrapper=mock_client_wrapper,
         )
 
@@ -1148,13 +1151,13 @@ class TestMultiGuildDiscordTracker:
 
     @pytest.mark.asyncio
     async def test_trackers_discord_handle_new_message_already_processed(
-        self, discord_config, guild_list, mock_client_wrapper, mock_message
+        self, discord_config, guilds_collection, mock_client_wrapper, mock_message
     ):
         """Test _handle_new_message with already processed message."""
-        instance = MultiGuildDiscordTracker(
+        instance = DiscordTracker(
             lambda x: None,
             discord_config,
-            guild_list,
+            guilds_collection,
             client_wrapper=mock_client_wrapper,
         )
 
@@ -1178,13 +1181,13 @@ class TestMultiGuildDiscordTracker:
 
     @pytest.mark.asyncio
     async def test_trackers_discord_handle_new_message_process_mention_false(
-        self, discord_config, guild_list, mock_client_wrapper, mock_message
+        self, discord_config, guilds_collection, mock_client_wrapper, mock_message
     ):
         """Test _handle_new_message when process_mention returns False."""
-        instance = MultiGuildDiscordTracker(
+        instance = DiscordTracker(
             lambda x: None,
             discord_config,
-            guild_list,
+            guilds_collection,
             client_wrapper=mock_client_wrapper,
         )
 
@@ -1208,13 +1211,13 @@ class TestMultiGuildDiscordTracker:
     # Extract mention data tests
     @pytest.mark.asyncio
     async def test_trackers_discord_extract_mention_data_with_reply(
-        self, discord_config, guild_list, mock_client_wrapper, mock_message
+        self, discord_config, guilds_collection, mock_client_wrapper, mock_message
     ):
         """Test extract_mention_data with message reply."""
-        instance = MultiGuildDiscordTracker(
+        instance = DiscordTracker(
             lambda x: None,
             discord_config,
-            guild_list,
+            guilds_collection,
             client_wrapper=mock_client_wrapper,
         )
 
@@ -1238,13 +1241,13 @@ class TestMultiGuildDiscordTracker:
 
     @pytest.mark.asyncio
     async def test_trackers_discord_extract_mention_data_no_reply(
-        self, discord_config, guild_list, mock_client_wrapper, mock_message
+        self, discord_config, guilds_collection, mock_client_wrapper, mock_message
     ):
         """Test extract_mention_data without reply."""
-        instance = MultiGuildDiscordTracker(
+        instance = DiscordTracker(
             lambda x: None,
             discord_config,
-            guild_list,
+            guilds_collection,
             client_wrapper=mock_client_wrapper,
         )
 
@@ -1258,13 +1261,13 @@ class TestMultiGuildDiscordTracker:
 
     @pytest.mark.asyncio
     async def test_trackers_discord_extract_mention_data_reply_no_jump_url(
-        self, discord_config, guild_list, mock_client_wrapper, mock_message
+        self, discord_config, guilds_collection, mock_client_wrapper, mock_message
     ):
         """Test extract_mention_data with reply that has no jump_url."""
-        instance = MultiGuildDiscordTracker(
+        instance = DiscordTracker(
             lambda x: None,
             discord_config,
-            guild_list,
+            guilds_collection,
             client_wrapper=mock_client_wrapper,
         )
 
@@ -1287,13 +1290,13 @@ class TestMultiGuildDiscordTracker:
 
     @pytest.mark.asyncio
     async def test_trackers_discord_extract_mention_data_empty_content(
-        self, discord_config, guild_list, mock_client_wrapper, mock_message
+        self, discord_config, guilds_collection, mock_client_wrapper, mock_message
     ):
         """Test extract_mention_data with empty message content."""
-        instance = MultiGuildDiscordTracker(
+        instance = DiscordTracker(
             lambda x: None,
             discord_config,
-            guild_list,
+            guilds_collection,
             client_wrapper=mock_client_wrapper,
         )
 
@@ -1305,13 +1308,13 @@ class TestMultiGuildDiscordTracker:
 
     # Channel history checking tests
     def test_trackers_discord_is_rate_limited_true(
-        self, discord_config, guild_list, mock_client_wrapper
+        self, discord_config, guilds_collection, mock_client_wrapper
     ):
         """Test _is_rate_limited when rate limited."""
-        instance = MultiGuildDiscordTracker(
+        instance = DiscordTracker(
             lambda x: None,
             discord_config,
-            guild_list,
+            guilds_collection,
             client_wrapper=mock_client_wrapper,
         )
 
@@ -1323,13 +1326,13 @@ class TestMultiGuildDiscordTracker:
         assert result is True
 
     def test_trackers_discord_is_rate_limited_false(
-        self, discord_config, guild_list, mock_client_wrapper
+        self, discord_config, guilds_collection, mock_client_wrapper
     ):
         """Test _is_rate_limited when not rate limited."""
-        instance = MultiGuildDiscordTracker(
+        instance = DiscordTracker(
             lambda x: None,
             discord_config,
-            guild_list,
+            guilds_collection,
             client_wrapper=mock_client_wrapper,
         )
 
@@ -1343,13 +1346,13 @@ class TestMultiGuildDiscordTracker:
         assert result is False
 
     def test_trackers_discord_is_rate_limited_no_previous_check(
-        self, discord_config, guild_list, mock_client_wrapper
+        self, discord_config, guilds_collection, mock_client_wrapper
     ):
         """Test _is_rate_limited when no previous check."""
-        instance = MultiGuildDiscordTracker(
+        instance = DiscordTracker(
             lambda x: None,
             discord_config,
-            guild_list,
+            guilds_collection,
             client_wrapper=mock_client_wrapper,
         )
 
@@ -1359,13 +1362,13 @@ class TestMultiGuildDiscordTracker:
 
     @pytest.mark.asyncio
     async def test_trackers_discord_check_channel_history_rate_limited(
-        self, discord_config, guild_list, mock_client_wrapper
+        self, discord_config, guilds_collection, mock_client_wrapper
     ):
         """Test _check_channel_history when rate limited."""
-        instance = MultiGuildDiscordTracker(
+        instance = DiscordTracker(
             lambda x: None,
             discord_config,
-            guild_list,
+            guilds_collection,
             client_wrapper=mock_client_wrapper,
         )
 
@@ -1381,13 +1384,13 @@ class TestMultiGuildDiscordTracker:
     # Historical message processing tests
     @pytest.mark.asyncio
     async def test_trackers_discord_process_channel_messages_success(
-        self, discord_config, guild_list, mock_client_wrapper, mock_message
+        self, discord_config, guilds_collection, mock_client_wrapper, mock_message
     ):
         """Test _process_channel_messages with successful mentions."""
-        instance = MultiGuildDiscordTracker(
+        instance = DiscordTracker(
             lambda x: None,
             discord_config,
-            guild_list,
+            guilds_collection,
             client_wrapper=mock_client_wrapper,
         )
 
@@ -1413,13 +1416,13 @@ class TestMultiGuildDiscordTracker:
 
     @pytest.mark.asyncio
     async def test_trackers_discord_process_channel_messages_bot_message(
-        self, discord_config, guild_list, mock_client_wrapper, mock_message
+        self, discord_config, guilds_collection, mock_client_wrapper, mock_message
     ):
         """Test _process_channel_messages with bot message."""
-        instance = MultiGuildDiscordTracker(
+        instance = DiscordTracker(
             lambda x: None,
             discord_config,
-            guild_list,
+            guilds_collection,
             client_wrapper=mock_client_wrapper,
         )
 
@@ -1437,13 +1440,13 @@ class TestMultiGuildDiscordTracker:
 
     @pytest.mark.asyncio
     async def test_trackers_discord_process_channel_messages_no_mention(
-        self, discord_config, guild_list, mock_client_wrapper, mock_message
+        self, discord_config, guilds_collection, mock_client_wrapper, mock_message
     ):
         """Test _process_channel_messages without bot mention."""
-        instance = MultiGuildDiscordTracker(
+        instance = DiscordTracker(
             lambda x: None,
             discord_config,
-            guild_list,
+            guilds_collection,
             client_wrapper=mock_client_wrapper,
         )
 
@@ -1462,13 +1465,13 @@ class TestMultiGuildDiscordTracker:
 
     @pytest.mark.asyncio
     async def test_trackers_discord_process_channel_messages_already_processed(
-        self, discord_config, guild_list, mock_client_wrapper, mock_message
+        self, discord_config, guilds_collection, mock_client_wrapper, mock_message
     ):
         """Test _process_channel_messages with already processed message."""
-        instance = MultiGuildDiscordTracker(
+        instance = DiscordTracker(
             lambda x: None,
             discord_config,
-            guild_list,
+            guilds_collection,
             client_wrapper=mock_client_wrapper,
         )
 
@@ -1491,13 +1494,13 @@ class TestMultiGuildDiscordTracker:
 
     @pytest.mark.asyncio
     async def test_trackers_discord_process_channel_messages_process_false(
-        self, discord_config, guild_list, mock_client_wrapper, mock_message
+        self, discord_config, guilds_collection, mock_client_wrapper, mock_message
     ):
         """Test _process_channel_messages when process_mention returns False."""
-        instance = MultiGuildDiscordTracker(
+        instance = DiscordTracker(
             lambda x: None,
             discord_config,
-            guild_list,
+            guilds_collection,
             client_wrapper=mock_client_wrapper,
         )
 
@@ -1522,13 +1525,13 @@ class TestMultiGuildDiscordTracker:
     # HTTP Exception handling tests
     @pytest.mark.asyncio
     async def test_trackers_discord_handle_http_exception_rate_limit(
-        self, discord_config, guild_list, mock_client_wrapper
+        self, discord_config, guilds_collection, mock_client_wrapper
     ):
         """Test _handle_http_exception with rate limit."""
-        instance = MultiGuildDiscordTracker(
+        instance = DiscordTracker(
             lambda x: None,
             discord_config,
-            guild_list,
+            guilds_collection,
             client_wrapper=mock_client_wrapper,
         )
 
@@ -1546,13 +1549,13 @@ class TestMultiGuildDiscordTracker:
 
     @pytest.mark.asyncio
     async def test_trackers_discord_handle_http_exception_other_error(
-        self, discord_config, guild_list, mock_client_wrapper
+        self, discord_config, guilds_collection, mock_client_wrapper
     ):
         """Test _handle_http_exception with non-rate-limit error."""
-        instance = MultiGuildDiscordTracker(
+        instance = DiscordTracker(
             lambda x: None,
             discord_config,
-            guild_list,
+            guilds_collection,
             client_wrapper=mock_client_wrapper,
         )
 
@@ -1572,13 +1575,13 @@ class TestMultiGuildDiscordTracker:
     # Forbidden exception handling tests
     @pytest.mark.asyncio
     async def test_trackers_discord_handle_forbidden_exception(
-        self, discord_config, guild_list, mock_client_wrapper
+        self, discord_config, guilds_collection, mock_client_wrapper
     ):
         """Test _handle_forbidden_exception."""
-        instance = MultiGuildDiscordTracker(
+        instance = DiscordTracker(
             lambda x: None,
             discord_config,
-            guild_list,
+            guilds_collection,
             client_wrapper=mock_client_wrapper,
         )
 
@@ -1601,13 +1604,13 @@ class TestMultiGuildDiscordTracker:
 
     # Channel removal tests
     def test_trackers_discord_remove_channel_from_tracking(
-        self, discord_config, guild_list, mock_client_wrapper
+        self, discord_config, guilds_collection, mock_client_wrapper
     ):
         """Test _remove_channel_from_tracking."""
-        instance = MultiGuildDiscordTracker(
+        instance = DiscordTracker(
             lambda x: None,
             discord_config,
-            guild_list,
+            guilds_collection,
             client_wrapper=mock_client_wrapper,
         )
 
@@ -1627,13 +1630,13 @@ class TestMultiGuildDiscordTracker:
         assert len(instance.all_tracked_channels) == initial_channel_count - 1
 
     def test_trackers_discord_remove_channel_from_tracking_not_present(
-        self, discord_config, guild_list, mock_client_wrapper
+        self, discord_config, guilds_collection, mock_client_wrapper
     ):
         """Test _remove_channel_from_tracking when channel not in tracking."""
-        instance = MultiGuildDiscordTracker(
+        instance = DiscordTracker(
             lambda x: None,
             discord_config,
-            guild_list,
+            guilds_collection,
             client_wrapper=mock_client_wrapper,
         )
 
@@ -1651,13 +1654,13 @@ class TestMultiGuildDiscordTracker:
         assert len(instance.all_tracked_channels) == initial_channel_count
 
     def test_trackers_discord_remove_channel_from_tracking_guild_not_present(
-        self, discord_config, guild_list, mock_client_wrapper
+        self, discord_config, guilds_collection, mock_client_wrapper
     ):
         """Test _remove_channel_from_tracking when guild not in tracking."""
-        instance = MultiGuildDiscordTracker(
+        instance = DiscordTracker(
             lambda x: None,
             discord_config,
-            guild_list,
+            guilds_collection,
             client_wrapper=mock_client_wrapper,
         )
 
@@ -1677,13 +1680,13 @@ class TestMultiGuildDiscordTracker:
     # Async channel checking tests
     @pytest.mark.asyncio
     async def test_trackers_discord_check_channel_with_semaphore(
-        self, discord_config, guild_list, mock_client_wrapper
+        self, discord_config, guilds_collection, mock_client_wrapper
     ):
         """Test _check_channel_with_semaphore."""
-        instance = MultiGuildDiscordTracker(
+        instance = DiscordTracker(
             lambda x: None,
             discord_config,
-            guild_list,
+            guilds_collection,
             client_wrapper=mock_client_wrapper,
         )
 
@@ -1699,13 +1702,13 @@ class TestMultiGuildDiscordTracker:
 
     @pytest.mark.asyncio
     async def test_trackers_discord_check_mentions_async_not_ready(
-        self, discord_config, guild_list, mock_client_wrapper
+        self, discord_config, guilds_collection, mock_client_wrapper
     ):
         """Test check_mentions_async when client not ready."""
-        instance = MultiGuildDiscordTracker(
+        instance = DiscordTracker(
             lambda x: None,
             discord_config,
-            guild_list,
+            guilds_collection,
             client_wrapper=mock_client_wrapper,
         )
 
@@ -1717,13 +1720,13 @@ class TestMultiGuildDiscordTracker:
 
     @pytest.mark.asyncio
     async def test_trackers_discord_check_mentions_async_success(
-        self, discord_config, guild_list, mock_client_wrapper
+        self, discord_config, guilds_collection, mock_client_wrapper
     ):
         """Test check_mentions_async with successful results."""
-        instance = MultiGuildDiscordTracker(
+        instance = DiscordTracker(
             lambda x: None,
             discord_config,
-            guild_list,
+            guilds_collection,
             client_wrapper=mock_client_wrapper,
         )
 
@@ -1748,13 +1751,13 @@ class TestMultiGuildDiscordTracker:
 
     @pytest.mark.asyncio
     async def test_trackers_discord_check_mentions_async_with_exceptions(
-        self, discord_config, guild_list, mock_client_wrapper
+        self, discord_config, guilds_collection, mock_client_wrapper
     ):
         """Test check_mentions_async with exceptions in some channels."""
-        instance = MultiGuildDiscordTracker(
+        instance = DiscordTracker(
             lambda x: None,
             discord_config,
-            guild_list,
+            guilds_collection,
             client_wrapper=mock_client_wrapper,
         )
 
@@ -1783,13 +1786,13 @@ class TestMultiGuildDiscordTracker:
 
     # Result processing tests
     def test_trackers_discord_process_check_results_all_success(
-        self, discord_config, guild_list, mock_client_wrapper
+        self, discord_config, guilds_collection, mock_client_wrapper
     ):
         """Test _process_check_results with all successful results."""
-        instance = MultiGuildDiscordTracker(
+        instance = DiscordTracker(
             lambda x: None,
             discord_config,
-            guild_list,
+            guilds_collection,
             client_wrapper=mock_client_wrapper,
         )
 
@@ -1802,13 +1805,13 @@ class TestMultiGuildDiscordTracker:
         instance.logger.error.assert_not_called()
 
     def test_trackers_discord_process_check_results_with_exceptions(
-        self, discord_config, guild_list, mock_client_wrapper
+        self, discord_config, guilds_collection, mock_client_wrapper
     ):
         """Test _process_check_results with exceptions."""
-        instance = MultiGuildDiscordTracker(
+        instance = DiscordTracker(
             lambda x: None,
             discord_config,
-            guild_list,
+            guilds_collection,
             client_wrapper=mock_client_wrapper,
         )
 
@@ -1822,13 +1825,13 @@ class TestMultiGuildDiscordTracker:
 
     # Periodic task tests
     def test_trackers_discord_should_run_channel_discovery_true(
-        self, discord_config, guild_list, mock_client_wrapper
+        self, discord_config, guilds_collection, mock_client_wrapper
     ):
         """Test _should_run_channel_discovery when should run."""
-        instance = MultiGuildDiscordTracker(
+        instance = DiscordTracker(
             lambda x: None,
             discord_config,
-            guild_list,
+            guilds_collection,
             client_wrapper=mock_client_wrapper,
         )
 
@@ -1840,13 +1843,13 @@ class TestMultiGuildDiscordTracker:
         assert result is True
 
     def test_trackers_discord_should_run_channel_discovery_false(
-        self, discord_config, guild_list, mock_client_wrapper
+        self, discord_config, guilds_collection, mock_client_wrapper
     ):
         """Test _should_run_channel_discovery when should not run."""
-        instance = MultiGuildDiscordTracker(
+        instance = DiscordTracker(
             lambda x: None,
             discord_config,
-            guild_list,
+            guilds_collection,
             client_wrapper=mock_client_wrapper,
         )
 
@@ -1858,13 +1861,13 @@ class TestMultiGuildDiscordTracker:
         assert result is False
 
     def test_trackers_discord_should_run_historical_check_true(
-        self, discord_config, guild_list, mock_client_wrapper
+        self, discord_config, guilds_collection, mock_client_wrapper
     ):
         """Test _should_run_historical_check when should run."""
-        instance = MultiGuildDiscordTracker(
+        instance = DiscordTracker(
             lambda x: None,
             discord_config,
-            guild_list,
+            guilds_collection,
             client_wrapper=mock_client_wrapper,
         )
 
@@ -1877,13 +1880,13 @@ class TestMultiGuildDiscordTracker:
         assert result is True
 
     def test_trackers_discord_should_run_historical_check_false(
-        self, discord_config, guild_list, mock_client_wrapper
+        self, discord_config, guilds_collection, mock_client_wrapper
     ):
         """Test _should_run_historical_check when should not run."""
-        instance = MultiGuildDiscordTracker(
+        instance = DiscordTracker(
             lambda x: None,
             discord_config,
-            guild_list,
+            guilds_collection,
             client_wrapper=mock_client_wrapper,
         )
 
@@ -1897,13 +1900,13 @@ class TestMultiGuildDiscordTracker:
 
     @pytest.mark.asyncio
     async def test_trackers_discord_run_channel_discovery(
-        self, discord_config, guild_list, mock_client_wrapper
+        self, discord_config, guilds_collection, mock_client_wrapper
     ):
         """Test _run_channel_discovery."""
-        instance = MultiGuildDiscordTracker(
+        instance = DiscordTracker(
             lambda x: None,
             discord_config,
-            guild_list,
+            guilds_collection,
             client_wrapper=mock_client_wrapper,
         )
 
@@ -1920,13 +1923,13 @@ class TestMultiGuildDiscordTracker:
 
     @pytest.mark.asyncio
     async def test_trackers_discord_run_historical_check(
-        self, discord_config, guild_list, mock_client_wrapper
+        self, discord_config, guilds_collection, mock_client_wrapper
     ):
         """Test _run_historical_check."""
-        instance = MultiGuildDiscordTracker(
+        instance = DiscordTracker(
             lambda x: None,
             discord_config,
-            guild_list,
+            guilds_collection,
             client_wrapper=mock_client_wrapper,
         )
 
@@ -1942,13 +1945,13 @@ class TestMultiGuildDiscordTracker:
 
     @pytest.mark.asyncio
     async def test_trackers_discord_run_historical_check_no_mentions(
-        self, discord_config, guild_list, mock_client_wrapper
+        self, discord_config, guilds_collection, mock_client_wrapper
     ):
         """Test _run_historical_check with no mentions found."""
-        instance = MultiGuildDiscordTracker(
+        instance = DiscordTracker(
             lambda x: None,
             discord_config,
-            guild_list,
+            guilds_collection,
             client_wrapper=mock_client_wrapper,
         )
 
@@ -1965,16 +1968,106 @@ class TestMultiGuildDiscordTracker:
         calls = [call.args[0] for call in instance.logger.info.call_args_list]
         assert "Found" not in " ".join(calls)
 
+    @pytest.mark.asyncio
+    async def test_discordtracker_async_interruptible_sleep_full_duration(
+        self, discord_config, guilds_collection, mock_client_wrapper, mocker
+    ):
+        """Test _async_interruptible_sleep sleeps the full duration when no exit conditions occur."""
+
+        instance = DiscordTracker(
+            lambda x: None,
+            discord_config,
+            guilds_collection,
+            client_wrapper=mock_client_wrapper,
+        )
+
+        # No exit interruption
+        instance.exit_signal = False
+        mock_client_wrapper.is_closed = lambda: False
+
+        sleep_calls = []
+
+        async def fake_sleep(s):
+            sleep_calls.append(s)
+
+        mocker.patch("asyncio.sleep", side_effect=fake_sleep)
+
+        await instance._async_interruptible_sleep(seconds=5, step=1)
+
+        # Should sleep 5 times with step=1
+        assert sleep_calls == [1, 1, 1, 1, 1]
+
+    @pytest.mark.asyncio
+    async def test_discordtracker_async_interruptible_sleep_exit_signal(
+        self, discord_config, guilds_collection, mock_client_wrapper, mocker
+    ):
+        """Test _async_interruptible_sleep stops early when exit_signal becomes True."""
+
+        instance = DiscordTracker(
+            lambda x: None,
+            discord_config,
+            guilds_collection,
+            client_wrapper=mock_client_wrapper,
+        )
+
+        instance.exit_signal = False
+        mock_client_wrapper.is_closed = lambda: False
+
+        sleep_calls = []
+
+        async def fake_sleep(s):
+            sleep_calls.append(s)
+            instance.exit_signal = True  # Trigger exit after first sleep
+
+        mocker.patch("asyncio.sleep", side_effect=fake_sleep)
+
+        await instance._async_interruptible_sleep(seconds=10, step=1)
+
+        # Should sleep only once because exit_signal was set after first chunk
+        assert sleep_calls == [1]
+
+    @pytest.mark.asyncio
+    async def test_discordtracker_async_interruptible_sleep_client_closed(
+        self, discord_config, guilds_collection, mock_client_wrapper, mocker
+    ):
+        """Test _async_interruptible_sleep stops early when the Discord client closes."""
+
+        instance = DiscordTracker(
+            lambda x: None,
+            discord_config,
+            guilds_collection,
+            client_wrapper=mock_client_wrapper,
+        )
+
+        instance.exit_signal = False
+
+        # Client starts open, closes after one iteration
+        mock_client_wrapper.closed = False
+        mock_client_wrapper.is_closed = lambda: mock_client_wrapper.closed
+
+        sleep_calls = []
+
+        async def fake_sleep(s):
+            sleep_calls.append(s)
+            mock_client_wrapper.closed = True  # Close client after first sleep
+
+        mocker.patch("asyncio.sleep", side_effect=fake_sleep)
+
+        await instance._async_interruptible_sleep(seconds=10, step=1)
+
+        # Only one chunk should be slept because client closes after first
+        assert sleep_calls == [1]
+
     # Main loop and continuous operation tests
     @pytest.mark.asyncio
     async def test_trackers_discord_handle_periodic_tasks_both_run(
-        self, discord_config, guild_list, mock_client_wrapper
+        self, discord_config, guilds_collection, mock_client_wrapper
     ):
         """Test _handle_periodic_tasks when both tasks should run."""
-        instance = MultiGuildDiscordTracker(
+        instance = DiscordTracker(
             lambda x: None,
             discord_config,
-            guild_list,
+            guilds_collection,
             client_wrapper=mock_client_wrapper,
         )
 
@@ -1998,46 +2091,42 @@ class TestMultiGuildDiscordTracker:
 
     @pytest.mark.asyncio
     async def test_trackers_discord_run_main_loop(
-        self, discord_config, guild_list, mock_client_wrapper
+        self, discord_config, guilds_collection, mock_client_wrapper
     ):
-        """Test _run_main_loop basic operation."""
-        instance = MultiGuildDiscordTracker(
+        """Test _run_main_loop basic operation with interruptible async sleep."""
+        instance = DiscordTracker(
             lambda x: None,
             discord_config,
-            guild_list,
+            guilds_collection,
             client_wrapper=mock_client_wrapper,
         )
 
         # Mock client to close after first iteration
         mock_client_wrapper.closed = False
 
-        call_count = 0
-
-        def set_closed(*args, **kwargs):
-            nonlocal call_count
-            call_count += 1
-            if call_count >= 1:  # Close after first sleep call
-                mock_client_wrapper.closed = True
+        async def sleep_side_effect(seconds, step=1):
+            # After first call, mark client closed so loop exits
+            mock_client_wrapper.closed = True
 
         mock_client_wrapper.is_closed = lambda: mock_client_wrapper.closed
 
-        with mock.patch("asyncio.sleep") as mock_sleep:
-            mock_sleep.side_effect = set_closed
-
+        with mock.patch.object(
+            instance, "_async_interruptible_sleep", side_effect=sleep_side_effect
+        ) as mock_sleep:
             await instance._run_main_loop(300)
 
-        # Verify sleep was called
-        mock_sleep.assert_called()
+        # Verify our async sleep helper was called with the expected interval
+        mock_sleep.assert_called_once_with(10)
 
     @pytest.mark.asyncio
     async def test_trackers_discord_run_continuous_success(
-        self, discord_config, guild_list, mock_client_wrapper
+        self, discord_config, guilds_collection, mock_client_wrapper
     ):
-        """Test run_continuous successful operation."""
-        instance = MultiGuildDiscordTracker(
+        """Test run_continuous successful operation with graceful shutdown helpers."""
+        instance = DiscordTracker(
             lambda x: None,
             discord_config,
-            guild_list,
+            guilds_collection,
             client_wrapper=mock_client_wrapper,
         )
 
@@ -2045,28 +2134,35 @@ class TestMultiGuildDiscordTracker:
         instance.log_action = mock.MagicMock()
         instance.cleanup = mock.MagicMock()
 
-        # Mock client operations
-        start_called = False
-        close_called = False
+        # Track signal registration
+        with mock.patch.object(
+            instance, "_register_signal_handlers"
+        ) as mock_register_signals:
+            # Mock client operations
+            start_called = False
+            close_called = False
 
-        async def mock_start(token):
-            nonlocal start_called
-            start_called = True
-            mock_client_wrapper.ready = True
+            async def mock_start(token):
+                nonlocal start_called
+                start_called = True
+                mock_client_wrapper.ready = True
 
-        async def mock_close():
-            nonlocal close_called
-            close_called = True
-            mock_client_wrapper.closed = True
+            async def mock_close():
+                nonlocal close_called
+                close_called = True
+                mock_client_wrapper.closed = True
 
-        mock_client_wrapper.start = mock_start
-        mock_client_wrapper.close = mock_close
+            mock_client_wrapper.start = mock_start
+            mock_client_wrapper.close = mock_close
 
-        # Mock the main loop to raise KeyboardInterrupt immediately
-        with mock.patch.object(instance, "_run_main_loop") as mock_loop:
-            mock_loop.side_effect = KeyboardInterrupt("Test interrupt")
+            # Mock the main loop to raise KeyboardInterrupt immediately
+            with mock.patch.object(instance, "_run_main_loop") as mock_loop:
+                mock_loop.side_effect = KeyboardInterrupt("Test interrupt")
 
-            await instance.run_continuous("test_token", 300)
+                await instance.run_continuous(300)
+
+        # Signal handlers should be registered once
+        mock_register_signals.assert_called_once()
 
         instance.logger.info.assert_any_call(
             "Starting multi-guild Discord tracker in continuous mode"
@@ -2082,13 +2178,13 @@ class TestMultiGuildDiscordTracker:
 
     @pytest.mark.asyncio
     async def test_trackers_discord_run_continuous_error(
-        self, discord_config, guild_list, mock_client_wrapper
+        self, discord_config, guilds_collection, mock_client_wrapper
     ):
         """Test run_continuous with error."""
-        instance = MultiGuildDiscordTracker(
+        instance = DiscordTracker(
             lambda x: None,
             discord_config,
-            guild_list,
+            guilds_collection,
             client_wrapper=mock_client_wrapper,
         )
 
@@ -2103,10 +2199,14 @@ class TestMultiGuildDiscordTracker:
 
         mock_client_wrapper.start = mock_start
 
-        with pytest.raises(Exception) as exc_info:
-            await instance.run_continuous("test_token", 300)
+        with mock.patch.object(
+            instance, "_register_signal_handlers"
+        ) as mock_register_signals:
+            with pytest.raises(Exception) as exc_info:
+                await instance.run_continuous(300)
 
         assert exc_info.value == test_error
+        mock_register_signals.assert_called_once()
         instance.logger.error.assert_called_once_with(
             "Multi-guild Discord tracker error: Test error"
         )
@@ -2115,13 +2215,13 @@ class TestMultiGuildDiscordTracker:
 
     # Statistics tests
     def test_trackers_discord_get_stats(
-        self, discord_config, guild_list, mock_client_wrapper
+        self, discord_config, guilds_collection, mock_client_wrapper
     ):
         """Test get_stats method."""
-        instance = MultiGuildDiscordTracker(
+        instance = DiscordTracker(
             lambda x: None,
             discord_config,
-            guild_list,
+            guilds_collection,
             client_wrapper=mock_client_wrapper,
         )
 
@@ -2159,13 +2259,13 @@ class TestMultiGuildDiscordTracker:
         assert stats["guild_details"]["Test Guild 2"] == 1
 
     def test_trackers_discord_get_stats_unknown_guild(
-        self, discord_config, guild_list, mock_client_wrapper
+        self, discord_config, guilds_collection, mock_client_wrapper
     ):
         """Test get_stats with unknown guild."""
-        instance = MultiGuildDiscordTracker(
+        instance = DiscordTracker(
             lambda x: None,
             discord_config,
-            guild_list,
+            guilds_collection,
             client_wrapper=mock_client_wrapper,
         )
 
@@ -2187,13 +2287,18 @@ class TestMultiGuildDiscordTracker:
     # Channel discovery tests
     @pytest.mark.asyncio
     async def test_trackers_discord_discover_guild_channels_success(
-        self, discord_config, guild_list, mock_client_wrapper, mock_guild, mock_channel
+        self,
+        discord_config,
+        guilds_collection,
+        mock_client_wrapper,
+        mock_guild,
+        mock_channel,
     ):
         """Test _discover_guild_channels successful discovery."""
-        instance = MultiGuildDiscordTracker(
+        instance = DiscordTracker(
             lambda x: None,
             discord_config,
-            guild_list,
+            guilds_collection,
             client_wrapper=mock_client_wrapper,
         )
 
@@ -2216,13 +2321,13 @@ class TestMultiGuildDiscordTracker:
 
     @pytest.mark.asyncio
     async def test_trackers_discord_discover_guild_channels_exception(
-        self, discord_config, guild_list, mock_client_wrapper, mock_guild
+        self, discord_config, guilds_collection, mock_client_wrapper, mock_guild
     ):
         """Test _discover_guild_channels with exception."""
-        instance = MultiGuildDiscordTracker(
+        instance = DiscordTracker(
             lambda x: None,
             discord_config,
-            guild_list,
+            guilds_collection,
             client_wrapper=mock_client_wrapper,
         )
 
@@ -2240,13 +2345,13 @@ class TestMultiGuildDiscordTracker:
     # Additional edge case tests
     @pytest.mark.asyncio
     async def test_trackers_discord_check_channel_history_channel_not_found(
-        self, discord_config, guild_list, mock_client_wrapper
+        self, discord_config, guilds_collection, mock_client_wrapper
     ):
         """Test _check_channel_history when channel not found."""
-        instance = MultiGuildDiscordTracker(
+        instance = DiscordTracker(
             lambda x: None,
             discord_config,
-            guild_list,
+            guilds_collection,
             client_wrapper=mock_client_wrapper,
         )
 
@@ -2260,13 +2365,13 @@ class TestMultiGuildDiscordTracker:
 
     @pytest.mark.asyncio
     async def test_trackers_discord_check_channel_history_channel_not_found_early(
-        self, discord_config, guild_list, mock_client_wrapper
+        self, discord_config, guilds_collection, mock_client_wrapper
     ):
         """Test _check_channel_history when channel is not found."""
-        instance = MultiGuildDiscordTracker(
+        instance = DiscordTracker(
             lambda x: None,
             discord_config,
-            guild_list,
+            guilds_collection,
             client_wrapper=mock_client_wrapper,
         )
 
@@ -2288,13 +2393,13 @@ class TestMultiGuildDiscordTracker:
 
     @pytest.mark.asyncio
     async def test_trackers_discord_check_channel_history_success(
-        self, discord_config, guild_list, mock_client_wrapper, mock_channel
+        self, discord_config, guilds_collection, mock_client_wrapper, mock_channel
     ):
         """Test _check_channel_history successful check."""
-        instance = MultiGuildDiscordTracker(
+        instance = DiscordTracker(
             lambda x: None,
             discord_config,
-            guild_list,
+            guilds_collection,
             client_wrapper=mock_client_wrapper,
         )
 
@@ -2319,13 +2424,13 @@ class TestMultiGuildDiscordTracker:
         assert 123456789012345678 in instance.last_channel_check
 
     def test_trackers_discord_update_all_tracked_channels(
-        self, discord_config, guild_list, mock_client_wrapper
+        self, discord_config, guilds_collection, mock_client_wrapper
     ):
         """Test _update_all_tracked_channels."""
-        instance = MultiGuildDiscordTracker(
+        instance = DiscordTracker(
             lambda x: None,
             discord_config,
-            guild_list,
+            guilds_collection,
             client_wrapper=mock_client_wrapper,
         )
 
@@ -2348,13 +2453,13 @@ class TestMultiGuildDiscordTracker:
     # Tests for _discover_all_guild_channels
     @pytest.mark.asyncio
     async def test_trackers_discord_discover_all_guild_channels_success(
-        self, discord_config, guild_list, mock_client_wrapper, mock_guild
+        self, discord_config, guilds_collection, mock_client_wrapper, mock_guild
     ):
         """Test _discover_all_guild_channels with successful discovery."""
-        instance = MultiGuildDiscordTracker(
+        instance = DiscordTracker(
             lambda x: None,
             discord_config,
-            guild_list,
+            guilds_collection,
             client_wrapper=mock_client_wrapper,
         )
 
@@ -2376,13 +2481,13 @@ class TestMultiGuildDiscordTracker:
     # Tests for _should_process_message early return
     @pytest.mark.asyncio
     async def test_trackers_discord_handle_new_message_should_not_process(
-        self, discord_config, guild_list, mock_client_wrapper, mock_message
+        self, discord_config, guilds_collection, mock_client_wrapper, mock_message
     ):
         """Test _handle_new_message when _should_process_message returns False."""
-        instance = MultiGuildDiscordTracker(
+        instance = DiscordTracker(
             lambda x: None,
             discord_config,
-            guild_list,
+            guilds_collection,
             client_wrapper=mock_client_wrapper,
         )
 
@@ -2409,13 +2514,13 @@ class TestMultiGuildDiscordTracker:
 
     @pytest.mark.asyncio
     async def test_trackers_discord_handle_new_message_should_process(
-        self, discord_config, guild_list, mock_client_wrapper, mock_message
+        self, discord_config, guilds_collection, mock_client_wrapper, mock_message
     ):
         """Test _handle_new_message when _should_process_message returns True."""
-        instance = MultiGuildDiscordTracker(
+        instance = DiscordTracker(
             lambda x: None,
             discord_config,
-            guild_list,
+            guilds_collection,
             client_wrapper=mock_client_wrapper,
         )
 
@@ -2442,13 +2547,13 @@ class TestMultiGuildDiscordTracker:
 
     @pytest.mark.asyncio
     async def test_trackers_discord_check_channel_history_channel_found(
-        self, discord_config, guild_list, mock_client_wrapper, mock_channel
+        self, discord_config, guilds_collection, mock_client_wrapper, mock_channel
     ):
         """Test _check_channel_history when channel is found."""
-        instance = MultiGuildDiscordTracker(
+        instance = DiscordTracker(
             lambda x: None,
             discord_config,
-            guild_list,
+            guilds_collection,
             client_wrapper=mock_client_wrapper,
         )
 
@@ -2474,13 +2579,13 @@ class TestMultiGuildDiscordTracker:
 
     @pytest.mark.asyncio
     async def test_trackers_discord_check_channel_history_http_exception_rate_limit(
-        self, discord_config, guild_list, mock_client_wrapper, mock_channel
+        self, discord_config, guilds_collection, mock_client_wrapper, mock_channel
     ):
         """Test _check_channel_history with HTTPException 429 (rate limit)."""
-        instance = MultiGuildDiscordTracker(
+        instance = DiscordTracker(
             lambda x: None,
             discord_config,
-            guild_list,
+            guilds_collection,
             client_wrapper=mock_client_wrapper,
         )
 
@@ -2511,14 +2616,19 @@ class TestMultiGuildDiscordTracker:
 
     @pytest.mark.asyncio
     async def test_trackers_discord_check_channel_history_forbidden_exception(
-        self, discord_config, guild_list, mock_client_wrapper, mock_channel, mocker
+        self,
+        discord_config,
+        guilds_collection,
+        mock_client_wrapper,
+        mock_channel,
+        mocker,
     ):
         """Test _check_channel_history with Forbidden exception."""
 
-        instance = MultiGuildDiscordTracker(
+        instance = DiscordTracker(
             lambda x: None,
             discord_config,
-            guild_list,
+            guilds_collection,
             client_wrapper=mock_client_wrapper,
         )
 
@@ -2528,12 +2638,12 @@ class TestMultiGuildDiscordTracker:
         mock_client_wrapper.get_channel.return_value = mock_channel
 
         mocker.patch(
-            "trackers.discord.MultiGuildDiscordTracker._process_channel_messages",
+            "trackers.discord.DiscordTracker._process_channel_messages",
             side_effect=discord.Forbidden(mock.MagicMock(), "Forbidden"),
         )
         # Mock _handle_forbidden_exception
         mock_handle_forbidden = mocker.patch(
-            "trackers.discord.MultiGuildDiscordTracker._handle_forbidden_exception"
+            "trackers.discord.DiscordTracker._handle_forbidden_exception"
         )
 
         # Ensure not rate limited
@@ -2550,13 +2660,13 @@ class TestMultiGuildDiscordTracker:
 
     @pytest.mark.asyncio
     async def test_trackers_discord_check_channel_history_generic_exception(
-        self, discord_config, guild_list, mock_client_wrapper, mock_channel
+        self, discord_config, guilds_collection, mock_client_wrapper, mock_channel
     ):
         """Test _check_channel_history with generic Exception."""
-        instance = MultiGuildDiscordTracker(
+        instance = DiscordTracker(
             lambda x: None,
             discord_config,
-            guild_list,
+            guilds_collection,
             client_wrapper=mock_client_wrapper,
         )
 

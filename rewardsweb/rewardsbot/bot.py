@@ -2,6 +2,7 @@ import asyncio
 import logging
 import signal
 import sys
+from pathlib import Path
 
 import discord
 from discord import app_commands
@@ -19,7 +20,11 @@ logging.basicConfig(
     format="%(asctime)s - %(name)s - %(levelname)s - %(message)s",
     handlers=[
         logging.StreamHandler(sys.stdout),
-        logging.FileHandler("logs/bot.log", encoding="utf-8", mode="a"),
+        logging.FileHandler(
+            Path(__file__).parent.parent.resolve() / "logs" / " bot.log",
+            encoding="utf-8",
+            mode="a",
+        ),
     ],
 )
 logger = logging.getLogger("discord.bot")

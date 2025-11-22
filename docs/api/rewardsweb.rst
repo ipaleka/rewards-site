@@ -369,6 +369,105 @@
   :show-inheritance:
 
 
+:mod:`trackers` -- Social media trackers package
+************************************************
+
+.. automodule:: trackers
+  :members:
+  :undoc-members:
+  :show-inheritance:
+
+
+:mod:`trackers.base` -- Module containing base class for all social media trackers
+----------------------------------------------------------------------------------
+
+.. automodule:: trackers.base
+  :members:
+  :undoc-members:
+  :show-inheritance:
+
+
+:mod:`trackers.config` -- Module for trackers confirguration from environment variables
+---------------------------------------------------------------------------------------
+
+.. automodule:: trackers.config
+  :members:
+  :undoc-members:
+  :show-inheritance:
+
+
+:mod:`trackers.database` -- SQLite related trackers code 
+--------------------------------------------------------
+
+.. automodule:: trackers.database
+  :members:
+  :undoc-members:
+  :show-inheritance:
+
+
+:mod:`trackers.discord` -- Module for processing Discord comments
+-----------------------------------------------------------------
+
+.. automodule:: trackers.discord
+  :members:
+  :undoc-members:
+  :show-inheritance:
+
+
+:mod:`trackers.parser` -- Module cointaining class for parsing sociial media messages
+-------------------------------------------------------------------------------------
+
+.. automodule:: trackers.parser
+  :members:
+  :undoc-members:
+  :show-inheritance:
+
+
+:mod:`trackers.reddit` -- Module for processing Reddit comments
+---------------------------------------------------------------
+
+.. automodule:: trackers.reddit
+  :members:
+  :undoc-members:
+  :show-inheritance:
+
+
+:mod:`trackers.runners` -- Module containing trackers run functions
+-------------------------------------------------------------------
+
+.. automodule:: trackers.runners
+  :members:
+  :undoc-members:
+  :show-inheritance:
+
+
+:mod:`trackers.telegram` -- Module for processing Telegram messages
+-------------------------------------------------------------------
+
+.. automodule:: trackers.telegram
+  :members:
+  :undoc-members:
+  :show-inheritance:
+
+
+:mod:`trackers.twitter` -- Module for processing comments on X/Twitter
+----------------------------------------------------------------------
+
+.. automodule:: trackers.twitter
+  :members:
+  :undoc-members:
+  :show-inheritance:
+
+
+:mod:`trackers.tests` -- Unit-tests package for trackers package
+----------------------------------------------------------------
+
+.. automodule:: trackers.tests
+  :members:
+  :undoc-members:
+  :show-inheritance:
+
+
 :mod:`utils` -- Package with various website's utility functions and constants
 ******************************************************************************
 

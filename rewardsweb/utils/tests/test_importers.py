@@ -26,7 +26,6 @@ from utils.importers import (
     _reward_amount,
     _reward_amount_legacy,
     import_from_csv,
-    social_platform_prefixes,
 )
 
 
@@ -2194,17 +2193,3 @@ class TestUtilsImportersPublicFunctions:
         assert result is False
         # Contributor.objects.bulk_create should be called with empty generator
         # (though it won't create anything)
-
-    # # social_platform_prefixes
-    def test_utils_importers_social_platforms(self):
-        result = social_platform_prefixes()
-
-        expected = [
-            ("Discord", ""),
-            ("Twitter", "@"),
-            ("Reddit", "u/"),
-            ("GitHub", "g@"),
-            ("Telegram", "t@"),
-            ("Forum", "f@"),
-        ]
-        assert result == expected

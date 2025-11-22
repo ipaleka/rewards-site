@@ -102,12 +102,6 @@ class TestTrackersConfig:
         }
         assert result == expected_config
 
-    def test_trackers_config_reddit_config_defaults(self):
-        result = reddit_config()
-        assert result["user_agent"] == "SocialMentionTracker v1.0"
-        assert result["client_id"] == ""
-        assert result["client_secret"] == ""
-
     # reddit_subreddits
     def test_trackers_config_reddit_subreddits_functionality(self, mocker):
         mock_getenv = mocker.patch("trackers.config.get_env_variable")

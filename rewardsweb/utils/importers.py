@@ -21,7 +21,7 @@ from core.models import (
     SocialPlatform,
 )
 from utils.constants.core import REWARDS_COLLECTION
-from utils.helpers import get_env_variable
+from utils.helpers import get_env_variable, social_platform_prefixes
 
 ADDRESSES_CSV_COLUMNS = ["handle", "address"]
 CONTRIBUTION_CSV_COLUMNS = [
@@ -432,19 +432,3 @@ def import_from_csv(contributions_path, legacy_contributions_path):
     _create_superusers()
 
     return False
-
-
-def social_platform_prefixes():
-    """Return list of social platforms with their prefixes.
-
-    :return: List of tuples (platform_name, prefix)
-    :rtype: list
-    """
-    return [
-        ("Discord", ""),
-        ("Twitter", "@"),
-        ("Reddit", "u/"),
-        ("GitHub", "g@"),
-        ("Telegram", "t@"),
-        ("Forum", "f@"),
-    ]

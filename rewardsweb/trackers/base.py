@@ -2,6 +2,9 @@
 
 import logging
 import os
+import signal
+import time
+from datetime import datetime
 
 import requests
 
@@ -17,6 +20,8 @@ class BaseMentionTracker:
     :type BaseMentionTracker.logger: :class:`logging.Logger`
     :var BaseMentionTracker.db: database manager instance
     :type BaseMentionTracker.db: :class:`trackers.database.MentionDatabaseManager`
+    :var BaseMentionTracker.exit_signal: flag indicating requested graceful shutdown
+    :type BaseMentionTracker.exit_signal: bool
     """
 
     def __init__(self, platform_name, parse_message_callback):
@@ -29,6 +34,7 @@ class BaseMentionTracker:
         """
         self.platform_name = platform_name
         self.parse_message_callback = parse_message_callback
+        self.exit_signal = False
         self.setup_logging()
         self.setup_database()
 
@@ -57,6 +63,43 @@ class BaseMentionTracker:
             handlers=[logging.FileHandler(log_filename), logging.StreamHandler()],
         )
         self.logger = logging.getLogger(f"{self.platform_name}_tracker")
+
+    # # graceful shutdown helpers
+    def _exit_gracefully(self, signum, frame):
+        """Signal handler that requests graceful shutdown.
+
+        Sets :pyattr:`BaseMentionTracker.exit_signal` to True when a termination
+        signal is received.
+
+        :param signum: received signal number
+        :type signum: int
+        :param frame: current stack frame (unused)
+        :type frame: :class:`frame` or None
+        """
+        self.logger.info(
+            f"{self.platform_name} tracker exit signal received ({signum})"
+        )
+        self.exit_signal = True
+
+    def _register_signal_handlers(self):
+        """Register OS signal handlers for graceful shutdown.
+
+        Handles :data:`signal.SIGINT` and :data:`signal.SIGTERM` by binding them
+        to :meth:`BaseMentionTracker._exit_gracefully`.
+        """
+        signal.signal(signal.SIGINT, self._exit_gracefully)
+        signal.signal(signal.SIGTERM, self._exit_gracefully)
+
+    def _interruptible_sleep(self, seconds):
+        """Sleep in one-second increments, respecting exit signal.
+
+        :param seconds: total number of seconds to sleep
+        :type seconds: int
+        """
+        for _ in range(int(seconds)):
+            if self.exit_signal:
+                break
+            time.sleep(1)
 
     # # processing
     def check_mentions(self):
@@ -210,10 +253,68 @@ class BaseMentionTracker:
         if hasattr(self, "db"):
             self.db.cleanup()
 
-    def run(self, **kwargs):
-        """Main run method - to be implemented by subclasses.
+    def run(self, poll_interval_minutes=30, max_iterations=None):
+        """Main run loop for synchronous mention trackers.
 
-        :var kwargs: platform-specific arguments
-        :type kwargs: dict
+        Implements shared logic for all polling-based trackers:
+
+        * logs tracker startup and poll interval
+        * periodically calls :meth:`BaseMentionTracker.check_mentions`
+        * logs when new mentions are found
+        * sleeps between polls in an interruptible way
+        * handles graceful shutdown on :class:`KeyboardInterrupt` and OS signals
+        * ensures :meth:`BaseMentionTracker.cleanup` is always called
+
+        :param poll_interval_minutes: how often to check for mentions
+        :type poll_interval_minutes: int or float
+        :param max_iterations: maximum number of polls before stopping
+                              (``None`` for infinite loop)
+        :type max_iterations: int or None
+        :var iteration: current iteration count
+        :type iteration: int
+        :var mentions_found: number of mentions found in current poll
+        :type mentions_found: int
         """
-        raise NotImplementedError("Subclasses must implement run()")
+        self._register_signal_handlers()
+
+        self.logger.info(
+            f"Starting {self.platform_name} tracker with "
+            f"{poll_interval_minutes} minute intervals"
+        )
+        self.log_action("started", f"Poll interval: {poll_interval_minutes} minutes")
+
+        iteration = 0
+
+        try:
+            while not self.exit_signal and (
+                max_iterations is None or iteration < max_iterations
+            ):
+                iteration += 1
+
+                self.logger.info(
+                    f"{self.platform_name} poll #{iteration} at "
+                    f"{datetime.now().strftime('%Y-%m-%d %H:%M:%S')}"
+                )
+
+                mentions_found = self.check_mentions()
+
+                if mentions_found and mentions_found > 0:
+                    self.logger.info(f"Found {mentions_found} new mentions")
+
+                self.logger.info(
+                    f"{self.platform_name} tracker sleeping for "
+                    f"{poll_interval_minutes} minutes"
+                )
+                self._interruptible_sleep(poll_interval_minutes * 60)
+
+        except KeyboardInterrupt:
+            self.logger.info(f"{self.platform_name} tracker stopped by user")
+            self.log_action("stopped", "User interrupt")
+
+        except Exception as e:
+            self.logger.error(f"{self.platform_name} tracker error: {e}")
+            self.log_action("error", f"Tracker error: {str(e)}")
+            raise
+
+        finally:
+            self.cleanup()

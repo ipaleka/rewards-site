@@ -1,7 +1,6 @@
 """Testing module for :py:mod:`trackers.reddit` module."""
 
 import praw
-import pytest
 
 from trackers.reddit import RedditTracker
 
@@ -249,97 +248,35 @@ class TestTrackesReddit:
         mock_log_action.assert_called()
 
     # run
-    def test_trackers_reddittracker_run_success(
+    def test_trackers_reddittracker_run_wrapper_calls_base_run(
         self, mocker, reddit_config, reddit_subreddits
     ):
+        # Patch BaseMentionTracker.run so no real loop runs
+        mocked_base_run = mocker.patch("trackers.reddit.BaseMentionTracker.run")
+
         # Mock praw.Reddit to prevent actual API calls
         mock_reddit = mocker.patch("trackers.reddit.praw.Reddit")
         mock_user = mocker.MagicMock()
         mock_user.name = "test_bot"
         mock_reddit.return_value.user.me.return_value = mock_user
 
-        # Create instance
-        instance = RedditTracker(lambda x: None, reddit_config, reddit_subreddits)
+        # Create instance (MessageParser.parse mocked out)
+        tracker = RedditTracker(
+            parse_message_callback=lambda x: x,
+            reddit_config=reddit_config,
+            subreddits_to_track=reddit_subreddits,
+        )
 
-        # Mock check_mentions to return an integer, not a MagicMock
-        mock_check_mentions = mocker.patch.object(instance, "check_mentions")
-        mock_check_mentions.return_value = 0  # Return actual integer
-        mock_sleep = mocker.patch("time.sleep")
-        mock_log_action = mocker.patch.object(instance, "log_action")
-        mock_cleanup = mocker.patch.object(instance, "cleanup")
+        # Call the wrapper
+        tracker.run(poll_interval_minutes=10, max_iterations=5)
 
-        # Track sleep calls to break the loop after 2 iterations
-        sleep_call_count = 0
+        # Ensure BaseMentionTracker.run was called once with correct args
+        mocked_base_run.assert_called_once_with(
+            poll_interval_minutes=10,
+            max_iterations=5,
+        )
 
-        def sleep_side_effect(*args):
-            nonlocal sleep_call_count
-            sleep_call_count += 1
-            if sleep_call_count >= 2:
-                # Instead of raising StopIteration, just return normally
-                # The max_iterations=2 will handle stopping the loop
-                return
-
-        mock_sleep.side_effect = sleep_side_effect
-
-        # Run for exactly 2 iterations using max_iterations
-        instance.run(poll_interval_minutes=0.1, max_iterations=2)
-
-        # Should be called twice (once for each iteration)
-        assert mock_check_mentions.call_count == 2
-        # Should sleep twice (after each check_mentions call)
-        assert mock_sleep.call_count == 2
-        mock_log_action.assert_any_call("started", "Poll interval: 0.1 minutes")
-        mock_cleanup.assert_called_once()
-
-    def test_trackers_reddittracker_run_keyboard_interrupt(
-        self, mocker, reddit_config, reddit_subreddits
-    ):
-        # Mock praw.Reddit to prevent actual API calls
-        mock_reddit = mocker.patch("trackers.reddit.praw.Reddit")
-        mock_user = mocker.MagicMock()
-        mock_user.name = "test_bot"
-        mock_reddit.return_value.user.me.return_value = mock_user
-
-        # Create instance
-        instance = RedditTracker(lambda x: None, reddit_config, reddit_subreddits)
-
-        # Mock check_mentions to return an integer
-        mock_check_mentions = mocker.patch.object(instance, "check_mentions")
-        mock_check_mentions.return_value = 0  # Return actual integer
-        mocker.patch("time.sleep", side_effect=KeyboardInterrupt)
-        mock_log_action = mocker.patch.object(instance, "log_action")
-        # Mock the logger.info method
-        mock_logger_info = mocker.patch.object(instance.logger, "info")
-
-        instance.run(poll_interval_minutes=30, max_iterations=1)
-
-        mock_logger_info.assert_called_with("Reddit tracker stopped by user")
-        mock_log_action.assert_called_with("stopped", "User interrupt")
-
-    def test_trackers_reddittracker_run_exception(
-        self, mocker, reddit_config, reddit_subreddits
-    ):
-        # Mock praw.Reddit to prevent actual API calls
-        mock_reddit = mocker.patch("trackers.reddit.praw.Reddit")
-        mock_user = mocker.MagicMock()
-        mock_user.name = "test_bot"
-        mock_reddit.return_value.user.me.return_value = mock_user
-
-        # Create instance
-        instance = RedditTracker(lambda x: None, reddit_config, reddit_subreddits)
-
-        mock_check_mentions = mocker.patch.object(instance, "check_mentions")
-        mock_check_mentions.side_effect = Exception("Test error")
-        mock_log_action = mocker.patch.object(instance, "log_action")
-        # Mock the logger.error method
-        mock_logger_error = mocker.patch.object(instance.logger, "error")
-
-        with pytest.raises(Exception, match="Test error"):
-            instance.run(poll_interval_minutes=30, max_iterations=1)
-
-        mock_logger_error.assert_called_with("Reddit tracker error: Test error")
-        mock_log_action.assert_called_with("error", "Tracker error: Test error")
-
+    # # extract_mention_data
     def test_trackers_reddittracker_extract_mention_data_comment(
         self, mocker, reddit_config, reddit_subreddits
     ):

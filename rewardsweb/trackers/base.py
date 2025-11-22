@@ -9,8 +9,7 @@ from datetime import datetime
 import requests
 
 from trackers.database import MentionDatabaseManager
-from utils.helpers import get_env_variable
-from utils.importers import social_platform_prefixes
+from utils.helpers import get_env_variable, social_platform_prefixes
 
 
 class BaseMentionTracker:

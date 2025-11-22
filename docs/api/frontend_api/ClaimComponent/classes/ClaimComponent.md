@@ -3,13 +3,12 @@
 
 # Class: ClaimComponent
 
-Defined in: [src/ClaimComponent.ts:17](https://github.com/ipaleka/rewards-site/blob/main/rewardsweb/frontend/src/ClaimComponent.ts#L17)
+Defined in: [src/ClaimComponent.ts:16](https://github.com/ipaleka/rewards-site/blob/main/rewardsweb/frontend/src/ClaimComponent.ts#L16)
 
 Component for handling reward claim operations.
 
-Manages the UI and logic for checking claimable status and submitting
-claim transactions to the blockchain. Automatically updates when wallet
-state changes.
+Manages the logic for submitting claim transactions to the blockchain.
+No longer handles UI rendering - relies on Django template for initial state.
 
 ## Example
 
@@ -24,7 +23,7 @@ claimComponent.bind(document.getElementById('claim-container'))
 
 > **new ClaimComponent**(`rewardsClient`, `walletManager`): `ClaimComponent`
 
-Defined in: [src/ClaimComponent.ts:29](https://github.com/ipaleka/rewards-site/blob/main/rewardsweb/frontend/src/ClaimComponent.ts#L29)
+Defined in: [src/ClaimComponent.ts:27](https://github.com/ipaleka/rewards-site/blob/main/rewardsweb/frontend/src/ClaimComponent.ts#L27)
 
 Creates an instance of ClaimComponent.
 
@@ -34,13 +33,13 @@ Creates an instance of ClaimComponent.
 
 [`RewardsClient`](../../RewardsClient/classes/RewardsClient.md)
 
-The client for interacting with rewards contract
+The client for interacting with rewards contract and API
 
 ##### walletManager
 
 `WalletManager`
 
-The wallet manager for account state management
+The wallet manager for account and network state
 
 #### Returns
 
@@ -48,19 +47,11 @@ The wallet manager for account state management
 
 ## Properties
 
-### claimable
-
-> `private` **claimable**: `boolean` = `false`
-
-Defined in: [src/ClaimComponent.ts:21](https://github.com/ipaleka/rewards-site/blob/main/rewardsweb/frontend/src/ClaimComponent.ts#L21)
-
-***
-
 ### element
 
 > `private` **element**: `HTMLElement` \| `null` = `null`
 
-Defined in: [src/ClaimComponent.ts:18](https://github.com/ipaleka/rewards-site/blob/main/rewardsweb/frontend/src/ClaimComponent.ts#L18)
+Defined in: [src/ClaimComponent.ts:17](https://github.com/ipaleka/rewards-site/blob/main/rewardsweb/frontend/src/ClaimComponent.ts#L17)
 
 ***
 
@@ -68,7 +59,7 @@ Defined in: [src/ClaimComponent.ts:18](https://github.com/ipaleka/rewards-site/b
 
 > `private` **rewardsClient**: [`RewardsClient`](../../RewardsClient/classes/RewardsClient.md)
 
-Defined in: [src/ClaimComponent.ts:19](https://github.com/ipaleka/rewards-site/blob/main/rewardsweb/frontend/src/ClaimComponent.ts#L19)
+Defined in: [src/ClaimComponent.ts:18](https://github.com/ipaleka/rewards-site/blob/main/rewardsweb/frontend/src/ClaimComponent.ts#L18)
 
 ***
 
@@ -76,7 +67,7 @@ Defined in: [src/ClaimComponent.ts:19](https://github.com/ipaleka/rewards-site/b
 
 > `private` **walletManager**: `WalletManager`
 
-Defined in: [src/ClaimComponent.ts:20](https://github.com/ipaleka/rewards-site/blob/main/rewardsweb/frontend/src/ClaimComponent.ts#L20)
+Defined in: [src/ClaimComponent.ts:19](https://github.com/ipaleka/rewards-site/blob/main/rewardsweb/frontend/src/ClaimComponent.ts#L19)
 
 ## Methods
 
@@ -84,7 +75,7 @@ Defined in: [src/ClaimComponent.ts:20](https://github.com/ipaleka/rewards-site/b
 
 > `private` **addEventListeners**(): `void`
 
-Defined in: [src/ClaimComponent.ts:126](https://github.com/ipaleka/rewards-site/blob/main/rewardsweb/frontend/src/ClaimComponent.ts#L126)
+Defined in: [src/ClaimComponent.ts:92](https://github.com/ipaleka/rewards-site/blob/main/rewardsweb/frontend/src/ClaimComponent.ts#L92)
 
 Adds event listeners for user interactions.
 
@@ -100,7 +91,7 @@ Listens for click events on the claim button.
 
 > **bind**(`element`): `void`
 
-Defined in: [src/ClaimComponent.ts:40](https://github.com/ipaleka/rewards-site/blob/main/rewardsweb/frontend/src/ClaimComponent.ts#L40)
+Defined in: [src/ClaimComponent.ts:37](https://github.com/ipaleka/rewards-site/blob/main/rewardsweb/frontend/src/ClaimComponent.ts#L37)
 
 Binds the component to a DOM element and initializes event listeners.
 
@@ -118,28 +109,11 @@ The HTML element to bind the component to
 
 ***
 
-### checkClaimableStatus()
-
-> `private` **checkClaimableStatus**(): `Promise`\<`void`\>
-
-Defined in: [src/ClaimComponent.ts:54](https://github.com/ipaleka/rewards-site/blob/main/rewardsweb/frontend/src/ClaimComponent.ts#L54)
-
-Checks if the current account has any claimable rewards.
-
-Fetches claimable status from the backend API and updates the UI accordingly.
-Handles errors by setting claimable to false and re-rendering.
-
-#### Returns
-
-`Promise`\<`void`\>
-
-***
-
 ### destroy()
 
 > **destroy**(): `void`
 
-Defined in: [src/ClaimComponent.ts:142](https://github.com/ipaleka/rewards-site/blob/main/rewardsweb/frontend/src/ClaimComponent.ts#L142)
+Defined in: [src/ClaimComponent.ts:114](https://github.com/ipaleka/rewards-site/blob/main/rewardsweb/frontend/src/ClaimComponent.ts#L114)
 
 Cleans up the component.
 
@@ -155,30 +129,13 @@ Currently no specific cleanup needed, but provided for interface consistency.
 
 > `private` **handleClaim**(): `Promise`\<`void`\>
 
-Defined in: [src/ClaimComponent.ts:81](https://github.com/ipaleka/rewards-site/blob/main/rewardsweb/frontend/src/ClaimComponent.ts#L81)
+Defined in: [src/ClaimComponent.ts:50](https://github.com/ipaleka/rewards-site/blob/main/rewardsweb/frontend/src/ClaimComponent.ts#L50)
 
 Handles the claim transaction submission.
 
-Submits a claim transaction to the blockchain and updates the UI
-based on the result. Re-checks claimable status after completion.
+Submits a claim transaction to the blockchain and notifies the backend
+on success. Refreshes the page after successful claim to show updated state.
 
 #### Returns
 
 `Promise`\<`void`\>
-
-***
-
-### render()
-
-> `private` **render**(): `void`
-
-Defined in: [src/ClaimComponent.ts:109](https://github.com/ipaleka/rewards-site/blob/main/rewardsweb/frontend/src/ClaimComponent.ts#L109)
-
-Renders the current claimable status to the UI.
-
-Updates the claim button state and text based on whether rewards
-are currently claimable.
-
-#### Returns
-
-`void`

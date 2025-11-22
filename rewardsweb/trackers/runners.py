@@ -70,3 +70,11 @@ def run_twitter_tracker():
         parse_message_callback=MessageParser().parse, twitter_config=twitter_config()
     )
     tracker.run(poll_interval_minutes=15)
+
+
+# if __name__ == "__main__":
+
+#     from pathlib import Path
+#     from dotenv import load_dotenv
+#     load_dotenv(load_dotenv(Path(__file__).parent.parent / ".env"))
+#     run_reddit_tracker()

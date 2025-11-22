@@ -24,7 +24,7 @@ addAllocationsComponent.bind(document.getElementById('add-allocations-container'
 
 > **new AddAllocationsComponent**(`rewardsClient`, `walletManager`): `AddAllocationsComponent`
 
-Defined in: [src/AddAllocationsComponent.ts:30](https://github.com/ipaleka/rewards-site/blob/main/rewardsweb/frontend/src/AddAllocationsComponent.ts#L30)
+Defined in: [src/AddAllocationsComponent.ts:31](https://github.com/ipaleka/rewards-site/blob/main/rewardsweb/frontend/src/AddAllocationsComponent.ts#L31)
 
 Creates an instance of AddAllocationsComponent.
 
@@ -64,6 +64,14 @@ Defined in: [src/AddAllocationsComponent.ts:22](https://github.com/ipaleka/rewar
 
 ***
 
+### decimals
+
+> `private` **decimals**: `number` = `6`
+
+Defined in: [src/AddAllocationsComponent.ts:23](https://github.com/ipaleka/rewards-site/blob/main/rewardsweb/frontend/src/AddAllocationsComponent.ts#L23)
+
+***
+
 ### element
 
 > `private` **element**: `HTMLElement` \| `null` = `null`
@@ -92,7 +100,7 @@ Defined in: [src/AddAllocationsComponent.ts:20](https://github.com/ipaleka/rewar
 
 > `private` **addEventListeners**(): `void`
 
-Defined in: [src/AddAllocationsComponent.ts:121](https://github.com/ipaleka/rewards-site/blob/main/rewardsweb/frontend/src/AddAllocationsComponent.ts#L121)
+Defined in: [src/AddAllocationsComponent.ts:114](https://github.com/ipaleka/rewards-site/blob/main/rewardsweb/frontend/src/AddAllocationsComponent.ts#L114)
 
 Adds event listeners for user interactions.
 
@@ -109,7 +117,7 @@ internal state from textarea inputs before submission.
 
 > **bind**(`element`): `void`
 
-Defined in: [src/AddAllocationsComponent.ts:41](https://github.com/ipaleka/rewards-site/blob/main/rewardsweb/frontend/src/AddAllocationsComponent.ts#L41)
+Defined in: [src/AddAllocationsComponent.ts:42](https://github.com/ipaleka/rewards-site/blob/main/rewardsweb/frontend/src/AddAllocationsComponent.ts#L42)
 
 Binds the component to a DOM element and initializes event listeners.
 
@@ -131,7 +139,7 @@ The HTML element to bind the component to
 
 > **destroy**(): `void`
 
-Defined in: [src/AddAllocationsComponent.ts:137](https://github.com/ipaleka/rewards-site/blob/main/rewardsweb/frontend/src/AddAllocationsComponent.ts#L137)
+Defined in: [src/AddAllocationsComponent.ts:132](https://github.com/ipaleka/rewards-site/blob/main/rewardsweb/frontend/src/AddAllocationsComponent.ts#L132)
 
 Cleans up the component.
 
@@ -147,7 +155,7 @@ Currently no specific cleanup needed, but provided for interface consistency.
 
 > `private` **fetchAllocationsData**(): `Promise`\<`void`\>
 
-Defined in: [src/AddAllocationsComponent.ts:55](https://github.com/ipaleka/rewards-site/blob/main/rewardsweb/frontend/src/AddAllocationsComponent.ts#L55)
+Defined in: [src/AddAllocationsComponent.ts:61](https://github.com/ipaleka/rewards-site/blob/main/rewardsweb/frontend/src/AddAllocationsComponent.ts#L61)
 
 Fetches allocation data from the backend API for the active account.
 
@@ -164,7 +172,7 @@ Handles errors by displaying alerts to the user.
 
 > `private` **handleAddAllocations**(): `Promise`\<`void`\>
 
-Defined in: [src/AddAllocationsComponent.ts:88](https://github.com/ipaleka/rewards-site/blob/main/rewardsweb/frontend/src/AddAllocationsComponent.ts#L88)
+Defined in: [src/AddAllocationsComponent.ts:91](https://github.com/ipaleka/rewards-site/blob/main/rewardsweb/frontend/src/AddAllocationsComponent.ts#L91)
 
 Handles the add allocations transaction submission.
 
@@ -174,19 +182,3 @@ Displays success/error messages and refreshes data on success.
 #### Returns
 
 `Promise`\<`void`\>
-
-***
-
-### render()
-
-> `private` **render**(): `void`
-
-Defined in: [src/AddAllocationsComponent.ts:108](https://github.com/ipaleka/rewards-site/blob/main/rewardsweb/frontend/src/AddAllocationsComponent.ts#L108)
-
-Renders the current allocation data to the UI.
-
-Updates textareas and display elements with current addresses and amounts.
-
-#### Returns
-
-`void`

@@ -84,7 +84,7 @@ Defined in: [src/ReclaimAllocationsComponent.ts:20](https://github.com/ipaleka/r
 
 > `private` **addEventListeners**(): `void`
 
-Defined in: [src/ReclaimAllocationsComponent.ts:116](https://github.com/ipaleka/rewards-site/blob/main/rewardsweb/frontend/src/ReclaimAllocationsComponent.ts#L116)
+Defined in: [src/ReclaimAllocationsComponent.ts:134](https://github.com/ipaleka/rewards-site/blob/main/rewardsweb/frontend/src/ReclaimAllocationsComponent.ts#L134)
 
 Adds event listeners for reclaim button clicks.
 
@@ -123,7 +123,7 @@ The HTML element to bind the component to
 
 > **destroy**(): `void`
 
-Defined in: [src/ReclaimAllocationsComponent.ts:144](https://github.com/ipaleka/rewards-site/blob/main/rewardsweb/frontend/src/ReclaimAllocationsComponent.ts#L144)
+Defined in: [src/ReclaimAllocationsComponent.ts:165](https://github.com/ipaleka/rewards-site/blob/main/rewardsweb/frontend/src/ReclaimAllocationsComponent.ts#L165)
 
 Cleans up the component.
 
@@ -139,7 +139,7 @@ Currently no specific cleanup needed, but provided for interface consistency.
 
 > `private` **fetchReclaimAllocationsData**(): `Promise`\<`void`\>
 
-Defined in: [src/ReclaimAllocationsComponent.ts:54](https://github.com/ipaleka/rewards-site/blob/main/rewardsweb/frontend/src/ReclaimAllocationsComponent.ts#L54)
+Defined in: [src/ReclaimAllocationsComponent.ts:59](https://github.com/ipaleka/rewards-site/blob/main/rewardsweb/frontend/src/ReclaimAllocationsComponent.ts#L59)
 
 Fetches reclaimable allocation data from the backend API.
 
@@ -156,7 +156,7 @@ Updates the internal state with the results.
 
 > **getReclaimableAddresses**(): `string`[]
 
-Defined in: [src/ReclaimAllocationsComponent.ts:135](https://github.com/ipaleka/rewards-site/blob/main/rewardsweb/frontend/src/ReclaimAllocationsComponent.ts#L135)
+Defined in: [src/ReclaimAllocationsComponent.ts:156](https://github.com/ipaleka/rewards-site/blob/main/rewardsweb/frontend/src/ReclaimAllocationsComponent.ts#L156)
 
 Gets the current list of reclaimable addresses.
 
@@ -172,7 +172,7 @@ Array of reclaimable addresses
 
 > `private` **handleReclaimAllocation**(`address`): `Promise`\<`void`\>
 
-Defined in: [src/ReclaimAllocationsComponent.ts:94](https://github.com/ipaleka/rewards-site/blob/main/rewardsweb/frontend/src/ReclaimAllocationsComponent.ts#L94)
+Defined in: [src/ReclaimAllocationsComponent.ts:101](https://github.com/ipaleka/rewards-site/blob/main/rewardsweb/frontend/src/ReclaimAllocationsComponent.ts#L101)
 
 Handles reclaim transaction submission for a specific address.
 
@@ -197,7 +197,7 @@ The address to reclaim allocations from
 
 > `private` **handleReclaimError**(`address`, `error`): `void`
 
-Defined in: [src/ReclaimAllocationsComponent.ts:80](https://github.com/ipaleka/rewards-site/blob/main/rewardsweb/frontend/src/ReclaimAllocationsComponent.ts#L80)
+Defined in: [src/ReclaimAllocationsComponent.ts:87](https://github.com/ipaleka/rewards-site/blob/main/rewardsweb/frontend/src/ReclaimAllocationsComponent.ts#L87)
 
 Handles errors during reclaim operations.
 

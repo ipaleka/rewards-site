@@ -167,6 +167,22 @@ def read_pickle(filename):
     return {}
 
 
+def social_platform_prefixes():
+    """Return list of social platforms with their prefixes.
+
+    :return: List of tuples (platform_name, prefix)
+    :rtype: list
+    """
+    return [
+        ("Discord", ""),
+        ("Twitter", "@"),
+        ("Reddit", "u/"),
+        ("GitHub", "g@"),
+        ("Telegram", "t@"),
+        ("Forum", "f@"),
+    ]
+
+
 def user_display(user):
     """Return human readable representation of provided `user` instance.
 

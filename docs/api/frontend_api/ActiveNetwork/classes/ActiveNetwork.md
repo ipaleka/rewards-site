@@ -101,7 +101,7 @@ If the element is null or invalid
 
 > **destroy**(): `void`
 
-Defined in: [src/ActiveNetwork.ts:121](https://github.com/ipaleka/rewards-site/blob/main/rewardsweb/frontend/src/ActiveNetwork.ts#L121)
+Defined in: [src/ActiveNetwork.ts:114](https://github.com/ipaleka/rewards-site/blob/main/rewardsweb/frontend/src/ActiveNetwork.ts#L114)
 
 Cleans up event listeners and subscriptions.
 
@@ -118,7 +118,7 @@ to prevent memory leaks and unwanted behavior.
 
 > `private` **getCsrfToken**(): `string`
 
-Defined in: [src/ActiveNetwork.ts:110](https://github.com/ipaleka/rewards-site/blob/main/rewardsweb/frontend/src/ActiveNetwork.ts#L110)
+Defined in: [src/ActiveNetwork.ts:101](https://github.com/ipaleka/rewards-site/blob/main/rewardsweb/frontend/src/ActiveNetwork.ts#L101)
 
 Retrieves the CSRF token from cookies for API requests.
 

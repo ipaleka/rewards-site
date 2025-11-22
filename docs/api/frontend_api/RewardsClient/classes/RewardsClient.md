@@ -3,7 +3,7 @@
 
 # Class: RewardsClient
 
-Defined in: [src/RewardsClient.ts:24](https://github.com/ipaleka/rewards-site/blob/main/rewardsweb/frontend/src/RewardsClient.ts#L24)
+Defined in: [src/RewardsClient.ts:27](https://github.com/ipaleka/rewards-site/blob/main/rewardsweb/frontend/src/RewardsClient.ts#L27)
 
 Client for interacting with the Rewards smart contract and backend API.
 
@@ -23,19 +23,13 @@ await rewardsClient.addAllocations(addresses, amounts)
 
 ### Constructor
 
-> **new RewardsClient**(`wallet`, `manager`): `RewardsClient`
+> **new RewardsClient**(`manager`): `RewardsClient`
 
-Defined in: [src/RewardsClient.ts:37](https://github.com/ipaleka/rewards-site/blob/main/rewardsweb/frontend/src/RewardsClient.ts#L37)
+Defined in: [src/RewardsClient.ts:39](https://github.com/ipaleka/rewards-site/blob/main/rewardsweb/frontend/src/RewardsClient.ts#L39)
 
 Creates an instance of RewardsClient.
 
 #### Parameters
-
-##### wallet
-
-`BaseWallet`
-
-The wallet instance for transaction signing
 
 ##### manager
 
@@ -53,7 +47,7 @@ The wallet manager for network and account management
 
 > `private` **algodClient**: `AlgodClient`
 
-Defined in: [src/RewardsClient.ts:27](https://github.com/ipaleka/rewards-site/blob/main/rewardsweb/frontend/src/RewardsClient.ts#L27)
+Defined in: [src/RewardsClient.ts:29](https://github.com/ipaleka/rewards-site/blob/main/rewardsweb/frontend/src/RewardsClient.ts#L29)
 
 ***
 
@@ -61,7 +55,7 @@ Defined in: [src/RewardsClient.ts:27](https://github.com/ipaleka/rewards-site/bl
 
 > `private` **contract**: `ABIContract`
 
-Defined in: [src/RewardsClient.ts:28](https://github.com/ipaleka/rewards-site/blob/main/rewardsweb/frontend/src/RewardsClient.ts#L28)
+Defined in: [src/RewardsClient.ts:30](https://github.com/ipaleka/rewards-site/blob/main/rewardsweb/frontend/src/RewardsClient.ts#L30)
 
 ***
 
@@ -69,7 +63,7 @@ Defined in: [src/RewardsClient.ts:28](https://github.com/ipaleka/rewards-site/bl
 
 > `private` **manager**: `WalletManager`
 
-Defined in: [src/RewardsClient.ts:26](https://github.com/ipaleka/rewards-site/blob/main/rewardsweb/frontend/src/RewardsClient.ts#L26)
+Defined in: [src/RewardsClient.ts:28](https://github.com/ipaleka/rewards-site/blob/main/rewardsweb/frontend/src/RewardsClient.ts#L28)
 
 ***
 
@@ -77,7 +71,7 @@ Defined in: [src/RewardsClient.ts:26](https://github.com/ipaleka/rewards-site/bl
 
 > `private` **rewardsAppIds**: `object`
 
-Defined in: [src/RewardsClient.ts:29](https://github.com/ipaleka/rewards-site/blob/main/rewardsweb/frontend/src/RewardsClient.ts#L29)
+Defined in: [src/RewardsClient.ts:31](https://github.com/ipaleka/rewards-site/blob/main/rewardsweb/frontend/src/RewardsClient.ts#L31)
 
 #### betanet?
 
@@ -99,21 +93,13 @@ Defined in: [src/RewardsClient.ts:29](https://github.com/ipaleka/rewards-site/bl
 
 > `optional` **testnet**: `number`
 
-***
-
-### wallet
-
-> `private` **wallet**: `BaseWallet`
-
-Defined in: [src/RewardsClient.ts:25](https://github.com/ipaleka/rewards-site/blob/main/rewardsweb/frontend/src/RewardsClient.ts#L25)
-
 ## Methods
 
 ### addAllocations()
 
-> **addAllocations**(`addresses`, `amounts`): `Promise`\<\{ \}\>
+> **addAllocations**(`addresses`, `amounts`, `decimals`): `Promise`\<\{ \}\>
 
-Defined in: [src/RewardsClient.ts:83](https://github.com/ipaleka/rewards-site/blob/main/rewardsweb/frontend/src/RewardsClient.ts#L83)
+Defined in: [src/RewardsClient.ts:101](https://github.com/ipaleka/rewards-site/blob/main/rewardsweb/frontend/src/RewardsClient.ts#L101)
 
 Adds allocations to multiple addresses with specified amounts.
 
@@ -134,6 +120,10 @@ Array of recipient addresses
 
 Array of amounts to allocate (must match addresses length)
 
+##### decimals
+
+`number`
+
 #### Returns
 
 `Promise`\<\{ \}\>
@@ -146,11 +136,29 @@ When no active account, arrays are empty, or arrays length mismatch
 
 ***
 
-### claim()
+### boxNameFromAddress()
 
-> **claim**(): `Promise`\<\{ \}\>
+> `private` **boxNameFromAddress**(`address`): `Uint8Array`
 
-Defined in: [src/RewardsClient.ts:178](https://github.com/ipaleka/rewards-site/blob/main/rewardsweb/frontend/src/RewardsClient.ts#L178)
+Defined in: [src/RewardsClient.ts:82](https://github.com/ipaleka/rewards-site/blob/main/rewardsweb/frontend/src/RewardsClient.ts#L82)
+
+#### Parameters
+
+##### address
+
+`string`
+
+#### Returns
+
+`Uint8Array`
+
+***
+
+### claimRewards()
+
+> **claimRewards**(): `Promise`\<`string`\>
+
+Defined in: [src/RewardsClient.ts:283](https://github.com/ipaleka/rewards-site/blob/main/rewardsweb/frontend/src/RewardsClient.ts#L283)
 
 Claims available rewards for the active account.
 
@@ -160,9 +168,9 @@ Performs an atomic transaction group that includes:
 
 #### Returns
 
-`Promise`\<\{ \}\>
+`Promise`\<`string`\>
 
-The transaction result
+The transaction ID from the claim operation
 
 #### Throws
 
@@ -174,7 +182,7 @@ When no active account, app ID not configured, or token_id not found
 
 > **fetchAddAllocationsData**(`address`): `Promise`\<\{ `addresses`: `string`[]; `amounts`: `number`[]; \}\>
 
-Defined in: [src/RewardsClient.ts:296](https://github.com/ipaleka/rewards-site/blob/main/rewardsweb/frontend/src/RewardsClient.ts#L296)
+Defined in: [src/RewardsClient.ts:464](https://github.com/ipaleka/rewards-site/blob/main/rewardsweb/frontend/src/RewardsClient.ts#L464)
 
 Fetches add allocations data for an address from the backend API.
 
@@ -198,39 +206,11 @@ When the API request fails
 
 ***
 
-### fetchClaimableStatus()
-
-> **fetchClaimableStatus**(`address`): `Promise`\<\{ `claimable`: `boolean`; \}\>
-
-Defined in: [src/RewardsClient.ts:253](https://github.com/ipaleka/rewards-site/blob/main/rewardsweb/frontend/src/RewardsClient.ts#L253)
-
-Fetches the claimable status for an address from the backend API.
-
-#### Parameters
-
-##### address
-
-`string`
-
-The address to check claimable status for
-
-#### Returns
-
-`Promise`\<\{ `claimable`: `boolean`; \}\>
-
-Object indicating whether rewards are claimable
-
-#### Throws
-
-When the API request fails
-
-***
-
 ### fetchReclaimAllocationsData()
 
 > **fetchReclaimAllocationsData**(`address`): `Promise`\<\{ `addresses`: `string`[]; \}\>
 
-Defined in: [src/RewardsClient.ts:321](https://github.com/ipaleka/rewards-site/blob/main/rewardsweb/frontend/src/RewardsClient.ts#L321)
+Defined in: [src/RewardsClient.ts:494](https://github.com/ipaleka/rewards-site/blob/main/rewardsweb/frontend/src/RewardsClient.ts#L494)
 
 Fetches reclaimable allocations data for an address from the backend API.
 
@@ -258,7 +238,7 @@ When the API request fails
 
 > `private` **getCsrfToken**(): `string`
 
-Defined in: [src/RewardsClient.ts:56](https://github.com/ipaleka/rewards-site/blob/main/rewardsweb/frontend/src/RewardsClient.ts#L56)
+Defined in: [src/RewardsClient.ts:57](https://github.com/ipaleka/rewards-site/blob/main/rewardsweb/frontend/src/RewardsClient.ts#L57)
 
 Retrieves the CSRF token from cookies or form input for API requests.
 
@@ -274,7 +254,7 @@ The CSRF token as a string
 
 > `private` **getHeaders**(): `object`
 
-Defined in: [src/RewardsClient.ts:67](https://github.com/ipaleka/rewards-site/blob/main/rewardsweb/frontend/src/RewardsClient.ts#L67)
+Defined in: [src/RewardsClient.ts:77](https://github.com/ipaleka/rewards-site/blob/main/rewardsweb/frontend/src/RewardsClient.ts#L77)
 
 Gets the headers for API requests including CSRF token.
 
@@ -286,7 +266,7 @@ Headers object for fetch requests
 
 ##### Content-Type
 
-> **Content-Type**: `string` = `'application/json'`
+> **Content-Type**: `string` = `"application/json"`
 
 ##### X-CSRFToken
 
@@ -294,11 +274,95 @@ Headers object for fetch requests
 
 ***
 
+### notifyAllocationsSuccessful()
+
+> **notifyAllocationsSuccessful**(`addresses`, `txIDs`): `Promise`\<\{ `success`: `boolean`; \}\>
+
+Defined in: [src/RewardsClient.ts:373](https://github.com/ipaleka/rewards-site/blob/main/rewardsweb/frontend/src/RewardsClient.ts#L373)
+
+Notifies the backend about successful add allocations transactions
+
+#### Parameters
+
+##### addresses
+
+`string`[]
+
+Array of public addresses
+
+##### txIDs
+
+`string`[]
+
+The transaction IDs from the add alolocations operation
+
+#### Returns
+
+`Promise`\<\{ `success`: `boolean`; \}\>
+
+***
+
+### notifyClaimSuccessful()
+
+> **notifyClaimSuccessful**(`address`, `txID`): `Promise`\<\{ `success`: `boolean`; \}\>
+
+Defined in: [src/RewardsClient.ts:402](https://github.com/ipaleka/rewards-site/blob/main/rewardsweb/frontend/src/RewardsClient.ts#L402)
+
+Notifies the backend about successful claim transaction
+
+#### Parameters
+
+##### address
+
+`string`
+
+The address that claimed rewards
+
+##### txID
+
+`string`
+
+The transaction ID from the claim operation
+
+#### Returns
+
+`Promise`\<\{ `success`: `boolean`; \}\>
+
+***
+
+### notifyReclaimSuccessful()
+
+> **notifyReclaimSuccessful**(`address`, `txID`): `Promise`\<`void`\>
+
+Defined in: [src/RewardsClient.ts:428](https://github.com/ipaleka/rewards-site/blob/main/rewardsweb/frontend/src/RewardsClient.ts#L428)
+
+Notifies the backend about successful reclaim allocation transactions
+
+#### Parameters
+
+##### address
+
+`string`
+
+The address that was reclaimed from
+
+##### txID
+
+`string`
+
+The transaction ID from the reclaim operation
+
+#### Returns
+
+`Promise`\<`void`\>
+
+***
+
 ### reclaimAllocation()
 
-> **reclaimAllocation**(`userAddress`): `Promise`\<\{ \}\>
+> **reclaimAllocation**(`userAddress`): `Promise`\<`string`\>
 
-Defined in: [src/RewardsClient.ts:132](https://github.com/ipaleka/rewards-site/blob/main/rewardsweb/frontend/src/RewardsClient.ts#L132)
+Defined in: [src/RewardsClient.ts:203](https://github.com/ipaleka/rewards-site/blob/main/rewardsweb/frontend/src/RewardsClient.ts#L203)
 
 Reclaims an allocation from a specific user address.
 
@@ -315,28 +379,10 @@ The address to reclaim allocation from
 
 #### Returns
 
-`Promise`\<\{ \}\>
+`Promise`\<`string`\>
 
 The transaction result
 
 #### Throws
 
 When no active account or app ID not configured
-
-***
-
-### notifyClaimSuccessful()
-
-> **notifyClaimSuccessful**(`address`): `Promise`\<\{ `success`: `boolean`; \}\>
-
-Defined in: [src/RewardsClient.ts:271](https://github.com/ipaleka/rewards-site/blob/main/rewardsweb/frontend/src/RewardsClient.ts#L271)
-
-#### Parameters
-
-##### address
-
-`string`
-
-#### Returns
-
-`Promise`\<\{ `success`: `boolean`; \}\>

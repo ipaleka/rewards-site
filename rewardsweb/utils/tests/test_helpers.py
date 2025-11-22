@@ -16,6 +16,7 @@ from utils.helpers import (
     humanize_contributions,
     parse_full_handle,
     read_pickle,
+    social_platform_prefixes,
     user_display,
     verify_signed_transaction,
 )
@@ -353,6 +354,20 @@ class TestUtilsHelpersFunctions:
             ),
         ):
             assert read_pickle(path) == {}
+
+    # # social_platform_prefixes
+    def test_utils_helpers_social_platform_prefixes(self):
+        result = social_platform_prefixes()
+
+        expected = [
+            ("Discord", ""),
+            ("Twitter", "@"),
+            ("Reddit", "u/"),
+            ("GitHub", "g@"),
+            ("Telegram", "t@"),
+            ("Forum", "f@"),
+        ]
+        assert result == expected
 
     # # user_display
     def test_utils_helpers_user_display_calls_and_returns_profile_name(self, mocker):
